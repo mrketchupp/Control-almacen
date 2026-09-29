@@ -6,10 +6,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto | Afecta |
 |---|---|---|---|
-| P-01 | ¿Los dos almacenistas usan **la misma cuenta de Windows** en la PC compartida, o cada uno tiene la suya? | Base de datos en `C:\ProgramData` (sirve para ambos casos). Si hay dos cuentas, cada OneDrive recibe respaldos y al restaurar se elige el más reciente. | F1 |
 | P-02 | Lista de códigos **inventariables / consumibles** (la solicitó el usuario a la base). | Mientras llega, la clase se toma de la hoja donde está el artículo (INVENTARIABLE / CONSUMIBLE). | F1 |
-| P-12 | ¿Desde qué **folio** los vales descuentan del inventario físico actual? El archivo del 28-sep ya descuenta el vale 551 (cabos para marro), pero no el 550 (manguera 1/4"). ¿El 546 (27-sep, 3 cabos) ya estaba reflejado en CANTIDAD? | Descuentan los folios **≥ 550** (primero del 28-sep, fecha del conteo). El reporte de verificación mostrará el caso del 550 para confirmarlo. | F1 |
-| P-19 | ¿La política de TI permite instalar un `.exe` **sin firma digital**? ¿Hay antivirus o AppLocker que bloqueen programas nuevos? | Instalador sin firma; se entrega su hash SHA-256 para que TI lo verifique. | F1 |
 
 ## Vales
 
@@ -27,7 +24,6 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-04 | ¿El vale de la base llega **en Excel** (archivo) o solo en papel/PDF? | Si llega en Excel, se importa directamente (RF-35) |
 | P-05 | En el historial de entradas, ¿"No. folio" debe ser el folio de la base o uno propio? | B = folio de la base; columna extra U = folio interno `E-0001` |
 | P-06 | ¿Alguien más necesita el historial de entradas (la base, auditoría)? | Exportable en `VALES DE ENTRADA DLTA.xlsx`; se envía solo si lo piden |
 
@@ -50,3 +46,8 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | — | Formato de exportación | Idéntico al actual; en el futuro, solo DIARIO |
 | — | Tecnología | `.exe` instalable + respaldo en OneDrive |
 | — | Limpieza del historial | Sí; los faltantes se completan con los PDF escaneados |
+| P-01 | ¿Misma cuenta de Windows? | Sí, misma cuenta y mismo equipo; solo cambia el nombre de quien elabora → datos en `%LOCALAPPDATA%` y selector de "almacenista en turno" |
+| P-04 | ¿Vale de la base en Excel? | No, llega en papel (se puede fotografiar o escanear a 300 ppi) → se captura; OCR como mejora futura |
+| P-12 | Folio de corte del conteo del 28-sep | Se descuentan del **550** en adelante (corte = 549) |
+| P-19 | ¿`.exe` sin firma? | No probado; TI puede autorizarlo. Instalador por usuario (sin administrador) con huella SHA-256 |
+| — | ¿La herramienta trae datos? | No: se instala vacía y los datos entran por la primera carga desde los Excel del usuario, en su equipo |

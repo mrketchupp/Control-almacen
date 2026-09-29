@@ -27,7 +27,7 @@ gantt
 - Documentación en `docs/`.
 - Lista de revisión del historial (`Revision_historial_DLTA.xlsx`, fuera del repositorio).
 
-## Fase 1 — Núcleo de datos, importación y exportación idéntica
+## Fase 1 — Núcleo de datos, importación y exportación idéntica ✅ (entregada, en aceptación)
 **Objetivo:** demostrar que la herramienta puede leer los archivos actuales y **reproducirlos idénticos**. Es la base de todo lo demás.
 
 Entregables:
@@ -38,11 +38,13 @@ Entregables:
 - Pantallas mínimas: asistente de migración, consulta de inventario (buscador) y consulta del historial.
 - Primer instalador `.exe` (PyInstaller + Inno Setup).
 
-Criterios de aceptación:
-- [ ] El `.xlsm` exportado abre en Excel sin reparación, conserva logos y botones, y **GRABAR / LIMPIAR DATOS siguen funcionando**.
-- [ ] El `.xlsx` exportado tiene las mismas hojas, tablas, fórmulas, notas y totales por hoja que el original (salvo limpiezas aprobadas).
-- [ ] El reporte de verificación cruzada de la migración cuadra al 100%.
-- [ ] Un respaldo restaurado en otra carpeta produce exactamente los mismos datos.
+Criterios de aceptación (✔ = verificado por el desarrollo con los archivos reales, fuera del repositorio; ☐ = lo verifica el usuario en su PC):
+- ✔ En el `.xlsm` exportado solo cambian 2 de 44 partes del ZIP (DIARIO y `workbook.xml`); macros, botones, logos y formularios quedan idénticos byte por byte. LibreOffice lo abre sin errores.
+- ☐ Abrirlo en **Excel** sin mensaje de reparación y comprobar que **GRABAR / LIMPIAR DATOS siguen funcionando**.
+- ✔ El `.xlsx` exportado conserva hojas, tablas, fórmulas, notas y filas bajo la tabla; LibreOffice recalcula las 1,258 fórmulas sin errores y los totales por hoja coinciden.
+- ✔ El reporte de verificación cuadra en 8 de 10 hojas; las 2 diferencias son los vales 550 y 554 que el Excel aún no descontaba (esperado con corte 549).
+- ✔ Un respaldo restaurado en otra carpeta produce los mismos datos (prueba automática).
+- ☐ Instalar el `.exe` en la PC del almacén y hacer la primera carga real.
 
 ## Fase 2 — Vales de salida
 Entregables:
@@ -62,7 +64,7 @@ Criterios de aceptación:
 Entregables:
 - Vale de entrada con ubicación sugerida, alta de variante y vista previa antes/después.
 - Historial y exportación de entradas.
-- Importación del vale de la base en Excel (si aplica, P-04).
+- (El vale de la base llega en papel, P-04: se captura. La lectura por OCR queda como mejora futura.)
 - Conteo físico total o parcial, hoja de conteo imprimible y reacomodo entre contenedores.
 
 Criterios de aceptación:

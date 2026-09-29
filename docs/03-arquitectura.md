@@ -21,7 +21,7 @@ flowchart TB
         PDF["Impresión de vales (PDF)"]
         BAK["Respaldo / restauración"]
     end
-    DB[("SQLite<br/>C:\ProgramData\ControlAlmacen\almacen.db")]
+    DB[("SQLite<br/>%LOCALAPPDATA%\ControlAlmacen\almacen.db")]
     OD[["OneDrive\ControlAlmacen\respaldos"]]
     XL[/"Excel del usuario<br/>(plantillas y entradas)"/]
     UI --> DOM --> DB
@@ -88,9 +88,10 @@ Especificación detallada: [06-formatos-excel.md](06-formatos-excel.md).
 
 | Qué | Dónde |
 |---|---|
-| Base de datos viva | `C:\ProgramData\ControlAlmacen\almacen.db`, compartida por cualquier cuenta de Windows de esa PC. Ver pendiente P-01. |
-| Plantillas de Excel registradas | `C:\ProgramData\ControlAlmacen\plantillas\` |
-| Registros (logs) | `C:\ProgramData\ControlAlmacen\logs\`, rotativos |
+| Base de datos viva | `%LOCALAPPDATA%\ControlAlmacen\almacen.db`. Ambos almacenistas usan la misma cuenta de Windows (P-01), así que la carpeta local del usuario basta y la instalación no requiere administrador. |
+| Plantillas de Excel registradas | `%LOCALAPPDATA%\ControlAlmacen\plantillas\` |
+| Registros (logs) | `%LOCALAPPDATA%\ControlAlmacen\logs\`, rotativos |
+| Programa | `%LOCALAPPDATA%\Programs\ControlAlmacen\` (instalador por usuario, sin administrador) |
 | Respaldos | `%OneDrive%\ControlAlmacen\respaldos\` (se detecta también `%OneDriveCommercial%`) |
 | Exportaciones | Carpeta que elija el usuario; por defecto `%OneDrive%\ControlAlmacen\exportaciones\` |
 

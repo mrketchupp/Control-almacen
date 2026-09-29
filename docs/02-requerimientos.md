@@ -72,7 +72,7 @@ Prioridad: **M** = indispensable para salir a producción; **D** = deseable; **F
 | RF-32 | **Vista previa antes de confirmar:** por cada renglón, cuánto había, cuánto entra y cuánto queda, y en qué hoja/contenedor quedará. No se puede confirmar con renglones sin variante o sin ubicación. | M |
 | RF-33 | Si la variante no existe, se da de alta desde la misma pantalla (código del catálogo + dimensión + NP + UM), con aviso si se parece a una existente para evitar duplicados. | M |
 | RF-34 | Historial de entradas tipo DIARIO, con filtros por fecha, folio de la base, código y O.C. | M |
-| RF-35 | Si la base envía su vale en Excel, poder importarlo directamente en lugar de capturarlo. | D |
+| RF-35 | El vale de la base llega en papel (P-04): se captura. Futuro: leerlo de la foto o escaneo (300 ppi) con OCR. | F |
 | RF-36 | Folio interno consecutivo para entradas (`E-0001`), independiente del folio de la base. | M |
 
 ### Conteo físico

@@ -69,12 +69,14 @@ erDiagram
 |---|---|---|
 | id | PK | |
 | variante_id | FK | |
-| ubicacion_id | FK | `UNIQUE(variante_id, ubicacion_id)` |
+| ubicacion_id | FK | Sin restricción única: el inventario real tiene la misma variante repetida en una hoja (se señala en la revisión) |
 | orden | int | Posición en la hoja. **Estable:** los renglones nuevos van al final. |
 | item | int nulo | Valor de la columna ITEM |
 | cantidad_conteo | decimal | La `CANTIDAD` del Excel |
 | conteo_id | FK | Conteo que fijó esa cantidad |
 | nota | texto | Nota de celda del Excel, si la hay |
+| fila_origen | int | Fila del Excel importado (para conservar estilos y notas al exportar) |
+| dimension_hoja, np_hoja, um_hoja | texto | Escritura exacta del renglón cuando difiere de la variante ("0-5,000PSI" vs "0-5000PSI"): se exporta tal cual |
 | activo | bool | En 0 no se borra: el renglón sigue en el Excel con 0, como hoy |
 
 **`persona`** (id, nombre, puesto, área, es_almacenista, activo) y **`persona_alias`** (alias → persona_id): unifican las variantes de nombre del historial.
@@ -126,8 +128,11 @@ erDiagram
 | clave | texto | Lo que va a la columna CLAVE (dimensión / NP) |
 | um | texto | |
 | lote | texto | Columna LOTE → "C.U" en DIARIO |
-| variante_id | FK nulo | Nulo = renglón no inventariado (diésel, gases…) |
-| ubicacion_id | FK nulo | De dónde sale o a dónde entra |
+| existencia_id | FK nulo | **Renglón del inventario** de donde sale o a donde entra (resuelve el caso de variantes repetidas) |
+| variante_id | FK nulo | Copia de la variante de esa existencia |
+| no_inventariado | bool | Diésel, gases, servicios o artículos sin existencia: no descuentan |
+| familia, transferencia_consumo | texto | Columnas S y T del DIARIO |
+| encabezado_original | JSON | Migración: encabezado del renglón cuando difería del del vale (se exporta tal cual) |
 
 **`conteo`** (id, fecha, alcance: total o lista de ubicaciones, usuario, notas, `ultimo_folio_salida`, `ultimo_folio_entrada`) y **`conteo_linea`** (conteo_id, existencia_id, cantidad_contada, cantidad_teorica_previa).
 

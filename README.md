@@ -11,7 +11,9 @@ Herramienta de escritorio (Windows) para el almacén de refaccionamiento del RIG
 
 ## Estado
 
-**Fase 0 — Análisis y planeación (terminada).** Aún no hay código. La planeación completa está en [`docs/`](docs/).
+**Fase 1 — Núcleo, primera carga y exportación idéntica (entregada, en revisión del usuario).**
+Instalación y uso: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El instalador de Windows se genera
+automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-<versión>-instalador`).
 
 | Documento | Contenido |
 |---|---|
@@ -24,6 +26,7 @@ Herramienta de escritorio (Windows) para el almacén de refaccionamiento del RIG
 | [07 — Migración y limpieza](docs/07-migracion.md) | Cómo se carga el historial y qué reglas de limpieza se aplican |
 | [08 — Plan de trabajo](docs/08-plan.md) | Fases, entregables y criterios de aceptación |
 | [09 — Pendientes](docs/09-pendientes.md) | Preguntas abiertas y decisiones por confirmar |
+| [10 — Instalación y uso](docs/10-instalacion-y-uso.md) | Descargar, instalar, primera carga, uso diario y respaldos |
 
 ## Principios del proyecto
 
