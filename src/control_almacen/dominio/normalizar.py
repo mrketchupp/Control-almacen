@@ -53,7 +53,9 @@ def valor_a_texto(valor: object) -> str | None:
         return valor.date().isoformat()
     if isinstance(valor, dt.date):
         return valor.isoformat()
-    texto = _ESPACIOS.sub(" ", str(valor).translate(_COMILLAS)).strip()
+    # Solo se quitan espacios de los extremos: el texto interno se respeta tal cual
+    # (AX usa dobles espacios en descripciones). Las claves de búsqueda normalizan aparte.
+    texto = str(valor).strip()
     return texto or None
 
 
@@ -62,13 +64,19 @@ def mayusculas(valor: object) -> str | None:
     return texto.upper() if texto else None
 
 
+def compactar(valor: object) -> str | None:
+    """Mayúsculas, comillas uniformes y un solo espacio entre palabras (para comparar)."""
+    texto = mayusculas(valor)
+    return _ESPACIOS.sub(" ", texto.translate(_COMILLAS)) if texto else None
+
+
 def clave_estricta(valor: object) -> str:
     """Clave para unicidad de dimensión/NP.
 
     Mayúsculas, sin acentos, sin espacios, guiones, puntos ni comas. Conserva
     "/" y comillas para no confundir 1/2" con 12. Los "sin dimensión" → "".
     """
-    texto = mayusculas(valor)
+    texto = compactar(valor)
     if not texto:
         return ""
     texto = sin_acentos(texto)
@@ -105,7 +113,7 @@ def unidad(valor: object) -> str:
 
 
 def nombre_persona(valor: object) -> str | None:
-    texto = mayusculas(valor)
+    texto = compactar(valor)
     if not texto or texto == "0":
         return None
     return texto

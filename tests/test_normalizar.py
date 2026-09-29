@@ -12,7 +12,7 @@ from control_almacen.dominio import normalizar as n
         (None, None),
         ("#REF!", None),
         ("  PZA  ", "PZA"),
-        ("6 1/2”  MLLU640HT", '6 1/2" MLLU640HT'),
+        ("DISCOS  PARA DESBASTE ", "DISCOS  PARA DESBASTE"),  # doble espacio interno se respeta
         (126649.0, "126649"),
         (5.5, "5.5"),
         (126649, "126649"),

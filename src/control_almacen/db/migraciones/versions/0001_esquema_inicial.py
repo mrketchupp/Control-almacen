@@ -2,7 +2,7 @@
 
 Revision ID: 0001
 Revises:
-Create Date: 2026-09-29 21:54:28.244460
+Create Date: 2026-09-29 22:08:44.826608
 """
 
 import sqlalchemy as sa
@@ -205,6 +205,9 @@ def upgrade() -> None:
         sa.Column("conteo_id", sa.Integer(), nullable=True),
         sa.Column("nota", sa.Text(), nullable=True),
         sa.Column("fila_origen", sa.Integer(), nullable=True),
+        sa.Column("dimension_hoja", sa.String(length=200), nullable=True),
+        sa.Column("np_hoja", sa.String(length=200), nullable=True),
+        sa.Column("um_hoja", sa.String(length=20), nullable=True),
         sa.Column("activo", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(
             ["conteo_id"],

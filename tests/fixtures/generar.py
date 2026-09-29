@@ -75,6 +75,7 @@ HOJAS_INV = {
     ],
 }
 NOTAS_INV = {("CONTENEDOR #1 INVENTARIABLE", "D4"): "Revisar dimensión en físico"}
+PIE_DE_HOJA = {"CONTENEDOR #2 CONSUMIBLE": "TEXTO FUERA DE LA TABLA"}
 
 ENCABEZADOS_DIARIO = [
     "FECHA",
@@ -467,6 +468,8 @@ def generar_inventario(ruta: Path) -> Path:
         ]
         ws.add_table(t)
         ws.print_area = f"A1:J{totales}"
+        if hoja in PIE_DE_HOJA:
+            ws.cell(totales + 2, 1, PIE_DE_HOJA[hoja])
         for (h, celda), texto in NOTAS_INV.items():
             if h == hoja:
                 ws[celda].comment = Comment(f"AUTOR:\n{texto}", "AUTOR")

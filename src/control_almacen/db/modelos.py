@@ -123,9 +123,26 @@ class Existencia(Base):
     conteo_id: Mapped[int | None] = mapped_column(ForeignKey("conteo.id"))
     nota: Mapped[str | None] = mapped_column(Text)
     fila_origen: Mapped[int | None] = mapped_column(Integer)
+    # Escritura exacta en la hoja (puede diferir de la variante: "0-5,000PSI" vs "0-5000PSI").
+    dimension_hoja: Mapped[str | None] = mapped_column(String(200))
+    np_hoja: Mapped[str | None] = mapped_column(String(200))
+    um_hoja: Mapped[str | None] = mapped_column(String(20))
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     variante: Mapped[Variante] = relationship()
+
+    @property
+    def dimension_mostrada(self) -> str | None:
+        return self.dimension_hoja if self.dimension_hoja is not None else self.variante.dimension
+
+    @property
+    def np_mostrado(self) -> str | None:
+        return self.np_hoja if self.np_hoja is not None else self.variante.np
+
+    @property
+    def um_mostrada(self) -> str | None:
+        return self.um_hoja if self.um_hoja is not None else self.variante.um
+
     ubicacion: Mapped[Ubicacion] = relationship()
     conteo: Mapped[Conteo | None] = relationship()
 

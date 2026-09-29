@@ -221,6 +221,11 @@ def _cargar_inventario(
                     conteo_id=conteo.id,
                     nota=renglon.nota,
                     fila_origen=renglon.fila,
+                    dimension_hoja=renglon.dimension
+                    if renglon.dimension != variante.dimension
+                    else None,
+                    np_hoja=renglon.np if renglon.np != variante.np else None,
+                    um_hoja=renglon.um_hoja if renglon.um_hoja != variante.um else None,
                 )
             )
         sesion.flush()

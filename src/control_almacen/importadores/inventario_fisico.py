@@ -45,6 +45,7 @@ class RenglonInventario:
     np: str | None
     cantidad: Decimal
     um: str
+    um_hoja: str | None
     consumo: Decimal | None
     ingreso: Decimal | None
     total: Decimal | None
@@ -137,6 +138,7 @@ def leer_inventario(ruta: Path) -> LibroInventario:
                     np=n.valor_a_texto(valor["NP"]),
                     cantidad=cantidad,
                     um=n.unidad(valor["UM"]),
+                    um_hoja=n.valor_a_texto(valor["UM"]),
                     consumo=n.decimal(valor["CONSUMO"]),
                     ingreso=n.decimal(valor["INGRESO"]),
                     total=n.decimal(valor["TOTAL"]),
