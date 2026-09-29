@@ -49,3 +49,15 @@ def test_llaves_foraneas_activas(bd):
     with pytest.raises(IntegrityError), bd.sesion() as s:
         s.add(m.Variante(codigo=999, um="PZA"))
         s.flush()
+
+
+def test_ruta_con_caracteres_especiales(tmp_path):
+    """En Windows la ruta C:\\… se codifica con '%' (C%3A%5C…) y Alembic la interpretaba
+    como interpolación de configparser. Regresión del CI de Windows."""
+    from control_almacen.db.sesion import BaseDatos
+
+    carpeta = tmp_path / "C:\\Users\\almacen 100%"
+    base = BaseDatos(carpeta / "almacen.db")
+    with base.sesion() as s:
+        assert s.query(m.Articulo).count() == 0
+    base.cerrar()

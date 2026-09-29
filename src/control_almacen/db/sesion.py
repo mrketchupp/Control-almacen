@@ -30,9 +30,13 @@ def crear_motor(ruta: Path) -> Engine:
 
 
 def config_alembic(motor: Engine) -> ConfigAlembic:
+    """Configuración de Alembic sin URL: siempre se le pasa la conexión abierta.
+
+    No se usa set_main_option("sqlalchemy.url"): en Windows la ruta se codifica con '%'
+    (C%3A%5C…) y configparser la interpreta como variable, lo que rompía el arranque.
+    """
     config = ConfigAlembic()
-    config.set_main_option("script_location", str(CARPETA_MIGRACIONES))
-    config.set_main_option("sqlalchemy.url", str(motor.url))
+    config.set_main_option("script_location", str(CARPETA_MIGRACIONES).replace("%", "%%"))
     return config
 
 
