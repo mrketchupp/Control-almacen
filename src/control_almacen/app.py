@@ -6,6 +6,7 @@ import argparse
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from control_almacen import __version__
 from control_almacen.config import Rutas
@@ -17,7 +18,10 @@ def configurar_registro(rutas: Rutas) -> None:
         rutas.logs / "app.log", maxBytes=2_000_000, backupCount=5, encoding="utf-8"
     )
     manejador.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    logging.basicConfig(level=logging.INFO, handlers=[manejador, logging.StreamHandler(sys.stderr)])
+    manejadores: list[logging.Handler] = [manejador]
+    if sys.stderr is not None:
+        manejadores.append(logging.StreamHandler(sys.stderr))
+    logging.basicConfig(level=logging.INFO, handlers=manejadores)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -66,7 +70,7 @@ def main(argv: list[str] | None = None) -> None:
         reload=False,
         show=not argumentos.sin_abrir,
         language="es",
-        favicon="📦",
+        favicon=Path(__file__).parent / "ui" / "icono.png",
         show_welcome_message=False,
     )
 

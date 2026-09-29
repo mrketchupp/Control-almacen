@@ -1,0 +1,96 @@
+name: Pruebas y compilación para Windows
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    name: Pruebas (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Pruebas
+        run: pytest
+
+  windows:
+    name: Pruebas, ejecutable e instalador (Windows)
+    runs-on: windows-latest
+    needs: pruebas
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -e ".[dev,empaquetado]"
+      - name: Pruebas en Windows
+        run: pytest
+      - name: Compilar con PyInstaller
+        run: pyinstaller packaging/control_almacen.spec --noconfirm
+      - name: Prueba de arranque del ejecutable
+        shell: pwsh
+        run: |
+          $env:CONTROL_ALMACEN_DATOS = "$env:RUNNER_TEMP\datos"
+          $env:CONTROL_ALMACEN_RESPALDOS = "$env:RUNNER_TEMP\respaldos"
+          $env:CONTROL_ALMACEN_EXPORTACIONES = "$env:RUNNER_TEMP\exportaciones"
+          $proceso = Start-Process -FilePath "dist\ControlAlmacen\ControlAlmacen.exe" `
+            -ArgumentList "--navegador", "--sin-abrir", "--puerto", "8799" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            try {
+              $r = Invoke-WebRequest -Uri "http://127.0.0.1:8799/" -UseBasicParsing -TimeoutSec 2
+              if ($r.StatusCode -eq 200 -and $r.Content -match "Control de Almac") { $ok = $true; break }
+            } catch { }
+            Start-Sleep -Seconds 1
+          }
+          Stop-Process -Id $proceso.Id -Force -ErrorAction SilentlyContinue
+          Get-Content "$env:RUNNER_TEMP\datos\logs\app.log" -ErrorAction SilentlyContinue
+          if (-not $ok) { throw "El ejecutable no respondió" }
+      - name: Obtener versión
+        id: version
+        shell: pwsh
+        run: |
+          $v = (python -c "import control_almacen; print(control_almacen.__version__)").Trim()
+          "version=$v" >> $env:GITHUB_OUTPUT
+      - name: Crear instalador (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "/DVersion=${{ steps.version.outputs.version }}" packaging\instalador.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup falló" }
+      - name: Huella SHA-256 para TI
+        shell: pwsh
+        run: |
+          Get-FileHash dist\*-instalador.exe -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } |
+            Out-File -Encoding utf8 dist\SHA256.txt
+          Get-Content dist\SHA256.txt
+      - name: Publicar instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: ControlAlmacen-${{ steps.version.outputs.version }}-instalador
+          path: |
+            dist/*-instalador.exe
+            dist/SHA256.txt
+          retention-days: 30

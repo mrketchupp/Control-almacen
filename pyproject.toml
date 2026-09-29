@@ -28,7 +28,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-control_almacen = ["db/migraciones/*.ini", "db/migraciones/*.py", "db/migraciones/versions/*.py", "ui/estaticos/*"]
+control_almacen = ["db/migraciones/*.ini", "db/migraciones/*.mako", "db/migraciones/*.py", "db/migraciones/versions/*.py", "ui/icono.png"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
