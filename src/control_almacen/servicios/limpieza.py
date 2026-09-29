@@ -86,7 +86,7 @@ def _aplicar_correcciones(
     for campo, nuevo in cambios.items():
         antes = getattr(renglon, campo, None)
         if campo == "cantidad":
-            nuevo = n.decimal(nuevo)
+            nuevo = n.separar_cantidad(nuevo)[0]
         elif campo == "codigo":
             nuevo = n.codigo_ax(nuevo)
         elif campo == "fecha":
@@ -99,6 +99,8 @@ def _aplicar_correcciones(
         if nuevo != antes:
             bitacora.append((renglon.fila, campo, antes, nuevo))
         valores[campo] = nuevo
+    if "codigo" in valores and "descripcion" not in valores and valores["codigo"] != renglon.codigo:
+        valores["descripcion"] = None  # se tomará la del catálogo del código corregido
     errores = renglon.errores - set(cambios)
     return replace(renglon, errores=errores, **valores)
 
