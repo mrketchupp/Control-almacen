@@ -506,3 +506,13 @@ def fecha_desde_nombre(nombre: str) -> dt.date | None:
         except ValueError:
             continue
     return encontrada
+
+
+def sugerir_folio_corte(renglones, fecha_conteo: dt.date) -> int | None:
+    """Último folio con fecha anterior al conteo: sus vales ya están reflejados en CANTIDAD."""
+    folios = [
+        r.folio
+        for r in renglones
+        if r.folio is not None and r.fecha is not None and r.fecha < fecha_conteo
+    ]
+    return max(folios, default=None)
