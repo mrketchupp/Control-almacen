@@ -1,0 +1,42 @@
+# --- Datos reales: NUNCA se suben al repositorio ---
+# Los archivos de Excel del almacén contienen nombres de personal,
+# costos y movimientos reales. Viven solo en el equipo del usuario.
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+*.pdf
+*.db
+*.sqlite
+*.sqlite3
+datos/
+respaldos/
+exportaciones/
+
+# Excepción: fixtures anonimizadas para pruebas automáticas
+!tests/fixtures/**
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Empaquetado ---
+build/
+dist/
+*.spec.bak
+packaging/output/
+
+# --- Sistema / editores ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+~$*
