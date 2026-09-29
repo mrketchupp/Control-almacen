@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Esta página no puede conectarse a internet: todo ocurre en este equipo. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:">
+<title>Diagnóstico del navegador</title>
+<style>
+  :root {
+    --fondo: #f5f7fa; --tarjeta: #ffffff; --texto: #1f2937; --tenue: #6b7280;
+    --primario: #1f3864; --ok: #15803d; --ok-fondo: #dcfce7; --mal: #b91c1c; --mal-fondo: #fee2e2;
+    --aviso: #b45309; --aviso-fondo: #fef3c7; --borde: #e5e7eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #111827; --tarjeta: #1f2937; --texto: #f3f4f6; --tenue: #9ca3af;
+      --primario: #93c5fd; --ok: #4ade80; --ok-fondo: #14532d; --mal: #f87171; --mal-fondo: #7f1d1d;
+      --aviso: #fbbf24; --aviso-fondo: #78350f; --borde: #374151;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto);
+         font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; color: var(--primario); }
+  p.sub { margin: 0 0 20px; color: var(--tenue); }
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px;
+             padding: 16px; margin-bottom: 14px; }
+  .fila { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0;
+          border-bottom: 1px solid var(--borde); }
+  .fila:last-child { border-bottom: 0; }
+  .marca { flex: 0 0 auto; min-width: 88px; text-align: center; font-weight: 600; font-size: .8rem;
+           padding: 3px 8px; border-radius: 999px; }
+  .ok { color: var(--ok); background: var(--ok-fondo); }
+  .mal { color: var(--mal); background: var(--mal-fondo); }
+  .pend { color: var(--aviso); background: var(--aviso-fondo); }
+  .nombre { font-weight: 600; }
+  .detalle { color: var(--tenue); font-size: .9rem; word-break: break-word; }
+  button, label.boton { display: inline-block; margin-top: 8px; background: var(--primario); color: var(--tarjeta);
+           border: 0; border-radius: 6px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  input[type=file] { display: none; }
+  #resumen { font-size: 1.05rem; font-weight: 600; }
+  textarea { width: 100%; min-height: 150px; margin-top: 8px; font: 12px/1.4 Consolas, monospace;
+             background: var(--fondo); color: var(--texto); border: 1px solid var(--borde); border-radius: 6px; padding: 8px; }
+  ol { margin: 6px 0 0 18px; padding: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Diagnóstico del navegador · Control de Almacén</h1>
+  <p class="sub">Comprueba si una versión de la herramienta que corra <b>dentro de Edge</b> (sin instalar nada) funcionaría en este equipo.
+    Nada de lo que hagas aquí sale de tu PC: la página tiene prohibido conectarse a internet.</p>
+
+  <div class="tarjeta">
+    <div id="resumen">Revisando…</div>
+    <ol>
+      <li>Las pruebas automáticas corren solas. Haz también las <b>3 pruebas con botón</b> de abajo.</li>
+      <li>Cierra Edge por completo, vuelve a abrir este archivo y revisa la prueba <b>“Los datos se conservan”</b>.</li>
+      <li>Pulsa <b>Copiar resultados</b> y pégalos en el chat (o toma una captura).</li>
+    </ol>
+  </div>
+
+  <div class="tarjeta" id="pruebas"></div>
+
+  <div class="tarjeta">
+    <button id="copiar">Copiar resultados</button>
+    <textarea id="texto" readonly></textarea>
+  </div>
+</main>
+
+<script>
+"use strict";
+const pruebas = [];
+const contenedor = document.getElementById("pruebas");
+
+function prueba(id, nombre) {
+  const fila = document.createElement("div");
+  fila.className = "fila";
+  fila.innerHTML = `<span class="marca pend">pendiente</span><div><div class="nombre"></div><div class="detalle"></div><div class="acciones"></div></div>`;
+  fila.querySelector(".nombre").textContent = nombre;
+  contenedor.appendChild(fila);
+  const p = { id, nombre, estado: "pendiente", detalle: "", fila };
+  pruebas.push(p);
+  return p;
+}
+function marcar(p, estado, detalle) {
+  p.estado = estado; p.detalle = detalle || "";
+  const marca = p.fila.querySelector(".marca");
+  marca.className = "marca " + (estado === "ok" ? "ok" : estado === "falla" ? "mal" : "pend");
+  marca.textContent = estado === "ok" ? "funciona" : estado === "falla" ? "no funciona" : estado;
+  p.fila.querySelector(".detalle").textContent = p.detalle;
+  actualizar();
+}
+function accion(p, html) { p.fila.querySelector(".acciones").innerHTML = html; }
+
+function actualizar() {
+  const criticas = ["js", "idb", "zip", "descarga"];
+  const fallas = pruebas.filter(p => p.estado === "falla");
+  const criticasMal = fallas.filter(p => criticas.includes(p.id));
+  const resumen = document.getElementById("resumen");
+  if (criticasMal.length) resumen.textContent = "✗ Hay pruebas indispensables que no funcionan: la versión web no serviría tal cual.";
+  else if (fallas.length) resumen.textContent = "◐ Lo indispensable funciona; algunas pruebas opcionales fallaron (ver abajo).";
+  else if (pruebas.some(p => p.estado === "pendiente")) resumen.textContent = "… Lo automático va bien. Faltan las pruebas con botón.";
+  else resumen.textContent = "✔ Todo funciona: una versión de la herramienta dentro de Edge es viable en este equipo.";
+  const lineas = [
+    "Diagnóstico del navegador · Control de Almacén",
+    "Fecha: " + new Date().toLocaleString("es-MX"),
+    "Navegador: " + navigator.userAgent,
+    "Origen: " + location.protocol,
+    ""
+  ].concat(pruebas.map(p => `[${p.estado.toUpperCase()}] ${p.nombre}: ${p.detalle}`));
+  document.getElementById("texto").value = lineas.join("\n");
+}
+
+// 1. JavaScript y WebAssembly
+const pJs = prueba("js", "JavaScript y WebAssembly");
+marcar(pJs, typeof WebAssembly === "object" ? "ok" : "falla",
+  (typeof WebAssembly === "object" ? "WebAssembly disponible" : "WebAssembly bloqueado") + " · " +
+  (navigator.userAgent.match(/Edg\/[\d.]+/) || navigator.userAgent.match(/Chrome\/[\d.]+/) || ["navegador desconocido"])[0]);
+
+// 2. IndexedDB + persistencia entre sesiones
+const pIdb = prueba("idb", "Guardar datos en el navegador (IndexedDB)");
+const pPers = prueba("persiste", "Los datos se conservan al cerrar y abrir Edge");
+try {
+  const solicitud = indexedDB.open("diagnostico-control-almacen", 1);
+  solicitud.onupgradeneeded = () => solicitud.result.createObjectStore("datos");
+  solicitud.onerror = () => { marcar(pIdb, "falla", String(solicitud.error)); marcar(pPers, "falla", "sin IndexedDB"); };
+  solicitud.onsuccess = () => {
+    const bd = solicitud.result;
+    const tx = bd.transaction("datos", "readwrite");
+    const almacen = tx.objectStore("datos");
+    const lectura = almacen.get("visitas");
+    lectura.onsuccess = () => {
+      const previo = lectura.result || { cuenta: 0, primera: new Date().toISOString() };
+      const actual = { cuenta: previo.cuenta + 1, primera: previo.primera, ultima: new Date().toISOString() };
+      almacen.put(actual, "visitas");
+      tx.oncomplete = () => {
+        marcar(pIdb, "ok", "escritura y lectura correctas");
+        if (actual.cuenta > 1) {
+          marcar(pPers, "ok", `abierta ${actual.cuenta} veces desde ${new Date(actual.primera).toLocaleString("es-MX")}`);
+        } else {
+          marcar(pPers, "por revisar", "primera vez: cierra Edge por completo, vuelve a abrir este archivo y revisa esta línea");
+        }
+      };
+    };
+  };
+} catch (e) { marcar(pIdb, "falla", String(e)); marcar(pPers, "falla", "sin IndexedDB"); }
+
+// 3. Almacenamiento persistente y espacio
+const pEspacio = prueba("espacio", "Espacio disponible y almacenamiento persistente");
+(async () => {
+  try {
+    const est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null;
+    const persist = navigator.storage && navigator.storage.persist ? await navigator.storage.persist() : false;
+    const gb = est ? (est.quota / 1024 ** 3).toFixed(1) + " GB disponibles" : "sin estimación";
+    marcar(pEspacio, est ? "ok" : "falla", `${gb} · persistente: ${persist ? "sí" : "no (el navegador podría limpiar datos si falta espacio)"}`);
+  } catch (e) { marcar(pEspacio, "falla", String(e)); }
+})();
+
+// 4. Leer un Excel localmente (ZIP + XML) sin bibliotecas externas
+const pZip = prueba("zip", "Leer tus archivos de Excel en este equipo");
+accion(pZip, `<label class="boton" for="archivo">Elegir un .xlsx o .xlsm</label><input id="archivo" type="file" accept=".xlsx,.xlsm">`);
+if (typeof DecompressionStream !== "function") marcar(pZip, "falla", "DecompressionStream no disponible");
+document.getElementById("archivo").addEventListener("change", async (ev) => {
+  const archivo = ev.target.files[0];
+  if (!archivo) return;
+  try {
+    const hojas = await leerHojas(await archivo.arrayBuffer());
+    marcar(pZip, "ok", `${archivo.name}: ${hojas.length} hojas (${hojas.slice(0, 4).join(", ")}${hojas.length > 4 ? ", …" : ""})`);
+  } catch (e) { marcar(pZip, "falla", `${archivo.name}: ${e.message}`); }
+});
+
+async function leerHojas(buffer) {
+  const v = new DataView(buffer);
+  let fin = -1;
+  for (let i = buffer.byteLength - 22; i >= Math.max(0, buffer.byteLength - 70000); i--) {
+    if (v.getUint32(i, true) === 0x06054b50) { fin = i; break; }
+  }
+  if (fin < 0) throw new Error("no parece un archivo de Excel (ZIP)");
+  const total = v.getUint16(fin + 10, true);
+  let pos = v.getUint32(fin + 16, true);
+  const decod = new TextDecoder();
+  for (let n = 0; n < total; n++) {
+    if (v.getUint32(pos, true) !== 0x02014b50) throw new Error("directorio ZIP inválido");
+    const metodo = v.getUint16(pos + 10, true);
+    const tamano = v.getUint32(pos + 20, true);
+    const largoNombre = v.getUint16(pos + 28, true);
+    const largoExtra = v.getUint16(pos + 30, true);
+    const largoComent = v.getUint16(pos + 32, true);
+    const local = v.getUint32(pos + 42, true);
+    const nombre = decod.decode(new Uint8Array(buffer, pos + 46, largoNombre));
+    if (nombre === "xl/workbook.xml") {
+      const inicio = local + 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
+      let bytes = new Uint8Array(buffer, inicio, tamano);
+      if (metodo === 8) {
+        const flujo = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        bytes = new Uint8Array(await new Response(flujo).arrayBuffer());
+      }
+      const xml = decod.decode(bytes);
+      return [...xml.matchAll(/<sheet\b[^>]*\bname="([^"]*)"/g)].map(m =>
+        m[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"'));
+    }
+    pos += 46 + largoNombre + largoExtra + largoComent;
+  }
+  throw new Error("no se encontró xl/workbook.xml");
+}
+
+// 5. Descargar un archivo generado
+const pDesc = prueba("descarga", "Guardar un archivo generado (descarga)");
+accion(pDesc, `<button id="descargar">Descargar archivo de prueba</button>`);
+document.getElementById("descargar").addEventListener("click", () => {
+  try {
+    const blob = new Blob(["Prueba de descarga · Control de Almacén · " + new Date().toLocaleString("es-MX")], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "prueba_control_almacen.txt";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    marcar(pDesc, "ok", "se generó prueba_control_almacen.txt: confirma que apareció en Descargas y bórralo");
+  } catch (e) { marcar(pDesc, "falla", String(e)); }
+});
+
+// 6. Escribir directo en una carpeta (OneDrive) — opcional
+const pCarpeta = prueba("carpeta", "Escribir directo en una carpeta, p. ej. OneDrive (opcional)");
+if (!("showDirectoryPicker" in window)) {
+  marcar(pCarpeta, "falla", "este navegador no permite elegir carpetas; se usarían descargas");
+} else {
+  accion(pCarpeta, `<button id="carpeta">Elegir una carpeta de prueba</button>`);
+  document.getElementById("carpeta").addEventListener("click", async () => {
+    try {
+      const dir = await window.showDirectoryPicker({ mode: "readwrite" });
+      const archivo = await dir.getFileHandle("prueba_control_almacen.txt", { create: true });
+      const escritor = await archivo.createWritable();
+      await escritor.write("Prueba de escritura · " + new Date().toISOString());
+      await escritor.close();
+      const leido = await (await archivo.getFile()).text();
+      await dir.removeEntry("prueba_control_almacen.txt");
+      marcar(pCarpeta, leido.startsWith("Prueba") ? "ok" : "falla", `carpeta “${dir.name}”: escribir, leer y borrar correcto`);
+    } catch (e) {
+      marcar(pCarpeta, e.name === "AbortError" ? "pendiente" : "falla", e.name === "AbortError" ? "cancelado" : `${e.name}: ${e.message}`);
+    }
+  });
+}
+
+// 7. Crear archivos comprimidos (necesario para exportar Excel)
+const pComp = prueba("comprimir", "Crear archivos de Excel (compresión ZIP)");
+(async () => {
+  try {
+    const flujo = new Blob(["prueba ".repeat(100)]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+    const bytes = new Uint8Array(await new Response(flujo).arrayBuffer());
+    marcar(pComp, bytes.length > 0 ? "ok" : "falla", `compresión disponible (${bytes.length} bytes)`);
+  } catch (e) { marcar(pComp, "falla", String(e)); }
+})();
+
+document.getElementById("copiar").addEventListener("click", async () => {
+  const texto = document.getElementById("texto");
+  try { await navigator.clipboard.writeText(texto.value); }
+  catch { texto.select(); document.execCommand("copy"); }
+  document.getElementById("copiar").textContent = "Copiado ✔";
+});
+actualizar();
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto | Afecta |
 |---|---|---|---|
+| P-20 | Seguridad de Windows bloquea el instalador ("Acción de riesgo bloqueada"). ¿Versión web local (HTML en Edge), autorización de TI o certificado de firma? | **Versión web local**: no requiere permisos. Antes, validar con `herramientas/diagnostico-navegador.html`. Mientras tanto, probar en Codespaces. | Todas |
 | P-02 | Lista de códigos **inventariables / consumibles** (la solicitó el usuario a la base). | Mientras llega, la clase se toma de la hoja donde está el artículo (INVENTARIABLE / CONSUMIBLE). | F1 |
 
 ## Vales

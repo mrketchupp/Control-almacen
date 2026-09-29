@@ -38,6 +38,24 @@
 
 Al **desinstalar** no se borran los datos ni los respaldos.
 
+### Si Windows bloquea la instalación ("Acción de riesgo bloqueada")
+
+En la PC del almacén, Seguridad de Windows bloquea programas **sin firma digital y poco conocidos**. Afecta a cualquier `.exe` que se genere, sea instalador o portátil. Caminos:
+
+| Opción | Qué implica | Para qué sirve |
+|---|---|---|
+| **A. GitHub Codespaces** | Se abre desde el navegador; corre en una máquina en la nube de tu cuenta de GitHub. Sin instalar nada. | **Probar ya** la herramienta actual. No es para el uso diario: requiere internet y los datos quedan en esa máquina en la nube. |
+| **B. Versión web local** | Un archivo `.html` que se abre en Edge. Nada que instalar ni que Windows bloquee; los datos quedan en tu equipo y los respaldos en OneDrive. | **Uso diario** en la PC bloqueada. Requiere reescribir la interfaz y la lógica en JavaScript. |
+| **C. Autorización de TI** | TI permite el instalador (por su huella SHA-256) o se compra un certificado de firma de código. | Mantener la versión de escritorio. Depende de terceros y tiene costo. |
+
+**Diagnóstico previo de la opción B:** abre `herramientas/diagnostico-navegador.html` en Edge. Comprueba localmente, sin conectarse a internet, si Edge puede leer tus Excel, guardar datos entre sesiones, descargar archivos y escribir en OneDrive.
+
+**Probar con Codespaces (opción A):**
+1. En GitHub, abre el repositorio, elige la rama `claude/inventory-voucher-tool-hsuzxc` y pulsa **Code → Codespaces → Create codespace**.
+2. Espera de 2 a 3 minutos. La herramienta se abre sola en una pestaña; si no, ve a la pestaña **Ports** y abre el puerto 8765.
+3. Haz la primera carga subiendo tus Excel desde el navegador. Las exportaciones se descargan a tu PC.
+4. Al terminar, **borra el codespace** (github.com/codespaces → ⋯ → Delete) para que tus datos no queden en la nube. Las cuentas personales tienen unas 60 horas gratis al mes con la máquina básica.
+
 ## 3. Primera carga (la herramienta llega vacía)
 
 La herramienta se instala como un **cascarón vacío**: no trae ningún dato. Tus datos entran solo desde tus propios archivos, en tu equipo.
