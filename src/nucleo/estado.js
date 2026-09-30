@@ -4,13 +4,15 @@
 //
 // Cantidades como texto decimal ("12.5"); fechas como texto ISO.
 
-import { esInterna, etapaDe, normalizarArea } from "./areas.js";
+import { esInterna, etapaDe, normalizarArea, tieneDatosFijos } from "./areas.js";
 import { ahoraIso } from "./fechas.js";
 import { claveEstricta } from "./normalizar.js";
 
 // Formato 2 (Fase 2): borradores de vales y envíos a la base.
 // Formato 3: tipo de área (interna / externa / transferencia) y etapa de perforación.
-export const FORMATO_ESTADO = 3;
+// Formato 4: sin cancelación ni folio mínimo; puesto de quien autoriza, segunda fila de
+// firmas (NOV) y fotos de los vales.
+export const FORMATO_ESTADO = 4;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio() {
@@ -60,6 +62,20 @@ export function migrarEstado(estado) {
       if (esInterna(area)) Object.assign(b, { origen: area.origen, depto_origen: area.depto_origen, destino: area.destino });
     }
     estado.formato = 3;
+  }
+  if (estado.formato < 4) {
+    // NOV (externa) también lleva datos fijos; los folios ya no se saltan.
+    for (const area of estado.plantillas_area) normalizarArea(area);
+    delete estado.config.folio_minimo_salida;
+    // El puesto de quien autoriza y las firmas de NOV se leen otra vez de la hoja-formulario
+    // (lo hace el almacén al abrir, porque necesita la plantilla guardada).
+    estado.config.completar_areas = true;
+    for (const b of estado.borradores) {
+      b.fotos ??= [];
+      const area = estado.plantillas_area.find((a) => a.id === b.plantilla_area_id);
+      if (tieneDatosFijos(area)) Object.assign(b, { origen: area.origen, depto_origen: area.depto_origen, destino: area.destino, depto_destino: area.depto_destino });
+    }
+    estado.formato = 4;
   }
   return estado;
 }

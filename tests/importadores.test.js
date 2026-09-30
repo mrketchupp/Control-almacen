@@ -59,6 +59,13 @@ test("formularios con firmas desplazadas", () => {
   assert.deepEqual([mecanico.entrega_nombre, mecanico.recibe_nombre], ["ALMACENISTA UNO", "MECANICO UNO"]);
   assert.equal(mecanico.recibe_puesto, "MECANICO");
   assert.equal(plantillas.get("TRANSFERENCIAS").autoriza_nombre, "AUTORIZADOR UNO");
+  assert.equal(plantillas.get("TRANSFERENCIAS").autoriza_puesto, "RIG MANAGER");
+  // NOV lleva una segunda fila de firmas: personal de la compañía (izq.) y patrimonial (der.)
+  assert.deepEqual(plantillas.get("NOV").firmas_extra, {
+    izq: { titulo: "RECIBE / AUTORIZA", nombre: "PERSONAL NOV UNO", puesto: "NOV ENERGY" },
+    der: { titulo: "PATRIMONIAL", nombre: "PATRIMONIAL UNO", puesto: "SEG PATRIMONIAL" },
+  });
+  assert.equal(plantillas.get("SOLDADOR").firmas_extra, null);
   assert.match(plantillas.get("SOLDADOR").observaciones, /ESPECIFICACIONES/);
   assert.ok(!(mecanico.observaciones || "").toUpperCase().includes("NOMBRE"));
 });

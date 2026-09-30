@@ -290,6 +290,20 @@ export function analizarFormulario(fuente, nombreHoja) {
 
   modelo.campos = localizarCampos(modelo);
   modelo.capacidad = modelo.campos.lineas.filas.length;
+  // Fotos: las imágenes puestas sobre la zona de partidas (NOV) son espacios para las fotos
+  // de cada vale; las del ejemplo no se imprimen. Las partidas caben solo arriba de ellas.
+  const filasLinea = modelo.campos.lineas.filas;
+  if (filasLinea.length) {
+    const inicioLineas = yFila(filasLinea[0] - 1);
+    const fotos = modelo.imagenes.filter((i) => i.y >= inicioLineas - 2);
+    if (fotos.length) {
+      modelo.imagenes = modelo.imagenes.filter((i) => !fotos.includes(i));
+      modelo.fotos = fotos.sort((a, b) => a.x - b.x).map(({ x, y, ancho, alto }) => ({ x, y, ancho, alto }));
+      const tope = Math.min(...fotos.map((f) => f.y));
+      modelo.capacidad = Math.max(1, filasLinea.filter((r) => yFila(r) <= tope + 1).length);
+    }
+  }
+  modelo.fotos ??= [];
   return modelo;
 }
 
@@ -415,6 +429,33 @@ function localizarCampos(modelo) {
       if ((rango && rango.r1 === r) || modelo.valor(r, autoriza.c) !== null) destino = origenDe(r, autoriza.c);
     }
     campos.autoriza = destino ?? origenDe(Math.min(area.r2, autoriza.r + 2), autoriza.c);
+    // Puesto de quien autoriza: la celda tras "Puesto:" justo debajo del nombre (o la de abajo).
+    const etiquetaPuesto = etiquetas.find((x) => x.r > campos.autoriza.r && x.r <= campos.autoriza.r + 2 && x.e === "PUESTO" && x.c < campos.autoriza.c + 2);
+    if (etiquetaPuesto) campos.autoriza_puesto = derecha(etiquetaPuesto.r, etiquetaPuesto.c);
+  }
+  // Segunda fila de firmas (NOV: personal de la compañía a la izquierda y patrimonial a la derecha).
+  if (nombre) {
+    const nombre2 = etiquetas.find((x) => x.r > nombre.r && x.c === nombre.c && x.e === "NOMBRE");
+    const celdas = nombre2 ? celdasTrasEtiqueta(nombre2) : [];
+    if (celdas.length >= 2) {
+      const puesto2 = etiquetas.find((x) => x.r > nombre2.r && x.r <= nombre2.r + 2 && x.c === nombre2.c && x.e === "PUESTO");
+      const celdasPuesto = puesto2 ? celdasTrasEtiqueta(puesto2) : [];
+      const izq = celdas[0];
+      const der = celdas[celdas.length - 1];
+      const titulo = (celda) => {
+        for (let r = nombre2.r - 1; r >= nombre2.r - 3 && r > nombre.r + 1; r--) {
+          for (let c = celda.c; c <= Math.min(area.c2, celda.c + 2); c++) {
+            const texto = String(modelo.valor(r, c) ?? "").trim();
+            if (texto && !/^FIRMA/i.test(texto)) return texto;
+          }
+        }
+        return null;
+      };
+      campos.firmas_extra = {
+        izq: { nombre: izq, puesto: celdasPuesto[0] ?? origenDe(nombre2.r + 1, izq.c), titulo: titulo(izq) },
+        der: { nombre: der, puesto: celdasPuesto.length > 1 ? celdasPuesto[celdasPuesto.length - 1] : origenDe(nombre2.r + 1, der.c), titulo: titulo(der) },
+      };
+    }
   }
 
   // ---- observaciones: filas entre los renglones y las firmas

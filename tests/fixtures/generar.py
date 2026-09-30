@@ -409,6 +409,19 @@ LUGAR_DESTINO = {"NOV": "RIG 91 - TANQUE NOV", "TRANSFERENCIAS": "RIG 48"}
 # Renglones del formato por hoja (MECANICO tiene 19, como el real).
 RENGLONES_FORMATO = {"MECANICO ": 19}
 
+def png_color(ancho: int, alto: int, rgb: tuple[int, int, int]) -> bytes:
+    """PNG de un solo color (fotos de ejemplo sintéticas)."""
+    import struct
+    import zlib
+
+    def trozo(tipo: bytes, datos: bytes) -> bytes:
+        return struct.pack(">I", len(datos)) + tipo + datos + struct.pack(">I", zlib.crc32(tipo + datos) & 0xFFFFFFFF)
+
+    fila = b"\x00" + bytes(rgb) * ancho
+    cabecera = struct.pack(">IIBBBBB", ancho, alto, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + trozo(b"IHDR", cabecera) + trozo(b"IDAT", zlib.compress(fila * alto)) + trozo(b"IEND", b"")
+
+
 PNG_1PX = bytes.fromhex(
     "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
     "0000000d49444154789c6360000002000100e221bc330000000049454e44ae426082"
@@ -592,7 +605,16 @@ def generar_vales(ruta: Path) -> Path:
         ws[f"C{52 + dz}"], ws[f"D{52 + dz}"], ws[f"I{52 + dz}"] = "Nombre:", izquierda[0], derecha[0]
         ws[f"C{53 + dz}"], ws[f"D{53 + dz}"], ws[f"I{53 + dz}"] = "Puesto:", izquierda[1], derecha[1]
         if hoja == "TRANSFERENCIAS":
-            ws["G56"], ws["G58"] = "AUTORIZA", "AUTORIZADOR UNO"
+            ws["G56"], ws["F57"] = "AUTORIZA", "Firma:"
+            ws["F58"], ws["G58"] = "Nombre:", "AUTORIZADOR UNO"
+            ws["F59"], ws["G59"] = "Puesto:", "RIG MANAGER"
+        if hoja in FIRMAS_INVERTIDAS:
+            # Como NOV real: segunda fila de firmas (personal de la compañía y patrimonial).
+            ws.merge_cells("D56:F56")
+            ws.merge_cells("I56:K56")
+            ws["C55"], ws["E55"], ws["J55"] = "FIRMA:", "RECIBE / AUTORIZA ", "PATRIMONIAL"
+            ws["C56"], ws["D56"], ws["I56"] = "NOMBRE:", "PERSONAL NOV UNO", "PATRIMONIAL UNO"
+            ws["C57"], ws["D57"], ws["I57"] = "PUESTO:", "NOV ENERGY", "SEG PATRIMONIAL"
         ws["AG5"], ws["AH5"] = "CODIGO AX", "PRODUCTO"
         for fila, (codigo, descripcion) in enumerate(
             {**CATALOGO, **SOLO_EN_VALES}.items(), start=6
@@ -709,6 +731,55 @@ def _convertir_en_xlsm(ruta: Path) -> None:
         '<Relationship Id="rIdImg1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>'
         "</Relationships>"
     )
+    def foto(num: int, col1: int, col2: int, rid: str) -> str:
+        return (
+            f"<xdr:twoCellAnchor><xdr:from><xdr:col>{col1}</xdr:col><xdr:colOff>95250</xdr:colOff><xdr:row>24</xdr:row><xdr:rowOff>57150</xdr:rowOff></xdr:from>"
+            f"<xdr:to><xdr:col>{col2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>37</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>"
+            f'<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{10 + num}" name="Foto {num}"/><xdr:cNvPicPr/></xdr:nvPicPr>'
+            f'<xdr:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+            '<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor>'
+        )
+
+    dibujo_nov = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        "<xdr:oneCellAnchor><xdr:from><xdr:col>2</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>4</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>"
+        '<xdr:ext cx="952500" cy="317500"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="3" name="Logo"/><xdr:cNvPicPr/></xdr:nvPicPr>'
+        '<xdr:blipFill><a:blip r:embed="rIdImg1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+        '<xdr:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>'
+        + foto(1, 3, 4, "rIdFoto1")
+        + foto(2, 5, 8, "rIdFoto2")
+        + foto(3, 9, 10, "rIdFoto3")
+        + "</xdr:wsDr>"
+    )
+    rels_dibujo_nov = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rIdImg1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>'
+        '<Relationship Id="rIdFoto1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/foto1.png"/>'
+        '<Relationship Id="rIdFoto2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/foto2.png"/>'
+        '<Relationship Id="rIdFoto3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/foto3.png"/>'
+        "</Relationships>"
+    )
+    hoja5 = _leer(ruta, "xl/worksheets/sheet5.xml")
+    hoja5 = re.sub(r"(<pageMargins[^>]*/>)", r'\1<drawing r:id="rIdDib2"/>', hoja5, count=1)
+    if 'xmlns:r="' not in hoja5:
+        hoja5 = hoja5.replace(
+            "<worksheet ",
+            '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ',
+            1,
+        )
+    rels_hoja5 = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rIdDib2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing2.xml"/></Relationships>'
+    )
+    tipos = tipos.replace(
+        "</Types>",
+        '<Override PartName="/xl/drawings/drawing2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>',
+    )
     custom = '<?xml version="1.0" encoding="UTF-8" standalone="no"?><p:properties xmlns:p="http://schemas.microsoft.com/office/2006/metadata/properties"/>'
     props = (
         '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
@@ -731,6 +802,13 @@ def _convertir_en_xlsm(ruta: Path) -> None:
             "xl/drawings/drawing1.xml": dibujo.encode(),
             "xl/drawings/_rels/drawing1.xml.rels": rels_dibujo.encode(),
             "xl/media/image1.png": PNG_1PX,
+            "xl/worksheets/sheet5.xml": hoja5.encode(),
+            "xl/worksheets/_rels/sheet5.xml.rels": rels_hoja5.encode(),
+            "xl/drawings/drawing2.xml": dibujo_nov.encode(),
+            "xl/drawings/_rels/drawing2.xml.rels": rels_dibujo_nov.encode(),
+            "xl/media/foto1.png": png_color(30, 36, (200, 170, 90)),
+            "xl/media/foto2.png": png_color(40, 30, (40, 90, 160)),
+            "xl/media/foto3.png": png_color(30, 34, (90, 140, 70)),
             "xl/vbaProject.bin": b"VBA-FICTICIO-SOLO-PARA-PRUEBAS" * 64,
             "customXml/item1.xml": custom.encode(),
             "customXml/itemProps1.xml": props.encode(),

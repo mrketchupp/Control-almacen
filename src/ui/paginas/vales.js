@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { esInterna, tipoDeArea } from "../../nucleo/areas.js";
+import { PUESTOS_AUTORIZAN, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
 import { aNumero, dec } from "../../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../../nucleo/fechas.js";
-import { buscarPersonas, personasParaRecibir } from "../../servicios/consultas.js";
+import { buscarPersonas, personasParaFirma } from "../../servicios/consultas.js";
 import {
   ErrorVale,
   aplicarPlantilla,
@@ -16,6 +16,7 @@ import {
   descartarBorrador,
   disponibles,
   emitirBorrador,
+  firmasExtraDe,
   lineaEnBlanco,
   lineaVacia,
   lineasCapturadas,
@@ -27,7 +28,7 @@ import {
   siguienteFolio,
   validarVale,
 } from "../../servicios/vales.js";
-import { Aviso, Boton, Combo, Pastilla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 // ---------------------------------------------------------------- utilidades
@@ -138,13 +139,17 @@ function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
 
 // ---------------------------------------------------------------- quién recibe
 
-/** Busca a la persona por nombre, puesto o área habitual ("mecánico" lista a los mecánicos). */
-function SelectorPersona({ id, nombre, alElegir, alEscribir, depto, placeholder = "Nombre o puesto…", error }) {
+/**
+ * Busca a una persona por nombre o puesto. Se muestra su puesto; quien más ha firmado así para
+ * esa área (y los puestos preferidos, p. ej. RIG MANAGER e ITP para autorizar) sale primero.
+ * @param campo  firma del vale que se llena: recibio_nombre, autorizo_nombre, firma_extra_…
+ */
+function SelectorPersona({ id, nombre, alElegir, alEscribir, depto, campo = "recibio_nombre", puestos = [], placeholder = "Nombre o puesto…", ariaLabel = "Persona", error }) {
   const sesion = useSesion();
-  const personas = useMemo(() => personasParaRecibir(sesion.estado), [sesion.estado.personas, sesion.estado.vales]);
+  const personas = useMemo(() => personasParaFirma(sesion.estado, campo), [sesion.estado.personas, sesion.estado.vales, campo]);
   const [consulta, setConsulta] = useState(null); // null = muestra el nombre elegido
   const texto = consulta ?? nombre ?? "";
-  const opciones = useMemo(() => buscarPersonas(personas, consulta ?? "", { depto, limite: 40 }), [personas, consulta, depto]);
+  const opciones = useMemo(() => buscarPersonas(personas, consulta ?? "", { depto, puestos, limite: 40 }), [personas, consulta, depto, puestos.join()]);
   const escribir = (valor) => {
     setConsulta(valor);
     alEscribir?.(valor);
@@ -157,16 +162,61 @@ function SelectorPersona({ id, nombre, alElegir, alEscribir, depto, placeholder 
     opciones=${opciones}
     clave=${(p) => p.id}
     render=${(p) => html`<span class="opcion-principal">${p.nombre}</span>
-      ${p.puesto ? html`<${Pastilla} tono="info">${p.puesto}<//>` : null}
-      ${p.area && normal(p.area) !== normal(p.puesto) ? html`<${Pastilla} titulo="Área a la que más vales ha recibido">${p.area}<//>` : null}`}
+      ${p.puesto ? html`<${Pastilla} tono="info">${p.puesto}<//>` : html`<${Pastilla} titulo="Captúralo en Áreas y personas">sin puesto<//>`}`}
     alElegir=${(p) => {
       setConsulta(null);
       alElegir(p);
     }}
     alSalir=${() => setConsulta(null)}
     placeholder=${placeholder}
-    ariaLabel="Quién recibe"
+    ariaLabel=${ariaLabel}
   />`;
+}
+
+/** Fotos del vale en los espacios de su formato (NOV: 3). Se guardan reducidas en el equipo. */
+function FotosVale({ fotos = [], espacios, alCambiar }) {
+  const sesion = useSesion();
+  const [urls, setUrls] = useState({});
+  const claves = espacios.map((_, i) => fotos[i] ?? null);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const nuevas = {};
+      for (const clave of claves) if (clave) nuevas[clave] = await sesion.urlFoto(clave);
+      if (vivo) setUrls(nuevas);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [claves.join("|")]);
+  const poner = (i, clave) => {
+    const nuevas = [...claves];
+    nuevas[i] = clave;
+    alCambiar(nuevas);
+  };
+  const elegir = (i) => (e) => {
+    const archivo = e.currentTarget.files?.[0];
+    e.currentTarget.value = "";
+    if (archivo) sesion.tarea("Guardando foto…", async () => poner(i, await sesion.agregarFoto(archivo)));
+  };
+  const puestas = claves.filter(Boolean).length;
+  return html`<div class="campo">
+    <span>Fotos (${puestas} de ${espacios.length})</span>
+    <div class="fotos-vale">
+      ${espacios.map(
+        (espacio, i) => html`<div class="foto-espacio" style=${`aspect-ratio:${Math.round(espacio.ancho)}/${Math.round(espacio.alto)}`}>
+          ${claves[i]
+            ? html`${urls[claves[i]] ? html`<img src=${urls[claves[i]]} alt=${`Foto ${i + 1}`} />` : html`<span class="nota">Foto ${i + 1}</span>`}
+                <div class="foto-acciones">
+                  <button type="button" class="boton-quitar" title="Quitar esta foto" aria-label=${`Quitar foto ${i + 1}`} onClick=${() => poner(i, null)}>✕</button>
+                  <label class="boton boton-secundario boton-chico">Cambiar<input type="file" accept="image/*" hidden onChange=${elegir(i)} /></label>
+                </div>`
+            : html`<label class="foto-agregar" title="Agregar foto">＋ Foto ${i + 1}<input type="file" accept="image/*" hidden onChange=${elegir(i)} /></label>`}
+        </div>`,
+      )}
+    </div>
+    <small class="ayuda">Se imprimen en el mismo lugar y tamaño que en tu formato. Se guardan reducidas en este equipo.</small>
+  </div>`;
 }
 
 // ---------------------------------------------------------------- partidas
@@ -280,8 +330,20 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   const rapido = useMemo(() => (estado.config?.captura_rapida ? indiceRapido(estado, indices, saldos) : []), [estado.config?.captura_rapida, saldos]);
   const opcionesListas = useMemo(() => listas(estado), [estado.personas, estado.plantillas_area]);
   const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
-  const interna = esInterna(area);
+  const fijo = tieneDatosFijos(area);
   const tipo = area ? tipoDeArea(area) : null;
+  const extras = firmasExtraDe(estado, datos);
+  const [espacios, setEspacios] = useState([]);
+  useEffect(() => {
+    let vivo = true;
+    sesion
+      .espaciosFotos(datos)
+      .then((e) => vivo && setEspacios(e))
+      .catch(() => vivo && setEspacios([]));
+    return () => {
+      vivo = false;
+    };
+  }, [datos.plantilla_area_id, datos.depto_destino]);
   const errorEn = (campo, renglon = null) => errores.find((e) => e.campo === campo && e.renglon === renglon);
   const cambiar = (cambios) => alCambiar({ ...datos, ...cambios });
 
@@ -349,32 +411,33 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   let numero = 0;
 
   return html`
-    <datalist id="lista-deptos">${opcionesListas.deptos.map((p) => html`<option value=${p} />`)}</datalist>
-    <datalist id="lista-lugares">${opcionesListas.lugares.map((p) => html`<option value=${p} />`)}</datalist>
-    <datalist id="lista-puestos">${opcionesListas.puestos.map((p) => html`<option value=${p} />`)}</datalist>
-    <datalist id="lista-personas">${opcionesListas.personas.map((p) => html`<option value=${p} />`)}</datalist>
-
     <div class="editor-vale">
       <aside class="vale-datos" aria-label="Datos del vale">
         <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
-          <select
-            value=${datos.plantilla_area_id ?? ""}
-            onChange=${(e) => {
+          <${Lista}
+            id="area-vale"
+            valor=${datos.plantilla_area_id ?? ""}
+            alCambiar=${(valor) => {
               const copia = structuredClone(datos);
-              aplicarPlantilla(estado, copia, e.currentTarget.value ? Number(e.currentTarget.value) : null);
+              aplicarPlantilla(estado, copia, valor ? Number(valor) : null);
               alCambiar(copia);
             }}
-          >
-            <option value="">— Elige el área —</option>
-            ${areas.map((a) => html`<option value=${a.id}>${a.nombre}${tipoDeArea(a) === "TRANSFERENCIA" ? " (transferencia)" : tipoDeArea(a) === "EXTERNO" ? " (externa)" : ""}</option>`)}
-          </select>
+            ariaLabel="Área que recibe"
+            placeholder="— Elige el área —"
+            opciones=${areas.map((a) => ({
+              valor: a.id,
+              etiqueta: a.nombre,
+              detalle: tipoDeArea(a) === "TRANSFERENCIA" ? "transferencia" : tipoDeArea(a) === "EXTERNO" ? "externa" : null,
+            }))}
+          />
         <//>
         <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
           <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
         <//>
-        <${Campo} etiqueta="Recibió" error=${errorEn("recibio_nombre")} ayuda="Busca por nombre o por puesto (p. ej. mecánico).">
+        <${Campo} etiqueta="Recibió" error=${errorEn("recibio_nombre")} ayuda=${extras ? "Firma a la izquierda, arriba." : "Busca por nombre o por puesto (p. ej. mecánico)."}>
           <${SelectorPersona}
             id="recibio"
+            ariaLabel="Recibió"
             nombre=${datos.recibio_nombre}
             depto=${datos.depto_destino}
             error=${errorEn("recibio_nombre")}
@@ -383,45 +446,90 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           />
         <//>
         <${Campo} etiqueta="Puesto de quien recibe">
-          <input list="lista-puestos" value=${datos.recibio_puesto} onInput=${(e) => cambiar({ recibio_puesto: e.currentTarget.value })} />
+          <${CampoSugerido} valor=${datos.recibio_puesto} alCambiar=${(valor) => cambiar({ recibio_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel="Puesto de quien recibe" />
         <//>
+        ${extras
+          ? html`<${Campo} etiqueta=${extras.izq} ayuda="Firma a la izquierda, abajo.">
+                <${SelectorPersona}
+                  id="firma-izq"
+                  ariaLabel=${extras.izq}
+                  campo="firma_extra_izq_nombre"
+                  nombre=${datos.firma_extra_izq_nombre}
+                  depto=${datos.depto_destino}
+                  alEscribir=${(valor) => cambiar({ firma_extra_izq_nombre: valor })}
+                  alElegir=${(p) => cambiar({ firma_extra_izq_nombre: p.nombre, firma_extra_izq_puesto: p.puesto ?? datos.firma_extra_izq_puesto ?? "" })}
+                />
+              <//>
+              <${Campo} etiqueta=${`Puesto (${extras.izq.toLowerCase()})`}>
+                <${CampoSugerido} valor=${datos.firma_extra_izq_puesto} alCambiar=${(valor) => cambiar({ firma_extra_izq_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel=${`Puesto ${extras.izq}`} />
+              <//>`
+          : null}
+        <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
+          <dt>Entrega</dt>
+          <dd>
+            ${quienEntrega
+              ? html`${quienEntrega.nombre}
+                  <small>${[quienEntrega.puesto, entrego ? null : "en turno", extras ? "firma a la derecha, arriba" : null].filter(Boolean).join(" · ")}</small>`
+              : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
+          </dd>
+        </dl>
+        ${extras
+          ? html`<${Campo} etiqueta=${extras.der} ayuda="Firma a la derecha, abajo.">
+                <${SelectorPersona}
+                  id="firma-der"
+                  ariaLabel=${extras.der}
+                  campo="firma_extra_der_nombre"
+                  nombre=${datos.firma_extra_der_nombre}
+                  depto=${datos.depto_destino}
+                  alEscribir=${(valor) => cambiar({ firma_extra_der_nombre: valor })}
+                  alElegir=${(p) => cambiar({ firma_extra_der_nombre: p.nombre, firma_extra_der_puesto: p.puesto ?? datos.firma_extra_der_puesto ?? "" })}
+                />
+              <//>
+              <${Campo} etiqueta=${`Puesto (${extras.der.toLowerCase()})`}>
+                <${CampoSugerido} valor=${datos.firma_extra_der_puesto} alCambiar=${(valor) => cambiar({ firma_extra_der_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel=${`Puesto ${extras.der}`} />
+              <//>`
+          : null}
+        ${autoriza
+          ? html`<${Campo} etiqueta="Autorizó (obligatorio)" error=${errorEn("autorizo_nombre")} ayuda="Primero se sugieren RIG MANAGER e ITP.">
+                <${SelectorPersona}
+                  id="autorizo"
+                  ariaLabel="Autorizó"
+                  campo="autorizo_nombre"
+                  puestos=${PUESTOS_AUTORIZAN}
+                  nombre=${datos.autorizo_nombre}
+                  depto=${datos.depto_destino}
+                  error=${errorEn("autorizo_nombre")}
+                  alEscribir=${(valor) => cambiar({ autorizo_nombre: valor })}
+                  alElegir=${(p) => cambiar({ autorizo_nombre: p.nombre, autorizo_puesto: p.puesto ?? datos.autorizo_puesto ?? "" })}
+                />
+              <//>
+              <${Campo} etiqueta="Puesto de quien autoriza">
+                <${CampoSugerido} valor=${datos.autorizo_puesto ?? ""} alCambiar=${(valor) => cambiar({ autorizo_puesto: valor })} sugerencias=${[...new Set([...PUESTOS_AUTORIZAN, ...opcionesListas.puestos])]} ariaLabel="Puesto de quien autoriza" />
+              <//>`
+          : null}
         ${pideEtapa(estado, datos)
           ? html`<${Campo} etiqueta="Etapa de perforación" error=${errorEn("etapa_perforacion")} ayuda="Es lo único que cambia en las observaciones; se recuerda para los siguientes vales.">
               <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })} />
             <//>`
           : null}
-        ${autoriza
-          ? html`<${Campo} etiqueta="Autorizó (obligatorio)" error=${errorEn("autorizo_nombre")}>
-              <input list="lista-personas" value=${datos.autorizo_nombre} onInput=${(e) => cambiar({ autorizo_nombre: e.currentTarget.value })} />
-            <//>`
-          : null}
 
-        ${area && interna
+        ${area && fijo
           ? html`<dl class="datos-fijos">
               <dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
               <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>
             </dl>`
           : area || datos.origen || datos.destino
             ? html`<div class="rejilla-campos">
-                <${Campo} etiqueta="Origen"><input list="lista-lugares" value=${datos.origen} onInput=${(e) => cambiar({ origen: e.currentTarget.value })} /><//>
-                <${Campo} etiqueta="Depto. origen"><input list="lista-deptos" value=${datos.depto_origen} onInput=${(e) => cambiar({ depto_origen: e.currentTarget.value })} /><//>
-                <${Campo} etiqueta="Destino"><input list="lista-lugares" value=${datos.destino} onInput=${(e) => cambiar({ destino: e.currentTarget.value })} /><//>
+                <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
+                <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
+                <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
                 <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
-                  <input list="lista-deptos" value=${datos.depto_destino} onInput=${(e) => cambiar({ depto_destino: e.currentTarget.value })} />
+                  <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
                 <//>
               </div>`
             : null}
-        <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
-          <dt>Entrega</dt>
-          <dd>
-            ${quienEntrega
-              ? html`${quienEntrega.nombre}
-                  <small>${[quienEntrega.puesto, entrego ? null : "en turno"].filter(Boolean).join(" · ")}</small>`
-              : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
-          </dd>
-        </dl>
 
-        ${area && interna
+        ${area && fijo
           ? html`<div class="campo">
               <span>Observaciones (así salen en el vale)</span>
               <p class="observaciones-fijas">${observaciones || "—"}</p>
@@ -429,7 +537,8 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           : html`<${Campo} etiqueta="Observaciones">
               <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
             <//>`}
-        ${tipo && !interna ? html`<p class="nota">Área ${tipo === "TRANSFERENCIA" ? "de transferencia" : "externa"}: sus datos se pueden editar en cada vale.</p>` : null}
+        ${espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null}
+        ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: sus datos se pueden editar en cada vale.</p>` : null}
       </aside>
 
       <section class="vale-partidas" aria-label="Partidas del vale">
@@ -457,7 +566,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                 <th>Código</th>
                 <th class="col-descripcion">Descripción del material</th>
                 <th>Clave almacén</th>
-                <th title="Presentación (unidad)">Present.</th>
+                <th title="Presentación (unidad)">Pres.</th>
                 <th>Lote</th>
                 <th><span class="solo-lector">Quitar</span></th>
               </tr>
@@ -748,7 +857,7 @@ export function PaginaValesSalida() {
         dividir = true;
       }
       const folio = siguienteFolio(sesion.estado);
-      if (!confirmar(`¿Emitir el vale con el folio ${folio}${dividir ? " y siguientes" : ""}? Después solo se puede corregir o cancelar con motivo.`)) return;
+      if (!confirmar(`¿Emitir el vale con el folio ${folio}${dividir ? " y siguientes" : ""}? El folio queda usado: después solo se puede corregir (con motivo).`)) return;
       clearTimeout(pendiente.current);
       pendiente.current = null;
       try {

@@ -1,5 +1,5 @@
 import { createContext } from "preact";
-import { useContext, useEffect, useMemo, useState } from "preact/hooks";
+import { useContext, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { html } from "./html.js";
 
 export const ContextoSesion = createContext(null);
@@ -174,9 +174,15 @@ export function Combo({
   alEnter = null,
   alSalir = null,
   abrirAlEnfocar = true,
+  autoMarcar = true,
 }) {
+  const inicial = autoMarcar ? 0 : -1;
   const [abierto, setAbierto] = useState(false);
-  const [marcado, setMarcado] = useState(0);
+  const [marcado, setMarcado] = useState(inicial);
+  const lista = useRef(null);
+  useEffect(() => {
+    lista.current?.querySelector("li.marcado")?.scrollIntoView?.({ block: "nearest" });
+  }, [marcado, abierto]);
   const total = opciones.length + (extra ? 1 : 0);
   const elegir = (i) => {
     setAbierto(false);
@@ -193,8 +199,11 @@ export function Combo({
       setMarcado(Math.max(marcado - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (abierto && total) elegir(Math.min(marcado, total - 1));
-      else alEnter?.(e);
+      if (abierto && total && marcado >= 0) elegir(Math.min(marcado, total - 1));
+      else {
+        setAbierto(false);
+        alEnter?.(e);
+      }
     } else if (e.key === "Escape") setAbierto(false);
   };
   return html`<div class=${`combo ${clase}`}>
@@ -210,11 +219,11 @@ export function Combo({
       onInput=${(e) => {
         alEscribir(e.currentTarget.value);
         setAbierto(true);
-        setMarcado(0);
+        setMarcado(inicial);
       }}
       onFocus=${() => {
         if (abrirAlEnfocar) setAbierto(true);
-        setMarcado(0);
+        setMarcado(inicial);
       }}
       onBlur=${() => {
         setAbierto(false);
@@ -223,7 +232,7 @@ export function Combo({
       onKeyDown=${tecla}
     />
     ${abierto && total
-      ? html`<ul class="resultados" role="listbox">
+      ? html`<ul class="resultados" role="listbox" ref=${lista}>
           ${opciones.map(
             (o, i) => html`<li
               key=${clave(o, i)}
@@ -258,4 +267,119 @@ export function Combo({
 /** Pastilla de información (secundaria al dato principal). */
 export function Pastilla({ tono = "neutro", titulo, children }) {
   return html`<span class=${`pastilla pastilla-${tono}`} title=${titulo}>${children}</span>`;
+}
+
+const sinAcentos = (t) =>
+  String(t ?? "")
+    .toUpperCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "");
+
+/**
+ * Lista desplegable con el estilo de la herramienta (sustituye a <select>, cuya lista la
+ * dibuja el navegador y no se puede estilizar). opciones: [{ valor, etiqueta, detalle? }]
+ */
+export function Lista({ id, valor, opciones, alCambiar, ariaLabel, placeholder = "— Elige —", clase = "", deshabilitado = false }) {
+  const [abierta, setAbierta] = useState(false);
+  const [marcado, setMarcado] = useState(0);
+  const lista = useRef(null);
+  const igual = (o) => String(o.valor ?? "") === String(valor ?? "");
+  const actual = opciones.find(igual);
+  useEffect(() => {
+    lista.current?.querySelector("li.marcado")?.scrollIntoView?.({ block: "nearest" });
+  }, [marcado, abierta]);
+  const abrir = () => {
+    setMarcado(Math.max(0, opciones.findIndex(igual)));
+    setAbierta(true);
+  };
+  const elegir = (o) => {
+    setAbierta(false);
+    if (!igual(o)) alCambiar(o.valor);
+  };
+  const tecla = (e) => {
+    if (!abierta) {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
+        e.preventDefault();
+        abrir();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMarcado(Math.min(marcado + 1, opciones.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMarcado(Math.max(marcado - 1, 0));
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (opciones[marcado]) elegir(opciones[marcado]);
+    } else if (e.key === "Escape" || e.key === "Tab") setAbierta(false);
+    else if (e.key.length === 1) {
+      // Salta a la siguiente opción que empieza con esa letra.
+      const letra = sinAcentos(e.key);
+      const orden = [...opciones.keys()].map((i) => (marcado + 1 + i) % opciones.length);
+      const i = orden.find((j) => sinAcentos(opciones[j].etiqueta).trim().startsWith(letra));
+      if (i !== undefined) setMarcado(i);
+    }
+  };
+  return html`<div class=${`lista ${clase}`}>
+    <button
+      type="button"
+      id=${id}
+      class="lista-boton"
+      aria-haspopup="listbox"
+      aria-expanded=${abierta}
+      aria-label=${ariaLabel}
+      disabled=${deshabilitado}
+      onClick=${() => (abierta ? setAbierta(false) : abrir())}
+      onKeyDown=${tecla}
+      onBlur=${() => setAbierta(false)}
+    >
+      <span class=${`lista-valor ${actual ? "" : "lista-vacia"}`}>${actual ? actual.etiqueta : placeholder}</span>
+      <span class="lista-flecha" aria-hidden="true">▾</span>
+    </button>
+    ${abierta && opciones.length
+      ? html`<ul class="resultados" role="listbox" ref=${lista}>
+          ${opciones.map(
+            (o, i) => html`<li
+              key=${String(o.valor ?? "")}
+              role="option"
+              aria-selected=${igual(o)}
+              class=${`${i === marcado ? "marcado" : ""} ${igual(o) ? "elegida" : ""}`}
+              onMouseDown=${(e) => {
+                e.preventDefault();
+                elegir(o);
+              }}
+            >
+              <span>${o.etiqueta}</span>${o.detalle ? html`<span class="res-detalle">${o.detalle}</span>` : null}
+            </li>`,
+          )}
+        </ul>`
+      : null}
+  </div>`;
+}
+
+/** Campo de texto libre con sugerencias (sustituye a <input list> + <datalist>). */
+export function CampoSugerido({ id, valor, alCambiar, sugerencias, placeholder = "", ariaLabel, clase = "", limite = 12 }) {
+  const texto = valor ?? "";
+  const opciones = useMemo(() => {
+    const palabras = sinAcentos(texto).split(/\s+/).filter(Boolean);
+    const exacto = sinAcentos(texto).trim();
+    return sugerencias
+      .filter((x) => sinAcentos(x).trim() !== exacto && palabras.every((w) => sinAcentos(x).includes(w)))
+      .slice(0, limite);
+  }, [texto, sugerencias, limite]);
+  return html`<${Combo}
+    id=${id}
+    clase=${clase}
+    valor=${texto}
+    alEscribir=${alCambiar}
+    opciones=${opciones}
+    clave=${(x) => x}
+    render=${(x) => x}
+    alElegir=${alCambiar}
+    placeholder=${placeholder}
+    ariaLabel=${ariaLabel || placeholder}
+    autoMarcar=${false}
+  />`;
 }

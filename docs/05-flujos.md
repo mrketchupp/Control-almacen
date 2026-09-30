@@ -26,12 +26,14 @@ flowchart TD
 - **Partidas (paso a paso):** código AX → `Enter` → **clave**: la lista muestra solo las claves de ese código en el inventario, cada una con su contenedor y existencia (si solo hay una, se elige sola) → `Enter` → cantidad → `Enter` pasa a la siguiente partida. "Otra clave" deja la partida como no inventariada (no descuenta). Un artículo sin existencia (diésel) queda no inventariado y la clave se escribe a mano; un código que no está en el catálogo se acepta con su descripción y queda "por confirmar".
 - **Búsqueda rápida (opcional, en Ajustes):** un buscador por cualquier dato que llena la partida completa con `Enter`.
 - **Validaciones antes de emitir:** fecha, departamento destino, entregó, recibió, cantidad > 0, UM, "Sale de" elegido. Si la cantidad supera la existencia del contenedor elegido se pide una **justificación** (queda en el renglón).
-- **Emitir** es el único paso que asigna folio: `max(último folio + 1, folio mínimo)` dentro de un cambio atómico con candado de pestaña única. Un vale con errores no consume folio.
+- **Emitir** es el único paso que asigna folio: el último + 1, dentro de un cambio atómico con candado de pestaña única. Un vale con errores no consume folio. **Todos los folios se usan:** ninguno se cancela ni se salta.
 - **Más renglones que el formato:** cada hoja-formulario tiene su capacidad (21, 20 u 19 renglones). Si el vale la supera, la herramienta avisa y ofrece dividirlo en folios consecutivos (P-16).
 - **Transferencias:** la plantilla `TRANSFERENCIAS` exige "Autorizó" y marca la naturaleza como `TRANSFERENCIA`.
-- **NOV (diésel):** es una salida normal con renglón no inventariado. En su hoja-formulario el almacenista firma a la derecha; la impresión lo respeta.
+- **NOV (diésel):** área externa con datos fijos (sale de `RIG 91 · ALMACEN` hacia el tanque de NOV; observaciones fijas + etapa). Lleva **4 firmas**: a la izquierda el químico (arriba, "Recibió") y el personal de NOV (abajo); a la derecha el almacenista (arriba) y patrimonial (abajo). Las personas y la partida de diésel (sin cantidad) se toman del último vale NOV hecho en la herramienta. Lleva **3 fotos**, que se imprimen en el lugar y tamaño de las del formato; las partidas caben arriba de ellas (4). En el DIARIO, como hacía la macro, "Entrego" es el químico y "Recibio" el almacenista.
+- **Autorizó (transferencias):** nombre y puesto; se sugieren primero RIG MANAGER e ITP.
+- **Personas:** se muestra su puesto; quien más ha firmado para esa área aparece primero.
 - **Impresión:** el vale se dibuja sobre **la hoja-formulario del propio libro de vales** (logo, colores, bordes, anchos, observaciones y pie de página) en tamaño carta, y se imprime o se guarda como PDF desde el navegador. La vista previa de un borrador lleva `BORRADOR` en el folio.
-- **Folios hechos fuera de la herramienta:** si se siguieron haciendo vales en el Excel, *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último conocido. Si se usaron folios en papel que no están en ningún archivo, *Áreas y personas → Folios* fija el siguiente folio (solo puede aumentar).
+- **Folios hechos fuera de la herramienta:** si se siguieron haciendo vales en el Excel, *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último conocido. No hay forma de saltar folios: los hechos fuera se traen del Excel.
 
 ## 2. Vale de entrada (material recibido de la base)
 
@@ -57,16 +59,16 @@ flowchart TD
 1. Si la variante ya vive en un contenedor, se propone ese.
 2. Si vive en varios, se propone el que tiene más existencia.
 3. La vista previa muestra el nombre exacto de la hoja del Excel donde quedará.
-4. Nada se aplica hasta confirmar, y una entrada confirmada se puede **cancelar** con motivo (revierte el ingreso).
+4. Nada se aplica hasta confirmar, y una entrada confirmada se puede **corregir** con motivo (como los vales de salida, sin cancelar folios).
 
-## 3. Corrección, cancelación y devolución
+## 3. Corrección y devolución
 
 | Caso | Qué hace la herramienta |
 |---|---|
-| **Error de captura** en un vale emitido | *Historial → folio → Corregir*, con **motivo obligatorio**. El folio no cambia. La bitácora guarda antes → después y la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias). |
-| **Vale que no debió emitirse** | *Cancelar vale* con motivo. El folio queda como `CANCELADO` (no se reutiliza), la existencia se revierte y en el DIARIO aparece un renglón con cantidad 0 y `CANCELADO – <motivo>` (P-07). |
+| **Error de captura** en un vale emitido | *Historial → folio → Corregir*. El **motivo se llena solo** con lo que cambió (partidas agregadas, quitadas o modificadas, personas, etapa, fotos) y se puede completar con el porqué. El folio no cambia. La bitácora guarda el motivo, la lista de cambios y antes → después; la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias). |
+| **Vale que no debió emitirse** | No se cancela (todos los folios se usan): se corrige para que refleje lo que realmente salió. |
 | **Devolución de material** | Pendiente de confirmar (P-08). Opción A: corregir el vale original. Opción B: vale de entrada tipo "Devolución" que referencia el folio original. |
-| **Vale ya enviado a la base y luego corregido** | Vuelve a aparecer en *Exportar y enviar → Por enviar a la base* con el cambio "Corregido" o "Cancelado", para avisar a la base. |
+| **Vale ya enviado a la base y luego corregido** | Vuelve a aparecer en *Exportar y enviar → Por enviar a la base* con el cambio "Corregido", para avisar a la base. |
 
 ## 4. Conteo físico
 
@@ -100,7 +102,7 @@ flowchart LR
 
 1. **Exportar → Vales:** genera `VALES DE SALIDA DLTA.xlsm` sobre la plantilla registrada, con `DIARIO` completo y actualizado.
 2. La herramienta valida el archivo, lo guarda en la carpeta de exportaciones y registra hasta qué folio se incluyó.
-3. El usuario lo envía por correo como hoy y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* muestra los vales nuevos, corregidos o cancelados desde el último envío (se lleva con un contador de cambios, no con la hora, para que no se escape ninguno).
+3. El usuario lo envía por correo como hoy y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* muestra los vales nuevos o corregidos desde el último envío (se lleva con un contador de cambios, no con la hora, para que no se escape ninguno).
 4. **Exportar → Inventario:** genera el `.xlsx` con fecha en el nombre, cuando se necesite.
 
 ## 7. Cambio de guardia

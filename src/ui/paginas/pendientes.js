@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import { lineasPorUbicar, ubicarLinea } from "../../servicios/consultas.js";
-import { Aviso, Boton, Tarjeta, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, Lista, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 function Renglon({ linea }) {
@@ -19,9 +19,12 @@ function Renglon({ linea }) {
     </div>
     <div class="pendiente-acciones">
       ${linea.candidatos.length
-        ? html`<select value=${eleccion} onChange=${(e) => setEleccion(e.currentTarget.value)} aria-label="Renglón del inventario">
-            ${linea.candidatos.map((c) => html`<option value=${String(c.id)}>${c.coincide ? "★ " : ""}${c.etiqueta}</option>`)}
-          </select>`
+        ? html`<${Lista}
+            valor=${eleccion}
+            alCambiar=${setEleccion}
+            ariaLabel="Renglón del inventario"
+            opciones=${linea.candidatos.map((c) => ({ valor: String(c.id), etiqueta: `${c.coincide ? "★ " : ""}${c.etiqueta}` }))}
+          />`
         : html`<span class="nota">Este código no tiene renglones en el inventario.</span>`}
       <div class="acciones-linea">
         ${linea.candidatos.length ? html`<${Boton} tipo="primario" onClick=${() => guardar(Number(eleccion))}>Salió de aquí<//>` : null}

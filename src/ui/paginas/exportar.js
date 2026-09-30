@@ -27,7 +27,7 @@ function PorEnviar() {
       ${ultimo
         ? `Último envío: ${fmtFechaHora(ultimo.fecha_hora)}${ultimo.usuario ? ` · ${ultimo.usuario}` : ""}.`
         : "Aún no registras envíos desde la herramienta."}${" "}
-      Aquí aparecen los vales nuevos, corregidos o cancelados desde entonces, para avisarle a la base qué cambió.
+      Aquí aparecen los vales nuevos o corregidos desde entonces, para avisarle a la base qué cambió.
     </p>
     ${pendientes.length
       ? html`<${Tabla}

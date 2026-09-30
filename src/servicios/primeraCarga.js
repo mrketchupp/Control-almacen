@@ -148,6 +148,23 @@ function alias(respuestas, nombre) {
   return nombre ? (respuestas.alias.get(nombre) ?? nombre) : null;
 }
 
+/**
+ * Completa un área con lo que trae su hoja-formulario y que versiones anteriores no leían:
+ * puesto de quien autoriza y la segunda fila de firmas (NOV). No pisa lo que ya tenga.
+ */
+export function completarAreaDesdeFormulario(area, p, indices, nombreCanonico = (x) => x) {
+  if (!area.autoriza_puesto && p.autoriza_puesto) area.autoriza_puesto = p.autoriza_puesto;
+  // En el DIARIO, la macro guarda las firmas por posición: con el almacenista a la derecha
+  // (NOV), "Entrego" es quien firma a la izquierda.
+  area.almacenista_derecha ??= Boolean(p.almacenista_derecha);
+  if (!area.firmas_extra && p.firmas_extra) {
+    const lado = (x) => ({ titulo: x.titulo ?? null, nombre: nombreCanonico(x.nombre) ?? null, puesto: x.puesto ?? null });
+    area.firmas_extra = { izq: lado(p.firmas_extra.izq), der: lado(p.firmas_extra.der) };
+    for (const x of Object.values(area.firmas_extra)) indices.persona(x.nombre, { puesto: x.puesto ?? undefined });
+  }
+  return area;
+}
+
 function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
   vales.plantillas.forEach((p, i) => {
     const entrega = alias(respuestas, p.entrega_nombre);
@@ -155,7 +172,7 @@ function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
     const autoriza = alias(respuestas, p.autoriza_nombre);
     indices.persona(entrega, { puesto: p.entrega_puesto });
     indices.persona(recibe, { puesto: p.recibe_puesto });
-    indices.persona(autoriza);
+    indices.persona(autoriza, { puesto: p.autoriza_puesto ?? undefined });
     const esTransferencia = `${p.hoja}${p.depto_destino || ""}`.toUpperCase().includes("TRANSFER");
     estado.plantillas_area.push({
       id: siguienteId(estado, "plantilla_area"),
@@ -170,6 +187,8 @@ function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
       recibe_nombre: recibe,
       recibe_puesto: p.recibe_puesto,
       autoriza_nombre: autoriza,
+      autoriza_puesto: p.autoriza_puesto ?? null,
+      firmas_extra: null,
       requiere_autoriza: Boolean(autoriza) || esTransferencia,
       naturaleza: esTransferencia ? "TRANSFERENCIA" : "CONSUMO",
       observaciones: p.observaciones,
@@ -178,6 +197,7 @@ function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
       activo: true,
     });
     normalizarArea(estado.plantillas_area.at(-1));
+    completarAreaDesdeFormulario(estado.plantillas_area.at(-1), p, indices, (nombre) => alias(respuestas, nombre));
   });
   const interna = estado.plantillas_area.find((a) => esInterna(a) && etapaDe(a.observaciones) !== null);
   estado.config.etapa_perforacion = interna ? etapaDe(interna.observaciones) : "";

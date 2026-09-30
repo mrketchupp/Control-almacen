@@ -116,3 +116,41 @@ test("el texto de una fila espaciadora de 1 px se recorta como en Excel", () => 
   assert.match(html, /<div style="height:1px;overflow:hidden">3<\/div>/);
   assert.ok(!m.campos.observaciones.textos.some((t) => t.r === 47), "el número no es una observación");
 });
+
+test("NOV: cuatro firmas, espacios para 3 fotos y partidas solo arriba de las fotos", () => {
+  const { estado } = cargaSintetica();
+  const m = analizarFormulario(libro, "NOV");
+  assert.equal(m.fotos.length, 3);
+  assert.ok(m.fotos.every((f) => f.ancho > 20 && f.alto > 20));
+  assert.equal(m.imagenes.length, 1, "el logo se imprime; las fotos del ejemplo no");
+  assert.equal(m.capacidad, 4);
+  const { izq, der } = m.campos.firmas_extra;
+  assert.deepEqual([ref(izq.nombre), ref(izq.puesto), ref(der.nombre), ref(der.puesto)], ["D56", "D57", "I56", "I57"]);
+  const nov = estado.plantillas_area.find((p) => p.nombre === "NOV");
+  const b = v.nuevoBorrador(estado, { usuario: "ALMACENISTA UNO", plantillaId: nov.id });
+  b.lineas.push({ ...v.lineaNoInventariada(estado, 136), cantidad: "1000", um: "LTS", clave: "DIESEL" });
+  const valores = valoresDeVale(m, { ...b, firma_extra_der_nombre: "OTRO PATRIMONIAL" });
+  assert.equal(valores.get("56,4"), "PERSONAL NOV UNO");
+  assert.equal(valores.get("56,9"), "OTRO PATRIMONIAL");
+  assert.equal(valores.get("57,9"), "SEG PATRIMONIAL");
+  // sin datos de la segunda fila (vales migrados) no se imprimen los nombres del ejemplo
+  assert.equal(valoresDeVale(m, { ...b, firma_extra_izq_nombre: null }).get("56,4"), null);
+  const html = paginaHtml(m, valores, ["data:image/jpeg;base64,AAAA", null, "data:image/jpeg;base64,BBBB"]);
+  assert.equal((html.match(/class="vale-foto"/g) || []).length, 2);
+});
+
+test("TRANSFERENCIAS: el puesto de quien autoriza va debajo de su nombre", () => {
+  const m = analizarFormulario(libro, "TRANSFERENCIAS");
+  assert.deepEqual([ref(m.campos.autoriza), ref(m.campos.autoriza_puesto)], ["G58", "G59"]);
+  const valores = valoresDeVale(m, { fecha: "2026-10-01", lineas: [], autorizo_nombre: "OTRA PERSONA", autorizo_puesto: "ITP" });
+  assert.deepEqual([valores.get("58,7"), valores.get("59,7")], ["OTRA PERSONA", "ITP"]);
+});
+
+test("NOV migrado del DIARIO: al reimprimir, las firmas respetan su posición", () => {
+  const m = analizarFormulario(libro, "NOV");
+  const migrado = { migrado: true, fecha: "2026-09-03", lineas: [], entrego_nombre: "QUIMICO DOS", recibio_nombre: "ALMACENISTA UNO" };
+  const valores = valoresDeVale(m, migrado);
+  assert.deepEqual([valores.get("52,4"), valores.get("52,9")], ["QUIMICO DOS", "ALMACENISTA UNO"]);
+  const nuevo = valoresDeVale(m, { ...migrado, migrado: false, entrego_nombre: "ALMACENISTA UNO", recibio_nombre: "QUIMICO DOS" });
+  assert.deepEqual([nuevo.get("52,4"), nuevo.get("52,9")], ["QUIMICO DOS", "ALMACENISTA UNO"]);
+});

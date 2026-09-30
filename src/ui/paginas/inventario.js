@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import { filasInventario } from "../../servicios/consultas.js";
-import { Buscador, Tabla, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { Buscador, Tabla, num, useFiltroTexto, useSesion, Lista } from "../componentes.js";
 import { html } from "../html.js";
 
 export function PaginaInventario() {
@@ -21,16 +21,25 @@ export function PaginaInventario() {
   return html`
     <div class="filtros">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión, NP…" />
-      <select value=${hoja} onChange=${(e) => setHoja(e.currentTarget.value)} aria-label="Contenedor">
-        <option value="">Todos los contenedores</option>
-        ${hojas.map((h) => html`<option value=${h}>${h}</option>`)}
-      </select>
-      <select value=${vista} onChange=${(e) => setVista(e.currentTarget.value)} aria-label="Vista">
-        <option value="todos">Todos los renglones</option>
-        <option value="movimiento">Con consumo o ingreso</option>
-        <option value="agotado">Existencia 0 o negativa</option>
-        <option value="notas">Con nota</option>
-      </select>
+      <${Lista}
+        clase="lista-filtro"
+        valor=${hoja}
+        alCambiar=${setHoja}
+        ariaLabel="Contenedor"
+        opciones=${[{ valor: "", etiqueta: "Todos los contenedores" }, ...hojas.map((h) => ({ valor: h, etiqueta: h }))]}
+      />
+      <${Lista}
+        clase="lista-filtro"
+        valor=${vista}
+        alCambiar=${setVista}
+        ariaLabel="Vista"
+        opciones=${[
+          { valor: "todos", etiqueta: "Todos los renglones" },
+          { valor: "movimiento", etiqueta: "Con consumo o ingreso" },
+          { valor: "agotado", etiqueta: "Existencia 0 o negativa" },
+          { valor: "notas", etiqueta: "Con nota" },
+        ]}
+      />
       <span class="conteo">${num(visibles.length)} de ${num(filas.length)}</span>
     </div>
     <${Tabla}

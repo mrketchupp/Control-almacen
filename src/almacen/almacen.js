@@ -8,7 +8,10 @@ import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
-import { crearRespaldo, leerRespaldo } from "./respaldos.js";
+import { Indices } from "../nucleo/estado.js";
+import { leerVales } from "../importadores/vales.js";
+import { completarAreaDesdeFormulario } from "../servicios/primeraCarga.js";
+import { CARPETA_FOTOS, crearRespaldo, leerRespaldo } from "./respaldos.js";
 
 export class SinPlantilla extends Error {}
 export class BaseNoVacia extends Error {}
@@ -46,8 +49,67 @@ export class Almacen {
     const guardado = await this.backend.leerEstado();
     const formato = guardado?.formato;
     this.estado = migrarEstado(guardado);
+    if (this.estado?.config?.completar_areas) await this._completarAreas(this.estado);
     if (guardado && formato !== this.estado.formato) await this.backend.guardarEstado(this.estado);
+    if (this.estado) await this.limpiarFotos().catch(() => {});
     return this.estado;
+  }
+
+  /**
+   * Formato 4: lee otra vez las hojas-formulario de la plantilla de vales para completar las
+   * áreas (puesto de quien autoriza, firmas de NOV). Sin plantilla, lo deja como está.
+   */
+  async _completarAreas(estado) {
+    delete estado.config.completar_areas;
+    const registro = [...estado.plantillas_excel].reverse().find((p) => p.tipo === "VALES" && p.activa);
+    const archivo = registro ? await this.backend.leerArchivo(registro.archivo) : null;
+    if (!archivo) return;
+    try {
+      const libro = leerVales(archivo.datos, registro.nombre_original);
+      const indices = new Indices(estado);
+      for (const area of estado.plantillas_area) {
+        const hoja = libro.plantillas.find((p) => p.hoja === area.hoja_excel || p.hoja.trim() === area.nombre);
+        if (hoja) completarAreaDesdeFormulario(area, hoja, indices);
+      }
+      // Vales hechos con versiones anteriores en áreas con el almacenista a la derecha (NOV):
+      // se exportan por posición, como los nuevos.
+      for (const vale of estado.vales) {
+        if (vale.migrado || vale.almacenista_derecha !== undefined) continue;
+        vale.almacenista_derecha = Boolean(estado.plantillas_area.find((a) => a.id === vale.plantilla_area_id)?.almacenista_derecha);
+      }
+    } catch (error) {
+      console.error("No se pudieron completar las áreas desde la plantilla:", error);
+    }
+  }
+
+  // ------------------------------------------------------------ fotos de los vales
+
+  /** Guarda una foto (ya reducida) y devuelve su clave. La misma foto no se guarda dos veces. */
+  async guardarFoto(datos, { nombre = "foto.jpg", tipo = "image/jpeg" } = {}) {
+    const huella = await sha256(datos);
+    const clave = `${CARPETA_FOTOS}${huella.slice(0, 24)}${tipo === "image/png" ? ".png" : ".jpg"}`;
+    if (!(await this.backend.leerArchivo(clave))) {
+      await this.backend.guardarArchivo({ clave, nombre, tipo: "FOTO", mime: tipo, datos, sha256: huella, guardado_en: ahoraIso() });
+    }
+    return clave;
+  }
+
+  leerFoto(clave) {
+    return this.backend.leerArchivo(clave);
+  }
+
+  fotosEnUso(estado = this.estado) {
+    const claves = new Set();
+    for (const x of [...(estado?.vales ?? []), ...(estado?.borradores ?? [])]) for (const f of x.fotos ?? []) if (f) claves.add(f);
+    return claves;
+  }
+
+  /** Borra las fotos que ya no usa ningún vale ni borrador. */
+  async limpiarFotos() {
+    const enUso = this.fotosEnUso();
+    const sobran = (await this.backend.listarArchivos()).filter((c) => String(c).startsWith(CARPETA_FOTOS) && !enUso.has(c));
+    if (sobran.length) await this.backend.borrarArchivos(sobran);
+    return sobran.length;
   }
 
   get vacio() {
@@ -176,12 +238,17 @@ export class Almacen {
 
   async respaldo(motivo = "manual") {
     const plantillas = await this.plantillasDelEstado();
-    return crearRespaldo(this.estado, plantillas, { motivo, version: this.version });
+    const fotos = [];
+    for (const clave of this.fotosEnUso()) {
+      const foto = await this.backend.leerArchivo(clave);
+      if (foto) fotos.push({ clave, datos: foto.datos });
+    }
+    return crearRespaldo(this.estado, plantillas, { motivo, version: this.version, fotos });
   }
 
   /** Reemplaza TODO por el contenido de un respaldo (el llamador respalda antes el estado actual). */
   restaurar(datos) {
-    const { estado: leido, plantillas, manifiesto } = leerRespaldo(datos);
+    const { estado: leido, plantillas, fotos, manifiesto } = leerRespaldo(datos);
     const estado = migrarEstado(leido);
     return this._enCola(async () => {
       const ahora = ahoraIso();
@@ -196,8 +263,15 @@ export class Almacen {
           guardado_en: ahora,
         };
       });
+      for (const f of fotos) {
+        archivos.push({ clave: f.clave, nombre: f.clave.slice(CARPETA_FOTOS.length), tipo: "FOTO", mime: f.clave.endsWith(".png") ? "image/png" : "image/jpeg", datos: f.datos, sha256: null, guardado_en: ahora });
+      }
       if (this.estado) await this.backend.guardarInstantanea(this.estado, "antes de restaurar", ahora);
       await this.backend.guardarTodo(estado, archivos);
+      if (estado.config?.completar_areas) {
+        await this._completarAreas(estado);
+        await this.backend.guardarEstado(estado);
+      }
       this.estado = estado;
       this._avisar();
       return manifiesto;
@@ -214,6 +288,7 @@ export class Almacen {
       if (!copia) throw new Error("No se encontró la copia interna.");
       if (this.estado) await this.backend.guardarInstantanea(this.estado, "antes de restaurar", ahoraIso());
       const estado = migrarEstado(copia.estado);
+      if (estado.config?.completar_areas) await this._completarAreas(estado);
       await this.backend.guardarEstado(estado);
       this.estado = estado;
       this._avisar();

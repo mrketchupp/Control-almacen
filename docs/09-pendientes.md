@@ -13,14 +13,14 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-07 | ¿Cómo debe aparecer un **vale cancelado** en el DIARIO que se envía a la base? | Un renglón con cantidad 0 y la descripción `CANCELADO – <motivo>`, para que el folio no parezca perdido. **Aplicado en F2**; confirmar con la base. |
+| P-07 | ¿Cómo debe aparecer un **vale cancelado** en el DIARIO? | **Resuelto por el usuario:** no se cancelan folios; todos se usan y un error se corrige. (Los cancelados de versiones anteriores siguen saliendo como renglón en 0.) |
 | P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. |
 | P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | **F2 imprime sobre la hoja-formulario del propio libro** (logo, colores, bordes, anchos, pie de página y escala de Excel), así que sale prácticamente idéntico. **Falta que el usuario imprima uno y lo compare** antes de cerrar la fase. |
 | P-10 | Tamaño de hoja e impresora | Carta, vertical, 1 vale por hoja |
 | P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. |
 | P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias o en las áreas marcadas "Exigir Autorizó"; el autorizador habitual se guarda en el área. **Aplicado en F2.** |
 | P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** |
-| P-22 | **NOV y transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | Por ahora se editan libremente en el vale (origen, destino, deptos, observaciones); Autorizó obligatorio en transferencias. Se revisa con el usuario. |
+| P-22 | **Transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | Por ahora se editan libremente en el vale (origen, destino, deptos, observaciones); Autorizó (nombre y puesto) obligatorio. NOV ya se resolvió: datos fijos como el vale existente, 4 firmas y 3 fotos. |
 | P-23 | La línea de observaciones del formato dice `ETAPA DE PERFORACION: 12 1/4""` (dos comillas). ¿Es intencional? | Se respeta tal cual; en cada vale se escribe la etapa como se quiera ver impresa. |
 
 ## Entradas

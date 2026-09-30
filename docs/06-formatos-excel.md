@@ -101,7 +101,8 @@ En `sheet1.xml` se reemplazan:
 | T | TRANSFERENCIA/CONSUMO | Pendiente P-13 (por defecto vacío) |
 
 - **Orden de los renglones:** por folio y luego por número de renglón.
-- **Vales cancelados:** pendiente P-07. Por defecto, un renglón con cantidad 0 y la descripción `CANCELADO – <motivo>`, para que el folio no parezca perdido.
+- **Vales cancelados:** ya no se cancela (todos los folios se usan). Los cancelados con versiones anteriores salen como un renglón con cantidad 0 y `CANCELADO – <motivo>`.
+- **NOV (almacenista a la derecha):** como hacía la macro, P ("Entrego/Recibio") lleva a quien firma a la izquierda (el químico) y Q al almacenista.
 - **Borradores:** no se exportan.
 - **Nombre de archivo:** `VALES DE SALIDA DLTA.xlsm` (el mismo nombre de hoy).
 

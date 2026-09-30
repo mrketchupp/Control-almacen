@@ -267,6 +267,50 @@ export class Sesion {
     }
   }
 
+  /** Espacios para fotos del formato con que se imprime el vale (NOV: 3). [{ancho, alto}] */
+  async espaciosFotos(vale) {
+    try {
+      return (await this.formulario(await this.hojaParaVale(vale))).fotos ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  // ------------------------------------------------------------ fotos
+
+  /**
+   * Reduce la foto (lado mayor 1280 px, JPEG) para que los respaldos no crezcan de más, y la
+   * guarda en el equipo. @returns la clave de la foto
+   */
+  async agregarFoto(archivo) {
+    let datos;
+    try {
+      const imagen = await createImageBitmap(archivo);
+      const escala = Math.min(1, 1280 / Math.max(imagen.width, imagen.height));
+      const lienzo = document.createElement("canvas");
+      lienzo.width = Math.round(imagen.width * escala);
+      lienzo.height = Math.round(imagen.height * escala);
+      lienzo.getContext("2d").drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+      imagen.close?.();
+      const blob = await new Promise((listo) => lienzo.toBlob(listo, "image/jpeg", 0.78));
+      datos = new Uint8Array(await blob.arrayBuffer());
+    } catch {
+      throw new Error(`No se pudo leer la foto ${archivo.name}. Usa una imagen JPG o PNG.`);
+    }
+    return this.almacen.guardarFoto(datos, { nombre: archivo.name, tipo: "image/jpeg" });
+  }
+
+  /** URL para mostrar una foto guardada (se reutiliza mientras la página esté abierta). */
+  async urlFoto(clave) {
+    this._urlsFotos ??= new Map();
+    if (!this._urlsFotos.has(clave)) {
+      const foto = await this.almacen.leerFoto(clave);
+      if (!foto) return null;
+      this._urlsFotos.set(clave, URL.createObjectURL(new Blob([foto.datos], { type: foto.mime || "image/jpeg" })));
+    }
+    return this._urlsFotos.get(clave);
+  }
+
   /** Completa los puestos con el catálogo de personas cuando el vale no los trae. */
   _paraImprimir(vale) {
     const puesto = (nombre) => this.estado.personas.find((p) => p.nombre === nombre)?.puesto ?? null;
@@ -274,13 +318,18 @@ export class Sesion {
       ...vale,
       entrego_puesto: vale.entrego_puesto || puesto(vale.entrego_nombre),
       recibio_puesto: vale.recibio_puesto || puesto(vale.recibio_nombre),
+      autorizo_puesto: vale.autorizo_puesto || puesto(vale.autorizo_nombre),
     };
   }
 
   /** HTML y CSS de los vales, una hoja carta por vale. */
   async documentoVales(vales) {
     const paginas = [];
-    for (const vale of vales) paginas.push({ modelo: await this.formulario(await this.hojaParaVale(vale)), vale: this._paraImprimir(vale) });
+    for (const vale of vales) {
+      const fotos = [];
+      for (const clave of vale.fotos ?? []) fotos.push(clave ? await this.urlFoto(clave) : null);
+      paginas.push({ modelo: await this.formulario(await this.hojaParaVale(vale)), vale: this._paraImprimir(vale), fotos });
+    }
     return documentoImpresion(paginas);
   }
 

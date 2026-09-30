@@ -28,6 +28,8 @@ export function valoresRenglon(vale, linea) {
     recibio: vale.recibio_nombre,
     autorizo: vale.autorizo_nombre,
   };
+  // Como la macro: con el almacenista a la derecha (NOV), "Entrego" es quien firma a la izquierda.
+  if (vale.almacenista_derecha && !vale.migrado) [encabezado.entrego, encabezado.recibio] = [encabezado.recibio, encabezado.entrego];
   if (linea && linea.encabezado_original) Object.assign(encabezado, linea.encabezado_original);
   const esEntrada = vale.tipo === "ENTRADA";
   let cantidad, codigo, descripcion, oc, clave, um, lote, familia, transferencia;

@@ -124,16 +124,35 @@ export function leerFormulario(hoja, filas) {
     }
   }
   let autoriza = null;
+  let autorizaPuesto = null;
   for (let i = 40; i < limite; i++) {
     if ((n.mayusculas(filas[i][6]) || "").startsWith("AUTORIZA")) {
       for (let j = i + 1; j < Math.min(filas.length, i + 4); j++) {
         const nombre = n.nombrePersona(filas[j][6]);
         if (nombre) {
           autoriza = nombre;
+          // El puesto va en la fila de abajo (TRANSFERENCIAS: "Puesto:" F59 → G59).
+          if ((n.mayusculas(filas[j + 1]?.[5]) || "").startsWith("PUESTO")) autorizaPuesto = n.mayusculas(filas[j + 1][6]);
           break;
         }
       }
+      break; // solo la primera etiqueta: debajo puede venir un nombre que también empiece con "AUTORIZA…"
     }
+  }
+  // Segunda fila de firmas (NOV): "NOMBRE:" otra vez en la columna C, con persona a cada lado.
+  let firmasExtra = null;
+  for (let i = (filaNombre ?? limite); filaNombre && i < limite; i++) {
+    if (!(n.mayusculas(filas[i][2]) || "").startsWith("NOMBRE")) continue;
+    const fila = i + 1;
+    const lado = (col, colTitulo) => ({
+      titulo: n.valorATexto(celda(filas, `${colTitulo}${fila - 1}`)) || null,
+      nombre: n.nombrePersona(celda(filas, `${col}${fila}`)),
+      puesto: n.mayusculas(celda(filas, `${col}${fila + 1}`)),
+    });
+    const izq = lado("D", "E");
+    const der = lado("I", "J");
+    if (izq.nombre || der.nombre || izq.puesto || der.puesto) firmasExtra = { izq, der };
+    break;
   }
   const observaciones = [];
   const etiquetas = ["OBSERVACION", "ENTREGO", "FIRMA", "NOMBRE", "PUESTO"];
@@ -152,7 +171,8 @@ export function leerFormulario(hoja, filas) {
     puesto: filaNombre ? n.mayusculas(celda(filas, `I${filaNombre + 1}`)) : null,
   };
   // En algunas hojas (NOV) el almacenista firma del lado derecho.
-  if (/ALMACEN/.test(recibe.puesto || "") && !/ALMACEN/.test(entrega.puesto || "")) [entrega, recibe] = [recibe, entrega];
+  const almacenistaDerecha = /ALMACEN/.test(recibe.puesto || "") && !/ALMACEN/.test(entrega.puesto || "");
+  if (almacenistaDerecha) [entrega, recibe] = [recibe, entrega];
   return {
     hoja,
     origen: n.valorATexto(celda(filas, "E17")),
@@ -164,6 +184,9 @@ export function leerFormulario(hoja, filas) {
     recibe_nombre: recibe.nombre,
     recibe_puesto: recibe.puesto,
     autoriza_nombre: autoriza,
+    autoriza_puesto: autorizaPuesto,
+    firmas_extra: firmasExtra,
+    almacenista_derecha: almacenistaDerecha,
     observaciones: observaciones.join("\n") || null,
   };
 }

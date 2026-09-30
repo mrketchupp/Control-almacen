@@ -31,6 +31,28 @@ export function tipoDeArea(area) {
 export const esInterna = (area) => Boolean(area) && tipoDeArea(area) === "INTERNO";
 
 /**
+ * ¿Los datos del vale salen fijos del área? Internas y externas (NOV) sí: origen, destino y
+ * observaciones son los del formato y solo cambia la etapa. Las transferencias se editan.
+ */
+export const tieneDatosFijos = (area) => Boolean(area) && tipoDeArea(area) !== "TRANSFERENCIA";
+
+// Puestos que suelen autorizar (se sugieren primero en "Autorizó").
+export const PUESTOS_AUTORIZAN = ["RIG MANAGER", "ITP"];
+
+/** Nombre para mostrar de las firmas de la segunda fila (NOV: personal de la compañía y patrimonial). */
+export function etiquetasFirmasExtra(area) {
+  const extra = area?.firmas_extra;
+  if (!extra) return null;
+  const nombreDe = (lado, defecto) => {
+    const titulo = String(extra[lado]?.titulo ?? "").trim();
+    if (titulo && !/RECIBE|ENTREGA|AUTORIZA/i.test(titulo)) return titulo.charAt(0) + titulo.slice(1).toLowerCase();
+    return defecto;
+  };
+  const compania = String(area.depto_destino ?? "").trim() || "la compañía";
+  return { izq: nombreDe("izq", `Personal de ${compania}`), der: nombreDe("der", "Segunda firma") };
+}
+
+/**
  * Deja el área con su tipo y, si es interna, con los datos fijos: sale de RIG 91 · ALMACEN
  * y llega a RIG 91 · <departamento del área>.
  */
@@ -44,6 +66,12 @@ export function normalizarArea(area) {
     area.origen = area.origen || ORIGEN_EQUIPO;
     area.depto_origen = DEPTO_ALMACEN;
     area.destino = area.origen;
+    area.naturaleza = "CONSUMO";
+  }
+  if (area.tipo === "EXTERNO") {
+    // Externas (NOV): salen del almacén del equipo hacia la compañía.
+    area.origen = area.origen || ORIGEN_EQUIPO;
+    area.depto_origen = DEPTO_ALMACEN;
     area.naturaleza = "CONSUMO";
   }
   return area;

@@ -96,6 +96,9 @@ erDiagram
 | naturaleza | `CONSUMO` / `TRANSFERENCIA` |
 | observaciones | Las líneas fijas del formato (C44:C46). En las internas solo cambia, en cada vale, la línea `ETAPA DE PERFORACION: …` |
 | lote_defecto | Se copia a la columna LOTE de cada renglón nuevo |
+| autoriza_puesto | Puesto de quien autoriza (TRANSFERENCIAS: G59) |
+| firmas_extra | `{izq, der}` con título, nombre y puesto de la segunda fila de firmas (NOV), o nulo |
+| almacenista_derecha | El almacenista firma a la derecha (NOV) |
 | activo | Las inactivas no se ofrecen al hacer vales |
 
 ### Movimientos
@@ -107,17 +110,20 @@ erDiagram
 | tipo | `SALIDA` / `ENTRADA` | |
 | folio | int | Se asigna al emitir (los borradores viven aparte, en `borradores`). `UNIQUE(tipo, folio)`. |
 | folio_externo | texto | Entradas: folio del vale de la base |
-| estado | `BORRADOR` / `EMITIDO` / `CANCELADO` | |
+| estado | `EMITIDO` (o `CANCELADO` en vales de versiones anteriores: ya no se cancela) | |
 | fecha | fecha | |
 | origen, depto_origen, destino, depto_destino | texto | Copia al momento de emitir |
-| entrego_nombre, entrego_puesto, recibio_nombre, recibio_puesto, autorizo_nombre | texto | Copia (el historial no cambia si luego se edita la persona) |
+| entrego_nombre, entrego_puesto, recibio_nombre, recibio_puesto, autorizo_nombre, autorizo_puesto | texto | Copia (el historial no cambia si luego se edita la persona). En los **migrados** de áreas con el almacenista a la derecha (NOV) vienen **por posición**, como los guardaba la macro: entregó = quien firma a la izquierda |
+| firma_extra_izq_nombre/puesto, firma_extra_der_nombre/puesto | texto | Segunda fila de firmas del formato (NOV: personal de la compañía a la izquierda, patrimonial a la derecha) |
+| fotos | lista de claves | Una por espacio de foto del formato (`null` = vacío); el archivo está en IndexedDB y en los respaldos |
+| almacenista_derecha | bool | El área firma con el almacenista a la derecha: al exportar, P = izquierda y Q = derecha, como la macro |
 | entrego_id, recibio_id, autorizo_id | FK persona nulas | |
 | observaciones | texto | |
 | plantilla_area_id | FK | |
 | naturaleza | `CONSUMO` / `TRANSFERENCIA` | Para la columna TRANSFERENCIA/CONSUMO |
 | creado_por, creado_en, emitido_en, modificado_en | | |
-| cancelado_en, motivo_cancelacion | | |
-| cambio | int | Contador global que sube en cada emisión, corrección o cancelación; decide qué hay **por enviar** |
+| cancelado_en, motivo_cancelacion | | Solo en vales cancelados con versiones anteriores |
+| cambio | int | Contador global que sube en cada emisión o corrección; decide qué hay **por enviar** |
 | enviado_en | fecha-hora nula | Primera vez que se marcó como enviado a la base |
 | ruta_escaneo | texto | Enlace o ruta del PDF escaneado (opcional) |
 | migrado, fila_diario_origen | | Trazabilidad de la migración |
@@ -152,7 +158,7 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 | Campo | Notas |
 |---|---|
 | fecha_hora, usuario | |
-| hasta_cambio | Valor del contador `cambio` al marcar: lo que tenga `cambio` mayor está **por enviar** (nuevo, corregido o cancelado) |
+| hasta_cambio | Valor del contador `cambio` al marcar: lo que tenga `cambio` mayor está **por enviar** (nuevo o corregido) |
 | ultimo_folio, folios | Para la bitácora |
 
 ### Conciliación
@@ -170,14 +176,16 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 | **`plantilla_excel`** | tipo (`INVENTARIO` / `VALES`), ruta, hash, fecha, activa |
 | **`exportacion`** | tipo, fecha, archivo, hash, usuario, último folio incluido, marcada como enviada |
 | **`auditoria`** | fecha_hora, usuario, entidad, entidad_id, acción, antes (JSON), después (JSON), motivo |
-| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `folio_minimo_salida`, `etapa_perforacion` actual, `captura_rapida`…) |
+| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `etapa_perforacion` actual, `captura_rapida`…) |
 
-`folio_minimo_salida` permite saltar folios usados en papel fuera de la herramienta: el siguiente folio es
-`max(último folio + 1, folio_minimo_salida)` y solo puede aumentar.
+El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
+elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
 El estado lleva `formato` (hoy **3**). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
-de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`.
+de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
+el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
+para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada área.
 
 Los borradores llevan además `etapa_perforacion`. Entregó no se captura: al emitir es siempre el almacenista en turno.
 

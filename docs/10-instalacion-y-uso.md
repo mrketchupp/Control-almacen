@@ -8,12 +8,12 @@
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
-| Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo, **corregirlo** o **cancelarlo** con motivo |
+| Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
 | Inventario | Consultar existencias por contenedor, con búsqueda y filtros |
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
 | Exportar y enviar | Generar `VALES DE SALIDA DLTA.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **enviar a la base** y traer vales hechos en el Excel |
 | **Áreas y personas** | Editar las plantillas de cada área (interna, externa o transferencia) y las personas (almacenistas, puestos) |
-| **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida), etapa de perforación actual y siguiente folio |
+| **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida) y etapa de perforación actual |
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
 
 > Las entradas y la conciliación con AX llegan en las fases 3 y 4 (ver [08-plan.md](08-plan.md)).
@@ -84,10 +84,12 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - Puedes tener **varios vales abiertos** (pestañas con el número de partidas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios.
    - Si el vale tiene más partidas que el formato (21, 20 o 19 según la hoja), se ofrece dividirlo en folios consecutivos.
    - ¿Prefieres buscar por cualquier dato y que se llene la partida completa? Actívalo en *Ajustes → Captura de partidas*.
-3. **Corregir o cancelar:** *Historial* → clic en el folio. **Corregir** pide el motivo; **Cancelar vale** pide el motivo, devuelve la existencia y el folio no se reutiliza. Todo queda en la **bitácora** del vale.
+3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
+   - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto**; se imprimen donde van en tu formato. El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
+   - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Exportar y enviar:** *Exportar vales…* abre el explorador de archivos para que elijas la carpeta y el nombre (la siguiente vez abre en la última carpeta usada). Envíalo por correo a la base como siempre y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* te dice qué vales son nuevos, corregidos o cancelados desde el último envío.
-6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Si se usaron folios en papel que no están en ningún archivo, fija el siguiente folio en *Ajustes → Folios*.
+5. **Exportar y enviar:** *Exportar vales…* abre el explorador de archivos para que elijas la carpeta y el nombre (la siguiente vez abre en la última carpeta usada). Envíalo por correo a la base como siempre y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* te dice qué vales son nuevos o corregidos desde el último envío.
+6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
 ### Áreas y personas
 - **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).

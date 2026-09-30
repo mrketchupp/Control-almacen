@@ -249,45 +249,63 @@ const sinAcentos = (t) =>
     .replace(/\p{M}/gu, "");
 
 /**
- * Personas que pueden recibir un vale, con su puesto y su área habitual (el departamento al
- * que más vales ha recibido). Así "MECANICO" encuentra a los mecánicos aunque su puesto no
- * esté capturado.
+ * Personas para una firma del vale (recibe, autoriza, …) con su puesto y cuántas veces han
+ * firmado así, por departamento. El uso solo ordena las sugerencias: lo que se muestra es el
+ * puesto de cada persona.
+ * @param campo  campo del vale con el nombre: recibio_nombre, autorizo_nombre, firma_extra_…
  */
-export function personasParaRecibir(estado) {
-  const areas = new Map();
+export function personasParaFirma(estado, campo = "recibio_nombre") {
+  const usos = new Map();
   for (const v of estado.vales) {
-    if (v.tipo !== "SALIDA" || !v.recibio_nombre || !v.depto_destino) continue;
-    const cuenta = areas.get(v.recibio_nombre) ?? new Map();
-    cuenta.set(v.depto_destino, (cuenta.get(v.depto_destino) ?? 0) + 1);
-    areas.set(v.recibio_nombre, cuenta);
+    const nombre = v.tipo === "SALIDA" ? v[campo] : null;
+    if (!nombre) continue;
+    const cuenta = usos.get(nombre) ?? new Map();
+    const depto = v.depto_destino || "";
+    cuenta.set(depto, (cuenta.get(depto) ?? 0) + 1);
+    usos.set(nombre, cuenta);
   }
   return estado.personas
     .filter((p) => p.activo !== false)
     .map((p) => {
-      const cuenta = [...(areas.get(p.nombre) ?? new Map())].sort((a, b) => b[1] - a[1]);
-      const veces = cuenta.reduce((s, [, n]) => s + n, 0);
-      const area = cuenta[0]?.[0] ?? null;
+      const porDepto = usos.get(p.nombre) ?? new Map();
+      const veces = [...porDepto.values()].reduce((s, n) => s + n, 0);
       return {
         id: p.id,
         nombre: p.nombre,
         puesto: p.puesto ?? null,
-        area,
         veces,
+        porDepto,
         almacenista: Boolean(p.es_almacenista),
-        texto: sinAcentos(`${p.nombre} ${p.puesto ?? ""} ${cuenta.map(([d]) => d).join(" ")}`),
+        texto: sinAcentos(`${p.nombre} ${p.puesto ?? ""} ${[...porDepto.keys()].join(" ")}`),
       };
     })
     .sort((a, b) => Number(a.almacenista) - Number(b.almacenista) || b.veces - a.veces || a.nombre.localeCompare(b.nombre, "es"));
 }
 
-/** Filtra personas por palabras (nombre, puesto o área); las del departamento dado van primero. */
-export function buscarPersonas(personas, consulta, { depto = null, limite = 30 } = {}) {
+/** Personas que pueden recibir un vale (compatibilidad). */
+export const personasParaRecibir = (estado) => personasParaFirma(estado, "recibio_nombre");
+
+/**
+ * Filtra por palabras (nombre, puesto o departamentos en que ha firmado) y ordena: primero los
+ * puestos preferidos (p. ej. RIG MANAGER e ITP para autorizar), luego quien más ha firmado
+ * para ese departamento y después quien más ha firmado en general.
+ */
+export function buscarPersonas(personas, consulta, { depto = null, puestos = [], limite = 30 } = {}) {
   const palabras = sinAcentos(consulta).split(/\s+/).filter(Boolean);
-  const deptoLimpio = sinAcentos(depto);
-  const delArea = (p) => Boolean(deptoLimpio) && (sinAcentos(p.area) === deptoLimpio || sinAcentos(p.puesto).includes(deptoLimpio));
+  const deptoLimpio = sinAcentos(depto).trim();
+  const preferidos = puestos.map((x) => sinAcentos(x));
+  const puntaje = (p) => {
+    const puesto = sinAcentos(p.puesto);
+    const preferido = preferidos.some((x) => puesto === x || puesto.split(/[^A-Z0-9]+/).includes(x) || puesto.includes(x));
+    let enDepto = 0;
+    if (deptoLimpio) for (const [d, n] of p.porDepto ?? []) if (sinAcentos(d).trim() === deptoLimpio) enDepto += n;
+    return (preferido ? 1e6 : 0) + enDepto * 1000 + p.veces;
+  };
   return personas
     .filter((p) => palabras.every((w) => p.texto.includes(w)))
-    .sort((a, b) => Number(delArea(b)) - Number(delArea(a)))
+    .map((p) => ({ p, n: puntaje(p) }))
+    .sort((a, b) => b.n - a.n)
+    .map(({ p }) => p)
     .slice(0, limite);
 }
 

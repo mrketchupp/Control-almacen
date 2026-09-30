@@ -110,7 +110,7 @@ estado actual y reemplaza todo en una sola transacción de IndexedDB.
 
 - **Una sola pestaña a la vez:** candado del navegador (Web Locks). La segunda pestaña muestra un aviso y no carga.
 - **Cada cambio es atómico:** se aplica a una copia del estado; solo si se guardó bien en IndexedDB pasa a ser el estado vigente. Los cambios se atienden en fila, uno por uno.
-- **Folios (F2):** se asignarán dentro de ese mismo mecanismo (candado + cambio atómico), validando que el folio no exista para su tipo. Nunca se reutilizan ni se borran; solo se cancelan o corrigen con motivo y bitácora.
+- **Folios (F2):** se asignan dentro de ese mismo mecanismo (candado + cambio atómico): siempre el último + 1, validando que no exista para su tipo. Todos se usan: no se reutilizan, no se borran, no se cancelan ni se saltan; un vale equivocado se corrige con motivo y bitácora.
 
 ## Usuarios y turnos
 
@@ -130,7 +130,7 @@ Control-almacen/
 │   │                      #   edición de plantilla
 │   ├── importadores/      # inventario físico, libro de vales (DIARIO, formularios, catálogo)
 │   ├── servicios/         # limpieza, lista de revisión, primera carga, consultas, vales
-│   │                      #   (borradores, folio, corregir, cancelar, envíos), catálogos, sincronizar
+│   │                      #   (borradores, folio, corregir con resumen de cambios, envíos), catálogos, sincronizar
 │   ├── impresion/         # hoja-formulario → HTML tamaño carta para imprimir el vale
 │   ├── exportadores/      # vales (.xlsm) e inventario (.xlsx) sobre plantilla
 │   ├── almacen/           # IndexedDB, transacciones, respaldos, carpeta/descargas
@@ -146,7 +146,7 @@ Control-almacen/
 
 1. **El núcleo no conoce la interfaz ni el navegador:** `nucleo/`, `xlsx/`, `importadores/`, `servicios/`, `impresion/` y `exportadores/` se prueban en Node sin navegador.
 2. **Las existencias se calculan a partir de los movimientos**, no se guardan como un número suelto: `CONSUMO` y `INGRESO` son la suma de vales emitidos con folio posterior al corte del conteo.
-3. **Nada emitido se elimina:** se cancela o se corrige con motivo.
+3. **Nada emitido se elimina ni se cancela:** se corrige con motivo (el motivo se llena solo con lo que cambió).
 4. **Fechas** como texto ISO en el estado; hacia Excel, número de serie con el estilo de la plantilla.
 5. **Cantidades** como texto decimal en el estado y `Big` en los cálculos; nunca `float`.
 
@@ -165,6 +165,13 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
 - `impresion/vale.js` genera páginas carta (`@page`) con `print-color-adjust: exact` para conservar los rellenos. La
   tabla lleva un margen de 3 px dentro del lienzo para que el marco exterior (bordes colapsados) no se recorte, y el
   borde derecho del marco replica el izquierdo donde la hoja no lo trae.
+- **Fotos de los vales (NOV):** las imágenes de la hoja-formulario que están sobre la zona de partidas se toman
+  como espacios para fotos (posición y tamaño); las del ejemplo no se imprimen y las partidas caben solo arriba de ellas.
+  Las fotos del vale se reducen a 1280 px (JPEG) al elegirlas, se guardan en IndexedDB con clave por contenido
+  (`fotos/<sha256>.jpg`, sin duplicados) y viajan dentro de los respaldos (`fotos/` en el .zip). Las que ningún vale ni
+  borrador usa se borran al abrir la herramienta.
+- **Listas desplegables:** no se usan `<select>` ni `<datalist>` (su lista la dibuja el navegador y no se puede
+  estilizar); todas son componentes propios (`Lista`, `Combo`, `CampoSugerido`) con el mismo aspecto y teclado.
 - Los Excel exportados se guardan con la ventana "Guardar como" del navegador (`showSaveFilePicker`, recuerda la última
   carpeta); si el navegador no la tiene, en la carpeta elegida o en Descargas. La
   interfaz las inserta en `#area-impresion` y llama `window.print()`; Edge ofrece imprimir o *Guardar como PDF*. No se

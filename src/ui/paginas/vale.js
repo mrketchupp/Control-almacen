@@ -1,18 +1,20 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { aNumero } from "../../nucleo/decimal.js";
 import { Indices } from "../../nucleo/estado.js";
 import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
 import {
   ErrorVale,
   bitacoraDeVale,
-  cancelarVale,
+  conFirmasPorPapel,
   corregirVale,
   datosParaCorregir,
   esHistorial,
+  firmasExtraDe,
   plantillaArea,
+  resumenCambios,
   validarVale,
 } from "../../servicios/vales.js";
-import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { EditorVale, ListaErrores, VistaPrevia } from "./vales.js";
 
@@ -26,13 +28,18 @@ export function valeDeRuta() {
 function Correccion({ vale, alTerminar }) {
   const sesion = useSesion();
   const [datos, setDatos] = useState(() => datosParaCorregir(sesion.estado, vale.id));
-  const [motivo, setMotivo] = useState("");
+  // El motivo se llena solo con lo que cambió; si lo editas, se respeta tu texto.
+  const [motivoPropio, setMotivoPropio] = useState(null);
   const [errores, setErrores] = useState([]);
   const historial = esHistorial(sesion.estado, vale);
+  const cambios = useMemo(() => resumenCambios(sesion.estado, vale, datos), [datos, vale]);
+  const automatico = cambios.join("\n");
+  const motivo = motivoPropio ?? automatico;
   const guardar = () =>
     sesion.tarea("Guardando corrección…", async () => {
       const faltan = [...validarVale(sesion.estado, datos, { excluirValeId: vale.id, historial }).errores];
-      if (!motivo.trim()) faltan.push({ renglon: null, campo: "motivo", mensaje: "Escribe el motivo de la corrección." });
+      if (!cambios.length) faltan.push({ renglon: null, campo: "vale", mensaje: "No has cambiado nada del vale." });
+      else if (!motivo.trim()) faltan.push({ renglon: null, campo: "motivo", mensaje: "Escribe el motivo de la corrección." });
       setErrores(faltan);
       if (faltan.length) return;
       try {
@@ -53,11 +60,22 @@ function Correccion({ vale, alTerminar }) {
       alCambiar=${setDatos}
       errores=${errores}
       excluirValeId=${vale.id}
-      entrego=${{ nombre: vale.entrego_nombre || "—", puesto: vale.entrego_puesto || "" }}
-      pie=${html`<label class="campo motivo">
-          <span>Motivo de la corrección (obligatorio, queda en la bitácora)</span>
-          <input value=${motivo} onInput=${(e) => setMotivo(e.currentTarget.value)} placeholder="Ej. se entregaron 3 piezas, no 2" />
-        </label>
+      entrego=${{ nombre: conFirmasPorPapel(sesion.estado, vale).entrego_nombre || "—", puesto: conFirmasPorPapel(sesion.estado, vale).entrego_puesto || "" }}
+      pie=${html`<div class="campo motivo">
+          <span>
+            Motivo de la corrección (queda en la bitácora)
+            ${motivoPropio !== null
+              ? html` · <button type="button" class="enlace-boton" onClick=${() => setMotivoPropio(null)}>↺ Volver a llenarlo con los cambios</button>`
+              : html` · <small class="ayuda">se llena solo con los cambios; puedes agregar el porqué</small>`}
+          </span>
+          <textarea
+            rows=${Math.min(8, Math.max(3, motivo.split("\n").length + 1))}
+            value=${motivo}
+            onInput=${(e) => setMotivoPropio(e.currentTarget.value)}
+            placeholder="Cambia algo del vale y aquí aparece qué cambió."
+            aria-label="Motivo de la corrección"
+          ></textarea>
+        </div>
         <${ListaErrores} errores=${errores} />
         <div class="acciones-linea pie-editor">
           <${Boton} onClick=${alTerminar}>Cancelar<//>
@@ -65,6 +83,23 @@ function Correccion({ vale, alTerminar }) {
           <${Boton} tipo="primario" onClick=${guardar}>Guardar corrección<//>
         </div>`}
     />
+  <//>`;
+}
+
+function FotosDelVale({ fotos }) {
+  const sesion = useSesion();
+  const [urls, setUrls] = useState([]);
+  useEffect(() => {
+    let vivo = true;
+    Promise.all(fotos.map((c) => (c ? sesion.urlFoto(c) : null))).then((u) => vivo && setUrls(u));
+    return () => {
+      vivo = false;
+    };
+  }, [fotos.join("|")]);
+  return html`<${Tarjeta} titulo=${`Fotos (${fotos.filter(Boolean).length})`}>
+    <div class="fotos-detalle">
+      ${fotos.map((c, i) => (c ? html`<figure><img src=${urls[i] ?? ""} alt=${`Foto ${i + 1}`} /><figcaption>Foto ${i + 1}</figcaption></figure>` : null))}
+    </div>
   <//>`;
 }
 
@@ -86,14 +121,8 @@ export function PaginaVale() {
     const u = e && indices.ubicacion(e.ubicacion_id);
     return u ? u.hoja_excel.trim() : "—";
   };
-  const cancelar = () => {
-    const motivo = (window.prompt(`Motivo para cancelar el vale ${vale.folio} (el folio no se reutiliza y la existencia se devuelve):`) || "").trim();
-    if (!motivo) return;
-    return sesion.tarea("Cancelando…", async () => {
-      await sesion.almacen.modificar((e) => cancelarVale(e, vale.id, motivo, sesion.usuario));
-      sesion.avisar("exito", `Vale ${vale.folio} cancelado.`);
-    });
-  };
+  const extras = firmasExtraDe(estado, vale);
+  const firmas = conFirmasPorPapel(estado, vale);
   const bitacora = bitacoraDeVale(estado, vale.id).reverse();
 
   return html`
@@ -107,11 +136,10 @@ export function PaginaVale() {
       <div class="acciones-linea">
         <${Boton} tipo="primario" onClick=${() => setPrevia(true)}>🖨 Imprimir<//>
         ${!cancelado && !corrigiendo ? html`<${Boton} onClick=${() => setCorrigiendo(true)}>Corregir<//>` : null}
-        ${!cancelado && !corrigiendo ? html`<${Boton} tipo="peligro-texto" onClick=${cancelar}>Cancelar vale<//>` : null}
         <a class="boton boton-texto" href="#historial">← Historial</a>
       </div>
     </div>
-    ${cancelado ? html`<${Aviso} tipo="error" titulo="Vale cancelado">${fmtFechaHora(vale.cancelado_en)} · ${vale.motivo_cancelacion}<//>` : null}
+    ${cancelado ? html`<${Aviso} tipo="error" titulo="Vale cancelado (versión anterior de la herramienta)">${fmtFechaHora(vale.cancelado_en)} · ${vale.motivo_cancelacion}<//>` : null}
 
     ${corrigiendo
       ? html`<${Correccion} vale=${vale} alTerminar=${() => setCorrigiendo(false)} />`
@@ -121,10 +149,13 @@ export function PaginaVale() {
             <${Dato} etiqueta="Área" valor=${area?.nombre ?? "—"} detalle=${vale.naturaleza ?? ""} />
             <${Dato} etiqueta="Origen" valor=${vale.depto_origen || "—"} detalle=${vale.origen ?? ""} />
             <${Dato} etiqueta="Destino" valor=${vale.depto_destino || "—"} detalle=${vale.destino ?? ""} />
-            <${Dato} etiqueta="Entregó" valor=${vale.entrego_nombre || "—"} detalle=${vale.entrego_puesto ?? ""} />
-            <${Dato} etiqueta="Recibió" valor=${vale.recibio_nombre || "—"} detalle=${vale.recibio_puesto ?? ""} />
-            ${vale.autorizo_nombre ? html`<${Dato} etiqueta="Autorizó" valor=${vale.autorizo_nombre} />` : null}
+            <${Dato} etiqueta="Entregó" valor=${firmas.entrego_nombre || "—"} detalle=${firmas.entrego_puesto ?? ""} />
+            <${Dato} etiqueta="Recibió" valor=${firmas.recibio_nombre || "—"} detalle=${firmas.recibio_puesto ?? ""} />
+            ${vale.autorizo_nombre ? html`<${Dato} etiqueta="Autorizó" valor=${vale.autorizo_nombre} detalle=${vale.autorizo_puesto ?? ""} />` : null}
+            ${extras && vale.firma_extra_izq_nombre ? html`<${Dato} etiqueta=${extras.izq} valor=${vale.firma_extra_izq_nombre} detalle=${vale.firma_extra_izq_puesto ?? ""} />` : null}
+            ${extras && vale.firma_extra_der_nombre ? html`<${Dato} etiqueta=${extras.der} valor=${vale.firma_extra_der_nombre} detalle=${vale.firma_extra_der_puesto ?? ""} />` : null}
           </div>
+          ${(vale.fotos ?? []).some(Boolean) ? html`<${FotosDelVale} fotos=${vale.fotos} />` : null}
           ${vale.observaciones ? html`<${Tarjeta} titulo="Observaciones"><p class="preformateado">${vale.observaciones}</p><//>` : null}
           <${Tarjeta} titulo=${`Renglones (${vale.lineas.length})`}>
             <${Tabla}
@@ -151,7 +182,7 @@ export function PaginaVale() {
             ${bitacora.map(
               (a) => html`<li>
                 <strong>${ACCIONES[a.accion] ?? a.accion}</strong> · ${fmtFechaHora(a.fecha_hora)} · ${a.usuario ?? "sin usuario"}
-                ${a.accion === "CORREGIR" && a.antes?.motivo ? html`<div class="nota">Motivo: ${a.antes.motivo}</div>` : null}
+                ${a.accion === "CORREGIR" && a.antes?.motivo ? html`<div class="nota preformateado">${a.antes.motivo}</div>` : null}
                 ${a.accion === "CANCELAR" ? html`<div class="nota">Motivo: ${a.despues?.motivo}</div>` : null}
               </li>`,
             )}

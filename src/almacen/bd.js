@@ -79,6 +79,22 @@ export class BackendIndexedDB {
     return this._leer("archivos", clave).then((a) => a ?? null);
   }
 
+  guardarArchivo(archivo) {
+    return this._escribir("archivos", archivo.clave, archivo);
+  }
+
+  async listarArchivos() {
+    const bd = await this.abrir();
+    return promesa(bd.transaction("archivos").objectStore("archivos").getAllKeys());
+  }
+
+  async borrarArchivos(claves) {
+    const bd = await this.abrir();
+    const tx = bd.transaction("archivos", "readwrite");
+    for (const clave of claves) tx.objectStore("archivos").delete(clave);
+    await terminada(tx);
+  }
+
   leerAjuste(clave) {
     return this._leer("ajustes", clave).then((v) => v ?? null);
   }
@@ -142,6 +158,18 @@ export class BackendMemoria {
 
   async leerArchivo(clave) {
     return this.archivos.get(clave) ?? null;
+  }
+
+  async guardarArchivo(archivo) {
+    this.archivos.set(archivo.clave, archivo);
+  }
+
+  async listarArchivos() {
+    return [...this.archivos.keys()];
+  }
+
+  async borrarArchivos(claves) {
+    for (const clave of claves) this.archivos.delete(clave);
   }
 
   async leerAjuste(clave) {

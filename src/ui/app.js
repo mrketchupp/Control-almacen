@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { hoyIso, fmtFechaHora } from "../nucleo/fechas.js";
 import { agregarAlmacenista, almacenistas, fijarUsuarioEnTurno, lineasPorUbicar } from "../servicios/consultas.js";
-import { Boton, ContextoSesion, useSesion } from "./componentes.js";
+import { Boton, ContextoSesion, Lista, useSesion } from "./componentes.js";
 import { html } from "./html.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
 import { PaginaExportar } from "./paginas/exportar.js";
@@ -64,11 +64,14 @@ function SelectorUsuario() {
   };
   return html`<label class="usuario">
     <span>En turno</span>
-    <select value=${actual || ""} onChange=${(e) => cambiar(e.currentTarget.value)} aria-label="Almacenista en turno">
-      ${!actual ? html`<option value="">— Elige —</option>` : null}
-      ${opciones.map((n) => html`<option value=${n}>${n}</option>`)}
-      <option value="__nuevo__">Agregar almacenista…</option>
-    </select>
+    <${Lista}
+      clase="lista-usuario"
+      valor=${actual || ""}
+      alCambiar=${cambiar}
+      ariaLabel="Almacenista en turno"
+      placeholder="— Elige —"
+      opciones=${[...opciones.map((n) => ({ valor: n, etiqueta: n })), { valor: "__nuevo__", etiqueta: "＋ Agregar almacenista…" }]}
+    />
   </label>`;
 }
 

@@ -60,7 +60,7 @@ Prioridad: **M** = indispensable para salir a producción; **D** = deseable; **F
 | RF-17 | Impresión del vale con el mismo formato y campos que hoy (logo, encabezado, 21 renglones, observaciones, firmas). También se puede guardar en PDF. | M |
 | RF-18 | Al emitir, el vale queda en el historial DIARIO y descuenta existencia (CONSUMO de la ubicación). | M |
 | RF-19 | **Corrección** de un vale emitido: se edita con motivo obligatorio y queda en la bitácora (quién, cuándo, antes → después). El folio no cambia. | M |
-| RF-20 | **Cancelación** de un vale: el folio queda marcado como cancelado, no se reutiliza y la existencia se revierte. | M |
+| RF-20 | ~~Cancelación de un vale~~ **Descartada por el usuario:** todos los folios se usan, ninguno se cancela ni se salta. Un vale equivocado se **corrige** (RF-19). Los cancelados de versiones anteriores se siguen mostrando y exportando. | — |
 | RF-21 | Aviso de "vales modificados después del último envío a la base", para informarles qué cambió. | D |
 | RF-22 | Campo opcional para la ruta o enlace del PDF escaneado en SharePoint. | D |
 

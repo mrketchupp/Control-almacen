@@ -80,9 +80,21 @@ export function valoresDeVale(modelo, vale) {
     poner(celdaNombre, nombre);
     if (puesto || !nombre || nombreHoja !== String(nombre).trim().toUpperCase()) poner(celdaPuesto, puesto);
   };
-  firma(campos.entrega_nombre, campos.entrega_puesto, vale.entrego_nombre, vale.entrego_puesto);
-  firma(campos.recibe_nombre, campos.recibe_puesto, vale.recibio_nombre, vale.recibio_puesto);
-  if (campos.autoriza) poner(campos.autoriza, vale.autorizo_nombre);
+  // Los vales migrados del DIARIO traen las firmas por posición (así las guardaba la macro).
+  const porPosicion = vale.migrado && campos.almacenistaALaDerecha;
+  const entrega = porPosicion ? [vale.recibio_nombre, vale.recibio_puesto] : [vale.entrego_nombre, vale.entrego_puesto];
+  const recibe = porPosicion ? [vale.entrego_nombre, vale.entrego_puesto] : [vale.recibio_nombre, vale.recibio_puesto];
+  firma(campos.entrega_nombre, campos.entrega_puesto, ...entrega);
+  firma(campos.recibe_nombre, campos.recibe_puesto, ...recibe);
+  if (campos.autoriza) firma(campos.autoriza, campos.autoriza_puesto, vale.autorizo_nombre, vale.autorizo_puesto);
+  // Segunda fila de firmas (NOV): lo que trae el vale; en blanco si no trae (no los nombres del ejemplo).
+  const extra = campos.firmas_extra;
+  if (extra) {
+    for (const lado of ["izq", "der"]) {
+      poner(extra[lado].nombre, vale[`firma_extra_${lado}_nombre`] ?? null);
+      poner(extra[lado].puesto, vale[`firma_extra_${lado}_puesto`] ?? null);
+    }
+  }
   return valores;
 }
 
@@ -110,8 +122,11 @@ function cssEnLinea(objeto) {
     .join(";");
 }
 
-/** HTML de una página con el vale sobre la hoja-formulario. */
-export function paginaHtml(modelo, valores = new Map()) {
+/**
+ * HTML de una página con el vale sobre la hoja-formulario.
+ * @param fotos  src (data:/blob:) de las fotos del vale, en el orden de los espacios de la hoja
+ */
+export function paginaHtml(modelo, valores = new Map(), fotos = []) {
   const { estilos } = modelo;
   const { ancho, alto, escala, paginaAlto } = medidas(modelo);
   const colVisible = new Set(modelo.columnas.map((c) => c.c));
@@ -191,7 +206,14 @@ export function paginaHtml(modelo, valores = new Map()) {
       (i) =>
         `<img alt="" src="${i.src}" style="left:${(i.x + ORILLA).toFixed(1)}px;top:${(i.y + ORILLA).toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
     )
-    .join("");
+    .join("") +
+    (modelo.fotos ?? [])
+      .map((f, i) =>
+        fotos[i]
+          ? `<img alt="" class="vale-foto" src="${escaparHtml(fotos[i])}" style="left:${(f.x + ORILLA).toFixed(1)}px;top:${(f.y + ORILLA).toFixed(1)}px;width:${f.ancho.toFixed(1)}px;height:${f.alto.toFixed(1)}px">`
+          : "",
+      )
+      .join("");
   const centrado = modelo.pagina.centrado ? "margin-left:auto;margin-right:auto;" : "";
   const seccion = (partes, clase) =>
     partes
@@ -218,7 +240,7 @@ export function cssImpresion(modelo) {
     ".vale-lienzo{position:relative;overflow:hidden;box-sizing:border-box;background:#fff;color:#000}" +
     ".vale-tabla{table-layout:fixed;border-collapse:collapse;color:#000}" +
     ".vale-tabla td{padding:0 2px;line-height:1.1;box-sizing:border-box}" +
-    ".vale-lienzo img{position:absolute}"
+    ".vale-lienzo img{position:absolute}.vale-lienzo img.vale-foto{object-fit:cover}"
   );
 }
 
@@ -230,6 +252,6 @@ export function documentoImpresion(paginas) {
   if (!paginas.length) return { css: "", html: "" };
   return {
     css: cssImpresion(paginas[0].modelo),
-    html: paginas.map(({ modelo, vale }) => paginaHtml(modelo, valoresDeVale(modelo, vale))).join(""),
+    html: paginas.map(({ modelo, vale, fotos = [] }) => paginaHtml(modelo, valoresDeVale(modelo, vale), fotos)).join(""),
   };
 }

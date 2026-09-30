@@ -54,12 +54,12 @@ Criterios de aceptación (✔ = verificado por el desarrollo con los archivos re
 ## Fase 2 — Vales de salida ✅ (entregada, en aceptación)
 Entregables:
 - **Nuevo vale** con pestañas (varios borradores que se guardan solos y no gastan folio), plantillas por área y buscador de variantes que muestra la existencia por contenedor.
-- Folio automático (`max(último + 1, folio mínimo)`) dentro de un cambio atómico; validaciones con mensajes por renglón; justificación cuando se pide más de lo que hay; división en folios consecutivos cuando el vale supera la capacidad del formato (21/20/19 según la hoja).
+- Folio automático (último + 1, sin saltos ni cancelaciones) dentro de un cambio atómico; validaciones con mensajes por renglón; justificación cuando se pide más de lo que hay; división en folios consecutivos cuando el vale supera la capacidad del formato (21/20/19 según la hoja).
 - **Impresión sobre la hoja-formulario del propio libro de vales** (logo, colores, bordes, anchos, observaciones, firmas, pie de página y escala), tamaño carta, desde el diálogo de Edge (impresora o PDF). Vista previa con `BORRADOR`.
-- Detalle del vale con **corrección** (motivo obligatorio, antes → después) y **cancelación** (motivo, revierte existencia, folio no se reutiliza), todo en la bitácora.
-- Descuento automático de existencias. Exportación del DIARIO con los vales nuevos (cancelados como renglón en 0, P-07).
-- **Por enviar a la base:** lista de vales nuevos, corregidos o cancelados desde el último envío y botón "Ya lo envié".
-- **Traer vales hechos en el Excel** después de la primera carga, y folio mínimo para folios usados en papel.
+- Detalle del vale con **corrección** (motivo que se llena solo con los cambios, antes → después) en la bitácora. Sin cancelación: todos los folios se usan.
+- Descuento automático de existencias. Exportación del DIARIO con los vales nuevos.
+- **Por enviar a la base:** lista de vales nuevos o corregidos desde el último envío y botón "Ya lo envié".
+- **Traer vales hechos en el Excel** después de la primera carga (así no quedan huecos de folio).
 - **Áreas y personas:** edición de plantillas (incluye formato de impresión y lote por defecto), personas, almacenistas y folios.
 - Tablero de inicio (siguiente folio, vales de hoy, por enviar, por ubicar, renglones en 0).
 - Respaldos: el más reciente se muestra en grande y *Restaurar* es un botón (comentario del usuario sobre F1).
@@ -70,12 +70,16 @@ partidas al centro con las columnas del vale; vales internos con origen/destino 
 área`), entregó = almacenista en turno, autorizó solo en transferencias y observaciones fijas donde solo cambia la etapa
 de perforación; quién recibe se busca por nombre o puesto; partidas código → clave (filtrada por el código, con
 contenedor y existencia en pastillas); borrar partida más claro; contador de partidas en la pestaña; búsqueda rápida
-opcional en *Ajustes*; historial con filtros combinables; exportar con ventana "Guardar como". Pendiente de revisar
-con el usuario: NOV y transferencias.
+opcional en *Ajustes*; historial con filtros combinables; exportar con ventana "Guardar como".
+
+**Tercera ronda (aplicada):** todas las listas desplegables con el mismo estilo (sin listas nativas del navegador); sin
+cancelación ni salto de folios (se quitó "fijar siguiente folio"); motivo de la corrección que se llena solo con los
+cambios; Autorizó con puesto y sugerencias RIG MANAGER / ITP; personas mostradas por su puesto (el uso en el área solo
+ordena); NOV con datos fijos, 4 firmas y 3 fotos en la posición y tamaño del formato. Pendiente: transferencias (P-22).
 
 Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
 - ✔ Es imposible duplicar o saltar un folio: prueba automática con 12 emisiones simultáneas y guardado lento (3 con errores que no consumen folio).
-- ✔ Recorrido completo en Chromium con los archivos reales (fuera del repositorio): nuevo vale → vista previa → emitir → imprimir → corregir → dividir → cancelar → exportar → marcar enviado → traer del Excel → áreas, sin errores en consola ni conexiones de red.
+- ✔ Recorrido completo en Chromium con los archivos reales (fuera del repositorio): nuevo vale → vista previa → emitir → imprimir → corregir (motivo automático) → dividir → exportar → marcar enviado → traer del Excel → áreas; NOV con 4 firmas y fotos impresas en su lugar; respaldo con fotos; ninguna lista nativa del navegador; sin errores en consola ni conexiones de red.
 - ✔ La impresión de las hojas reales se comparó contra el PDF de LibreOffice de la misma hoja: mismo logo, colores, marco, firmas y pie.
 - ☐ Imprimir un vale en la impresora del almacén y compararlo con uno hecho en Excel (P-09).
 - ☐ Emitir un vale de 10 renglones en menos de 2 minutos.

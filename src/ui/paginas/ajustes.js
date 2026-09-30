@@ -1,6 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { fijarAjuste, fijarFolioMinimo } from "../../servicios/catalogos.js";
-import { siguienteFolio } from "../../servicios/vales.js";
+import { fijarAjuste } from "../../servicios/catalogos.js";
 import { Boton, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
@@ -58,34 +57,10 @@ function Etapa() {
   <//>`;
 }
 
-function Folios() {
-  const sesion = useSesion();
-  const siguiente = siguienteFolio(sesion.estado);
-  const [valor, setValor] = useState(String(siguiente));
-  useEffect(() => setValor(String(siguiente)), [siguiente]);
-  const guardar = () =>
-    sesion.tarea("Guardando…", async () => {
-      await sesion.almacen.modificar((e) => fijarFolioMinimo(e, valor, sesion.usuario));
-      sesion.avisar("exito", `El siguiente vale se emitirá con el folio ${valor}.`);
-    });
-  return html`<${Tarjeta} titulo="Folios">
-    <p>Siguiente folio de salida: <strong class="folio-grande">${siguiente}</strong></p>
-    <p class="nota">
-      Si se usaron folios en papel o en el Excel fuera de la herramienta, importa esos vales en <a href="#exportar">Exportar y enviar</a>${" "}
-      (Traer vales hechos en el Excel) o, si no existen en ningún archivo, indica aquí el siguiente folio. Solo puede aumentar.
-    </p>
-    <div class="acciones-linea">
-      <input type="number" min=${siguiente} value=${valor} onInput=${(e) => setValor(e.currentTarget.value)} aria-label="Siguiente folio" />
-      <${Boton} onClick=${guardar} disabled=${Number(valor) === siguiente}>Fijar siguiente folio<//>
-    </div>
-  <//>`;
-}
-
 export function PaginaAjustes() {
   return html`
     <${Captura} />
     <${Etapa} />
-    <${Folios} />
     <p class="nota">Las áreas (plantillas del vale) y las personas se editan en <a href="#areas">Áreas y personas</a>.</p>
   `;
 }

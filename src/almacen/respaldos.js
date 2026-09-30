@@ -8,6 +8,7 @@ import { bytesATexto, crearZip, descomprimirZip } from "../xlsx/zip.js";
 export const ARCHIVO_ESTADO = "estado.json";
 export const ARCHIVO_MANIFIESTO = "manifiesto.json";
 export const CARPETA_PLANTILLAS = "plantillas/";
+export const CARPETA_FOTOS = "fotos/";
 const PATRON = /^almacen_(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})(?:_(.+))?\.zip$/;
 
 export class ErrorRespaldo extends Error {}
@@ -39,7 +40,7 @@ export function infoDeNombre(nombre) {
  * @param plantillas  [{ archivo, datos: Uint8Array }]
  * @returns {{ nombre, datos: Uint8Array, fecha_hora }}
  */
-export function crearRespaldo(estado, plantillas, { motivo = "manual", version = "", ahora = ahoraIso() } = {}) {
+export function crearRespaldo(estado, plantillas, { motivo = "manual", version = "", ahora = ahoraIso(), fotos = [] } = {}) {
   if (!estado) throw new ErrorRespaldo("No hay datos que respaldar.");
   const manifiesto = {
     aplicacion: "Control de Almacén RIG 91",
@@ -50,11 +51,14 @@ export function crearRespaldo(estado, plantillas, { motivo = "manual", version =
     vales: estado.vales.length,
     existencias: estado.existencias.length,
     plantillas: plantillas.map((p) => p.archivo),
+    fotos: fotos.length,
   };
   const datos = crearZip([
     [ARCHIVO_MANIFIESTO, JSON.stringify(manifiesto, null, 2)],
     [ARCHIVO_ESTADO, JSON.stringify(estado)],
     ...plantillas.map((p) => [`${CARPETA_PLANTILLAS}${p.archivo}`, p.datos]),
+    // Las fotos ya son JPEG comprimido: el .zip solo las guarda.
+    ...fotos.map((f) => [f.clave.startsWith(CARPETA_FOTOS) ? f.clave : `${CARPETA_FOTOS}${f.clave}`, f.datos]),
   ]);
   return { nombre: nombreRespaldo(ahora, motivo), datos, fecha_hora: ahora };
 }
@@ -82,9 +86,12 @@ export function leerRespaldo(datos) {
   validarEstado(estado);
   const manifiesto = partes.has(ARCHIVO_MANIFIESTO) ? JSON.parse(bytesATexto(partes.get(ARCHIVO_MANIFIESTO))) : {};
   const plantillas = [];
+  const fotos = [];
   for (const [nombre, contenido] of partes) {
     if (nombre.startsWith(CARPETA_PLANTILLAS) && nombre.length > CARPETA_PLANTILLAS.length) {
       plantillas.push({ archivo: nombre.slice(CARPETA_PLANTILLAS.length), datos: contenido });
+    } else if (nombre.startsWith(CARPETA_FOTOS) && nombre.length > CARPETA_FOTOS.length) {
+      fotos.push({ clave: nombre, datos: contenido });
     }
   }
   for (const registro of estado.plantillas_excel) {
@@ -92,7 +99,7 @@ export function leerRespaldo(datos) {
       throw new ErrorRespaldo(`Al respaldo le falta la plantilla ${registro.archivo}.`);
     }
   }
-  return { estado, plantillas, manifiesto };
+  return { estado, plantillas, fotos, manifiesto };
 }
 
 export function validarEstado(estado) {

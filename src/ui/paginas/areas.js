@@ -1,20 +1,35 @@
 import { useEffect, useState } from "preact/hooks";
-import { TIPOS_AREA, tipoDeArea } from "../../nucleo/areas.js";
+import { TIPOS_AREA, etiquetasFirmasExtra, tipoDeArea } from "../../nucleo/areas.js";
 import { areaVacia, guardarArea, guardarPersona } from "../../servicios/catalogos.js";
-import { Aviso, Boton, Buscador, Tabla, Tarjeta, useFiltroTexto, useSesion } from "../componentes.js";
+import { Aviso, Boton, Buscador, CampoSugerido, Lista, Tabla, Tarjeta, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 function EditorArea({ area, hojas, alTerminar }) {
   const sesion = useSesion();
   const [datos, setDatos] = useState({ ...areaVacia(), ...area, tipo: tipoDeArea({ ...areaVacia(), ...area }) });
-  const interna = datos.tipo === "INTERNO";
+  const fijo = datos.tipo !== "TRANSFERENCIA";
   const [error, setError] = useState(null);
-  const campo = (clave, etiqueta, opciones = {}) => html`<label class=${`campo ${opciones.ancho ? `campo-${opciones.ancho}` : ""}`}>
+  const estado = sesion.estado;
+  const unicos = (valores) => [...new Set(valores.filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+  const sugerencias = {
+    personas: unicos(estado.personas.filter((p) => p.activo !== false).map((p) => p.nombre)),
+    puestos: unicos(estado.personas.map((p) => p.puesto)),
+    deptos: unicos(estado.plantillas_area.flatMap((p) => [p.depto_destino, p.depto_origen])),
+    lugares: unicos(estado.plantillas_area.flatMap((p) => [p.destino, p.origen])),
+  };
+  const poner = (clave) => (valor) => setDatos({ ...datos, [clave]: valor });
+  const campo = (clave, etiqueta, opciones = {}) => html`<div class=${`campo ${opciones.ancho ? `campo-${opciones.ancho}` : ""}`}>
     <span>${etiqueta}</span>
     ${opciones.area
-      ? html`<textarea rows="3" value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })}></textarea>`
-      : html`<input list=${opciones.lista ?? null} value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })} />`}
-  </label>`;
+      ? html`<textarea rows="3" value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })} aria-label=${etiqueta}></textarea>`
+      : opciones.sugerencias
+        ? html`<${CampoSugerido} valor=${datos[clave] ?? ""} alCambiar=${poner(clave)} sugerencias=${opciones.sugerencias} ariaLabel=${etiqueta} />`
+        : html`<input value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })} aria-label=${etiqueta} />`}
+  </div>`;
+  const extra = datos.firmas_extra;
+  const etiquetas = etiquetasFirmasExtra(datos);
+  const ponerExtra = (lado, parte) => (valor) =>
+    setDatos({ ...datos, firmas_extra: { ...extra, [lado]: { ...extra[lado], [parte]: valor } } });
   const guardar = () =>
     sesion.tarea("Guardando área…", async () => {
       try {
@@ -26,31 +41,36 @@ function EditorArea({ area, hojas, alTerminar }) {
       }
     });
   return html`<${Tarjeta} titulo=${datos.id ? `Editar área ${area.nombre}` : "Nueva área"} clase="tarjeta-correccion">
-    <p class="nota">Estos datos se copian al vale al elegir el área; en cada vale se pueden cambiar.</p>
+    <p class="nota">Estos datos se copian al vale al elegir el área.</p>
     <div class="editor-encabezado">
       ${campo("nombre", "Nombre del área")}
-      <label class="campo">
+      <div class="campo">
         <span>Formato de impresión (hoja del libro de vales)</span>
-        <select value=${datos.hoja_excel ?? ""} onChange=${(e) => setDatos({ ...datos, hoja_excel: e.currentTarget.value || null })}>
-          <option value="">— Según el departamento —</option>
-          ${hojas.map((h) => html`<option value=${h}>${h.trim()}</option>`)}
-        </select>
-      </label>
-      <label class="campo">
+        <${Lista}
+          valor=${datos.hoja_excel ?? ""}
+          alCambiar=${(valor) => setDatos({ ...datos, hoja_excel: valor || null })}
+          ariaLabel="Formato de impresión"
+          opciones=${[{ valor: "", etiqueta: "— Según el departamento —" }, ...hojas.map((h) => ({ valor: h, etiqueta: h.trim() }))]}
+        />
+      </div>
+      <div class="campo">
         <span>Tipo de área</span>
-        <select value=${datos.tipo} onChange=${(e) => setDatos({ ...datos, tipo: e.currentTarget.value })}>
-          ${Object.entries(TIPOS_AREA).map(([clave, texto]) => html`<option value=${clave}>${texto}</option>`)}
-        </select>
-      </label>
-      ${interna
+        <${Lista}
+          valor=${datos.tipo}
+          alCambiar=${poner("tipo")}
+          ariaLabel="Tipo de área"
+          opciones=${Object.entries(TIPOS_AREA).map(([valor, etiqueta]) => ({ valor, etiqueta }))}
+        />
+      </div>
+      ${datos.tipo === "INTERNO"
         ? html`<p class="nota campo-2">Interna: el vale sale de <strong>RIG 91 · ALMACEN</strong> y llega a <strong>RIG 91 · ${datos.depto_destino || "(depto. destino)"}</strong>.</p>`
-        : html`${campo("origen", "Origen", { lista: "lista-lugares-a" })}
-            ${campo("depto_origen", "Depto. origen", { lista: "lista-deptos-a" })}
-            ${campo("destino", "Destino", { lista: "lista-lugares-a" })}`}
-      ${campo("depto_destino", "Depto. destino", { lista: "lista-deptos-a" })}
-      ${campo("recibe_nombre", "Recibe (habitual)", { lista: "lista-personas-a" })}
-      ${campo("recibe_puesto", "Puesto de quien recibe")}
-      ${campo("autoriza_nombre", "Autoriza (habitual)", { lista: "lista-personas-a" })}
+        : html`${datos.tipo === "EXTERNO" ? null : html`${campo("origen", "Origen", { sugerencias: sugerencias.lugares })}${campo("depto_origen", "Depto. origen", { sugerencias: sugerencias.deptos })}`}
+            ${campo("destino", "Destino", { sugerencias: sugerencias.lugares })}`}
+      ${campo("depto_destino", "Depto. destino", { sugerencias: sugerencias.deptos })}
+      ${campo("recibe_nombre", "Recibe (habitual)", { sugerencias: sugerencias.personas })}
+      ${campo("recibe_puesto", "Puesto de quien recibe", { sugerencias: sugerencias.puestos })}
+      ${campo("autoriza_nombre", "Autoriza (habitual)", { sugerencias: sugerencias.personas })}
+      ${campo("autoriza_puesto", "Puesto de quien autoriza", { sugerencias: sugerencias.puestos })}
       <label class="campo campo-casilla">
         <input type="checkbox" checked=${datos.requiere_autoriza} onChange=${(e) => setDatos({ ...datos, requiere_autoriza: e.currentTarget.checked })} />
         <span>Exigir "Autorizó" en esta área</span>
@@ -60,11 +80,20 @@ function EditorArea({ area, hojas, alTerminar }) {
         <input type="checkbox" checked=${datos.activo !== false} onChange=${(e) => setDatos({ ...datos, activo: e.currentTarget.checked })} />
         <span>Activa (aparece al hacer vales)</span>
       </label>
-      ${campo("observaciones", interna ? "Observaciones que se imprimen (la línea ETAPA DE PERFORACION se llena en cada vale)" : "Observaciones que se imprimen", { area: true, ancho: "todo" })}
+      ${extra
+        ? ["izq", "der"].map(
+            (lado) => html`<div class="campo">
+                <span>${etiquetas[lado]} (nombre habitual)</span>
+                <${CampoSugerido} valor=${extra[lado]?.nombre ?? ""} alCambiar=${ponerExtra(lado, "nombre")} sugerencias=${sugerencias.personas} ariaLabel=${etiquetas[lado]} />
+              </div>
+              <div class="campo">
+                <span>Puesto (${etiquetas[lado].toLowerCase()})</span>
+                <${CampoSugerido} valor=${extra[lado]?.puesto ?? ""} alCambiar=${ponerExtra(lado, "puesto")} sugerencias=${sugerencias.puestos} ariaLabel=${`Puesto ${etiquetas[lado]}`} />
+              </div>`,
+          )
+        : null}
+      ${campo("observaciones", fijo ? "Observaciones que se imprimen (la línea ETAPA DE PERFORACION se llena en cada vale)" : "Observaciones que se imprimen", { area: true, ancho: "todo" })}
     </div>
-    <datalist id="lista-personas-a">${sesion.estado.personas.map((p) => html`<option value=${p.nombre} />`)}</datalist>
-    <datalist id="lista-deptos-a">${[...new Set(sesion.estado.plantillas_area.flatMap((p) => [p.depto_destino, p.depto_origen]).filter(Boolean))].map((d) => html`<option value=${d} />`)}</datalist>
-    <datalist id="lista-lugares-a">${[...new Set(sesion.estado.plantillas_area.flatMap((p) => [p.destino, p.origen]).filter(Boolean))].map((d) => html`<option value=${d} />`)}</datalist>
     ${error ? html`<${Aviso} tipo="error">${error}<//>` : null}
     <div class="acciones-linea">
       <${Boton} tipo="primario" onClick=${guardar}>Guardar área<//>

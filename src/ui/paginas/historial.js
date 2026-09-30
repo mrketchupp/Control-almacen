@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import { filasHistorial, filtrarHistorial } from "../../servicios/consultas.js";
-import { Boton, Buscador, Tabla, num, useSesion } from "../componentes.js";
+import { Boton, Buscador, CampoSugerido, Lista, Tabla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "" };
@@ -10,6 +10,7 @@ export function PaginaHistorial() {
   const filas = useMemo(() => filasHistorial(sesion.estado), [sesion.estado]);
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
+  const fijar = (clave) => (valor) => setFiltros({ ...filtros, [clave]: valor });
   const deptos = useMemo(() => [...new Set(filas.map((f) => f.depto).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
   const personas = useMemo(() => [...new Set(filas.map((f) => f.recibio).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
   const visibles = useMemo(
@@ -25,26 +26,34 @@ export function PaginaHistorial() {
         <span>Código AX</span>
         <input inputmode="numeric" value=${filtros.codigo} onInput=${poner("codigo")} placeholder="Ej. 701" />
       </label>
-      <label class="filtro">
+      <div class="filtro">
         <span>Área destino</span>
-        <select value=${filtros.depto} onChange=${poner("depto")}>
-          <option value="">Todas</option>
-          ${deptos.map((d) => html`<option value=${d}>${d}</option>`)}
-        </select>
-      </label>
-      <label class="filtro">
+        <${Lista}
+          valor=${filtros.depto}
+          alCambiar=${fijar("depto")}
+          ariaLabel="Área destino"
+          opciones=${[{ valor: "", etiqueta: "Todas" }, ...deptos.map((d) => ({ valor: d, etiqueta: d }))]}
+        />
+      </div>
+      <div class="filtro">
         <span>Recibió</span>
-        <input list="lista-recibio" value=${filtros.recibio} onInput=${poner("recibio")} placeholder="Nombre" />
-        <datalist id="lista-recibio">${personas.map((p) => html`<option value=${p} />`)}</datalist>
-      </label>
-      <label class="filtro">
-        <span>Estado</span>
-        <select value=${filtros.estado} onChange=${poner("estado")}>
-          <option value="">Todos</option>
-          <option value="EMITIDO">Emitidos</option>
-          <option value="CANCELADO">Cancelados</option>
-        </select>
-      </label>
+        <${CampoSugerido} valor=${filtros.recibio} alCambiar=${fijar("recibio")} sugerencias=${personas} placeholder="Nombre" ariaLabel="Recibió" />
+      </div>
+      ${filas.some((f) => f.estado === "CANCELADO")
+        ? html`<div class="filtro">
+            <span>Estado</span>
+            <${Lista}
+              valor=${filtros.estado}
+              alCambiar=${fijar("estado")}
+              ariaLabel="Estado"
+              opciones=${[
+                { valor: "", etiqueta: "Todos" },
+                { valor: "EMITIDO", etiqueta: "Emitidos" },
+                { valor: "CANCELADO", etiqueta: "Cancelados (versiones anteriores)" },
+              ]}
+            />
+          </div>`
+        : null}
       <label class="filtro"><span>Desde</span><input type="date" value=${filtros.desde} onChange=${poner("desde")} /></label>
       <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
       ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS)}>Quitar filtros (${activos})<//>` : null}

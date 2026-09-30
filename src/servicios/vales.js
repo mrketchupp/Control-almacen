@@ -4,17 +4,19 @@
 //
 // Ver docs/05-flujos.md §1 y §3 y los requerimientos RF-10 a RF-21.
 
-import { conEtapa, esInterna, etapaDe, tieneEtapa } from "../nucleo/areas.js";
+import { conEtapa, etapaDe, etiquetasFirmasExtra, tieneDatosFijos, tieneEtapa, tipoDeArea } from "../nucleo/areas.js";
 import { CERO, aNumero, dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, ultimoConteo, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
-import { ahoraIso, hoyIso } from "../nucleo/fechas.js";
+import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
 
 export const CAPACIDAD_DEFECTO = 21;
 export const CAMPOS_ENCABEZADO = [
   "fecha", "origen", "depto_origen", "destino", "depto_destino",
-  "entrego_nombre", "entrego_puesto", "recibio_nombre", "recibio_puesto", "autorizo_nombre", "observaciones",
+  "entrego_nombre", "entrego_puesto", "recibio_nombre", "recibio_puesto", "autorizo_nombre", "autorizo_puesto",
+  "firma_extra_izq_nombre", "firma_extra_izq_puesto", "firma_extra_der_nombre", "firma_extra_der_puesto",
+  "observaciones",
 ];
 
 export class ErrorVale extends Error {
@@ -30,11 +32,11 @@ const mayus = (v) => textoONulo(v)?.toUpperCase() ?? null;
 
 // ---------------------------------------------------------------- consultas
 
+/** Siguiente folio: el último + 1. Los folios no se saltan ni se cancelan: todos se usan. */
 export function siguienteFolio(estado, tipo = "SALIDA") {
   let maximo = 0;
   for (const v of estado.vales) if (v.tipo === tipo && v.folio > maximo) maximo = v.folio;
-  const minimo = Number(estado.config?.[`folio_minimo_${tipo.toLowerCase()}`] || 0);
-  return Math.max(maximo + 1, minimo);
+  return maximo + 1;
 }
 
 export function plantillaArea(estado, id) {
@@ -186,12 +188,70 @@ export function aplicarPlantilla(estado, borrador, plantillaId) {
     recibio_nombre: p.recibe_nombre ?? "",
     recibio_puesto: p.recibe_puesto ?? "",
     autorizo_nombre: p.autoriza_nombre ?? "",
+    autorizo_puesto: p.autoriza_puesto ?? "",
+    firma_extra_izq_nombre: p.firmas_extra?.izq?.nombre ?? "",
+    firma_extra_izq_puesto: p.firmas_extra?.izq?.puesto ?? "",
+    firma_extra_der_nombre: p.firmas_extra?.der?.nombre ?? "",
+    firma_extra_der_puesto: p.firmas_extra?.der?.puesto ?? "",
     observaciones: p.observaciones ?? "",
     naturaleza: p.naturaleza || "CONSUMO",
   });
+  // Externas (NOV): se parte del último vale del área (mismas personas y partidas, sin cantidades).
+  if (tipoDeArea(p) === "EXTERNO") {
+    const ultimo = ultimoValeDeArea(estado, p);
+    if (ultimo) {
+      // Las personas, solo de vales hechos aquí: en los migrados del DIARIO van por posición.
+      const personas = ["recibio_nombre", "recibio_puesto", "firma_extra_izq_nombre", "firma_extra_izq_puesto", "firma_extra_der_nombre", "firma_extra_der_puesto"];
+      const conPersonas = ultimoValeDeArea(estado, p, { migrados: false });
+      if (conPersonas) for (const campo of personas) if (texto(conPersonas[campo])) borrador[campo] = conPersonas[campo];
+      if (!lineasCapturadas(borrador.lineas).length) {
+        const indices = new Indices(estado);
+        borrador.lineas = ultimo.lineas.filter((l) => Number.isInteger(l.codigo)).map((l) => {
+          const base = conArticulo(estado, lineaVacia(p.lote_defecto ?? ""), l.codigo, { indices, descripcion: l.descripcion });
+          const misma = opcionesDeClave(estado, l.codigo, { indices }).find((o) => o.id === l.existencia_id || o.clave === l.clave);
+          if (misma) return conExistencia(estado, base, misma.id, indices);
+          return { ...base, clave: base.clave || l.clave || "", um: base.um || l.um || "" };
+        });
+      }
+    }
+  }
   borrador.observaciones = observacionesDelVale(estado, borrador) ?? "";
   if (p.lote_defecto) for (const l of borrador.lineas) if (!l.lote) l.lote = p.lote_defecto;
   return borrador;
+}
+
+/** Área de un vale: la de su plantilla o, en los migrados, la de su departamento. */
+export function areaDeVale(estado, vale) {
+  const propia = plantillaArea(estado, vale.plantilla_area_id);
+  if (propia) return propia;
+  const depto = texto(vale.depto_destino).toUpperCase();
+  return depto ? (estado.plantillas_area.find((a) => texto(a.depto_destino).toUpperCase() === depto) ?? null) : null;
+}
+
+/**
+ * ¿El vale guarda las firmas por posición? Los migrados del DIARIO de áreas con el almacenista a
+ * la derecha (NOV) traen en "entregó" a quien firma a la izquierda (el químico).
+ */
+export function firmasPorPosicion(estado, vale) {
+  return Boolean(vale?.migrado && areaDeVale(estado, vale)?.almacenista_derecha);
+}
+
+/** El vale con entregó/recibió según su papel (no por posición). */
+export function conFirmasPorPapel(estado, vale) {
+  if (!firmasPorPosicion(estado, vale)) return vale;
+  return { ...vale, entrego_nombre: vale.recibio_nombre, entrego_puesto: vale.recibio_puesto, recibio_nombre: vale.entrego_nombre, recibio_puesto: vale.entrego_puesto };
+}
+
+/** El vale emitido más reciente de un área (por su plantilla o, en los migrados, por el departamento). */
+export function ultimoValeDeArea(estado, area, { migrados = true } = {}) {
+  const depto = texto(area.depto_destino).toUpperCase();
+  let ultimo = null;
+  for (const v of estado.vales) {
+    if (v.tipo !== "SALIDA" || v.estado !== "EMITIDO" || (!migrados && v.migrado)) continue;
+    const deEsta = v.plantilla_area_id === area.id || (v.plantilla_area_id == null && depto && texto(v.depto_destino).toUpperCase() === depto);
+    if (deEsta && (!ultimo || v.folio > ultimo.folio)) ultimo = v;
+  }
+  return ultimo;
 }
 
 export function nuevoBorrador(estado, { usuario = null, plantillaId = null, fecha = hoyIso() } = {}) {
@@ -212,9 +272,15 @@ export function nuevoBorrador(estado, { usuario = null, plantillaId = null, fech
     recibio_nombre: "",
     recibio_puesto: "",
     autorizo_nombre: "",
+    autorizo_puesto: "",
+    firma_extra_izq_nombre: "",
+    firma_extra_izq_puesto: "",
+    firma_extra_der_nombre: "",
+    firma_extra_der_puesto: "",
     observaciones: "",
     etapa_perforacion: estado.config?.etapa_perforacion ?? "",
     naturaleza: "CONSUMO",
+    fotos: [],
     lineas: [],
   };
   if (plantillaId) aplicarPlantilla(estado, borrador, plantillaId);
@@ -237,21 +303,30 @@ export function descartarBorrador(estado, id) {
 export function observacionesDelVale(estado, datos) {
   const area = plantillaArea(estado, datos.plantilla_area_id);
   const etapa = texto(datos.etapa_perforacion);
-  if (esInterna(area) && tieneEtapa(area.observaciones) && etapa) return conEtapa(area.observaciones, etapa);
+  if (tieneDatosFijos(area) && tieneEtapa(area.observaciones) && etapa) return conEtapa(area.observaciones, etapa);
   return datos.observaciones;
 }
 
-/** En un área interna, origen y destino son siempre los del área (RIG 91 · ALMACEN → RIG 91 · depto). */
+/**
+ * En áreas internas y externas (NOV), origen y destino son siempre los del área
+ * (RIG 91 · ALMACEN → RIG 91 · depto, o → la compañía).
+ */
 export function conDatosFijos(estado, datos) {
   const area = plantillaArea(estado, datos.plantilla_area_id);
-  if (!esInterna(area)) return datos;
+  if (!tieneDatosFijos(area)) return datos;
   return { ...datos, origen: area.origen ?? "", depto_origen: area.depto_origen ?? "", destino: area.destino ?? "", depto_destino: area.depto_destino ?? "" };
 }
 
 /** ¿Este vale pide la etapa de perforación? (área interna cuyas observaciones la llevan) */
 export function pideEtapa(estado, datos) {
   const area = plantillaArea(estado, datos.plantilla_area_id);
-  return esInterna(area) && tieneEtapa(area.observaciones);
+  return tieneDatosFijos(area) && tieneEtapa(area.observaciones);
+}
+
+/** Firmas de la segunda fila del formato del área (NOV), con su nombre para mostrar. */
+export function firmasExtraDe(estado, datos) {
+  const area = plantillaArea(estado, datos.plantilla_area_id);
+  return etiquetasFirmasExtra(area);
 }
 
 /** Entregó: siempre el almacenista en turno, con su puesto. */
@@ -364,9 +439,17 @@ function encabezadoLimpio(datos) {
     recibio_nombre: nombrePersona(datos.recibio_nombre),
     recibio_puesto: mayus(datos.recibio_puesto),
     autorizo_nombre: nombrePersona(datos.autorizo_nombre),
+    autorizo_puesto: nombrePersona(datos.autorizo_nombre) ? mayus(datos.autorizo_puesto) : null,
+    firma_extra_izq_nombre: nombrePersona(datos.firma_extra_izq_nombre),
+    firma_extra_izq_puesto: mayus(datos.firma_extra_izq_puesto),
+    firma_extra_der_nombre: nombrePersona(datos.firma_extra_der_nombre),
+    firma_extra_der_puesto: mayus(datos.firma_extra_der_puesto),
     observaciones: textoONulo(datos.observaciones),
   };
 }
+
+/** Fotos del vale: claves de archivo por espacio del formato (null = espacio vacío). */
+const fotosLimpias = (fotos) => (Array.isArray(fotos) ? fotos.map((f) => (typeof f === "string" && f ? f : null)) : []);
 
 function lineaLimpia(estado, l, renglon, id) {
   return {
@@ -401,7 +484,9 @@ function registrarPersonas(estado, encabezado) {
   const indices = new Indices(estado);
   indices.persona(encabezado.entrego_nombre, { puesto: encabezado.entrego_puesto ?? undefined });
   indices.persona(encabezado.recibio_nombre, { puesto: encabezado.recibio_puesto ?? undefined });
-  indices.persona(encabezado.autorizo_nombre);
+  indices.persona(encabezado.autorizo_nombre, { puesto: encabezado.autorizo_puesto ?? undefined });
+  indices.persona(encabezado.firma_extra_izq_nombre, { puesto: encabezado.firma_extra_izq_puesto ?? undefined });
+  indices.persona(encabezado.firma_extra_der_nombre, { puesto: encabezado.firma_extra_der_puesto ?? undefined });
 }
 
 /**
@@ -445,6 +530,7 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
       ...encabezado,
       plantilla_area_id: datos.plantilla_area_id ?? null,
       naturaleza: datos.naturaleza || "CONSUMO",
+      almacenista_derecha: Boolean(plantillaArea(estado, datos.plantilla_area_id)?.almacenista_derecha),
       creado_por: usuario,
       creado_en: datos.creado_en,
       emitido_en: ahora,
@@ -454,6 +540,7 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
       cancelado_en: null,
       motivo_cancelacion: null,
       migrado: false,
+      fotos: emitidos.length === 0 ? fotosLimpias(datos.fotos) : [],
       notas: grupos.length > 1 ? `Dividido en ${grupos.length} folios consecutivos por límite del formato.` : null,
       lineas: grupo.map((l, i) => lineaLimpia(estado, l, i + 1, siguienteId(estado, "vale_linea"))),
     };
@@ -474,7 +561,7 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
   return emitidos;
 }
 
-// ---------------------------------------------------------------- corrección y cancelación
+// ---------------------------------------------------------------- corrección
 
 function foto(vale) {
   const { lineas, ...resto } = vale;
@@ -494,13 +581,15 @@ export function esHistorial(estado, vale) {
 
 /** Datos editables de un vale emitido (para abrirlo en el editor de corrección). */
 export function datosParaCorregir(estado, valeId) {
-  const vale = estado.vales.find((v) => v.id === valeId);
-  if (!vale) throw new ErrorVale("No existe el vale.");
+  const original = estado.vales.find((v) => v.id === valeId);
+  if (!original) throw new ErrorVale("No existe el vale.");
+  const vale = conFirmasPorPapel(estado, original);
   return {
     ...Object.fromEntries(CAMPOS_ENCABEZADO.map((c) => [c, vale[c] ?? ""])),
     plantilla_area_id: vale.plantilla_area_id ?? null,
     naturaleza: vale.naturaleza || "CONSUMO",
     etapa_perforacion: etapaDe(vale.observaciones) ?? "",
+    fotos: fotosLimpias(vale.fotos),
     lineas: vale.lineas.map((l) => ({
       ...lineaBase(),
       ...l,
@@ -516,6 +605,104 @@ export function datosParaCorregir(estado, valeId) {
   };
 }
 
+const ETIQUETAS_ENCABEZADO = {
+  fecha: "Fecha",
+  origen: "Origen",
+  depto_origen: "Depto. origen",
+  destino: "Destino",
+  depto_destino: "Depto. destino",
+  recibio_nombre: "Recibió",
+  recibio_puesto: "Puesto de quien recibe",
+  autorizo_nombre: "Autorizó",
+  autorizo_puesto: "Puesto de quien autoriza",
+  observaciones: "Observaciones",
+};
+
+const describirLinea = (l) =>
+  `${l.codigo ?? "?"} ${texto(l.descripcion).toUpperCase()}${texto(l.clave) ? ` ${texto(l.clave)}` : ""}`.trim();
+const cantidadConUm = (l) => `${decTexto(dec(l.cantidad)) ?? texto(l.cantidad)} ${texto(l.um).toUpperCase()}`.trim();
+
+/**
+ * Qué cambió en una corrección, en frases para la bitácora: partidas agregadas, quitadas o
+ * modificadas y datos del encabezado. Sirve para prellenar el motivo.
+ */
+export function resumenCambios(estado, valeGuardado, datos) {
+  const vale = conFirmasPorPapel(estado, valeGuardado);
+  const cambios = [];
+  const valor = (campo, v) => {
+    if (campo === "fecha") return v ? fmtFecha(v) : "";
+    return texto(v).toUpperCase();
+  };
+  // Etapa de perforación: se dice así en lugar de "observaciones".
+  const etapaAntes = etapaDe(vale.observaciones);
+  const obsNuevas = observacionesDelVale(estado, datos);
+  const etapaDespues = etapaDe(obsNuevas);
+  const soloEtapa = etapaAntes !== null && etapaDespues !== null && conEtapa(vale.observaciones, etapaDespues) === texto(obsNuevas);
+  const encabezado = { ...conDatosFijos(estado, datos), observaciones: obsNuevas };
+  for (const [campo, etiqueta] of Object.entries(ETIQUETAS_ENCABEZADO)) {
+    const a = valor(campo, vale[campo]);
+    const b = valor(campo, encabezado[campo]);
+    if (a === b) continue;
+    if (campo === "observaciones") {
+      if (soloEtapa) cambios.push(`Etapa de perforación: ${etapaAntes || "—"} → ${etapaDespues || "—"}`);
+      else cambios.push("Se cambiaron las observaciones");
+      continue;
+    }
+    cambios.push(`${etiqueta}: ${a || "—"} → ${b || "—"}`);
+  }
+  const etiquetas = firmasExtraDe(estado, datos) ?? { izq: "Firma abajo a la izquierda", der: "Firma abajo a la derecha" };
+  for (const lado of ["izq", "der"]) {
+    for (const parte of ["nombre", "puesto"]) {
+      const campo = `firma_extra_${lado}_${parte}`;
+      const a = valor(campo, vale[campo]);
+      const b = valor(campo, datos[campo]);
+      if (a !== b) cambios.push(`${etiquetas[lado]}${parte === "puesto" ? " (puesto)" : ""}: ${a || "—"} → ${b || "—"}`);
+    }
+  }
+  if (texto(datos.plantilla_area_id) !== texto(vale.plantilla_area_id) && datos.plantilla_area_id !== undefined) {
+    const nombre = (id) => plantillaArea(estado, id)?.nombre ?? "—";
+    cambios.push(`Área: ${nombre(vale.plantilla_area_id)} → ${nombre(datos.plantilla_area_id)}`);
+  }
+
+  // Partidas: se reconocen por su id (las nuevas no traen).
+  const nuevas = lineasCapturadas(datos.lineas);
+  const previas = new Map(vale.lineas.map((l) => [l.id, l]));
+  const siguen = new Set();
+  nuevas.forEach((l, i) => {
+    const previa = Number.isInteger(l.id) ? previas.get(l.id) : null;
+    if (!previa) {
+      cambios.push(`Se agregó la partida ${i + 1}: ${describirLinea(l)}, ${cantidadConUm(l)}`);
+      return;
+    }
+    siguen.add(previa.id);
+    const detalle = [];
+    if (previa.codigo !== l.codigo) detalle.push(`código ${previa.codigo} → ${l.codigo}`);
+    const ca = dec(previa.cantidad);
+    const cb = dec(l.cantidad);
+    if (!(ca && cb ? ca.eq(cb) : texto(previa.cantidad) === texto(l.cantidad))) detalle.push(`cantidad ${cantidadConUm(previa)} → ${cantidadConUm(l)}`);
+    if (texto(previa.clave).toUpperCase() !== texto(l.clave).toUpperCase()) detalle.push(`clave ${texto(previa.clave) || "—"} → ${texto(l.clave) || "—"}`);
+    else if ((previa.existencia_id ?? null) !== (l.existencia_id ?? null)) detalle.push("sale de otro contenedor");
+    if (unidad(previa.um) !== unidad(l.um) && !detalle.some((d) => d.startsWith("cantidad"))) detalle.push(`UM ${texto(previa.um) || "—"} → ${texto(l.um) || "—"}`);
+    if (texto(previa.oc).toUpperCase() !== texto(l.oc).toUpperCase()) detalle.push(`O.C. ${texto(previa.oc) || "S/OC"} → ${texto(l.oc) || "S/OC"}`);
+    if (texto(previa.lote).toUpperCase() !== texto(l.lote).toUpperCase()) detalle.push(`lote ${texto(previa.lote) || "—"} → ${texto(l.lote) || "—"}`);
+    if (detalle.length) cambios.push(`Partida ${i + 1} (${describirLinea(previa)}): ${detalle.join("; ")}`);
+  });
+  vale.lineas.forEach((l) => {
+    if (!siguen.has(l.id)) cambios.push(`Se quitó la partida ${l.renglon}: ${describirLinea(l)}, ${cantidadConUm(l)}`);
+  });
+
+  const fotosAntes = fotosLimpias(vale.fotos);
+  const fotosDespues = fotosLimpias(datos.fotos ?? vale.fotos);
+  const n = Math.max(fotosAntes.length, fotosDespues.length);
+  for (let i = 0; i < n; i++) {
+    const a = fotosAntes[i] ?? null;
+    const b = fotosDespues[i] ?? null;
+    if (a === b) continue;
+    cambios.push(!a ? `Se agregó la foto ${i + 1}` : !b ? `Se quitó la foto ${i + 1}` : `Se cambió la foto ${i + 1}`);
+  }
+  return cambios;
+}
+
 /**
  * Corrige un vale emitido (RF-19): motivo obligatorio, el folio no cambia y la bitácora
  * guarda antes → después. La existencia se recalcula sola.
@@ -528,8 +715,15 @@ export function corregirVale(estado, valeId, datos, motivo, usuario = null) {
   const { errores } = validarVale(estado, datos, { excluirValeId: valeId, historial: esHistorial(estado, vale) });
   if (errores.length) throw new ErrorVale("La corrección tiene datos pendientes.", errores);
   datos = { ...datos, lineas: lineasCapturadas(datos.lineas) };
+  const cambios = resumenCambios(estado, vale, datos);
+  if (!cambios.length) throw new ErrorVale("No hay cambios que guardar.", [{ renglon: null, campo: "vale", mensaje: "No cambiaste nada del vale." }]);
   const antes = foto(vale);
   const encabezado = encabezadoLimpio({ ...datos, observaciones: observacionesDelVale(estado, datos) });
+  if (firmasPorPosicion(estado, vale)) {
+    // Se guarda igual que en el DIARIO (por posición) para que la exportación no cambie de orden.
+    [encabezado.entrego_nombre, encabezado.recibio_nombre] = [encabezado.recibio_nombre, encabezado.entrego_nombre];
+    [encabezado.entrego_puesto, encabezado.recibio_puesto] = [encabezado.recibio_puesto, encabezado.entrego_puesto];
+  }
   asegurarArticulos(estado, datos.lineas);
   registrarPersonas(estado, encabezado);
   const previas = new Map(vale.lineas.map((l) => [l.id, l]));
@@ -538,6 +732,7 @@ export function corregirVale(estado, valeId, datos, motivo, usuario = null) {
     naturaleza: datos.naturaleza || vale.naturaleza,
     modificado_en: ahoraIso(),
     cambio: siguienteId(estado, "cambio"),
+    fotos: fotosLimpias(datos.fotos ?? vale.fotos),
   });
   vale.lineas = datos.lineas.map((l, i) => {
     const previa = Number.isInteger(l.id) ? previas.get(l.id) : null;
@@ -548,23 +743,7 @@ export function corregirVale(estado, valeId, datos, motivo, usuario = null) {
     }
     return nueva;
   });
-  auditar(estado, { usuario, entidad: "vale", entidadId: vale.id, accion: "CORREGIR", antes: { motivo: texto(motivo), ...antes }, despues: foto(vale) });
-  return vale;
-}
-
-/** Cancela un vale (RF-20): el folio no se reutiliza y la existencia se revierte. */
-export function cancelarVale(estado, valeId, motivo, usuario = null) {
-  const vale = estado.vales.find((v) => v.id === valeId);
-  if (!vale) throw new ErrorVale("No existe el vale.");
-  if (vale.estado === "CANCELADO") throw new ErrorVale("El vale ya está cancelado.");
-  if (!texto(motivo)) throw new ErrorVale("Escribe el motivo de la cancelación.");
-  const antes = { estado: vale.estado };
-  vale.estado = "CANCELADO";
-  vale.cancelado_en = ahoraIso();
-  vale.motivo_cancelacion = texto(motivo).toUpperCase();
-  vale.modificado_en = vale.cancelado_en;
-  vale.cambio = siguienteId(estado, "cambio");
-  auditar(estado, { usuario, entidad: "vale", entidadId: vale.id, accion: "CANCELAR", antes, despues: { estado: "CANCELADO", motivo: vale.motivo_cancelacion } });
+  auditar(estado, { usuario, entidad: "vale", entidadId: vale.id, accion: "CORREGIR", antes: { motivo: texto(motivo), cambios, ...antes }, despues: foto(vale) });
   return vale;
 }
 

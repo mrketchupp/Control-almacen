@@ -37,7 +37,7 @@ test("el estado de la versión anterior se migra", () => {
   estado.plantillas_area.find((a) => a.nombre === "MECANICO").depto_origen = "MANTENIMIENTO";
   delete estado.config.etapa_perforacion;
   migrarEstado(estado);
-  assert.equal(estado.formato, 3);
+  assert.equal(estado.formato, 4);
   assert.deepEqual([estado.borradores, estado.envios], [[], []]);
   const tipos = Object.fromEntries(estado.plantillas_area.map((a) => [a.nombre, a.tipo]));
   assert.deepEqual(tipos, { SOLDADOR: "INTERNO", MECANICO: "INTERNO", TRANSFERENCIAS: "TRANSFERENCIA", NOV: "EXTERNO" });
@@ -169,10 +169,12 @@ test("un borrador con errores no consume folio", () => {
   assert.equal(estado.borradores.length, 1);
 });
 
-test("el folio mínimo configurado se respeta (folios usados fuera de la herramienta)", () => {
+test("los folios no se saltan ni se cancelan: el siguiente es el último + 1", () => {
   const { estado } = preparar();
-  estado.config.folio_minimo_salida = 600;
-  assert.equal(v.siguienteFolio(estado), 600);
+  estado.config.folio_minimo_salida = 600; // ajuste de versiones anteriores: ya no aplica
+  assert.equal(v.siguienteFolio(estado), 10);
+  assert.equal(v.cancelarVale, undefined);
+  assert.equal(migrarEstado({ ...estado, formato: 3, config: { ...estado.config } }).config.folio_minimo_salida, undefined);
 });
 
 test("más renglones que el formato: se divide en folios consecutivos solo si se pide", () => {
@@ -207,17 +209,76 @@ test("corregir: motivo obligatorio, mismo folio, existencia recalculada", () => 
   assert.equal(saldo(estado, sellos.id), "0");
 });
 
-test("cancelar revierte la existencia y el DIARIO muestra el folio cancelado", () => {
+test("un vale cancelado en versiones anteriores sigue exportándose con su folio", () => {
   const { estado, mecanico, sellos } = preparar();
   const [vale] = v.emitirBorrador(estado, borradorListo(estado, { mecanico, sellos }).id);
-  assert.equal(saldo(estado, sellos.id), "0");
-  v.cancelarVale(estado, vale.id, "Captura duplicada", "ALMACENISTA UNO");
+  Object.assign(vale, { estado: "CANCELADO", motivo_cancelacion: "CAPTURA DUPLICADA" });
   assert.equal(saldo(estado, sellos.id), "1");
-  assert.throws(() => v.cancelarVale(estado, vale.id, "otra vez"), /ya está cancelado/);
   assert.equal(v.siguienteFolio(estado), 11); // el folio no se reutiliza
   const hoja = new LibroLeido(exportarVales(estado, bytesVales()).datos).hoja("DIARIO");
   const ultima = hoja.fila(hoja.maxFila, 1, 20);
   assert.deepEqual([ultima[1], ultima[9], ultima[11]], [10, 0, "CANCELADO – CAPTURA DUPLICADA"]);
+});
+
+test("corregir: el motivo se arma con los cambios (partidas agregadas, quitadas o modificadas)", () => {
+  const { estado, mecanico, sellos, indices } = preparar();
+  const b = borradorListo(estado, { mecanico, sellos }, "1");
+  const filtro = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 702);
+  b.lineas.push({ ...v.lineaDesdeExistencia(estado, filtro.id), cantidad: "1" });
+  const [vale] = v.emitirBorrador(estado, b.id, { usuario: "ALMACENISTA UNO" });
+  const datos = v.datosParaCorregir(estado, vale.id);
+  assert.deepEqual(v.resumenCambios(estado, vale, datos), []);
+  datos.lineas[0].cantidad = "2";
+  datos.lineas = datos.lineas.filter((l) => l.codigo !== 702);
+  datos.lineas.push({ ...v.lineaNoInventariada(estado, 136), cantidad: "50", um: "LTS", clave: "DIESEL" });
+  datos.recibio_nombre = "SOLDADOR UNO";
+  datos.etapa_perforacion = '6 1/8"';
+  const cambios = v.resumenCambios(estado, vale, datos);
+  assert.deepEqual(cambios, [
+    "Recibió: MECANICO UNO → SOLDADOR UNO",
+    'Etapa de perforación: 8 1/2" → 6 1/8"',
+    "Partida 1 (706 SELLOS 555001): cantidad 1 PZA → 2 PZA",
+    "Se agregó la partida 2: 136 SUMINISTRO DE DIESEL Y COMBUSTIBLE DIESEL, 50 LTS",
+    `Se quitó la partida 2: 702 FILTROS ${vale.lineas[1].clave}, 1 PZA`,
+  ]);
+  datos.lineas[0].justificacion = "Había una pieza sin registrar";
+  v.corregirVale(estado, vale.id, datos, cambios.join("\n"), "ALMACENISTA UNO");
+  const bitacora = v.bitacoraDeVale(estado, vale.id).find((a) => a.accion === "CORREGIR");
+  assert.deepEqual(bitacora.antes.cambios, cambios);
+  // sin cambios no se guarda una corrección
+  assert.throws(() => v.corregirVale(estado, vale.id, v.datosParaCorregir(estado, vale.id), "nada"), /No hay cambios/);
+});
+
+test("NOV: datos fijos, cuatro firmas y se parte del último vale de NOV", () => {
+  const { estado } = preparar();
+  const nov = estado.plantillas_area.find((p) => p.nombre === "NOV");
+  assert.equal(nov.tipo, "EXTERNO");
+  assert.deepEqual([nov.depto_origen, nov.destino], ["ALMACEN", "RIG 91 - TANQUE NOV"]);
+  const b = v.nuevoBorrador(estado, { usuario: "ALMACENISTA UNO", plantillaId: nov.id });
+  assert.deepEqual(
+    [b.recibio_nombre, b.firma_extra_izq_nombre, b.firma_extra_izq_puesto, b.firma_extra_der_nombre, b.firma_extra_der_puesto],
+    ["QUIMICO UNO", "PERSONAL NOV UNO", "NOV ENERGY", "PATRIMONIAL UNO", "SEG PATRIMONIAL"],
+  );
+  assert.deepEqual(v.firmasExtraDe(estado, b), { izq: "Personal de NOV ENERGY", der: "Patrimonial" });
+  assert.ok(v.pideEtapa(estado, b));
+  b.lineas.push({ ...v.lineaNoInventariada(estado, 136), cantidad: "1000", um: "LTS", clave: "DIESEL" });
+  b.firma_extra_izq_nombre = "OTRA PERSONA NOV";
+  b.fotos = ["fotos/a.jpg", null, "fotos/c.jpg"];
+  const [vale] = v.emitirBorrador(estado, b.id, { usuario: "ALMACENISTA UNO" });
+  assert.deepEqual([vale.destino, vale.depto_destino, vale.fotos], ["RIG 91 - TANQUE NOV", "NOV ENERGY", ["fotos/a.jpg", null, "fotos/c.jpg"]]);
+  // el siguiente vale de NOV trae las mismas personas y la partida de diésel sin cantidad
+  const otro = v.nuevoBorrador(estado, { plantillaId: nov.id });
+  assert.equal(otro.firma_extra_izq_nombre, "OTRA PERSONA NOV");
+  assert.deepEqual(otro.lineas.map((l) => [l.codigo, l.clave, l.um, l.cantidad]), [[136, "DIESEL", "LTS", ""]]);
+  assert.deepEqual(otro.fotos, []);
+});
+
+test("transferencias: autorizó con puesto y sugerencias RIG MANAGER / ITP", () => {
+  const { estado } = preparar();
+  const trans = estado.plantillas_area.find((p) => p.nombre === "TRANSFERENCIAS");
+  assert.deepEqual([trans.autoriza_nombre, trans.autoriza_puesto], ["AUTORIZADOR UNO", "RIG MANAGER"]);
+  const b = v.nuevoBorrador(estado, { plantillaId: trans.id });
+  assert.deepEqual([b.autorizo_nombre, b.autorizo_puesto], ["AUTORIZADOR UNO", "RIG MANAGER"]);
 });
 
 test("un vale emitido aparece en el DIARIO exportado como lo haría la macro", () => {
@@ -244,8 +305,10 @@ test("envíos a la base: nuevos, corregidos y cancelados desde el último envío
   const datos = v.datosParaCorregir(estado, migrado.id);
   datos.lineas[0].lote = "NUEVO";
   v.corregirVale(estado, migrado.id, datos, "Faltaba el lote");
-  v.cancelarVale(estado, nuevo.id, "No se entregó");
-  assert.deepEqual(v.valesPorEnviar(estado).map((p) => [p.vale.folio, p.motivo]), [[3, "corregido"], [10, "cancelado"]]);
+  const datosNuevo = v.datosParaCorregir(estado, nuevo.id);
+  datosNuevo.lineas[0].oc = "12345";
+  v.corregirVale(estado, nuevo.id, datosNuevo, "O.C. correcta");
+  assert.deepEqual(v.valesPorEnviar(estado).map((p) => [p.vale.folio, p.motivo]), [[3, "corregido"], [10, "corregido"]]);
 });
 
 test("importar vales nuevos hechos en el Excel después de la primera carga", () => {
@@ -260,4 +323,39 @@ test("importar vales nuevos hechos en el Excel después de la primera carga", ()
   assert.equal(v.siguienteFolio(estado), 10);
   assert.ok(lineasPorUbicar(estado).some((p) => p.folio === 7));
   assert.deepEqual(importarValesNuevos(estado, libro).folios, []); // no duplica
+});
+
+test("NOV: en el DIARIO las firmas van por posición, como la macro (químico en P, almacenista en Q)", () => {
+  const { estado } = preparar();
+  const nov = estado.plantillas_area.find((p) => p.nombre === "NOV");
+  assert.equal(nov.almacenista_derecha, true);
+  const b = v.nuevoBorrador(estado, { usuario: "ALMACENISTA UNO", plantillaId: nov.id });
+  b.lineas.push({ ...v.lineaNoInventariada(estado, 136), cantidad: "500", um: "LTS", clave: "DIESEL" });
+  const [vale] = v.emitirBorrador(estado, b.id, { usuario: "ALMACENISTA UNO" });
+  assert.deepEqual([vale.entrego_nombre, vale.recibio_nombre], ["ALMACENISTA UNO", "QUIMICO UNO"]);
+  const hoja = new LibroLeido(exportarVales(estado, bytesVales()).datos).hoja("DIARIO");
+  const fila = hoja.fila(hoja.maxFila, 1, 20);
+  assert.deepEqual([fila[15], fila[16]], ["QUIMICO UNO", "ALMACENISTA UNO"]);
+  // un vale migrado con el mismo orden por posición no toma de ahí las personas
+  const migrado = { ...vale, id: 999, folio: 998, migrado: true, entrego_nombre: "QUIMICO DOS", recibio_nombre: "ALMACENISTA UNO", plantilla_area_id: null, firma_extra_izq_nombre: null, firma_extra_der_nombre: null };
+  estado.vales = estado.vales.filter((x) => x.id !== vale.id).concat(migrado);
+  const otro = v.nuevoBorrador(estado, { plantillaId: nov.id });
+  assert.equal(otro.recibio_nombre, "QUIMICO UNO"); // del formato, no del migrado
+  assert.deepEqual(otro.lineas.map((l) => l.codigo), [136]); // la partida sí
+});
+
+test("NOV migrado: al corregirlo se ve por papel y se guarda por posición", () => {
+  const { estado } = preparar();
+  const nov = estado.plantillas_area.find((p) => p.nombre === "NOV");
+  const vale = { ...structuredClone(estado.vales.at(-1)), id: 997, folio: 997, migrado: true, plantilla_area_id: null, depto_destino: nov.depto_destino, entrego_nombre: "QUIMICO UNO", recibio_nombre: "ALMACENISTA UNO", estado: "EMITIDO" };
+  estado.vales.push(vale);
+  assert.ok(v.firmasPorPosicion(estado, vale));
+  const datos = v.datosParaCorregir(estado, vale.id);
+  assert.deepEqual([datos.entrego_nombre, datos.recibio_nombre], ["ALMACENISTA UNO", "QUIMICO UNO"]);
+  assert.deepEqual(v.resumenCambios(estado, vale, datos), []);
+  datos.recibio_nombre = "QUIMICO DOS";
+  assert.deepEqual(v.resumenCambios(estado, vale, datos), ["Recibió: QUIMICO UNO → QUIMICO DOS"]);
+  v.corregirVale(estado, vale.id, datos, "Otro químico", "ALMACENISTA UNO");
+  const guardado = estado.vales.find((x) => x.id === 997);
+  assert.deepEqual([guardado.entrego_nombre, guardado.recibio_nombre], ["QUIMICO DOS", "ALMACENISTA UNO"]);
 });

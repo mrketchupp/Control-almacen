@@ -1,9 +1,8 @@
-// Catálogos editables (RF-05): áreas (plantillas del vale), personas y ajustes de folio.
+// Catálogos editables (RF-05): áreas (plantillas del vale), personas y ajustes.
 
 import { normalizarArea, tipoDeArea } from "../nucleo/areas.js";
 import { auditar, siguienteId } from "../nucleo/estado.js";
 import { nombrePersona } from "../nucleo/normalizar.js";
-import { siguienteFolio } from "./vales.js";
 
 export class ErrorCatalogo extends Error {}
 
@@ -12,7 +11,7 @@ const mayus = (v) => texto(v).toUpperCase() || null;
 
 export const CAMPOS_AREA = [
   "nombre", "tipo", "hoja_excel", "origen", "depto_origen", "destino", "depto_destino",
-  "recibe_nombre", "recibe_puesto", "autoriza_nombre", "observaciones", "lote_defecto",
+  "recibe_nombre", "recibe_puesto", "autoriza_nombre", "autoriza_puesto", "observaciones", "lote_defecto",
 ];
 
 export function areaVacia() {
@@ -30,6 +29,8 @@ export function areaVacia() {
     recibe_nombre: "",
     recibe_puesto: "",
     autoriza_nombre: "",
+    autoriza_puesto: "",
+    firmas_extra: null,
     requiere_autoriza: false,
     naturaleza: "CONSUMO",
     observaciones: "",
@@ -57,6 +58,15 @@ export function guardarArea(estado, datos, usuario = null) {
     recibe_nombre: nombrePersona(datos.recibe_nombre),
     recibe_puesto: mayus(datos.recibe_puesto),
     autoriza_nombre: nombrePersona(datos.autoriza_nombre),
+    autoriza_puesto: mayus(datos.autoriza_puesto),
+    firmas_extra: datos.firmas_extra
+      ? Object.fromEntries(
+          ["izq", "der"].map((lado) => [
+            lado,
+            { titulo: datos.firmas_extra[lado]?.titulo ?? null, nombre: nombrePersona(datos.firmas_extra[lado]?.nombre), puesto: mayus(datos.firmas_extra[lado]?.puesto) },
+          ]),
+        )
+      : null,
     requiere_autoriza: Boolean(datos.requiere_autoriza) || tipo === "TRANSFERENCIA",
     naturaleza: tipo === "TRANSFERENCIA" ? "TRANSFERENCIA" : "CONSUMO",
     observaciones: texto(datos.observaciones) || null,
@@ -101,20 +111,6 @@ export function guardarPersona(estado, datos, usuario = null) {
   }
   auditar(estado, { usuario, entidad: "persona", entidadId: persona.id, accion: antes ? "EDITAR" : "ALTA", antes, despues: { ...persona } });
   return persona;
-}
-
-/**
- * Siguiente folio mínimo (si se usaron folios en papel fuera de la herramienta).
- * Solo puede subir: nunca se reutiliza un folio.
- */
-export function fijarFolioMinimo(estado, folio, usuario = null) {
-  const valor = Number(folio);
-  if (!Number.isInteger(valor) || valor <= 0) throw new ErrorCatalogo("Escribe un número de folio válido.");
-  const actual = siguienteFolio(estado, "SALIDA");
-  if (valor < actual) throw new ErrorCatalogo(`El siguiente folio ya es ${actual}; solo se puede aumentar.`);
-  const antes = estado.config.folio_minimo_salida ?? null;
-  estado.config.folio_minimo_salida = valor;
-  auditar(estado, { usuario, entidad: "config", entidadId: "folio_minimo_salida", accion: "EDITAR", antes, despues: valor });
 }
 
 /** Ajustes generales guardados en el estado (van en los respaldos). */

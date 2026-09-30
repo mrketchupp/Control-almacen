@@ -147,6 +147,51 @@ test("respaldo y restauración completos", async () => {
   assert.ok((await almacen.backend.listarInstantaneas()).some((c) => c.motivo === "antes de restaurar"));
 });
 
+test("fotos de los vales: se guardan una vez, viajan en el respaldo y se limpian las que sobran", async () => {
+  const almacen = await almacenCargado();
+  const foto = new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3, 4, 5]);
+  const clave = await almacen.guardarFoto(foto, { nombre: "evidencia.jpg" });
+  assert.match(clave, /^fotos\/[0-9a-f]{24}\.jpg$/);
+  assert.equal(await almacen.guardarFoto(foto), clave); // misma foto, misma clave
+  const huerfana = await almacen.guardarFoto(new Uint8Array([9, 9, 9]));
+  await almacen.modificar((e) => {
+    e.vales.at(-1).fotos = [clave, null, null];
+  });
+  const { datos } = await almacen.respaldo("prueba");
+  assert.equal(await almacen.limpiarFotos(), 1);
+  assert.equal(await almacen.leerFoto(huerfana), null);
+  const otro = new Almacen(new BackendMemoria());
+  await otro.iniciar();
+  await otro.restaurar(datos);
+  assert.deepEqual((await otro.leerFoto(clave)).datos, foto);
+});
+
+test("al abrir datos de una versión anterior, las áreas se completan desde la plantilla", async () => {
+  const almacen = await almacenCargado();
+  const areaNov = almacen.estado.plantillas_area.find((a) => a.nombre === "NOV");
+  await almacen.modificar((e) => {
+    const b = nuevoBorrador(e, { usuario: "ALMACENISTA UNO", plantillaId: areaNov.id });
+    b.lineas.push({ ...lineaNoInventariada(e, 136), cantidad: "10", um: "LTS", clave: "DIESEL" });
+    emitirBorrador(e, b.id, { usuario: "ALMACENISTA UNO" });
+  });
+  const viejo = structuredClone(almacen.estado);
+  viejo.formato = 3;
+  delete viejo.vales.at(-1).almacenista_derecha; // emitido con la versión anterior
+  for (const a of viejo.plantillas_area) {
+    delete a.firmas_extra;
+    delete a.autoriza_puesto;
+  }
+  await almacen.backend.guardarEstado(viejo);
+  const otro = new Almacen(almacen.backend);
+  await otro.iniciar();
+  const nov = otro.estado.plantillas_area.find((a) => a.nombre === "NOV");
+  assert.equal(nov.firmas_extra.der.nombre, "PATRIMONIAL UNO");
+  assert.equal(otro.estado.plantillas_area.find((a) => a.nombre === "TRANSFERENCIAS").autoriza_puesto, "RIG MANAGER");
+  assert.equal(otro.estado.config.completar_areas, undefined);
+  assert.equal(otro.estado.vales.at(-1).almacenista_derecha, true);
+  assert.equal((await almacen.backend.leerEstado()).formato, 4);
+});
+
 test("respaldos inválidos se rechazan con un mensaje claro", () => {
   assert.throws(() => leerRespaldo(crearZip([["otra_cosa.txt", "hola"]])), ErrorRespaldo);
   assert.throws(() => leerRespaldo(crearZip([["almacen.db", "x"]])), /versión de escritorio/);
