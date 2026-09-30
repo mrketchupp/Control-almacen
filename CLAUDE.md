@@ -4,8 +4,10 @@
 Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo del usuario**: inventario por contenedor, vales de salida y entrada con folio controlado, conciliación contra AX y exportación **idéntica** a los Excel actuales. Es un solo HTML autocontenido que corre en Edge, sin servidor ni instalación (la PC del almacén bloquea instaladores). Toda la planeación está en `docs/`. Léela antes de proponer cambios de diseño.
 
 ## Estado
-- Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) entregadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
-- Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F2 (ver `docs/08-plan.md`).
+- Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
+- Fase 2 (vales de salida: borradores, folio, impresión sobre la hoja-formulario, corrección/cancelación, envíos, áreas) entregada, en aceptación; falta que el usuario valide el vale impreso (P-09).
+- Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F3 (ver `docs/08-plan.md`).
+- Formato del estado: `FORMATO_ESTADO = 2` (`src/nucleo/estado.js`, `migrarEstado`).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Reglas no negociables
@@ -29,7 +31,8 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - `npm test && npm run build`
 - En cambios a exportadores: prueba de "partes intactas" (las partes que no se debían tocar deben ser idénticas byte a byte a la plantilla).
 - En cambios a importadores: el total por hoja y el número de renglones deben coincidir con la fixture.
-- En cambios de interfaz: abrir `dist/ControlAlmacen.html` en Chromium (Playwright) y recorrer primera carga → exportar → respaldo sin errores en consola.
+- En cambios de interfaz: abrir `dist/ControlAlmacen.html` en Chromium (Playwright) y recorrer primera carga → nuevo vale → emitir → imprimir → exportar → respaldo sin errores en consola ni peticiones de red. En headless, sustituye `window.print` para que dispare `afterprint`.
+- En cambios de impresión (`src/impresion/`): comparar contra el PDF de LibreOffice de la misma hoja (solo en local, nunca subir las imágenes).
 
 ## Hechos del dominio que es fácil olvidar
 - AX corta `Tamaño` a 10 caracteres; el código AX viene como texto con ceros (`000000670`).
@@ -37,3 +40,5 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - La columna `C.U` de DIARIO en realidad es el campo **LOTE** del vale.
 - Diésel (código 136), oxígeno, acetileno y otros insumos van en vales pero **no** llevan existencia.
 - Entrada vs. salida: `XXXXX` en "Pase de Entrada" (C) o en "Pase de Salida" (D) del DIARIO.
+- La hoja-formulario NOV pone al almacenista a la **derecha**; las capacidades de renglones varían por hoja (21/20/19): se leen del formato, no se suponen.
+- Los vales nuevos dejan FAMILIA y TRANSFERENCIA/CONSUMO vacías (así vienen los recientes del Excel, P-13); un vale cancelado se exporta como un renglón en 0 con `CANCELADO – motivo` (P-07).

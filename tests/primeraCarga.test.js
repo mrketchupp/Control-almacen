@@ -54,7 +54,7 @@ test("saldos derivados de los movimientos", () => {
 });
 
 test("plantillas de área y personas", () => {
-  assert.equal(reporte.plantillas_area, 3);
+  assert.equal(reporte.plantillas_area, 4);
   const transferencias = estado.plantillas_area.find((p) => p.nombre === "TRANSFERENCIAS");
   assert.equal(transferencias.naturaleza, "TRANSFERENCIA");
   assert.ok(transferencias.requiere_autoriza);

@@ -7,7 +7,8 @@
 import { ahoraIso } from "./fechas.js";
 import { claveEstricta } from "./normalizar.js";
 
-export const FORMATO_ESTADO = 1;
+// Formato 2 (Fase 2): borradores de vales y envíos a la base.
+export const FORMATO_ESTADO = 2;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio() {
@@ -27,8 +28,24 @@ export function estadoVacio() {
     plantillas_excel: [],
     exportaciones: [],
     auditoria: [],
+    borradores: [], // vales en captura: no tienen folio
+    envios: [], // cada vez que el DIARIO exportado se envió a la base
     config: {},
   };
+}
+
+/**
+ * Lleva un estado guardado con un formato anterior al actual. Se aplica al abrir la
+ * herramienta, al restaurar un respaldo y al volver a una copia interna.
+ */
+export function migrarEstado(estado) {
+  if (!estado) return estado;
+  if (estado.formato < 2) {
+    estado.borradores ??= [];
+    estado.envios ??= [];
+    estado.formato = 2;
+  }
+  return estado;
 }
 
 export function siguienteId(estado, coleccion) {

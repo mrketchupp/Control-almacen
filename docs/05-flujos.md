@@ -19,11 +19,15 @@ flowchart TD
     K --> M[Se agrega a DIARIO<br/>y descuenta CONSUMO]
 ```
 
-- **Borradores:** se pueden tener varios abiertos en pestañas. No consumen folio y se guardan automáticamente.
-- **Emitir** es el único paso que asigna folio. Si otro proceso ya tomó el número, la transacción lo impide y toma el siguiente.
-- **Más de 21 renglones:** la herramienta avisa y ofrece dividir en dos vales consecutivos.
+- **Borradores:** se pueden tener varios abiertos en pestañas. No consumen folio y se guardan automáticamente (sobreviven a cerrar la pestaña).
+- **Buscador:** escribe código, descripción, dimensión o NP; cada resultado dice en qué contenedor está y cuánto hay. `Enter` agrega el primero y pasa a la cantidad; `Enter` en la cantidad regresa al buscador. Un artículo sin existencia se agrega como no inventariado; un código que no está en el catálogo se captura a mano y queda "por confirmar".
+- **Validaciones antes de emitir:** fecha, departamento destino, entregó, recibió, cantidad > 0, UM, "Sale de" elegido. Si la cantidad supera la existencia del contenedor elegido se pide una **justificación** (queda en el renglón).
+- **Emitir** es el único paso que asigna folio: `max(último folio + 1, folio mínimo)` dentro de un cambio atómico con candado de pestaña única. Un vale con errores no consume folio.
+- **Más renglones que el formato:** cada hoja-formulario tiene su capacidad (21, 20 u 19 renglones). Si el vale la supera, la herramienta avisa y ofrece dividirlo en folios consecutivos (P-16).
 - **Transferencias:** la plantilla `TRANSFERENCIAS` exige "Autorizó" y marca la naturaleza como `TRANSFERENCIA`.
-- **NOV (diésel):** es una salida normal con renglón no inventariado.
+- **NOV (diésel):** es una salida normal con renglón no inventariado. En su hoja-formulario el almacenista firma a la derecha; la impresión lo respeta.
+- **Impresión:** el vale se dibuja sobre **la hoja-formulario del propio libro de vales** (logo, colores, bordes, anchos, observaciones y pie de página) en tamaño carta, y se imprime o se guarda como PDF desde el navegador. La vista previa de un borrador lleva `BORRADOR` en el folio.
+- **Folios hechos fuera de la herramienta:** si se siguieron haciendo vales en el Excel, *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último conocido. Si se usaron folios en papel que no están en ningún archivo, *Áreas y personas → Folios* fija el siguiente folio (solo puede aumentar).
 
 ## 2. Vale de entrada (material recibido de la base)
 
@@ -55,10 +59,10 @@ flowchart TD
 
 | Caso | Qué hace la herramienta |
 |---|---|
-| **Error de captura** en un vale emitido | Editar con **motivo obligatorio**. El folio no cambia. La bitácora guarda antes → después y la existencia se recalcula sola. |
-| **Vale que no debió emitirse** | Cancelar con motivo. El folio queda como `CANCELADO` (no se reutiliza) y la existencia se revierte. |
+| **Error de captura** en un vale emitido | *Historial → folio → Corregir*, con **motivo obligatorio**. El folio no cambia. La bitácora guarda antes → después y la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias). |
+| **Vale que no debió emitirse** | *Cancelar vale* con motivo. El folio queda como `CANCELADO` (no se reutiliza), la existencia se revierte y en el DIARIO aparece un renglón con cantidad 0 y `CANCELADO – <motivo>` (P-07). |
 | **Devolución de material** | Pendiente de confirmar (P-08). Opción A: corregir el vale original. Opción B: vale de entrada tipo "Devolución" que referencia el folio original. |
-| **Vale ya enviado a la base y luego corregido** | Queda marcado; al exportar se muestra la lista "modificados desde el último envío" para avisar a la base. |
+| **Vale ya enviado a la base y luego corregido** | Vuelve a aparecer en *Exportar y enviar → Por enviar a la base* con el cambio "Corregido" o "Cancelado", para avisar a la base. |
 
 ## 4. Conteo físico
 
@@ -92,7 +96,7 @@ flowchart LR
 
 1. **Exportar → Vales:** genera `VALES DE SALIDA DLTA.xlsm` sobre la plantilla registrada, con `DIARIO` completo y actualizado.
 2. La herramienta valida el archivo, lo guarda en la carpeta de exportaciones y registra hasta qué folio se incluyó.
-3. El usuario lo envía por correo como hoy y lo marca como "enviado". Esto alimenta el aviso de "modificados desde el último envío".
+3. El usuario lo envía por correo como hoy y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* muestra los vales nuevos, corregidos o cancelados desde el último envío (se lleva con un contador de cambios, no con la hora, para que no se escape ninguno).
 4. **Exportar → Inventario:** genera el `.xlsx` con fecha en el nombre, cuando se necesite.
 
 ## 7. Cambio de guardia

@@ -46,8 +46,8 @@ export function Insignia({ tono = "neutro", children }) {
   return html`<span class=${`insignia insignia-${tono}`}>${children}</span>`;
 }
 
-export function Boton({ tipo = "secundario", children, ...props }) {
-  return html`<button type="button" class=${`boton boton-${tipo}`} ...${props}>${children}</button>`;
+export function Boton({ tipo = "secundario", tamano = "", children, ...props }) {
+  return html`<button type="button" class=${`boton boton-${tipo} ${tamano ? `boton-${tamano}` : ""}`} ...${props}>${children}</button>`;
 }
 
 /** Botón que abre el selector de archivos. */

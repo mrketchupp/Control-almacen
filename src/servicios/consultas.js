@@ -5,7 +5,7 @@ import { aNumero } from "../nucleo/decimal.js";
 import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, ultimoConteo, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
-import { fmtFecha } from "../nucleo/fechas.js";
+import { fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveLaxa } from "../nucleo/normalizar.js";
 
 export function resumen(estado) {
@@ -28,7 +28,17 @@ export function resumen(estado) {
     conteo_fecha: conteo ? conteo.fecha : null,
     conteo_folio: conteo ? conteo.ultimo_folio_salida : null,
     ultima_exportacion: exportaciones,
+    vales_hoy: salidas.filter((v) => !v.migrado && v.fecha === hoyIso() && v.estado === "EMITIDO").length,
+    borradores: estado.borradores?.length ?? 0,
+    agotados: renglonesAgotados(estado),
   };
+}
+
+/** Renglones del inventario con existencia 0 o negativa. */
+export function renglonesAgotados(estado) {
+  let total = 0;
+  for (const saldo of calcularSaldos(estado).values()) if (saldo.total.lte(0)) total += 1;
+  return total;
 }
 
 // ---------------------------------------------------------------- inventario
@@ -75,6 +85,7 @@ export function filasHistorial(estado, tipo = "SALIDA") {
     for (const linea of vale.lineas) {
       filas.push({
         id: linea.id,
+        vale_id: vale.id,
         folio: vale.folio,
         fecha: fmtFecha(vale.fecha),
         fecha_iso: vale.fecha || "",

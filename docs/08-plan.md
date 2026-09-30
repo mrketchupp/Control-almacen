@@ -27,7 +27,7 @@ gantt
 - Documentación en `docs/`.
 - Lista de revisión del historial (`Revision_historial_DLTA.xlsx`, fuera del repositorio).
 
-## Fase 1 — Núcleo de datos, importación y exportación idéntica ✅ (entregada en versión web, en aceptación)
+## Fase 1 — Núcleo de datos, importación y exportación idéntica ✅ (versión web, aceptada)
 **Objetivo:** demostrar que la herramienta puede leer los archivos actuales y **reproducirlos idénticos**. Es la base de todo lo demás.
 
 La primera entrega fue de escritorio (Python + instalador). Seguridad de Windows bloqueó el instalador (P-20), así que
@@ -36,7 +36,7 @@ La versión web se validó contra la de escritorio con los archivos reales: mism
 verificación y mismos Excel exportados celda por celda.
 
 Entregables:
-- `ControlAlmacen.html` (un solo archivo, ~190 KB) con datos en IndexedDB y respaldos `.zip` en la carpeta elegida (OneDrive).
+- `ControlAlmacen.html` (un solo archivo, ~190 KB en F1; ~270 KB con F2) con datos en IndexedDB y respaldos `.zip` en la carpeta elegida (OneDrive).
 - Importadores: catálogo, inventario físico, DIARIO (con reglas de limpieza y lectura de la lista de revisión v2), plantillas por área.
 - Exportadores sobre plantilla: inventario `.xlsx` y vales `.xlsm`.
 - Respaldo, retención y restauración; copias internas del navegador.
@@ -45,25 +45,32 @@ Entregables:
 
 Criterios de aceptación (✔ = verificado por el desarrollo con los archivos reales, fuera del repositorio; ☐ = lo verifica el usuario en su PC):
 - ✔ En el `.xlsm` exportado solo cambian 2 partes del ZIP (DIARIO y `workbook.xml`); todas las demás (macros, botones, logos, formularios) quedan idénticas byte por byte, incluso comprimidas. LibreOffice lo abre sin errores.
-- ☐ Abrirlo en **Excel** sin mensaje de reparación y comprobar que **GRABAR / LIMPIAR DATOS siguen funcionando**.
+- ✔ Abrirlo en **Excel** y comprobar que **GRABAR / LIMPIAR DATOS siguen funcionando** (confirmado por el usuario).
 - ✔ El `.xlsx` exportado conserva hojas, tablas, fórmulas, notas y filas bajo la tabla; LibreOffice recalcula las 1,258 fórmulas sin errores y los totales por hoja coinciden.
 - ✔ El reporte de verificación cuadra en 8 de 10 hojas; las 2 diferencias son los vales 550 y 554 que el Excel aún no descontaba (esperado con corte 549).
 - ✔ Un respaldo restaurado en otro navegador produce los mismos datos (prueba automática).
-- ☐ Abrir `ControlAlmacen.html` en Edge en la PC del almacén, elegir la carpeta de OneDrive y hacer la primera carga real.
+- ✔ Abrir `ControlAlmacen.html` en Edge y probar respaldos y restauración (el usuario pidió destacar el respaldo más reciente y hacer más claro el botón *Restaurar*: atendido al inicio de F2).
 
-## Fase 2 — Vales de salida
+## Fase 2 — Vales de salida ✅ (entregada, en aceptación)
 Entregables:
-- Formulario dinámico con pestañas (varios borradores), plantillas por área y buscador de variantes con existencia por contenedor.
-- Folio automático, validaciones, límite de 21 renglones con división.
-- PDF del vale con el formato actual. Se valida con el usuario **antes** de cerrar la fase (prototipo impreso).
-- Corrección y cancelación con motivo y bitácora.
-- Descuento automático de existencias. Exportación de vales lista para enviar por correo.
-- Tablero de inicio (último folio, vales del día, alertas).
+- **Nuevo vale** con pestañas (varios borradores que se guardan solos y no gastan folio), plantillas por área y buscador de variantes que muestra la existencia por contenedor.
+- Folio automático (`max(último + 1, folio mínimo)`) dentro de un cambio atómico; validaciones con mensajes por renglón; justificación cuando se pide más de lo que hay; división en folios consecutivos cuando el vale supera la capacidad del formato (21/20/19 según la hoja).
+- **Impresión sobre la hoja-formulario del propio libro de vales** (logo, colores, bordes, anchos, observaciones, firmas, pie de página y escala), tamaño carta, desde el diálogo de Edge (impresora o PDF). Vista previa con `BORRADOR`.
+- Detalle del vale con **corrección** (motivo obligatorio, antes → después) y **cancelación** (motivo, revierte existencia, folio no se reutiliza), todo en la bitácora.
+- Descuento automático de existencias. Exportación del DIARIO con los vales nuevos (cancelados como renglón en 0, P-07).
+- **Por enviar a la base:** lista de vales nuevos, corregidos o cancelados desde el último envío y botón "Ya lo envié".
+- **Traer vales hechos en el Excel** después de la primera carga, y folio mínimo para folios usados en papel.
+- **Áreas y personas:** edición de plantillas (incluye formato de impresión y lote por defecto), personas, almacenistas y folios.
+- Tablero de inicio (siguiente folio, vales de hoy, por enviar, por ubicar, renglones en 0).
+- Respaldos: el más reciente se muestra en grande y *Restaurar* es un botón (comentario del usuario sobre F1).
 
-Criterios de aceptación:
-- [ ] Emitir un vale de 10 renglones en menos de 2 minutos.
-- [ ] Es imposible duplicar o saltar un folio (prueba automática de concurrencia).
-- [ ] El DIARIO exportado es aceptado por la base sin comentarios (prueba real de un envío).
+Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
+- ✔ Es imposible duplicar o saltar un folio: prueba automática con 12 emisiones simultáneas y guardado lento (3 con errores que no consumen folio).
+- ✔ Recorrido completo en Chromium con los archivos reales (fuera del repositorio): nuevo vale → vista previa → emitir → imprimir → corregir → dividir → cancelar → exportar → marcar enviado → traer del Excel → áreas, sin errores en consola ni conexiones de red.
+- ✔ La impresión de las hojas reales se comparó contra el PDF de LibreOffice de la misma hoja: mismo logo, colores, marco, firmas y pie.
+- ☐ Imprimir un vale en la impresora del almacén y compararlo con uno hecho en Excel (P-09).
+- ☐ Emitir un vale de 10 renglones en menos de 2 minutos.
+- ☐ El DIARIO exportado es aceptado por la base sin comentarios (prueba real de un envío).
 
 ## Fase 3 — Vales de entrada y conteos
 Entregables:

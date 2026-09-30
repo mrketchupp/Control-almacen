@@ -342,6 +342,41 @@ a:focus-visible {
   color: #fff;
 }
 
+.boton-chico {
+  padding: 5px 10px;
+  font-size: 0.88rem;
+}
+
+.boton-grande {
+  padding: 12px 20px;
+  font-size: 1.05rem;
+}
+
+.respaldo-reciente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  margin: 12px 0;
+  border: 2px solid var(--ok);
+  border-radius: var(--radio);
+  background: var(--ok-suave);
+}
+
+.respaldo-reciente > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.respaldo-fecha {
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .boton-texto {
   border-color: transparent;
   background: transparent;
@@ -427,6 +462,12 @@ a:focus-visible {
   font-size: 1.5rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* Datos que son nombres (detalle del vale): más chicos para que no se corten. */
+.datos-texto .dato-valor {
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
 }
 
 .dato-detalle {
@@ -696,9 +737,10 @@ select {
 /* ---------------------------------------------------------------- avisos flotantes */
 
 .avisos {
+  /* Arriba a la derecha: abajo tapaban el botón "Emitir vale". */
   position: fixed;
   right: 16px;
-  bottom: 16px;
+  top: 76px;
   z-index: 50;
   display: flex;
   flex-direction: column;
@@ -786,4 +828,401 @@ select {
   place-items: center;
   min-height: 100vh;
   color: var(--texto-suave);
+}
+
+/* ---------------------------------------------------------------- vales (Fase 2) */
+
+.pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pestana {
+  padding: 8px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 8px 8px 0 0;
+  background: var(--superficie-2);
+  color: var(--texto);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pestana.activa {
+  background: var(--superficie);
+  border-bottom-color: var(--superficie);
+  font-weight: 700;
+  color: var(--primario);
+}
+
+.pestana.nueva {
+  border-style: dashed;
+  color: var(--primario);
+  font-weight: 600;
+}
+
+.editor-encabezado {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.campo > span {
+  font-weight: 600;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  font-size: 0.95rem;
+  color: var(--texto);
+}
+
+.campo textarea {
+  font: inherit;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--superficie);
+  resize: vertical;
+}
+
+.campo-2 {
+  grid-column: span 2;
+}
+
+.campo-todo {
+  grid-column: 1 / -1;
+}
+
+.campo-casilla {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  align-self: end;
+  padding-bottom: 8px;
+}
+
+.con-error input,
+.con-error select,
+input.con-error,
+select.con-error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 1px var(--error);
+}
+
+.con-error > span {
+  color: var(--error);
+}
+
+.buscador-articulos {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.buscador-articulos .buscador {
+  width: 100%;
+  font-size: 1rem;
+  padding: 10px 12px;
+}
+
+.resultados {
+  position: absolute;
+  z-index: 15;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 360px;
+  overflow: auto;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.resultados li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.resultados li.marcado,
+.resultados li:hover {
+  background: var(--primario-suave);
+}
+
+.res-detalle {
+  color: var(--texto-suave);
+  font-size: 0.88rem;
+}
+
+.res-lugar {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ok);
+}
+
+.res-lugar.sin-existencia {
+  color: var(--error);
+}
+
+.res-lugar.no-inv {
+  color: var(--texto-suave);
+  font-weight: 400;
+}
+
+.resultados li.manual {
+  border-top: 1px solid var(--borde);
+  color: var(--primario);
+  font-weight: 600;
+}
+
+.editor-lineas input,
+.editor-lineas select {
+  width: 100%;
+  padding: 5px 7px;
+  font-size: 0.9rem;
+}
+
+.editor-lineas td {
+  vertical-align: middle;
+}
+
+.editor-lineas td.articulo {
+  min-width: 220px;
+}
+
+.entrada-cantidad {
+  width: 80px !important;
+  text-align: right;
+}
+
+.entrada-um,
+.entrada-oc {
+  width: 72px !important;
+}
+
+.entrada-lote {
+  width: 96px !important;
+}
+
+.entrada-clave {
+  min-width: 110px;
+}
+
+.entrada-descripcion {
+  margin-top: 4px;
+}
+
+.entrada-justificacion {
+  width: min(460px, 100%) !important;
+  margin-left: 6px;
+}
+
+.editor-lineas select {
+  min-width: 190px;
+}
+
+.fila-error td {
+  background: var(--error-suave);
+}
+
+.fila-aviso td {
+  background: var(--alerta-suave);
+  font-size: 0.88rem;
+}
+
+.quitar {
+  border: 0;
+  background: transparent;
+  color: var(--error);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.pie-editor {
+  border-top: 1px solid var(--borde);
+  padding-top: 12px;
+  margin-top: 16px;
+}
+
+.espaciador {
+  flex: 1;
+}
+
+.boton-peligro-texto {
+  border-color: transparent;
+  background: transparent;
+  color: var(--error);
+}
+
+.boton[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tarjeta-exito {
+  border: 2px solid var(--ok);
+  background: var(--ok-suave);
+}
+
+.tarjeta-correccion {
+  border: 2px solid var(--primario);
+}
+
+.motivo {
+  margin-top: 14px;
+}
+
+.cabeza-vale {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cabeza-vale > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.folio-grande {
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.insignia-ok {
+  background: var(--ok-suave);
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.insignia-error {
+  background: var(--error-suave);
+  color: var(--error);
+  border-color: var(--error);
+}
+
+.bitacora {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.bitacora li {
+  margin-bottom: 8px;
+}
+
+.preformateado {
+  white-space: pre-wrap;
+}
+
+.fila-cancelada td {
+  color: var(--texto-suave);
+  text-decoration: line-through;
+}
+
+.fila-cancelada td:first-child {
+  text-decoration: none;
+}
+
+.fila-inactiva td {
+  color: var(--texto-suave);
+}
+
+.enlace-folio {
+  font-weight: 700;
+}
+
+.contador-suave {
+  background: var(--primario);
+}
+
+.entrada-tabla {
+  width: 100%;
+  padding: 4px 6px;
+}
+
+.acciones-inicio {
+  margin: 0 0 16px;
+}
+
+/* ---------------------------------------------------------------- vista previa e impresión */
+
+.vista-previa {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 22, 32, 0.75);
+}
+
+.vista-barra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+}
+
+.vista-hojas {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+
+.vista-hojas .vale-pagina {
+  width: 8.5in;
+  max-width: 100%;
+  box-sizing: content-box;
+  padding: 0.6in 0.4in;
+  margin: 0 auto 20px;
+  background: #fff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+#area-impresion {
+  display: none;
+}
+
+@media print {
+  body.imprimiendo > :not(#area-impresion) {
+    display: none !important;
+  }
+
+  body.imprimiendo #area-impresion {
+    display: block;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
 }

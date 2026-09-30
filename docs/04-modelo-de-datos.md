@@ -83,15 +83,19 @@ erDiagram
 
 **`departamento`**, **`destino`**: listas simples.
 
-**`plantilla_area`**: sustituye las 11 hojas-formulario.
+**`plantilla_area`**: sustituye las 11 hojas-formulario (pantalla *Áreas y personas*).
 | Campo | Notas |
 |---|---|
 | nombre | SOLDADOR, TOP DRIVE, … |
+| hoja_excel | Hoja-formulario del libro de vales con la que se **imprime** el vale (nula = la del departamento) |
 | origen, depto_origen, destino, depto_destino | Valores por defecto |
-| recibe_persona_id, recibe_puesto | Receptor habitual |
-| requiere_autoriza | Transferencias: sí |
+| recibe_nombre, recibe_puesto | Receptor habitual |
+| autoriza_nombre | Quién autoriza habitualmente (transferencias) |
+| requiere_autoriza | Transferencias: sí (P-14) |
 | naturaleza | `CONSUMO` / `TRANSFERENCIA` |
-| observaciones | Las 3 líneas fijas (C44:C46) |
+| observaciones | Las líneas fijas del formato (C44:C46) |
+| lote_defecto | Se copia a la columna LOTE de cada renglón nuevo |
+| activo | Las inactivas no se ofrecen al hacer vales |
 
 ### Movimientos
 
@@ -100,7 +104,7 @@ erDiagram
 |---|---|---|
 | id | PK | |
 | tipo | `SALIDA` / `ENTRADA` | |
-| folio | int nulo | Nulo mientras es borrador. `UNIQUE(tipo, folio)`. |
+| folio | int | Se asigna al emitir (los borradores viven aparte, en `borradores`). `UNIQUE(tipo, folio)`. |
 | folio_externo | texto | Entradas: folio del vale de la base |
 | estado | `BORRADOR` / `EMITIDO` / `CANCELADO` | |
 | fecha | fecha | |
@@ -110,8 +114,10 @@ erDiagram
 | observaciones | texto | |
 | plantilla_area_id | FK | |
 | naturaleza | `CONSUMO` / `TRANSFERENCIA` | Para la columna TRANSFERENCIA/CONSUMO |
-| creado_por, creado_en, emitido_en | | |
+| creado_por, creado_en, emitido_en, modificado_en | | |
 | cancelado_en, motivo_cancelacion | | |
+| cambio | int | Contador global que sube en cada emisión, corrección o cancelación; decide qué hay **por enviar** |
+| enviado_en | fecha-hora nula | Primera vez que se marcó como enviado a la base |
 | ruta_escaneo | texto | Enlace o ruta del PDF escaneado (opcional) |
 | migrado, fila_diario_origen | | Trazabilidad de la migración |
 
@@ -120,7 +126,7 @@ erDiagram
 |---|---|---|
 | id | PK | |
 | vale_id | FK | |
-| renglon | int | 1–21 |
+| renglon | int | 1–21 (la capacidad real es la del formato impreso: 19–21 según la hoja) |
 | oc | texto | En blanco se exporta como `S/OC` |
 | cantidad | decimal > 0 | |
 | codigo | int | Copia |
@@ -131,10 +137,22 @@ erDiagram
 | existencia_id | FK nulo | **Renglón del inventario** de donde sale o a donde entra (resuelve el caso de variantes repetidas) |
 | variante_id | FK nulo | Copia de la variante de esa existencia |
 | no_inventariado | bool | Diésel, gases, servicios o artículos sin existencia: no descuentan |
-| familia, transferencia_consumo | texto | Columnas S y T del DIARIO |
+| familia, transferencia_consumo | texto | Columnas S y T del DIARIO (vacías en vales nuevos, como en los recientes del Excel, P-13) |
+| justificacion | texto | Obligatoria si la cantidad supera la existencia del renglón elegido |
 | encabezado_original | JSON | Migración: encabezado del renglón cuando difería del del vale (se exporta tal cual) |
 
 **`conteo`** (id, fecha, alcance: total o lista de ubicaciones, usuario, notas, `ultimo_folio_salida`, `ultimo_folio_entrada`) y **`conteo_linea`** (conteo_id, existencia_id, cantidad_contada, cantidad_teorica_previa).
+
+**`borrador`** (lista `borradores` del estado): vales en captura, uno por pestaña. Mismos campos de encabezado y
+renglones que `vale`, sin folio. Se guardan solos mientras se escribe y **no consumen folio**; al emitir se validan,
+reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borrador no deja huella en los folios.
+
+**`envio`** (lista `envios`): cada vez que el almacenista marca "ya lo envié a la base".
+| Campo | Notas |
+|---|---|
+| fecha_hora, usuario | |
+| hasta_cambio | Valor del contador `cambio` al marcar: lo que tenga `cambio` mayor está **por enviar** (nuevo, corregido o cancelado) |
+| ultimo_folio, folios | Para la bitácora |
 
 ### Conciliación
 
@@ -151,7 +169,13 @@ erDiagram
 | **`plantilla_excel`** | tipo (`INVENTARIO` / `VALES`), ruta, hash, fecha, activa |
 | **`exportacion`** | tipo, fecha, archivo, hash, usuario, último folio incluido, marcada como enviada |
 | **`auditoria`** | fecha_hora, usuario, entidad, entidad_id, acción, antes (JSON), después (JSON), motivo |
-| **`config`** | clave / valor (almacén AX, rutas, retención de respaldos…) |
+| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `folio_minimo_salida`…) |
+
+`folio_minimo_salida` permite saltar folios usados en papel fuera de la herramienta: el siguiente folio es
+`max(último folio + 1, folio_minimo_salida)` y solo puede aumentar.
+
+El estado lleva `formato` (hoy **2**). Al abrir un estado o un respaldo de un formato anterior se migra solo
+(`migrarEstado`): el formato 2 agregó `borradores` y `envios`.
 
 ## Cálculo de existencias
 

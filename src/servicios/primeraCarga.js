@@ -203,9 +203,29 @@ function cargarDiario(estado, indices, vales, respuestas, { folioCorte, usuario 
 
   const entregas = new Map();
   for (const v of resultado.vales) if (v.entrego) entregas.set(v.entrego, (entregas.get(v.entrego) || 0) + 1);
+  agregarValesMigrados(estado, indices, resultado.vales, { folioCorte, usuario }, reporte);
+  for (const [nombre, veces] of entregas) {
+    if (veces >= MINIMO_ENTREGAS_ALMACENISTA && indices.personas.has(nombre)) {
+      indices.personas.get(nombre).es_almacenista = true;
+    }
+  }
+  for (const [variante, correcto] of respuestas.alias) {
+    if (variante !== correcto && indices.personas.has(correcto) && !(variante in estado.alias)) {
+      estado.alias[variante] = indices.personas.get(correcto).id;
+    }
+  }
+  reporte.vales = resultado.vales.length;
+  reporte.personas = estado.personas.length;
+}
+
+/**
+ * Agrega vales ya limpios (limpiarDiario) al estado como vales migrados. Los que tienen
+ * folio posterior al corte se ligan a su renglón de inventario cuando no hay duda.
+ */
+export function agregarValesMigrados(estado, indices, valesMigrados, { folioCorte, usuario }, reporte) {
   const indice = indiceExistencias(estado, indices);
   const creado = ahoraIso();
-  for (const migrado of resultado.vales) {
+  for (const migrado of valesMigrados) {
     for (const nombre of [migrado.entrego, migrado.recibio, migrado.autorizo]) indices.persona(nombre);
     const vale = {
       id: siguienteId(estado, "vale"),
@@ -282,18 +302,6 @@ function cargarDiario(estado, indices, vales, respuestas, { folioCorte, usuario 
     });
     estado.vales.push(vale);
   }
-  for (const [nombre, veces] of entregas) {
-    if (veces >= MINIMO_ENTREGAS_ALMACENISTA && indices.personas.has(nombre)) {
-      indices.personas.get(nombre).es_almacenista = true;
-    }
-  }
-  for (const [variante, correcto] of respuestas.alias) {
-    if (variante !== correcto && indices.personas.has(correcto) && !(variante in estado.alias)) {
-      estado.alias[variante] = indices.personas.get(correcto).id;
-    }
-  }
-  reporte.vales = resultado.vales.length;
-  reporte.personas = estado.personas.length;
 }
 
 export function indiceExistencias(estado, indices) {

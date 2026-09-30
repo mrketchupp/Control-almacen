@@ -143,16 +143,26 @@ export function leerFormulario(hoja, filas) {
       observaciones.push(texto);
     }
   }
+  let entrega = {
+    nombre: filaNombre ? n.nombrePersona(celda(filas, `D${filaNombre}`)) : null,
+    puesto: filaNombre ? n.mayusculas(celda(filas, `D${filaNombre + 1}`)) : null,
+  };
+  let recibe = {
+    nombre: filaNombre ? n.nombrePersona(celda(filas, `I${filaNombre}`)) : null,
+    puesto: filaNombre ? n.mayusculas(celda(filas, `I${filaNombre + 1}`)) : null,
+  };
+  // En algunas hojas (NOV) el almacenista firma del lado derecho.
+  if (/ALMACEN/.test(recibe.puesto || "") && !/ALMACEN/.test(entrega.puesto || "")) [entrega, recibe] = [recibe, entrega];
   return {
     hoja,
     origen: n.valorATexto(celda(filas, "E17")),
     depto_origen: n.valorATexto(celda(filas, "I17")),
     destino: n.valorATexto(celda(filas, "E18")),
     depto_destino: n.valorATexto(celda(filas, "I18")),
-    entrega_nombre: filaNombre ? n.nombrePersona(celda(filas, `D${filaNombre}`)) : null,
-    entrega_puesto: filaNombre ? n.mayusculas(celda(filas, `D${filaNombre + 1}`)) : null,
-    recibe_nombre: filaNombre ? n.nombrePersona(celda(filas, `I${filaNombre}`)) : null,
-    recibe_puesto: filaNombre ? n.mayusculas(celda(filas, `I${filaNombre + 1}`)) : null,
+    entrega_nombre: entrega.nombre,
+    entrega_puesto: entrega.puesto,
+    recibe_nombre: recibe.nombre,
+    recibe_puesto: recibe.puesto,
     autoriza_nombre: autoriza,
     observaciones: observaciones.join("\n") || null,
   };

@@ -1,0 +1,226 @@
+// Vale imprimible: el modelo de la hoja-formulario (formulario.js) con los datos del vale.
+// Genera HTML + CSS de página (carta) sin tocar el DOM, para poder probarlo en Node.
+
+import { dec } from "../nucleo/decimal.js";
+import { FechaCelda, serialExcel } from "../nucleo/fechas.js";
+import { formatearValor } from "../xlsx/estilos.js";
+import { CARTA } from "./formulario.js";
+
+const MARCA = "XXXXX";
+
+export function escaparHtml(texto) {
+  return String(texto)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const clave = (celda) => `${celda.r},${celda.c}`;
+
+/** Texto de observaciones que trae la hoja (igual que lo lee la primera carga). */
+export function observacionesDeHoja(modelo) {
+  return modelo.campos.observaciones.textos.map((t) => t.texto).join("\n");
+}
+
+/**
+ * Valores que reemplazan a los de la hoja: Map 'fila,columna' → valor.
+ * @param vale  vale emitido o borrador (sin folio)
+ */
+export function valoresDeVale(modelo, vale) {
+  const { campos } = modelo;
+  const valores = new Map();
+  const poner = (celda, valor) => {
+    if (celda) valores.set(clave(celda), valor === "" || valor === undefined ? null : valor);
+  };
+  poner(campos.fecha, vale.fecha ? new FechaCelda(serialExcel(vale.fecha)) : null);
+  poner(campos.folio, vale.folio ?? "BORRADOR");
+  poner(campos.entrada, vale.tipo === "ENTRADA" ? MARCA : null);
+  poner(campos.salida, vale.tipo === "ENTRADA" ? null : MARCA);
+  poner(campos.origen, vale.origen);
+  poner(campos.depto_origen, vale.depto_origen);
+  poner(campos.destino, vale.destino);
+  poner(campos.depto_destino, vale.depto_destino);
+
+  const { filas, columnas } = campos.lineas;
+  const cols = Object.values(columnas);
+  const primera = Math.min(...cols);
+  const ultima = Math.max(...cols);
+  filas.forEach((r, i) => {
+    for (let c = primera; c <= ultima; c++) valores.set(`${r},${c}`, null);
+    const l = vale.lineas[i];
+    if (!l) return;
+    const cantidad = dec(l.cantidad);
+    const celda = (c) => (c === undefined ? null : { r, c });
+    poner(celda(columnas.oc), l.oc || "S/OC");
+    poner(celda(columnas.cantidad), cantidad === null ? l.cantidad : Number(cantidad.toFixed()));
+    poner(celda(columnas.codigo), l.codigo);
+    poner(celda(columnas.descripcion), l.descripcion);
+    poner(celda(columnas.clave), l.clave);
+    poner(celda(columnas.um), l.um);
+    poner(celda(columnas.lote), l.lote);
+  });
+
+  const obs = campos.observaciones;
+  const propias = (vale.observaciones ?? "").trim();
+  // Sin observaciones propias (vales migrados) se imprimen las de la hoja.
+  if (vale.observaciones !== null && vale.observaciones !== undefined && propias !== observacionesDeHoja(modelo).trim()) {
+    for (const t of obs.textos) valores.set(`${t.r},${obs.columna}`, null);
+    const inicio = obs.textos.length ? obs.filas.indexOf(obs.textos[0].r) : 0;
+    const renglones = propias ? propias.split("\n") : [];
+    renglones.forEach((texto, i) => {
+      const r = obs.filas[inicio + i];
+      if (r !== undefined) valores.set(`${r},${obs.columna}`, texto);
+    });
+  }
+
+  // El puesto: el del vale; si no trae y es la misma persona que la hoja, el de la hoja.
+  const firma = (celdaNombre, celdaPuesto, nombre, puesto) => {
+    const nombreHoja = celdaNombre ? String(modelo.valor(celdaNombre.r, celdaNombre.c) ?? "").trim().toUpperCase() : "";
+    poner(celdaNombre, nombre);
+    if (puesto || !nombre || nombreHoja !== String(nombre).trim().toUpperCase()) poner(celdaPuesto, puesto);
+  };
+  firma(campos.entrega_nombre, campos.entrega_puesto, vale.entrego_nombre, vale.entrego_puesto);
+  firma(campos.recibe_nombre, campos.recibe_puesto, vale.recibio_nombre, vale.recibio_puesto);
+  if (campos.autoriza) poner(campos.autoriza, vale.autorizo_nombre);
+  return valores;
+}
+
+function medidas(modelo) {
+  const ancho = modelo.columnas.reduce((s, c) => s + c.px, 0);
+  const alto = modelo.filas.reduce((s, f) => s + f.px, 0);
+  const { margenes, horizontal } = modelo.pagina;
+  const paginaAncho = (horizontal ? CARTA.alto : CARTA.ancho) - margenes.izq - margenes.der;
+  const paginaAlto = (horizontal ? CARTA.ancho : CARTA.alto) - margenes.sup - margenes.inf;
+  // Espacio para el pie de página, que aquí se dibuja dentro del área imprimible.
+  const reserva = modelo.pagina.pie || modelo.pagina.encabezado ? 0.25 : 0;
+  const ajuste = Math.min((paginaAncho * 96) / ancho, ((paginaAlto - reserva) * 96) / alto);
+  // Con "ajustar a 1 página" Excel guarda la escala que calculó; se respeta sin salirse de la hoja.
+  const escala = Math.min(modelo.pagina.escala || 1, ajuste);
+  return { ancho, alto, escala: Math.round(escala * 1000) / 1000, paginaAlto };
+}
+
+function cssEnLinea(objeto) {
+  return Object.entries(objeto)
+    .map(([k, v]) => `${k}:${v}`)
+    .join(";");
+}
+
+/** HTML de una página con el vale sobre la hoja-formulario. */
+export function paginaHtml(modelo, valores = new Map()) {
+  const { estilos } = modelo;
+  const { ancho, alto, escala, paginaAlto } = medidas(modelo);
+  const colVisible = new Set(modelo.columnas.map((c) => c.c));
+  const filaVisible = new Set(modelo.filas.map((f) => f.r));
+  const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : modelo.valor(r, c));
+  const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
+  const altoFila = new Map(modelo.filas.map((f) => [f.r, f.px]));
+
+  const filasHtml = modelo.filas.map(({ r, px }) => {
+    const celdas = [];
+    for (const { c } of modelo.columnas) {
+      const rango = modelo.combinadaEn.get(`${r},${c}`);
+      if (rango && (rango.r1 !== r || rango.c1 !== c)) continue;
+      let colspan = 1;
+      let rowspan = 1;
+      let bordes = estilos.bordesCss(modelo.estiloDe(r, c));
+      const finCol = rango ? rango.c2 : c;
+      const finFila = rango ? rango.r2 : r;
+      if (rango) {
+        colspan = [...colVisible].filter((x) => x >= rango.c1 && x <= rango.c2).length;
+        rowspan = [...filaVisible].filter((x) => x >= rango.r1 && x <= rango.r2).length;
+        const der = estilos.bordesCss(modelo.estiloDe(rango.r1, rango.c2));
+        const inf = estilos.bordesCss(modelo.estiloDe(rango.r2, rango.c1));
+        bordes = { ...bordes, "border-right": der["border-right"], "border-bottom": inf["border-bottom"] };
+        for (const lado of ["border-right", "border-bottom"]) if (!bordes[lado]) delete bordes[lado];
+      }
+      // En las orillas del área, el borde puede venir de la celda vecina de fuera (marco).
+      const { area } = modelo;
+      if (c === area.c1 && !bordes["border-left"]) {
+        const v = estilos.bordesCss(modelo.estiloDe(r, c - 1))["border-right"];
+        if (v) bordes["border-left"] = v;
+      }
+      if (finCol === area.c2 && !bordes["border-right"]) {
+        const v = estilos.bordesCss(modelo.estiloDe(r, finCol + 1))["border-left"];
+        if (v) bordes["border-right"] = v;
+      }
+      if (r === area.r1 && !bordes["border-top"]) {
+        const v = estilos.bordesCss(modelo.estiloDe(r - 1, c))["border-bottom"];
+        if (v) bordes["border-top"] = v;
+      }
+      if (finFila === area.r2 && !bordes["border-bottom"]) {
+        const v = estilos.bordesCss(modelo.estiloDe(finFila + 1, c))["border-top"];
+        if (v) bordes["border-bottom"] = v;
+      }
+      const estilo = estilos.css(modelo.estiloDe(r, c));
+      const valor = valorEn(r, c);
+      const texto = textoEn(r, c);
+      const css = { ...estilo.css, ...bordes };
+      if (!estilo.alineado && typeof valor === "number") css["text-align"] = "right";
+      if (!estilo.ajustar) {
+        css["white-space"] = "nowrap";
+        const siguiente = (rango ? rango.c2 : c) + 1;
+        css.overflow = siguiente <= modelo.area.c2 && textoEn(r, siguiente) ? "hidden" : "visible";
+      }
+      const atributos = `${colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan > 1 ? ` rowspan="${rowspan}"` : ""}`;
+      // Excel recorta el texto que no cabe en la altura de la fila (filas espaciadoras de 1-2 px);
+      // en HTML la fila crecería, así que se recorta igual.
+      let contenido = escaparHtml(texto);
+      if (texto !== "") {
+        let altura = 0;
+        for (let f = r; f <= finFila; f++) altura += altoFila.get(f) ?? 0;
+        const puntos = Number.parseFloat(css["font-size"]) || 11;
+        if (altura < puntos * (96 / 72) * 1.1) contenido = `<div style="height:${altura}px;overflow:hidden">${contenido}</div>`;
+      }
+      celdas.push(`<td${atributos} style="${escaparHtml(cssEnLinea(css))}">${contenido}</td>`);
+    }
+    return `<tr style="height:${px}px">${celdas.join("")}</tr>`;
+  });
+  const columnas = modelo.columnas.map((c) => `<col style="width:${c.px}px">`).join("");
+  const imagenes = modelo.imagenes
+    .map(
+      (i) =>
+        `<img alt="" src="${i.src}" style="left:${i.x.toFixed(1)}px;top:${i.y.toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
+    )
+    .join("");
+  const centrado = modelo.pagina.centrado ? "margin-left:auto;margin-right:auto;" : "";
+  const seccion = (partes, clase) =>
+    partes
+      ? `<div class="${clase}"><span>${escaparHtml(partes.izq)}</span><span>${escaparHtml(partes.centro)}</span><span>${escaparHtml(partes.der)}</span></div>`
+      : "";
+  return (
+    `<section class="vale-pagina" style="height:${(paginaAlto - 0.02).toFixed(2)}in">` +
+    seccion(modelo.pagina.encabezado, "vale-encabezado") +
+    `<div class="vale-lienzo" style="${centrado}width:${ancho}px;height:${alto}px;zoom:${escala}">` +
+    `<table class="vale-tabla" style="width:${ancho}px"><colgroup>${columnas}</colgroup><tbody>${filasHtml.join("")}</tbody></table>` +
+    `${imagenes}</div>${seccion(modelo.pagina.pie, "vale-pie")}</section>`
+  );
+}
+
+/** CSS de impresión: tamaño carta y márgenes de la hoja. */
+export function cssImpresion(modelo) {
+  const { margenes, horizontal } = modelo.pagina;
+  return (
+    `@page{size:letter ${horizontal ? "landscape" : "portrait"};margin:${margenes.sup}in ${margenes.der}in ${margenes.inf}in ${margenes.izq}in}` +
+    ".vale-pagina{position:relative;overflow:hidden;break-after:page;page-break-after:always}.vale-pagina:last-child{break-after:auto;page-break-after:auto}" +
+    ".vale-pie,.vale-encabezado{display:flex;justify-content:space-between;font:7pt Arial,sans-serif;color:#000}" +
+    ".vale-pie{position:absolute;left:0;right:0;bottom:0}.vale-pie span,.vale-encabezado span{flex:1}.vale-pie span:nth-child(2),.vale-encabezado span:nth-child(2){text-align:center}.vale-pie span:last-child,.vale-encabezado span:last-child{text-align:right}" +
+    ".vale-pagina,.vale-pagina *{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
+    ".vale-lienzo{position:relative;overflow:hidden;background:#fff;color:#000}" +
+    ".vale-tabla{table-layout:fixed;border-collapse:collapse;color:#000}" +
+    ".vale-tabla td{padding:0 2px;line-height:1.1;box-sizing:border-box}" +
+    ".vale-lienzo img{position:absolute}"
+  );
+}
+
+/**
+ * Documento para imprimir varios vales (uno por hoja).
+ * @param paginas [{ modelo, vale }]
+ */
+export function documentoImpresion(paginas) {
+  if (!paginas.length) return { css: "", html: "" };
+  return {
+    css: cssImpresion(paginas[0].modelo),
+    html: paginas.map(({ modelo, vale }) => paginaHtml(modelo, valoresDeVale(modelo, vale))).join(""),
+  };
+}

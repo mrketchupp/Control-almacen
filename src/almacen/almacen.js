@@ -5,7 +5,7 @@
 // de uno en uno, en orden.
 
 import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
-import { estaVacio } from "../nucleo/estado.js";
+import { estaVacio, migrarEstado } from "../nucleo/estado.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
 import { crearRespaldo, leerRespaldo } from "./respaldos.js";
@@ -43,7 +43,10 @@ export class Almacen {
   }
 
   async iniciar() {
-    this.estado = await this.backend.leerEstado();
+    const guardado = await this.backend.leerEstado();
+    const formato = guardado?.formato;
+    this.estado = migrarEstado(guardado);
+    if (guardado && formato !== this.estado.formato) await this.backend.guardarEstado(this.estado);
     return this.estado;
   }
 
@@ -166,7 +169,8 @@ export class Almacen {
 
   /** Reemplaza TODO por el contenido de un respaldo (el llamador respalda antes el estado actual). */
   restaurar(datos) {
-    const { estado, plantillas, manifiesto } = leerRespaldo(datos);
+    const { estado: leido, plantillas, manifiesto } = leerRespaldo(datos);
+    const estado = migrarEstado(leido);
     return this._enCola(async () => {
       const ahora = ahoraIso();
       const archivos = plantillas.map((p) => {
@@ -197,8 +201,9 @@ export class Almacen {
       const copia = await this.backend.leerInstantanea(clave);
       if (!copia) throw new Error("No se encontró la copia interna.");
       if (this.estado) await this.backend.guardarInstantanea(this.estado, "antes de restaurar", ahoraIso());
-      await this.backend.guardarEstado(copia.estado);
-      this.estado = copia.estado;
+      const estado = migrarEstado(copia.estado);
+      await this.backend.guardarEstado(estado);
+      this.estado = estado;
       this._avisar();
     });
   }

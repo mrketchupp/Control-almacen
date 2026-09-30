@@ -1,12 +1,81 @@
 import { useEffect, useState } from "preact/hooks";
-import { fmtFechaHora } from "../../nucleo/fechas.js";
+import { fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
 import { descargar, leerArchivoSubido, leerDeCarpeta } from "../../almacen/archivos.js";
+import { leerRespaldo } from "../../almacen/respaldos.js";
 import { CARPETA_RESPALDOS } from "../sesion.js";
 import { Aviso, Boton, ElegirArchivo, Tabla, Tarjeta, confirmar, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { EstadoAlmacenamiento } from "./inicio.js";
 
 const MB = 1048576;
+
+const MOTIVOS = {
+  inicio: "Automático (inicio del día)",
+  exportacion: "Automático (después de exportar)",
+  "primera-carga": "Primera carga",
+  manual: "Manual",
+  "antes-de-restaurar": "Antes de restaurar",
+  "antes-de-borrar": "Antes de borrar",
+  descarga: "Descarga",
+};
+
+export const motivoLegible = (motivo) => MOTIVOS[motivo] || motivo.replace(/-/g, " ");
+
+function haceCuanto(fechaHora) {
+  const dias = Math.round((Date.parse(hoyIso()) - Date.parse(fechaHora.slice(0, 10))) / 86400000);
+  if (dias <= 0) return "hoy";
+  if (dias === 1) return "ayer";
+  return `hace ${dias} días`;
+}
+
+/** Pide confirmación mostrando qué contiene el respaldo y luego restaura. */
+export function restaurarConConfirmacion(sesion, datos, origen, alTerminar = async () => {}) {
+  let resumen = "";
+  try {
+    const { manifiesto } = leerRespaldo(datos);
+    resumen = `\n\nContiene: ${manifiesto.vales ?? "?"} vales y ${manifiesto.existencias ?? "?"} renglones de inventario (${fmtFechaHora(manifiesto.fecha_hora || "")}).`;
+  } catch (error) {
+    sesion.avisar("error", error.message);
+    return undefined;
+  }
+  const aviso = sesion.almacen.vacio
+    ? `¿Restaurar ${origen}?${resumen}`
+    : `¿Restaurar ${origen}?${resumen}\n\nLos datos actuales se reemplazan (antes se crea un respaldo de ellos).`;
+  if (!confirmar(aviso)) return undefined;
+  return sesion.tarea("Restaurando…", async () => {
+    const manifiesto = await sesion.restaurar(datos);
+    sesion.avisar("exito", `Restaurado el respaldo del ${fmtFechaHora(manifiesto.fecha_hora || "")}.`);
+    await alTerminar();
+  });
+}
+
+/** El respaldo más reciente de la carpeta (o null). */
+export function useRespaldoReciente(sesion) {
+  const [reciente, setReciente] = useState(null);
+  useEffect(() => {
+    let vigente = true;
+    sesion
+      .listarRespaldos()
+      .then((lista) => vigente && setReciente(lista[0] ?? null))
+      .catch(() => vigente && setReciente(null));
+    return () => {
+      vigente = false;
+    };
+  }, [sesion.permiso, sesion.carpeta]);
+  return reciente;
+}
+
+/** El respaldo más reciente, en grande, con su botón de restaurar. */
+export function RespaldoReciente({ respaldo, alRestaurar }) {
+  return html`<div class="respaldo-reciente">
+    <div>
+      <span class="dato-etiqueta">Respaldo más reciente</span>
+      <span class="respaldo-fecha">${fmtFechaHora(respaldo.info.fecha_hora)}</span>
+      <span class="dato-detalle">${haceCuanto(respaldo.info.fecha_hora)} · ${motivoLegible(respaldo.info.motivo)} · ${(respaldo.tamano / MB).toFixed(1)} MB</span>
+    </div>
+    <${Boton} tipo="primario" tamano="grande" onClick=${alRestaurar}>↺ Restaurar este respaldo<//>
+  </div>`;
+}
 
 export function PaginaRespaldos() {
   const sesion = useSesion();
@@ -27,17 +96,7 @@ export function PaginaRespaldos() {
     refrescar();
   }, [sesion.permiso, sesion.carpeta, sesion.ultimoRespaldo, sesion.estado]);
 
-  const restaurarDatos = (datos, origen) => {
-    const aviso = vacio
-      ? `¿Restaurar ${origen}?`
-      : `¿Restaurar ${origen}? Los datos actuales se reemplazan (antes se crea un respaldo de ellos).`;
-    if (!confirmar(aviso)) return;
-    return sesion.tarea("Restaurando…", async () => {
-      const manifiesto = await sesion.restaurar(datos);
-      sesion.avisar("exito", `Restaurado el respaldo del ${fmtFechaHora(manifiesto.fecha_hora || "")}.`);
-      await refrescar();
-    });
-  };
+  const restaurarDatos = (datos, origen) => restaurarConConfirmacion(sesion, datos, origen, refrescar);
 
   const respaldarAhora = () =>
     sesion.tarea("Creando respaldo…", async () => {
@@ -102,23 +161,32 @@ export function PaginaRespaldos() {
 
     <${Tarjeta} titulo="Restaurar">
       <p>Reemplaza los datos de este navegador por los de un respaldo (.zip). Útil al cambiar de equipo o de navegador.</p>
-      <div class="acciones-linea">
-        <${ElegirArchivo} etiqueta="Restaurar desde un archivo…" acepta=".zip" alElegir=${async (archivo) => restaurarDatos(await leerArchivoSubido(archivo), archivo.name)} />
-      </div>
       ${respaldos.length
-        ? html`<h3>Respaldos en la carpeta</h3>
+        ? html`<${RespaldoReciente}
+            respaldo=${respaldos[0]}
+            alRestaurar=${async () =>
+              restaurarDatos(await leerDeCarpeta(sesion.carpeta, CARPETA_RESPALDOS, respaldos[0].nombre), respaldos[0].nombre)}
+          />`
+        : sesion.carpetaLista
+          ? html`<p class="nota">No hay respaldos en <code>${sesion.carpeta.name}/${CARPETA_RESPALDOS}</code>.</p>`
+          : null}
+      <div class="acciones-linea">
+        <${ElegirArchivo} etiqueta="↥ Restaurar desde un archivo…" acepta=".zip" alElegir=${async (archivo) => restaurarDatos(await leerArchivoSubido(archivo), archivo.name)} />
+      </div>
+      ${respaldos.length > 1
+        ? html`<h3>Otros respaldos en la carpeta</h3>
             <${Tabla}
               limite=${15}
-              filas=${respaldos.map((r) => ({ ...r, id: r.nombre }))}
+              filas=${respaldos.slice(1).map((r) => ({ ...r, id: r.nombre }))}
               columnas=${[
                 { titulo: "Fecha", render: (r) => fmtFechaHora(r.info.fecha_hora) },
-                { titulo: "Motivo", render: (r) => r.info.motivo.replace(/-/g, " ") },
+                { titulo: "Motivo", render: (r) => motivoLegible(r.info.motivo) },
                 { titulo: "Tamaño", numero: true, render: (r) => `${(r.tamano / MB).toFixed(1)} MB` },
                 {
-                  titulo: "",
+                  titulo: "Acción",
                   render: (r) =>
-                    html`<${Boton} tipo="texto" onClick=${async () =>
-                      restaurarDatos(await leerDeCarpeta(sesion.carpeta, CARPETA_RESPALDOS, r.nombre), r.nombre)}>Restaurar<//>`,
+                    html`<${Boton} tamano="chico" onClick=${async () =>
+                      restaurarDatos(await leerDeCarpeta(sesion.carpeta, CARPETA_RESPALDOS, r.nombre), r.nombre)}>↺ Restaurar<//>`,
                 },
               ]}
             />`
@@ -132,15 +200,15 @@ export function PaginaRespaldos() {
                 { titulo: "Fecha", render: (c) => fmtFechaHora(c.fecha_hora) },
                 { clave: "motivo", titulo: "Motivo" },
                 {
-                  titulo: "",
+                  titulo: "Acción",
                   render: (c) =>
-                    html`<${Boton} tipo="texto" onClick=${() => {
+                    html`<${Boton} tamano="chico" onClick=${() => {
                       if (!confirmar("¿Volver a esta copia interna? Los datos actuales se guardan antes como otra copia.")) return;
                       return sesion.tarea("Restaurando…", async () => {
                         await sesion.almacen.restaurarInstantanea(c.clave);
                         sesion.avisar("exito", "Copia interna restaurada.");
                       });
-                    }}>Volver a esta copia<//>`,
+                    }}>↺ Volver a esta copia<//>`,
                 },
               ]}
             />`

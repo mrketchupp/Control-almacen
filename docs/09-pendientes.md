@@ -13,13 +13,13 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-07 | ¿Cómo debe aparecer un **vale cancelado** en el DIARIO que se envía a la base? | Un renglón con cantidad 0 y la descripción `CANCELADO – <motivo>`, para que el folio no parezca perdido |
+| P-07 | ¿Cómo debe aparecer un **vale cancelado** en el DIARIO que se envía a la base? | Un renglón con cantidad 0 y la descripción `CANCELADO – <motivo>`, para que el folio no parezca perdido. **Aplicado en F2**; confirmar con la base. |
 | P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. |
-| P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | Mismos campos, orden, textos y logo. Se muestra un prototipo impreso antes de cerrar la Fase 2. |
+| P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | **F2 imprime sobre la hoja-formulario del propio libro** (logo, colores, bordes, anchos, pie de página y escala de Excel), así que sale prácticamente idéntico. **Falta que el usuario imprima uno y lo compare** antes de cerrar la fase. |
 | P-10 | Tamaño de hoja e impresora | Carta, vertical, 1 vale por hoja |
-| P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | Llenarlas automáticamente: FAMILIA desde el catálogo, TRANSF/CONS desde la plantilla del área. Solo si la base está de acuerdo. |
-| P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias; lista de autorizadores editable |
-| P-16 | Vale con más de 21 renglones | Dividir en folios consecutivos, con aviso |
+| P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. |
+| P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias o en las áreas marcadas "Exigir Autorizó"; el autorizador habitual se guarda en el área. **Aplicado en F2.** |
+| P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** |
 
 ## Entradas
 
@@ -53,3 +53,5 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | P-12 | Folio de corte del conteo del 28-sep | Se descuentan del **550** en adelante (corte = 549) |
 | P-19 | ¿`.exe` sin firma? | Bloqueado por Seguridad de Windows → se descartó (ver P-20) |
 | — | ¿La herramienta trae datos? | No: llega vacía y los datos entran por la primera carga desde los Excel del usuario, en su equipo |
+| — | Firmas en la hoja NOV | En esa hoja el almacenista firma a la **derecha** ("ENTREGA / AUTORIZA") y quien recibe a la izquierda: la importación y la impresión lo detectan por el puesto |
+| — | Número de renglones reales por vale | En el historial, el vale más largo tiene ~12 renglones: la división por capacidad será rara, pero existe |

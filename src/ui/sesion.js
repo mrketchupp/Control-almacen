@@ -13,6 +13,10 @@ import {
   soportaCarpetas,
 } from "../almacen/archivos.js";
 import { infoDeNombre, respaldosABorrar } from "../almacen/respaldos.js";
+import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
+import { documentoImpresion } from "../impresion/vale.js";
+import { CAPACIDAD_DEFECTO, plantillaArea } from "../servicios/vales.js";
+import { LibroLeido } from "../xlsx/leer.js";
 
 export const CARPETA_RESPALDOS = "respaldos";
 
@@ -212,6 +216,89 @@ export class Sesion {
     const manifiesto = await this.almacen.restaurar(datos);
     await this.actualizarUso();
     return manifiesto;
+  }
+
+  // ------------------------------------------------------------ formato impreso
+
+  /** Libro de vales del usuario (plantilla), leído una vez por sesión. */
+  async libroFormato() {
+    const { registro, datos } = await this.almacen.plantillaActiva("VALES");
+    if (this._formato?.sha !== registro.sha256) {
+      this._formato = { sha: registro.sha256, libro: new LibroLeido(datos), modelos: new Map(), hojas: null };
+    }
+    return this._formato;
+  }
+
+  async hojasFormato() {
+    const formato = await this.libroFormato();
+    formato.hojas ??= hojasFormulario(formato.libro);
+    return formato.hojas;
+  }
+
+  async formulario(hoja) {
+    const formato = await this.libroFormato();
+    if (!formato.modelos.has(hoja)) formato.modelos.set(hoja, analizarFormulario(formato.libro, hoja));
+    return formato.modelos.get(hoja);
+  }
+
+  /** Hoja con la que se imprime un vale: la de su área, o la que corresponde a su departamento. */
+  async hojaParaVale(vale) {
+    const hojas = await this.hojasFormato();
+    if (!hojas.length) throw new Error("El libro de vales no tiene hojas-formulario para imprimir.");
+    const estado = this.estado;
+    const area = plantillaArea(estado, vale.plantilla_area_id);
+    if (area?.hoja_excel && hojas.includes(area.hoja_excel)) return area.hoja_excel;
+    const depto = (vale.depto_destino || "").trim().toUpperCase();
+    const porDepto = estado.plantillas_area.find((p) => (p.depto_destino || "").trim().toUpperCase() === depto && hojas.includes(p.hoja_excel));
+    if (porDepto) return porDepto.hoja_excel;
+    return hojas.find((h) => h.trim().toUpperCase() === depto) ?? hojas[0];
+  }
+
+  /** Renglones que caben en el formato impreso del vale (P-16). */
+  async capacidadPara(vale) {
+    try {
+      return (await this.formulario(await this.hojaParaVale(vale))).capacidad || CAPACIDAD_DEFECTO;
+    } catch {
+      return CAPACIDAD_DEFECTO;
+    }
+  }
+
+  /** Completa los puestos con el catálogo de personas cuando el vale no los trae. */
+  _paraImprimir(vale) {
+    const puesto = (nombre) => this.estado.personas.find((p) => p.nombre === nombre)?.puesto ?? null;
+    return {
+      ...vale,
+      entrego_puesto: vale.entrego_puesto || puesto(vale.entrego_nombre),
+      recibio_puesto: vale.recibio_puesto || puesto(vale.recibio_nombre),
+    };
+  }
+
+  /** HTML y CSS de los vales, una hoja carta por vale. */
+  async documentoVales(vales) {
+    const paginas = [];
+    for (const vale of vales) paginas.push({ modelo: await this.formulario(await this.hojaParaVale(vale)), vale: this._paraImprimir(vale) });
+    return documentoImpresion(paginas);
+  }
+
+  /** Abre el cuadro de impresión del navegador (desde ahí también se guarda en PDF). */
+  async imprimirVales(vales) {
+    const documento = await this.documentoVales(vales);
+    let area = document.getElementById("area-impresion");
+    if (!area) {
+      area = document.createElement("div");
+      area.id = "area-impresion";
+      document.body.appendChild(area);
+    }
+    area.innerHTML = `<style>${documento.css}</style>${documento.html}`;
+    await Promise.all([...area.querySelectorAll("img")].map((img) => img.decode?.().catch(() => {})));
+    document.body.classList.add("imprimiendo");
+    const terminar = () => {
+      document.body.classList.remove("imprimiendo");
+      area.innerHTML = "";
+      window.removeEventListener("afterprint", terminar);
+    };
+    window.addEventListener("afterprint", terminar);
+    window.print();
   }
 
   // ------------------------------------------------------------ exportar

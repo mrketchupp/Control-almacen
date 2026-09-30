@@ -13,7 +13,9 @@ internet. Tiene cuatro objetivos:
 
 ## Estado
 
-**Fase 1 — Núcleo, primera carga y exportación idéntica, ahora en versión web (entregada, en revisión del usuario).**
+**Fase 2 — Vales de salida (entregada, en revisión del usuario).** La herramienta ya emite vales con folio automático,
+los imprime sobre tu propio formato, permite corregirlos o cancelarlos con bitácora y lleva el control de qué falta
+enviar a la base. Fase 1 (primera carga y exportación idéntica) aceptada.
 Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
 

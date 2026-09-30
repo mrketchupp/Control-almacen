@@ -17,6 +17,8 @@ from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.comments import Comment
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.worksheet.properties import PageSetupProperties
 from openpyxl.worksheet.filters import AutoFilter
 from openpyxl.worksheet.table import Table, TableColumn, TableStyleInfo
 
@@ -398,7 +400,12 @@ FORMULARIOS = {
     "SOLDADOR": ("MANTENIMIENTO", "SOLDADOR", "SOLDADOR UNO", "SOLDADOR", 0),
     "MECANICO ": ("MANTENIMIENTO", "MECANICO ", _MEC, "MECANICO", -2),
     "TRANSFERENCIAS": ("ALMACEN", "TRANSFERENCIA ", "RECEPTOR RIG 48", "SUP. RIG 48", 0),
+    # Como en el archivo real: en NOV el almacenista firma del lado derecho.
+    "NOV": ("MANTENIMIENTO", "NOV ENERGY", "QUIMICO UNO", "QUIMICO", 0),
 }
+FIRMAS_INVERTIDAS = {"NOV"}
+# Renglones del formato por hoja (MECANICO tiene 19, como el real).
+RENGLONES_FORMATO = {"MECANICO ": 19}
 
 PNG_1PX = bytes.fromhex(
     "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
@@ -499,8 +506,39 @@ def generar_vales(ruta: Path) -> Path:
     diario.freeze_panes = "A2"
     diario.auto_filter.ref = f"A1:T{len(DIARIO) + 1}"
 
+    delgado = Side(style="thin", color="000000")
+    borde = Border(left=delgado, right=delgado, top=delgado, bottom=delgado)
     for hoja, (d_origen, d_destino, receptor, puesto, dz) in FORMULARIOS.items():
         ws = wb.create_sheet(hoja)
+        renglones = RENGLONES_FORMATO.get(hoja, 21)
+        # Formato visual como el real: anchos, celdas combinadas, colores, bordes y página.
+        for col, ancho in zip("ABCDEFGHIJKL", [4, 11.4, 11.7, 13.7, 22.1, 12.4, 11.9, 31.4, 26.6, 14.1, 21.1, 12.1], strict=True):
+            ws.column_dimensions[col].width = ancho
+        for rango in ("J6:K6", "C17:D17", "E17:G17", "I17:K17", "C18:D18", "E18:G18", "I18:K18", "F20:H20"):
+            ws.merge_cells(rango)
+        for fila in range(21, 21 + renglones):
+            ws.merge_cells(f"F{fila}:H{fila}")
+            for col in "CDEFGHIJK":
+                ws[f"{col}{fila}"].border = borde
+        for fila in range(21 + renglones, 42):
+            ws.merge_cells(f"C{fila}:K{fila}")
+        for col in "CDEFGHIJK":
+            celda = ws[f"{col}20"]
+            celda.font = Font(name="Arial", bold=True, size=10)
+            celda.fill = PatternFill("solid", fgColor="FFFF00" if col != "F" else "E26B0A")
+            celda.alignment = Alignment(horizontal="center")
+            celda.border = borde
+        ws["C17"].font = ws["C18"].font = Font(name="Arial", bold=True)
+        ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+        ws.page_setup.orientation = "portrait"
+        ws.page_setup.scale = 59
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 1
+        ws.print_options.horizontalCentered = True
+        ws.page_margins.left, ws.page_margins.right = 0.59, 0.39
+        ws.page_margins.top, ws.page_margins.bottom = 0.79, 0.59
+        ws.oddFooter.left.text = "FORMATO-PRUEBA"
+        ws.oddFooter.right.text = "Emision: X"
         ws["I6"], ws["J6"] = "Fecha:", "=TODAY()"
         ws["J8"], ws["K8"] = "No. folio", 9
         ws["J10"], ws["J11"], ws["K11"] = "Entradas", "Salida Planta", "XXXXX"
@@ -530,16 +568,26 @@ def generar_vales(ruta: Path) -> Path:
             strict=True,
         ):
             ws[f"{col}20"] = texto
-        for fila in range(21, 42):
+        for fila in range(21, 21 + renglones):
             ws[f"F{fila}"] = f'=IF(E{fila}="","",VLOOKUP(E{fila},$AG$6:$AH$10030,2,0))'
         ws[f"C{42 + dz}"] = "OBSERVACION"
         ws[f"C{44 + dz}"] = (
             "ESTE MATERIAL CUMPLE CON LAS ESPECIFICACIONES REQUERIDAS POR EL USUARIO"
         )
         ws[f"C{45 + dz}"] = "MATERIAL SUMINISTRADO PARA USO EN MANTENIMIENTO DEL RIG 91"
-        ws[f"D{50 + dz}"], ws[f"J{50 + dz}"] = "ENTREGO/RECIBIO", "RECIBIO/ENTREGO"
-        ws[f"C{52 + dz}"], ws[f"D{52 + dz}"], ws[f"I{52 + dz}"] = "Nombre:", _ALM, receptor
-        ws[f"C{53 + dz}"], ws[f"D{53 + dz}"], ws[f"I{53 + dz}"] = "Puesto:", "ALMACENISTA", puesto
+        # Fila espaciadora de 1 px con un número olvidado: Excel no lo muestra.
+        ws[f"C{47 + dz}"] = 3
+        ws.row_dimensions[47 + dz].height = 0.75
+        izquierda = (receptor, puesto) if hoja in FIRMAS_INVERTIDAS else (_ALM, "ALMACENISTA")
+        derecha = (_ALM, "ALMACENISTA") if hoja in FIRMAS_INVERTIDAS else (receptor, puesto)
+        if hoja in FIRMAS_INVERTIDAS:
+            ws[f"D{50 + dz}"], ws[f"J{50 + dz}"] = "RECIBE / AUTORIZA ", "ENTREGA / AUTORIZA "
+        else:
+            ws[f"D{50 + dz}"], ws[f"J{50 + dz}"] = "ENTREGO/RECIBIO", "RECIBIO/ENTREGO"
+        ws.merge_cells(f"D{52 + dz}:F{52 + dz}")
+        ws.merge_cells(f"I{52 + dz}:K{52 + dz}")
+        ws[f"C{52 + dz}"], ws[f"D{52 + dz}"], ws[f"I{52 + dz}"] = "Nombre:", izquierda[0], derecha[0]
+        ws[f"C{53 + dz}"], ws[f"D{53 + dz}"], ws[f"I{53 + dz}"] = "Puesto:", izquierda[1], derecha[1]
         if hoja == "TRANSFERENCIAS":
             ws["G56"], ws["G58"] = "AUTORIZA", "AUTORIZADOR UNO"
         ws["AG5"], ws["AH5"] = "CODIGO AX", "PRODUCTO"

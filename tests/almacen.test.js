@@ -6,6 +6,7 @@ import { Almacen, BaseNoVacia, SinPlantilla, nombreConFecha } from "../src/almac
 import { BackendMemoria } from "../src/almacen/bd.js";
 import { ErrorRespaldo, crearRespaldo, infoDeNombre, leerRespaldo, respaldosABorrar } from "../src/almacen/respaldos.js";
 import { ubicarLinea, lineasPorUbicar } from "../src/servicios/consultas.js";
+import { ErrorVale, emitirBorrador, lineaNoInventariada, nuevoBorrador, siguienteFolio } from "../src/servicios/vales.js";
 import { crearZip, descomprimirZip } from "../src/xlsx/zip.js";
 import { bytesInventario, bytesVales, cargaSintetica } from "./ayuda.js";
 
@@ -43,6 +44,47 @@ test("un cambio que falla no altera el estado vigente", async () => {
     }),
   );
   assert.equal(JSON.stringify(almacen.estado), antes);
+});
+
+test("folios bajo concurrencia: sin duplicados ni saltos, y un error no consume folio", async () => {
+  const almacen = await almacenCargado();
+  // Guardado lento y variable, como IndexedDB con el disco ocupado.
+  const guardar = almacen.backend.guardarEstado.bind(almacen.backend);
+  almacen.backend.guardarEstado = async (estado) => {
+    await new Promise((listo) => setTimeout(listo, Math.random() * 8));
+    return guardar(estado);
+  };
+  const area = almacen.estado.plantillas_area.find((p) => p.nombre === "SOLDADOR");
+  const ids = [];
+  for (let i = 0; i < 12; i++) {
+    ids.push(
+      await almacen.modificar((e) => {
+        const b = nuevoBorrador(e, { usuario: "ALMACENISTA UNO", plantillaId: area.id });
+        // uno de cada cuatro queda sin cantidad: debe fallar sin consumir folio
+        b.lineas.push({ ...lineaNoInventariada(e, 136), cantidad: i % 4 === 3 ? "" : "5", um: "LTS" });
+        return b.id;
+      }),
+    );
+  }
+  const primero = siguienteFolio(almacen.estado);
+  const resultados = await Promise.allSettled(
+    ids.map((id) => almacen.modificar((e) => emitirBorrador(e, id, { usuario: "ALMACENISTA UNO" }))),
+  );
+  const emitidos = resultados.filter((r) => r.status === "fulfilled").flatMap((r) => r.value.map((v) => v.folio));
+  const fallidos = resultados.filter((r) => r.status === "rejected");
+  assert.equal(fallidos.length, 3);
+  assert.ok(fallidos.every((r) => r.reason instanceof ErrorVale));
+  assert.deepEqual(
+    [...emitidos].sort((a, b) => a - b),
+    Array.from({ length: 9 }, (_, i) => primero + i),
+  );
+  // lo guardado es lo mismo que lo que hay en memoria
+  const otro = new Almacen(almacen.backend);
+  await otro.iniciar();
+  const folios = otro.estado.vales.map((v) => v.folio);
+  assert.equal(new Set(folios).size, folios.length);
+  assert.equal(siguienteFolio(otro.estado), primero + 9);
+  assert.equal(otro.estado.borradores.length, 3);
 });
 
 test("ubicar pendientes deja auditoría", async () => {

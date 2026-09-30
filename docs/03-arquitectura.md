@@ -126,9 +126,12 @@ Control-almacen/
 │   ├── index.html · estilos.css · main.js  # página, estilos y arranque (candado, IndexedDB)
 │   ├── nucleo/            # reglas de negocio puras: normalizar, decimal, fechas, difflib,
 │   │                      #   catálogo, estado (modelo de datos), existencias
-│   ├── xlsx/              # zip, xml, lector, libros nuevos, edición de plantilla
+│   ├── xlsx/              # zip, xml, lector, estilos (colores, bordes, formatos), libros nuevos,
+│   │                      #   edición de plantilla
 │   ├── importadores/      # inventario físico, libro de vales (DIARIO, formularios, catálogo)
-│   ├── servicios/         # limpieza, lista de revisión, primera carga, consultas
+│   ├── servicios/         # limpieza, lista de revisión, primera carga, consultas, vales
+│   │                      #   (borradores, folio, corregir, cancelar, envíos), catálogos, sincronizar
+│   ├── impresion/         # hoja-formulario → HTML tamaño carta para imprimir el vale
 │   ├── exportadores/      # vales (.xlsm) e inventario (.xlsx) sobre plantilla
 │   ├── almacen/           # IndexedDB, transacciones, respaldos, carpeta/descargas
 │   └── ui/                # interfaz: marco, componentes y una página por módulo
@@ -141,8 +144,24 @@ Control-almacen/
 
 ## Reglas de diseño
 
-1. **El núcleo no conoce la interfaz ni el navegador:** `nucleo/`, `xlsx/`, `importadores/`, `servicios/` y `exportadores/` se prueban en Node sin navegador.
+1. **El núcleo no conoce la interfaz ni el navegador:** `nucleo/`, `xlsx/`, `importadores/`, `servicios/`, `impresion/` y `exportadores/` se prueban en Node sin navegador.
 2. **Las existencias se calculan a partir de los movimientos**, no se guardan como un número suelto: `CONSUMO` y `INGRESO` son la suma de vales emitidos con folio posterior al corte del conteo.
 3. **Nada emitido se elimina:** se cancela o se corrige con motivo.
 4. **Fechas** como texto ISO en el estado; hacia Excel, número de serie con el estilo de la plantilla.
 5. **Cantidades** como texto decimal en el estado y `Big` en los cálculos; nunca `float`.
+
+## Impresión del vale (F2)
+
+El vale no se imprime con un diseño propio: se **dibuja la hoja-formulario del libro de vales del usuario** (la
+plantilla registrada en la primera carga) como una tabla HTML y se llenan sus campos.
+
+- `impresion/formulario.js` lee de la hoja: área de impresión, anchos de columna y altos de fila (con las mismas
+  fórmulas de conversión que Excel), celdas combinadas, estilos (`xlsx/estilos.js`: fuentes, rellenos con colores de
+  tema y tinte, bordes, alineación, formatos de número y fecha en español), imágenes del dibujo (el logo; los botones
+  de macro se omiten), encabezado/pie de página, márgenes, orientación y escala guardada por "ajustar a 1 página".
+- Los campos se ubican **por sus etiquetas** (Fecha, No. folio, Salida, Origen/Destino, encabezado de renglones,
+  Nombre/Puesto, AUTORIZA, observaciones), así que cada hoja puede tener su propia capacidad y el orden de firmas
+  (NOV firma al revés).
+- `impresion/vale.js` genera páginas carta (`@page`) con `print-color-adjust: exact` para conservar los rellenos. La
+  interfaz las inserta en `#area-impresion` y llama `window.print()`; Edge ofrece imprimir o *Guardar como PDF*. No se
+  usa ninguna biblioteca de PDF ni conexión de red.

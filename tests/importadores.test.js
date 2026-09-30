@@ -52,7 +52,9 @@ test("DIARIO: errores, fecha como texto, cantidad con unidad y ceros de la macro
 
 test("formularios con firmas desplazadas", () => {
   const plantillas = new Map(libroVales().plantillas.map((p) => [p.hoja, p]));
-  assert.deepEqual([...plantillas.keys()].sort(), ["MECANICO ", "SOLDADOR", "TRANSFERENCIAS"]);
+  assert.deepEqual([...plantillas.keys()].sort(), ["MECANICO ", "NOV", "SOLDADOR", "TRANSFERENCIAS"]);
+  // En NOV el almacenista firma del lado derecho: igual se lee como quien entrega.
+  assert.deepEqual([plantillas.get("NOV").entrega_nombre, plantillas.get("NOV").recibe_nombre], ["ALMACENISTA UNO", "QUIMICO UNO"]);
   const mecanico = plantillas.get("MECANICO ");
   assert.deepEqual([mecanico.entrega_nombre, mecanico.recibe_nombre], ["ALMACENISTA UNO", "MECANICO UNO"]);
   assert.equal(mecanico.recibe_puesto, "MECANICO");
