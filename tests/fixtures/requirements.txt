@@ -1,0 +1,2 @@
+# Solo para generar los Excel SINTÉTICOS de las pruebas (tests/fixtures/generar.py).
+openpyxl==3.1.5

@@ -1,0 +1,49 @@
+name: Pruebas y compilación web
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas-y-compilacion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Python solo genera los Excel SINTÉTICOS de las pruebas (tests/fixtures/generar.py).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependencias
+        run: |
+          npm ci
+          python -m pip install -r tests/fixtures/requirements.txt
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Compilar ControlAlmacen.html
+        run: npm run build
+
+      - name: Huella SHA-256
+        run: sha256sum dist/ControlAlmacen.html | tee dist/SHA256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ControlAlmacen-html
+          path: |
+            dist/ControlAlmacen.html
+            dist/SHA256.txt
+          retention-days: 90

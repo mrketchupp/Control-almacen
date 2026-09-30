@@ -103,9 +103,8 @@ flowchart LR
 ## 8. Respaldo y restauración
 
 - Los respaldos automáticos funcionan como se describe en [03-arquitectura.md](03-arquitectura.md#almacenamiento-y-respaldos).
-- **Reinstalación:**
-  1. Instalar el `.exe`.
-  2. Al abrir, la herramienta detecta respaldos en OneDrive.
-  3. Ofrece restaurar el más reciente.
-  4. Verifica la integridad de la base.
-  5. Queda lista.
+- **Equipo o navegador nuevo:**
+  1. Abrir `ControlAlmacen.html` en Edge (no se instala nada).
+  2. **Respaldos → Restaurar desde un archivo…** y elegir el `.zip` más reciente de `OneDrive\ControlAlmacen\respaldos`.
+  3. La herramienta valida el respaldo (formato, folios únicos, plantillas completas) antes de reemplazar.
+  4. Elegir otra vez la carpeta de respaldos; queda lista.

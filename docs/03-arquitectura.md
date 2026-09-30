@@ -2,165 +2,147 @@
 
 ## Resumen
 
-Aplicación de escritorio en **Python**:
+**Herramienta web que guarda todo en el equipo del usuario.** Es una sola página HTML autocontenida que corre completa
+dentro de Microsoft Edge:
 
-- **Interfaz:** NiceGUI dentro de una ventana nativa de Windows (WebView2).
-- **Datos:** base de datos local **SQLite**.
-- **Respaldos:** copias automáticas a **OneDrive**.
-- **Excel:** exportación mediante **plantillas con edición XML mínima**.
-- **Distribución:** instalador `.exe`.
+- **Sin instalar nada** (la PC del almacén bloquea instaladores, ver P-20 en [09](09-pendientes.md)).
+- **Sin servidor y sin red:** la página no puede conectarse a ningún sitio (política de seguridad `connect-src 'none'`).
+- **Datos:** en el almacenamiento local del navegador (IndexedDB) de este equipo y esta cuenta de Windows.
+- **Respaldos y exportaciones:** archivos en la carpeta que elija el usuario (recomendado `OneDrive\ControlAlmacen`),
+  con la API de acceso a archivos del navegador; si no hay carpeta, se descargan.
+- **Excel:** exportación mediante **plantillas con edición XML mínima** (igual que antes, ahora en JavaScript).
+
+**Analogía:** es una calculadora, no una oficina. La abres, trabaja con lo que le das y nada sale de tu escritorio; la
+"libreta" (IndexedDB) está en el cajón de tu PC y las fotocopias (respaldos) en OneDrive.
 
 ```mermaid
 flowchart TB
-    subgraph APP["ControlAlmacen.exe"]
-        UI["Interfaz (NiceGUI, ventana nativa)"]
-        DOM["Dominio<br/>vales · entradas · existencias · folios"]
-        IMP["Importadores<br/>inventario · DIARIO · AX · catálogo"]
+    subgraph NAV["Edge · ControlAlmacen.html (sin red)"]
+        UI["Interfaz (Preact)"]
+        DOM["Núcleo<br/>normalizar · existencias · estado"]
+        IMP["Importadores<br/>inventario · DIARIO · revisión"]
         EXP["Exportadores<br/>plantilla + edición XML"]
-        CON["Conciliación AX<br/>normalizar · emparejar · reportes"]
-        PDF["Impresión de vales (PDF)"]
-        BAK["Respaldo / restauración"]
+        ALM["Almacén<br/>transacciones · respaldos"]
     end
-    DB[("SQLite<br/>%LOCALAPPDATA%\ControlAlmacen\almacen.db")]
-    OD[["OneDrive\ControlAlmacen\respaldos"]]
-    XL[/"Excel del usuario<br/>(plantillas y entradas)"/]
-    UI --> DOM --> DB
-    UI --> IMP --> DB
-    UI --> CON --> DB
-    UI --> EXP --> XL
-    IMP --> XL
-    UI --> PDF
-    BAK --> DB
-    BAK --> OD
+    IDB[("IndexedDB de Edge<br/>estado + plantillas + copias internas")]
+    OD[["OneDrive\ControlAlmacen<br/>respaldos/ · exportaciones/ · revision/"]]
+    XL[/"Excel del usuario"/]
+    UI --> DOM
+    UI --> IMP --> XL
+    UI --> EXP --> OD
+    UI --> ALM --> IDB
+    ALM --> OD
 ```
 
 ## Tecnología elegida
 
 | Capa | Elección | Por qué |
 |---|---|---|
-| Lenguaje | Python 3.12 | Las mejores bibliotecas para Excel y para emparejar texto; fácil de mantener |
-| Interfaz | [NiceGUI](https://nicegui.io) en modo nativo (pywebview + WebView2, que ya viene en Windows 10/11) | Tablas con filtro, formularios y pestañas con poco código. Parece app de escritorio y no abre navegador. Licencia MIT. |
-| Base de datos | SQLite (un solo archivo) | Sin servidor, confiable, fácil de respaldar |
-| Acceso a datos | SQLAlchemy 2 + Alembic | Modelo claro y migraciones versionadas para cambiar el esquema sin perder datos |
-| Lectura de Excel | openpyxl (+ pandas donde convenga) | Lee valores, fórmulas, tablas y notas |
-| Escritura de Excel | `zipfile` + `lxml`: **edición XML mínima sobre plantilla** | Ver la sección siguiente: es la única forma de exportar idéntico |
-| Emparejamiento aproximado | rapidfuzz | Rápido, MIT, sin dependencias pesadas |
-| PDF del vale | fpdf2 | Python puro y ligero. Se abre en el visor predeterminado para imprimir. |
-| Empaquetado | PyInstaller (modo carpeta) + Inno Setup | Instalador `.exe` estándar, ambos libres |
-| Pruebas | pytest | Estándar |
+| Lenguaje | JavaScript (módulos ES), Node 22 para compilar y probar | Corre en cualquier navegador sin instalar nada |
+| Interfaz | [Preact](https://preactjs.com) + [htm](https://github.com/developit/htm) | 5 KB, sin paso de JSX, MIT/Apache-2.0 |
+| Decimales | [big.js](https://github.com/MikeMcl/big.js) | Cantidades exactas (nunca `float`), MIT |
+| ZIP | [fflate](https://github.com/101arrowz/fflate) (solo deflate/inflate) + lector/escritor ZIP propio | Permite copiar las partes intactas **con sus bytes comprimidos originales** |
+| Lectura de Excel | Lector propio por texto (`src/xlsx/leer.js`) | Rápido (el libro de vales real, 3.6 MB, se lee en ~0.4 s), sin DOM, probado contra openpyxl |
+| Escritura de Excel | Edición de texto XML sobre la plantilla (`src/xlsx/plantilla.js`) y generador de libros nuevos (`src/xlsx/nuevo.js`) | Ver la sección siguiente |
+| Datos | Un objeto JSON (el "estado") en IndexedDB | Simple, atómico, fácil de respaldar |
+| Compilación | [esbuild](https://esbuild.github.io) → un solo HTML (~190 KB) | Un archivo que se abre con doble clic o se publica en un sitio estático |
+| Pruebas | `node --test` con Excel sintéticos de `tests/fixtures/generar.py` | Estándar, sin dependencias extra |
 
 **Alternativas descartadas**
 
 | Opción | Motivo |
 |---|---|
-| Excel/VBA mejorado | Es frágil (los errores actuales son típicos de este esquema), difícil de probar y malo para emparejar texto |
-| App web en servidor | Innecesaria para 1 PC y agrega dependencia de red |
-| Electron/.NET | Más pesados o con peor soporte para conservar macros al editar Excel |
+| Aplicación de escritorio (Python + instalador) | Seguridad de Windows la bloqueó ("Acción de riesgo bloqueada"). La versión de escritorio queda en el historial de git (commit `93fd82a`). |
+| App web con servidor y base de datos en la nube | Los datos saldrían del equipo; requiere cuentas, hospedaje y costo |
+| Excel/VBA mejorado | Frágil, difícil de probar y malo para emparejar texto |
+| Python en el navegador (Pyodide) | ~10 MB de descarga y arranque lento para lo mismo |
 
 ## Decisión clave: exportar sobre plantilla, sin reescribir el libro
 
-Se probó abrir y guardar ambos archivos con openpyxl (la biblioteca estándar). El resultado **no sirve** para exportar idéntico:
+Guardar los libros del usuario con una biblioteca genérica (openpyxl, SheetJS, etc.) **no sirve** para exportar idéntico:
 
-| Archivo | Qué se pierde al guardar con openpyxl |
+| Archivo | Qué se pierde al reescribir el libro |
 |---|---|
 | `VALES DE SALIDA DLTA.xlsm` | Todos los dibujos: logos, botones **GRABAR** / **LIMPIAR DATOS** con su macro asignada; metadatos de SharePoint (`customXml`); configuración de impresora |
-| `INVENTARIO…xlsx` | Configuración de impresora; las notas se convierten a otro formato; se reescriben estilos y cadenas compartidas |
+| `INVENTARIO…xlsx` | Configuración de impresora; las notas cambian de formato; se reescriben estilos y cadenas compartidas |
 
 **Solución:** el `.xlsx`/`.xlsm` es un ZIP de archivos XML. El exportador:
 
-1. Toma como **plantilla el último archivo real** del usuario (registrado en la herramienta).
-2. Copia **byte por byte** todas las partes del ZIP, excepto las que debe modificar.
-3. En las partes que modifica, reemplaza **solo** lo necesario:
-   - **Vales:** la sección `<sheetData>` de la hoja `DIARIO`, la referencia `<dimension>` y el rango del autofiltro.
-   - **Inventario:** el `<sheetData>` de cada hoja de contenedor, el `ref` de cada tabla (`xl/tables/tableN.xml`) y las áreas de impresión y filtros de `workbook.xml`. También la hoja `ARTICULOS_MX` si el catálogo creció.
-4. Elimina `xl/calcChain.xml` (y su referencia) y marca `fullCalcOnLoad="1"`, para que Excel recalcule las fórmulas al abrir.
-5. Valida el resultado: el ZIP es válido, el XML está bien formado, las partes no tocadas son idénticas a la plantilla y la relectura con openpyxl da los datos esperados.
+1. Toma como **plantilla el archivo real** del usuario (guardado en IndexedDB en la primera carga).
+2. Copia **byte por byte** (incluso los bytes comprimidos) todas las partes del ZIP que no debe modificar.
+3. En las partes que modifica, reemplaza **solo** los fragmentos de texto necesarios:
+   - **Vales:** el contenido de `<sheetData>` de la hoja `DIARIO`, la `<dimension>`, el autofiltro, el panel inmovilizado y el nombre `_xlnm._FilterDatabase`.
+   - **Inventario:** el `<sheetData>` de cada hoja de contenedor, el `ref` de cada tabla y su autofiltro, las áreas de impresión y filtros de `workbook.xml`, las notas (comentarios y VML) y la hoja `ARTICULOS_MX` si el catálogo creció.
+4. Elimina `xl/calcChain.xml` (y su referencia) y marca `fullCalcOnLoad="1"`, para que Excel recalcule al abrir.
+5. Las pruebas verifican que las partes no tocadas son idénticas a la plantilla y que la relectura da los datos esperados.
 
-Es como corregir un formulario impreso con corrector solo en las casillas que cambian, en vez de volver a imprimir todo el formulario.
+Es como corregir un formulario impreso con corrector solo en las casillas que cambian, en vez de volver a imprimirlo.
 
-Especificación detallada: [06-formatos-excel.md](06-formatos-excel.md).
+Verificación con los archivos reales (fuera del repositorio): la versión web produce el mismo contenido celda por celda
+que la versión de escritorio (DIARIO de 1,294 renglones; 9,394 celdas del inventario con notas, tablas y nombres) y
+LibreOffice recalcula las 1,258 fórmulas del inventario sin errores. Especificación: [06-formatos-excel.md](06-formatos-excel.md).
 
 ## Almacenamiento y respaldos
 
-**Principio:** la base de datos viva **no** está dentro de la carpeta de OneDrive. OneDrive sincroniza archivos mientras se escriben y eso puede corromper una base SQLite abierta. En su lugar, se guardan **copias consistentes** en OneDrive.
-
-**Analogía:** la base viva es la libreta que tienes en el escritorio; OneDrive es la caja fuerte donde guardas una fotocopia cada día.
-
 | Qué | Dónde |
 |---|---|
-| Base de datos viva | `%LOCALAPPDATA%\ControlAlmacen\almacen.db`. Ambos almacenistas usan la misma cuenta de Windows (P-01), así que la carpeta local del usuario basta y la instalación no requiere administrador. |
-| Plantillas de Excel registradas | `%LOCALAPPDATA%\ControlAlmacen\plantillas\` |
-| Registros (logs) | `%LOCALAPPDATA%\ControlAlmacen\logs\`, rotativos |
-| Programa | `%LOCALAPPDATA%\Programs\ControlAlmacen\` (instalador por usuario, sin administrador) |
-| Respaldos | `%OneDrive%\ControlAlmacen\respaldos\` (se detecta también `%OneDriveCommercial%`) |
-| Exportaciones | Carpeta que elija el usuario; por defecto `%OneDrive%\ControlAlmacen\exportaciones\` |
+| Programa | `ControlAlmacen.html`: un archivo que se abre en Edge (o la misma página publicada en un sitio estático). No se instala. |
+| Datos de trabajo (estado) | IndexedDB de Edge, base `control-almacen`, almacén `estado`. Por equipo, por cuenta de Windows y por origen de la página (P-01: ambos almacenistas comparten cuenta y equipo). |
+| Plantillas de Excel | IndexedDB, almacén `archivos` (bytes originales + SHA-256) |
+| Copias internas | IndexedDB, almacén `instantaneas`: una al inicio de cada día y antes de restaurar (últimas 10) |
+| Respaldos | `<carpeta elegida>\respaldos\almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip` |
+| Exportaciones | `<carpeta elegida>\exportaciones\AAAA-MM-DD\` |
+| Lista de revisión | `<carpeta elegida>\revision\` |
 
-**Respaldo:**
-- Se hace con la API de *backup* de SQLite (copia consistente aunque la base esté abierta) y se comprime en `.zip` junto con las plantillas.
-- Momentos: al cerrar, al primer uso del día, y antes de cada importación, migración o restauración.
-- Retención: los últimos 30 diarios y 12 mensuales (configurable).
-- Nombre: `almacen_AAAA-MM-DD_HHMM.zip`.
+- Se pide al navegador **almacenamiento persistente** (`navigator.storage.persist()`), para que no borre los datos por falta de espacio.
+- Riesgo principal: si alguien borra "cookies y datos de sitios" de Edge, se borran los datos. Por eso hay respaldo diario automático en OneDrive y la pantalla de inicio avisa si no hay respaldo del día.
+- Edge pide confirmar el permiso de la carpeta una vez por sesión (un clic en el aviso superior).
 
-**Restauración:**
-- Se hace desde un asistente.
-- Primero respalda el estado actual, luego reemplaza la base y verifica su integridad (`PRAGMA integrity_check`).
-- En una instalación nueva, la herramienta detecta respaldos en OneDrive y ofrece restaurar el más reciente.
+**Respaldo (`.zip`):** `manifiesto.json` (versión, fecha, motivo, conteos), `estado.json` (todo el estado) y
+`plantillas/` (los Excel del usuario). Momentos: primer uso del día, después de la primera carga, después de cada
+exportación, antes de restaurar o borrar, y manual. Retención en la carpeta: último de cada uno de los últimos 30 días
+y de los últimos 12 meses.
+
+**Restauración:** valida el respaldo (formato, folios únicos, plantillas completas), guarda una copia interna del
+estado actual y reemplaza todo en una sola transacción de IndexedDB.
+
+## Consistencia (el equivalente a las transacciones de SQLite)
+
+- **Una sola pestaña a la vez:** candado del navegador (Web Locks). La segunda pestaña muestra un aviso y no carga.
+- **Cada cambio es atómico:** se aplica a una copia del estado; solo si se guardó bien en IndexedDB pasa a ser el estado vigente. Los cambios se atienden en fila, uno por uno.
+- **Folios (F2):** se asignarán dentro de ese mismo mecanismo (candado + cambio atómico), validando que el folio no exista para su tipo. Nunca se reutilizan ni se borran; solo se cancelan o corrigen con motivo y bitácora.
 
 ## Usuarios y turnos
 
-- Sin contraseñas (misma PC y misma confianza). Al abrir se elige el **almacenista en turno**, que queda en cada movimiento y en la bitácora.
-- En el cambio de guardia, el que sale puede generar un **resumen de guardia**: vales emitidos, entradas, pendientes de envío y alertas.
+- Sin contraseñas (misma PC y misma confianza). Se elige el **almacenista en turno** arriba a la derecha; queda en cada movimiento y en la bitácora (`auditoria`).
 
-## Estructura del proyecto (se crea en la Fase 1)
+## Estructura del proyecto
 
 ```
 Control-almacen/
-├── pyproject.toml
+├── package.json · scripts/build.mjs      # compilación a dist/ControlAlmacen.html
 ├── README.md · CLAUDE.md · docs/
-├── src/control_almacen/
-│   ├── app.py                  # arranque (NiceGUI modo nativo)
-│   ├── config.py               # rutas, almacén AX, parámetros
-│   ├── db/
-│   │   ├── modelos.py          # tablas (SQLAlchemy)
-│   │   ├── sesion.py
-│   │   └── migraciones/        # Alembic
-│   ├── dominio/                # reglas de negocio, sin interfaz
-│   │   ├── catalogo.py
-│   │   ├── existencias.py      # cálculo CANTIDAD/CONSUMO/INGRESO/TOTAL
-│   │   ├── folios.py           # asignación atómica de folios
-│   │   ├── vales_salida.py
-│   │   ├── vales_entrada.py
-│   │   ├── conteos.py
-│   │   └── normalizar.py       # texto, dimensiones, UM, nombres
-│   ├── importadores/
-│   │   ├── inventario_fisico.py
-│   │   ├── diario_vales.py     # con reglas de limpieza
-│   │   ├── reporte_ax.py
-│   │   └── catalogo.py
-│   ├── exportadores/
-│   │   ├── plantilla_ooxml.py  # edición XML mínima (núcleo común)
-│   │   ├── inventario.py
-│   │   ├── vales.py
-│   │   ├── entradas.py
-│   │   └── ajuste_ax.py
-│   ├── conciliacion/
-│   │   ├── emparejar.py
-│   │   └── reportes.py
-│   ├── impresion/vale_pdf.py
-│   ├── respaldo/respaldo.py
-│   └── ui/                     # una página por módulo
+├── src/
+│   ├── index.html · estilos.css · main.js  # página, estilos y arranque (candado, IndexedDB)
+│   ├── nucleo/            # reglas de negocio puras: normalizar, decimal, fechas, difflib,
+│   │                      #   catálogo, estado (modelo de datos), existencias
+│   ├── xlsx/              # zip, xml, lector, libros nuevos, edición de plantilla
+│   ├── importadores/      # inventario físico, libro de vales (DIARIO, formularios, catálogo)
+│   ├── servicios/         # limpieza, lista de revisión, primera carga, consultas
+│   ├── exportadores/      # vales (.xlsm) e inventario (.xlsx) sobre plantilla
+│   ├── almacen/           # IndexedDB, transacciones, respaldos, carpeta/descargas
+│   └── ui/                # interfaz: marco, componentes y una página por módulo
 ├── tests/
-│   ├── fixtures/               # Excel ANONIMIZADOS (sí se versionan)
-│   └── …
-└── packaging/
-    ├── control_almacen.spec    # PyInstaller
-    └── instalador.iss          # Inno Setup
+│   ├── fixtures/generar.py  # genera Excel SINTÉTICOS (necesita Python + openpyxl)
+│   ├── ayuda.js
+│   └── *.test.js
+└── herramientas/diagnostico-navegador.html
 ```
 
 ## Reglas de diseño
 
-1. **El dominio no conoce la interfaz ni Excel:** se puede probar solo con pytest.
-2. **Las existencias se calculan a partir de los movimientos, no se guardan como un número suelto.** `CONSUMO` = suma de salidas desde el último conteo de esa ubicación, e `INGRESO` = suma de entradas desde ese conteo. Así un número nunca se "desincroniza" de su historial.
-3. **El folio se asigna dentro de una transacción** (`BEGIN IMMEDIATE`), con restricción `UNIQUE` en la base de datos.
-4. **Borrado lógico:** nada emitido se elimina; se cancela o se corrige con motivo.
-5. **Fechas** en ISO dentro de la base. Hacia Excel se escriben como número de serie con el mismo estilo de la plantilla.
+1. **El núcleo no conoce la interfaz ni el navegador:** `nucleo/`, `xlsx/`, `importadores/`, `servicios/` y `exportadores/` se prueban en Node sin navegador.
+2. **Las existencias se calculan a partir de los movimientos**, no se guardan como un número suelto: `CONSUMO` y `INGRESO` son la suma de vales emitidos con folio posterior al corte del conteo.
+3. **Nada emitido se elimina:** se cancela o se corrige con motivo.
+4. **Fechas** como texto ISO en el estado; hacia Excel, número de serie con el estilo de la plantilla.
+5. **Cantidades** como texto decimal en el estado y `Big` en los cálculos; nunca `float`.

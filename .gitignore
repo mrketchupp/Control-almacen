@@ -1,6 +1,7 @@
 # --- Datos reales: NUNCA se suben al repositorio ---
 # Los archivos de Excel del almacén contienen nombres de personal,
 # costos y movimientos reales. Viven solo en el equipo del usuario.
+*.zip
 *.xlsx
 *.xlsm
 *.xls
@@ -27,11 +28,12 @@ venv/
 .coverage
 htmlcov/
 
-# --- Empaquetado ---
+# --- Node / compilación web ---
+node_modules/
+
+# --- Compilación (el HTML lo genera GitHub Actions / npm run build) ---
 build/
 dist/
-*.spec.bak
-packaging/output/
 
 # --- Sistema / editores ---
 .DS_Store

@@ -1,6 +1,6 @@
 # 08 — Plan de trabajo
 
-Cada fase entrega un **instalador `.exe` funcional** que el usuario puede probar en su PC. No se pasa a la siguiente fase sin que el usuario acepte la anterior.
+Cada fase entrega una **versión nueva de `ControlAlmacen.html`** que el usuario abre en Edge y prueba en su PC (sin instalar nada). No se pasa a la siguiente fase sin que el usuario acepte la anterior.
 
 ```mermaid
 gantt
@@ -27,24 +27,29 @@ gantt
 - Documentación en `docs/`.
 - Lista de revisión del historial (`Revision_historial_DLTA.xlsx`, fuera del repositorio).
 
-## Fase 1 — Núcleo de datos, importación y exportación idéntica ✅ (entregada, en aceptación)
+## Fase 1 — Núcleo de datos, importación y exportación idéntica ✅ (entregada en versión web, en aceptación)
 **Objetivo:** demostrar que la herramienta puede leer los archivos actuales y **reproducirlos idénticos**. Es la base de todo lo demás.
 
+La primera entrega fue de escritorio (Python + instalador). Seguridad de Windows bloqueó el instalador (P-20), así que
+F1 se rehízo como **herramienta web que guarda los datos en el equipo** ([03-arquitectura.md](03-arquitectura.md)).
+La versión web se validó contra la de escritorio con los archivos reales: mismos datos importados, mismo reporte de
+verificación y mismos Excel exportados celda por celda.
+
 Entregables:
-- Proyecto Python con base de datos SQLite, migraciones, configuración y logs.
-- Importadores: catálogo, inventario físico, DIARIO (con reglas de limpieza y lectura de `Revision_historial_DLTA.xlsx`), plantillas por área.
+- `ControlAlmacen.html` (un solo archivo, ~190 KB) con datos en IndexedDB y respaldos `.zip` en la carpeta elegida (OneDrive).
+- Importadores: catálogo, inventario físico, DIARIO (con reglas de limpieza y lectura de la lista de revisión v2), plantillas por área.
 - Exportadores sobre plantilla: inventario `.xlsx` y vales `.xlsm`.
-- Respaldo y restauración en OneDrive.
-- Pantallas mínimas: asistente de migración, consulta de inventario (buscador) y consulta del historial.
-- Primer instalador `.exe` (PyInstaller + Inno Setup).
+- Respaldo, retención y restauración; copias internas del navegador.
+- Pantallas: asistente de primera carga con ensayo, inventario, historial, pendientes, exportar y respaldos.
+- Compilación y pruebas en GitHub Actions (artefacto `ControlAlmacen-html`).
 
 Criterios de aceptación (✔ = verificado por el desarrollo con los archivos reales, fuera del repositorio; ☐ = lo verifica el usuario en su PC):
-- ✔ En el `.xlsm` exportado solo cambian 2 de 44 partes del ZIP (DIARIO y `workbook.xml`); macros, botones, logos y formularios quedan idénticos byte por byte. LibreOffice lo abre sin errores.
+- ✔ En el `.xlsm` exportado solo cambian 2 partes del ZIP (DIARIO y `workbook.xml`); todas las demás (macros, botones, logos, formularios) quedan idénticas byte por byte, incluso comprimidas. LibreOffice lo abre sin errores.
 - ☐ Abrirlo en **Excel** sin mensaje de reparación y comprobar que **GRABAR / LIMPIAR DATOS siguen funcionando**.
 - ✔ El `.xlsx` exportado conserva hojas, tablas, fórmulas, notas y filas bajo la tabla; LibreOffice recalcula las 1,258 fórmulas sin errores y los totales por hoja coinciden.
 - ✔ El reporte de verificación cuadra en 8 de 10 hojas; las 2 diferencias son los vales 550 y 554 que el Excel aún no descontaba (esperado con corte 549).
-- ✔ Un respaldo restaurado en otra carpeta produce los mismos datos (prueba automática).
-- ☐ Instalar el `.exe` en la PC del almacén y hacer la primera carga real.
+- ✔ Un respaldo restaurado en otro navegador produce los mismos datos (prueba automática).
+- ☐ Abrir `ControlAlmacen.html` en Edge en la PC del almacén, elegir la carpeta de OneDrive y hacer la primera carga real.
 
 ## Fase 2 — Vales de salida
 Entregables:
@@ -92,5 +97,6 @@ Criterios de aceptación:
 
 ## Cómo se trabajará en cada fase
 1. Rama de trabajo por fase y Pull Request con descripción de cambios.
-2. Pruebas automáticas (pytest) con Excel **anonimizados** en `tests/fixtures/`. Nunca con datos reales.
-3. Al cerrar la fase: instalador `.exe` + notas de versión + lista de verificación de aceptación para el usuario.
+2. Pruebas automáticas (`node --test`) con Excel **sintéticos** generados por `tests/fixtures/generar.py`. Nunca con datos reales.
+3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
+4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).

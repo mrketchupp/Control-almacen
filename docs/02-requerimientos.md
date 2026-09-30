@@ -4,7 +4,7 @@
 
 | Tema | Respuesta |
 |---|---|
-| Equipo | PC de escritorio con Windows. Se puede pedir autorización para instalar programas (`.exe`). |
+| Equipo | PC de escritorio con Windows y Microsoft Edge. Seguridad de Windows **bloquea** instalar programas sin firma ("Acción de riesgo bloqueada"). |
 | Internet | Estable |
 | Usuarios | 2 almacenistas que se turnan la guardia cada ~14 días y **comparten la misma PC** |
 | Dispositivo | Solo PC (no celular ni tablet) |
@@ -30,7 +30,7 @@
 | D-14 | La conciliación tendrá varias vistas: por artículo, por contenedor y valuada en $. La presentación queda a criterio del desarrollo. |
 | D-15 | El formato de solicitud de ajuste es **igual al reporte AX** más dos columnas: **Existencia física** y **Folios que justifican la diferencia**. |
 | D-16 | El historial se limpia al migrarlo. Lo que no se pueda deducir se completa con los PDF escaneados de cada vale. |
-| D-17 | Tecnología: aplicación instalable (`.exe`) con respaldo automático en OneDrive. |
+| D-17 | Tecnología: ~~aplicación instalable (`.exe`)~~ → **herramienta web que guarda la información en el equipo** (un HTML en Edge, datos en el navegador), con respaldo automático en OneDrive. Cambio pedido por el usuario tras el bloqueo del instalador. |
 
 ---
 
@@ -114,7 +114,7 @@ Prioridad: **M** = indispensable para salir a producción; **D** = deseable; **F
 
 | ID | Requerimiento |
 |---|---|
-| RNF-01 | Windows 10/11, funciona sin internet. Instalación con un instalador `.exe`. |
+| RNF-01 | Windows 10/11 con Edge, funciona sin internet y **sin instalar nada**. Los datos de trabajo se guardan en el equipo; la página no puede conectarse a la red. |
 | RNF-02 | Software libre, sin licencias de pago ni servicios en la nube de terceros. Los datos solo salen del equipo hacia el OneDrive del propio usuario. |
 | RNF-03 | Interfaz en español, pensada para teclado (Tab/Enter) y búsqueda rápida. |
 | RNF-04 | Emitir un vale de 10 renglones debe tomar menos de 2 minutos para un usuario entrenado. |

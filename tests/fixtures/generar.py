@@ -698,8 +698,20 @@ def generar_todo(carpeta: Path) -> dict[str, Path]:
 
 
 if __name__ == "__main__":
+    # Uso: python tests/fixtures/generar.py <carpeta>
+    # Imprime en JSON las rutas generadas y las constantes que usan las pruebas (tests/ayuda.js).
+    import json
     import sys
 
     destino = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.cwd()
-    for nombre, ruta in generar_todo(destino).items():
-        print(nombre, ruta)
+    rutas = generar_todo(destino)
+    print(
+        json.dumps(
+            {
+                **{nombre: str(ruta) for nombre, ruta in rutas.items()},
+                "catalogo": {str(k): v for k, v in CATALOGO.items()},
+                "folio_corte": FOLIO_CORTE,
+            },
+            ensure_ascii=False,
+        )
+    )

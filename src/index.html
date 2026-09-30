@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Sin red: la página no puede conectarse a ningún servidor (connect-src 'none'). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src '%HASH_SCRIPT%'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content="Control de Almacén RIG 91: inventario, vales y exportación a Excel. Los datos se guardan solo en este equipo." />
+    <meta name="generator" content="Control de Almacén %VERSION%" />
+    <title>Control de Almacén</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f4e8c'/%3E%3Cpath d='M7 11h18v14H7zM7 11l3-5h12l3 5M12 16h8' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E"
+    />
+    <style>
+%CSS%
+    </style>
+  </head>
+  <body>
+    <div id="app"><div class="cargando">Cargando Control de Almacén…</div></div>
+    <noscript>Esta herramienta necesita JavaScript. Ábrela en Microsoft Edge o Google Chrome.</noscript>
+    <script>%JS%</script>
+  </body>
+</html>

@@ -1,6 +1,8 @@
 # Control de Almacén — RIG 91
 
-Herramienta de escritorio (Windows) para el almacén de refaccionamiento del RIG 91. Tiene cuatro objetivos:
+Herramienta **web** para el almacén de refaccionamiento del RIG 91 que **guarda todo en el equipo del usuario**.
+Es un solo archivo HTML que se abre en Microsoft Edge: no se instala, no usa servidor y no puede enviar datos a
+internet. Tiene cuatro objetivos:
 
 1. **Administrar el inventario físico** por contenedor (5 contenedores, divididos en inventariable y consumible).
 2. **Emitir vales de salida** (consumos y transferencias) y **registrar vales de entrada** (material recibido de la base operativa), con folio controlado.
@@ -11,26 +13,30 @@ Herramienta de escritorio (Windows) para el almacén de refaccionamiento del RIG
 
 ## Estado
 
-**Fase 1 — Núcleo, primera carga y exportación idéntica (entregada, en revisión del usuario).**
-Instalación y uso: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El instalador de Windows se genera
-automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-<versión>-instalador`).
+**Fase 1 — Núcleo, primera carga y exportación idéntica, ahora en versión web (entregada, en revisión del usuario).**
+Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
+`ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
+
+```bash
+npm ci && npm test && npm run build   # → dist/ControlAlmacen.html
+```
 
 | Documento | Contenido |
 |---|---|
 | [01 — Contexto y archivos fuente](docs/01-contexto.md) | Qué es cada archivo actual, su estructura y los problemas detectados |
 | [02 — Requerimientos](docs/02-requerimientos.md) | Qué debe hacer la herramienta y las decisiones tomadas con el usuario |
-| [03 — Arquitectura](docs/03-arquitectura.md) | Tecnología, almacenamiento, respaldos en OneDrive, empaquetado y estructura del proyecto |
-| [04 — Modelo de datos](docs/04-modelo-de-datos.md) | Tablas, llaves y reglas de normalización |
+| [03 — Arquitectura](docs/03-arquitectura.md) | Tecnología web, almacenamiento local, respaldos en OneDrive y estructura del proyecto |
+| [04 — Modelo de datos](docs/04-modelo-de-datos.md) | Entidades, llaves y reglas de normalización |
 | [05 — Flujos de trabajo](docs/05-flujos.md) | Vale de salida, vale de entrada, correcciones, conteo, conciliación y respaldo |
 | [06 — Formatos de Excel](docs/06-formatos-excel.md) | Especificación exacta de importación y exportación (celdas, columnas, tablas) |
 | [07 — Migración y limpieza](docs/07-migracion.md) | Cómo se carga el historial y qué reglas de limpieza se aplican |
 | [08 — Plan de trabajo](docs/08-plan.md) | Fases, entregables y criterios de aceptación |
 | [09 — Pendientes](docs/09-pendientes.md) | Preguntas abiertas y decisiones por confirmar |
-| [10 — Instalación y uso](docs/10-instalacion-y-uso.md) | Descargar, instalar, primera carga, uso diario y respaldos |
+| [10 — Cómo abrirla y usarla](docs/10-instalacion-y-uso.md) | Abrir, carpeta de respaldos, primera carga, uso diario y respaldos |
 
 ## Principios del proyecto
 
-- **Privacidad:** los datos reales (Excel, base de datos, respaldos) nunca se suben a este repositorio. Solo se versionan el código, la documentación y datos de prueba anonimizados.
+- **Privacidad:** los datos reales (Excel, respaldos, nombres) nunca se suben a este repositorio ni a ningún servidor. La página tiene prohibido conectarse a la red; los datos viven en el navegador del equipo y los respaldos en la carpeta de OneDrive del usuario.
 - **Sin romper lo que ya funciona:** los archivos exportados deben poder enviarse a la base operativa como hoy, sin que nadie note diferencias de formato.
 - **Todo movimiento deja rastro:** ningún vale se borra y ningún folio se reutiliza. Las correcciones quedan en una bitácora.
-- **Funciona sin conexión:** la herramienta no depende de internet. OneDrive se usa solo como destino de los respaldos.
+- **Funciona sin conexión y sin instalar:** basta Edge. OneDrive se usa solo como destino de los respaldos.

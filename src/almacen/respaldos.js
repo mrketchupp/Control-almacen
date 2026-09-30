@@ -1,0 +1,133 @@
+// Respaldos: un .zip con el estado (JSON), las plantillas de Excel y un manifiesto.
+// Funciones puras (sin navegador) para poder probarlas.
+
+import { FORMATO_ESTADO } from "../nucleo/estado.js";
+import { ahoraIso } from "../nucleo/fechas.js";
+import { bytesATexto, crearZip, descomprimirZip } from "../xlsx/zip.js";
+
+export const ARCHIVO_ESTADO = "estado.json";
+export const ARCHIVO_MANIFIESTO = "manifiesto.json";
+export const CARPETA_PLANTILLAS = "plantillas/";
+const PATRON = /^almacen_(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})(?:_(.+))?\.zip$/;
+
+export class ErrorRespaldo extends Error {}
+
+function limpiarMotivo(motivo) {
+  return (
+    String(motivo || "manual")
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "manual"
+  );
+}
+
+/** almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip */
+export function nombreRespaldo(fechaHora, motivo) {
+  const [fecha, hora] = fechaHora.split("T");
+  return `almacen_${fecha}_${hora.replace(/:/g, "").slice(0, 6)}_${limpiarMotivo(motivo)}.zip`;
+}
+
+export function infoDeNombre(nombre) {
+  const m = PATRON.exec(nombre);
+  if (!m) return null;
+  return { nombre, fecha_hora: `${m[1]}T${m[2]}:${m[3]}:${m[4]}`, fecha: m[1], motivo: m[5] || "" };
+}
+
+/**
+ * @param plantillas  [{ archivo, datos: Uint8Array }]
+ * @returns {{ nombre, datos: Uint8Array, fecha_hora }}
+ */
+export function crearRespaldo(estado, plantillas, { motivo = "manual", version = "", ahora = ahoraIso() } = {}) {
+  if (!estado) throw new ErrorRespaldo("No hay datos que respaldar.");
+  const manifiesto = {
+    aplicacion: "Control de Almacén RIG 91",
+    version_app: version,
+    formato_estado: estado.formato,
+    fecha_hora: ahora,
+    motivo,
+    vales: estado.vales.length,
+    existencias: estado.existencias.length,
+    plantillas: plantillas.map((p) => p.archivo),
+  };
+  const datos = crearZip([
+    [ARCHIVO_MANIFIESTO, JSON.stringify(manifiesto, null, 2)],
+    [ARCHIVO_ESTADO, JSON.stringify(estado)],
+    ...plantillas.map((p) => [`${CARPETA_PLANTILLAS}${p.archivo}`, p.datos]),
+  ]);
+  return { nombre: nombreRespaldo(ahora, motivo), datos, fecha_hora: ahora };
+}
+
+/** Valida y abre un respaldo. @returns {{ estado, plantillas: [{archivo, datos}], manifiesto }} */
+export function leerRespaldo(datos) {
+  let partes;
+  try {
+    partes = descomprimirZip(datos);
+  } catch {
+    throw new ErrorRespaldo("El archivo no es un respaldo válido (no es un .zip).");
+  }
+  if (partes.has("almacen.db")) {
+    throw new ErrorRespaldo(
+      "Este respaldo es de la versión de escritorio (base SQLite) y no se puede abrir en la versión web.",
+    );
+  }
+  if (!partes.has(ARCHIVO_ESTADO)) throw new ErrorRespaldo("El archivo no contiene datos de Control de Almacén.");
+  let estado;
+  try {
+    estado = JSON.parse(bytesATexto(partes.get(ARCHIVO_ESTADO)));
+  } catch {
+    throw new ErrorRespaldo("Los datos del respaldo están dañados (JSON inválido).");
+  }
+  validarEstado(estado);
+  const manifiesto = partes.has(ARCHIVO_MANIFIESTO) ? JSON.parse(bytesATexto(partes.get(ARCHIVO_MANIFIESTO))) : {};
+  const plantillas = [];
+  for (const [nombre, contenido] of partes) {
+    if (nombre.startsWith(CARPETA_PLANTILLAS) && nombre.length > CARPETA_PLANTILLAS.length) {
+      plantillas.push({ archivo: nombre.slice(CARPETA_PLANTILLAS.length), datos: contenido });
+    }
+  }
+  for (const registro of estado.plantillas_excel) {
+    if (!plantillas.some((p) => p.archivo === registro.archivo)) {
+      throw new ErrorRespaldo(`Al respaldo le falta la plantilla ${registro.archivo}.`);
+    }
+  }
+  return { estado, plantillas, manifiesto };
+}
+
+export function validarEstado(estado) {
+  const colecciones = ["variantes", "ubicaciones", "conteos", "existencias", "personas", "vales", "plantillas_excel"];
+  if (!estado || typeof estado !== "object" || colecciones.some((c) => !Array.isArray(estado[c]))) {
+    throw new ErrorRespaldo("El archivo no contiene datos de Control de Almacén.");
+  }
+  if (typeof estado.formato !== "number" || estado.formato > FORMATO_ESTADO) {
+    throw new ErrorRespaldo("El respaldo es de una versión más nueva de la herramienta. Actualiza la página.");
+  }
+  const folios = new Set();
+  for (const vale of estado.vales) {
+    if (vale.folio === null || vale.folio === undefined) continue;
+    const clave = `${vale.tipo}:${vale.folio}`;
+    if (folios.has(clave)) throw new ErrorRespaldo(`Datos inconsistentes: el folio ${clave} está repetido.`);
+    folios.add(clave);
+  }
+}
+
+/**
+ * Conserva el último respaldo de cada uno de los últimos `diarios` días y de los últimos
+ * `mensuales` meses. @returns nombres a borrar
+ */
+export function respaldosABorrar(nombres, { diarios = 30, mensuales = 12 } = {}) {
+  const respaldos = nombres
+    .map(infoDeNombre)
+    .filter(Boolean)
+    .sort((a, b) => (a.fecha_hora < b.fecha_hora ? 1 : a.fecha_hora > b.fecha_hora ? -1 : 0));
+  const dias = new Map();
+  const meses = new Map();
+  for (const r of respaldos) {
+    if (!dias.has(r.fecha)) dias.set(r.fecha, r.nombre);
+    const mes = r.fecha.slice(0, 7);
+    if (!meses.has(mes)) meses.set(mes, r.nombre);
+  }
+  const conservar = new Set([...[...dias.values()].slice(0, diarios), ...[...meses.values()].slice(0, mensuales)]);
+  return respaldos.filter((r) => !conservar.has(r.nombre)).map((r) => r.nombre);
+}

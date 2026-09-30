@@ -1,18 +1,19 @@
 # 06 — Formatos de Excel (importación y exportación)
 
 > Regla general de exportación: **plantilla + edición XML mínima**. Ver la justificación en [03-arquitectura.md](03-arquitectura.md#decisión-clave-exportar-sobre-plantilla-sin-reescribir-el-libro).
-> La plantilla es el último archivo real que el usuario registró en la herramienta (menú *Configuración → Plantillas*).
+> La plantilla es el último archivo real que el usuario registró en la herramienta (en la primera carga; se guarda en el navegador y viaja en los respaldos).
 
-## Técnicas comunes del exportador (`plantilla_ooxml.py`)
+## Técnicas comunes del exportador (`src/xlsx/plantilla.js`)
 
 | Técnica | Detalle |
 |---|---|
-| Copia fiel | Toda parte del ZIP que no se modifica se copia byte por byte, con el mismo orden y compresión |
+| Copia fiel | Toda parte del ZIP que no se modifica se copia byte por byte **con sus bytes comprimidos originales**, en el mismo orden, con la misma fecha y atributos |
+| Edición por texto | En las partes que cambian solo se reemplazan los fragmentos necesarios (`<sheetData>`, `ref`, nombres definidos…); el resto del XML queda igual. Las fórmulas compartidas se reconstruyen desde su maestra al mover filas. |
 | Texto nuevo | Se escribe como *inline string* (`t="inlineStr"`) para **no tocar** `sharedStrings.xml`. Excel lo acepta y lo convierte al guardar. |
 | Estilos | Cada celda nueva usa el atributo `s` (estilo) que tiene esa columna en la plantilla: primera fila de datos de la tabla o última fila de DIARIO |
 | Números y fechas | Números como `<v>`; fechas como número de serie de Excel (`46294` = 29/09/2026) con el estilo de fecha de la plantilla |
 | Fórmulas | Se escriben sin valor en caché. Si el archivo tiene `calcChain.xml`, se elimina (parte, relación y *content type*) y se pone `<calcPr fullCalcOnLoad="1"/>`. |
-| Validación | ZIP válido, XML bien formado (lxml), partes no tocadas idénticas a la plantilla y relectura con openpyxl que coincide con los datos exportados |
+| Validación | Pruebas automáticas: partes no tocadas idénticas a la plantilla, relectura que coincide con los datos exportados y apertura en LibreOffice. En desarrollo se comparó además contra openpyxl celda por celda con los archivos reales. |
 | Prueba de aceptación | Abrir en Excel sin mensaje de reparación y con macros funcionando (manual, en cada versión) |
 
 ---
@@ -108,7 +109,7 @@ En `sheet1.xml` se reemplazan:
 
 ## C. Vales de entrada (`.xlsx`, archivo nuevo)
 
-Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se genera desde cero con openpyxl (Arial y el mismo estilo visual que DIARIO).
+Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se genera desde cero con `src/xlsx/nuevo.js` (Arial y el mismo estilo visual que DIARIO).
 
 - Hoja `DIARIO`, con las mismas columnas A–T del DIARIO de salidas, más una columna **U = Folio interno** (`E-0001`).
 - **B = folio de la base** (P-05).

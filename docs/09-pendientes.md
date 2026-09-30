@@ -6,7 +6,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto | Afecta |
 |---|---|---|---|
-| P-20 | Seguridad de Windows bloquea el instalador ("Acción de riesgo bloqueada"). ¿Versión web local (HTML en Edge), autorización de TI o certificado de firma? | **Versión web local**: no requiere permisos. Antes, validar con `herramientas/diagnostico-navegador.html`. Mientras tanto, probar en Codespaces. | Todas |
+| P-21 | ¿Dónde se abre la página: archivo `ControlAlmacen.html` en OneDrive (doble clic) o sitio publicado (GitHub Pages)? | **Archivo en OneDrive** para empezar: funciona sin internet y no depende de la visibilidad del repositorio. Los datos quedan ligados a la forma elegida (se migra con un respaldo). | Uso diario |
 | P-02 | Lista de códigos **inventariables / consumibles** (la solicitó el usuario a la base). | Mientras llega, la clase se toma de la hoja donde está el artículo (INVENTARIABLE / CONSUMIBLE). | F1 |
 
 ## Vales
@@ -45,10 +45,11 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | — | Equipo, internet, usuarios, dispositivo | PC Windows, internet estable, 2 almacenistas por turnos en la misma PC, solo PC |
 | — | ¿Entradas? | Sí, con historial tipo DIARIO y asignación segura a contenedor |
 | — | Formato de exportación | Idéntico al actual; en el futuro, solo DIARIO |
-| — | Tecnología | `.exe` instalable + respaldo en OneDrive |
+| — | Tecnología | Primero `.exe` instalable; tras el bloqueo (P-20), **web que guarda los datos en el equipo** + respaldo en OneDrive |
+| P-20 | Seguridad de Windows bloquea el instalador ("Acción de riesgo bloqueada") | El usuario decidió **"full web, nada de programas en local", con la información guardada en local** → un HTML en Edge, datos en IndexedDB, respaldos en OneDrive |
 | — | Limpieza del historial | Sí; los faltantes se completan con los PDF escaneados |
-| P-01 | ¿Misma cuenta de Windows? | Sí, misma cuenta y mismo equipo; solo cambia el nombre de quien elabora → datos en `%LOCALAPPDATA%` y selector de "almacenista en turno" |
+| P-01 | ¿Misma cuenta de Windows? | Sí, misma cuenta y mismo equipo; solo cambia el nombre de quien elabora → datos en el navegador de esa cuenta y selector de "almacenista en turno" |
 | P-04 | ¿Vale de la base en Excel? | No, llega en papel (se puede fotografiar o escanear a 300 ppi) → se captura; OCR como mejora futura |
 | P-12 | Folio de corte del conteo del 28-sep | Se descuentan del **550** en adelante (corte = 549) |
-| P-19 | ¿`.exe` sin firma? | No probado; TI puede autorizarlo. Instalador por usuario (sin administrador) con huella SHA-256 |
-| — | ¿La herramienta trae datos? | No: se instala vacía y los datos entran por la primera carga desde los Excel del usuario, en su equipo |
+| P-19 | ¿`.exe` sin firma? | Bloqueado por Seguridad de Windows → se descartó (ver P-20) |
+| — | ¿La herramienta trae datos? | No: llega vacía y los datos entran por la primera carga desde los Excel del usuario, en su equipo |

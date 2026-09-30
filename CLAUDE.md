@@ -1,34 +1,35 @@
 # CLAUDE.md — Guía para sesiones de desarrollo
 
 ## Qué es este proyecto
-Herramienta de escritorio (Windows) para el almacén del RIG 91: inventario por contenedor, vales de salida y entrada con folio controlado, conciliación contra AX y exportación **idéntica** a los Excel actuales. Toda la planeación está en `docs/`. Léela antes de proponer cambios de diseño.
+Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo del usuario**: inventario por contenedor, vales de salida y entrada con folio controlado, conciliación contra AX y exportación **idéntica** a los Excel actuales. Es un solo HTML autocontenido que corre en Edge, sin servidor ni instalación (la PC del almacén bloquea instaladores). Toda la planeación está en `docs/`. Léela antes de proponer cambios de diseño.
 
 ## Estado
-- Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz, empaquetado) entregadas.
+- Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) entregadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F2 (ver `docs/08-plan.md`).
-- Comandos: `pytest` · `ruff check . && ruff format --check .` · `python -m control_almacen --navegador`
-  · empaquetado: `pyinstaller packaging/control_almacen.spec --noconfirm` (el instalador lo arma GitHub Actions).
+- Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Reglas no negociables
-1. **Nunca subir datos reales** (Excel, PDF, `.db`, respaldos). Solo fixtures anonimizadas en `tests/fixtures/`. Revisa `.gitignore` antes de cada commit.
-2. **Exportación sobre plantilla con edición XML mínima** (`docs/03`, `docs/06`). Está prohibido guardar los libros del usuario con `openpyxl.save()`: borra logos, botones con macro, `customXml` y configuración de impresora. openpyxl solo se usa para **leer** y para generar archivos **nuevos** (entradas, solicitud de ajuste).
-3. **Nombres de hoja exactos**, con espacios finales incluidos: `CONTENEDOR #1 CONSUMIBLE `, `CONTENEDOR #5 CONSUMIBLE `, `MECANICO `, `OPERACION DIA `; encabezado `DESCRIPCIÓN `.
-4. **Folios:** únicos, consecutivos y asignados en transacción (`BEGIN IMMEDIATE` + `UNIQUE`). Nunca se reutilizan ni se borran; solo se cancelan o se corrigen con motivo y bitácora.
-5. **Existencias derivadas de movimientos:** CONSUMO e INGRESO se calculan con los vales posteriores al último conteo (corte por **folio**), no se guardan sueltos.
-6. **La base de datos viva no va en OneDrive.** Va en `%LOCALAPPDATA%\ControlAlmacen\` (ambos almacenistas usan la misma cuenta de Windows); a OneDrive solo van respaldos consistentes (API de backup de SQLite).
-7. **Pruebas con Excel sintéticos** generados por `tests/fixtures/generar.py`; si un caso real revela un problema, reprodúcelo ahí con datos inventados.
+1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
+2. **Los datos no salen del equipo.** Nada de servidores, APIs, analítica, CDNs ni fuentes externas. La página lleva CSP `default-src 'none'; connect-src 'none'` y todo va dentro del HTML. No agregues dependencias que necesiten red o `eval`.
+3. **Exportación sobre plantilla con edición XML mínima** (`docs/03`, `docs/06`): solo se reescriben los fragmentos necesarios; las partes no tocadas se copian con sus bytes comprimidos originales. Prohibido reescribir los libros del usuario con una biblioteca genérica (openpyxl, SheetJS…): borra logos, botones con macro, `customXml` y configuración de impresora. `src/xlsx/nuevo.js` solo genera archivos **nuevos** (revisión, entradas, solicitud de ajuste).
+4. **Nombres de hoja exactos**, con espacios finales incluidos: `CONTENEDOR #1 CONSUMIBLE `, `CONTENEDOR #5 CONSUMIBLE `, `MECANICO `, `OPERACION DIA `; encabezado `DESCRIPCIÓN `.
+5. **Folios:** únicos, consecutivos y asignados dentro de un cambio atómico (`Almacen.modificar`, con el candado de pestaña única). Nunca se reutilizan ni se borran; solo se cancelan o se corrigen con motivo y bitácora.
+6. **Existencias derivadas de movimientos:** CONSUMO e INGRESO se calculan con los vales posteriores al último conteo (corte por **folio**), no se guardan sueltos.
+7. **Datos vivos en IndexedDB; respaldos en la carpeta del usuario** (OneDrive) como `.zip` (estado JSON + plantillas + manifiesto). Todo cambio de formato del estado requiere subir `FORMATO_ESTADO` y migrar respaldos anteriores.
+8. **Pruebas con Excel sintéticos**; si un caso real revela un problema, reprodúcelo en `generar.py` con datos inventados.
 
 ## Convenciones
 - **Idioma:** interfaz, documentación, mensajes de commit y comentarios en español. Nombres del dominio en español (`Vale`, `Existencia`, `Folio`); términos técnicos genéricos pueden ir en inglés.
-- Python 3.12, con tipado en funciones públicas. Formato y lint con `ruff`. Pruebas con `pytest`.
-- Capas: `dominio/` no importa nada de `ui/`, `importadores/` ni `exportadores/`.
-- Fechas en ISO dentro de la base; hacia Excel, número de serie con el estilo de la plantilla.
-- Cantidades como `Decimal`, nunca `float`.
+- JavaScript moderno (módulos ES), sin TypeScript ni JSX (Preact + `htm`). Dependencias mínimas y sin red.
+- Capas: `nucleo/` no importa de `ui/`, `almacen/`, `importadores/` ni `exportadores/`. Todo lo que no es `ui/` ni `almacen/archivos.js`/`bd.js` debe correr en Node sin navegador.
+- Fechas como texto ISO (`AAAA-MM-DD`) en el estado; hacia Excel, número de serie con el estilo de la plantilla.
+- Cantidades como texto decimal en el estado y `Big` (big.js) en cálculos; nunca `float`.
 
 ## Verificación antes de cada commit
-- `ruff check . && ruff format --check . && pytest`
-- En cambios a exportadores: prueba de "partes intactas". Todas las partes del ZIP que no se debían tocar deben ser idénticas byte a byte a la plantilla de `tests/fixtures/`.
+- `npm test && npm run build`
+- En cambios a exportadores: prueba de "partes intactas" (las partes que no se debían tocar deben ser idénticas byte a byte a la plantilla).
 - En cambios a importadores: el total por hoja y el número de renglones deben coincidir con la fixture.
+- En cambios de interfaz: abrir `dist/ControlAlmacen.html` en Chromium (Playwright) y recorrer primera carga → exportar → respaldo sin errores en consola.
 
 ## Hechos del dominio que es fácil olvidar
 - AX corta `Tamaño` a 10 caracteres; el código AX viene como texto con ceros (`000000670`).
