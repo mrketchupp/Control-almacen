@@ -7,6 +7,8 @@
 | Inicio | Tablero: siguiente folio, vales de hoy, por enviar, por ubicar, renglones en 0 y botón **＋ Nuevo vale** |
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
+| **Vales de entrada** | Registrar el material que llega de la base (o una devolución): contenedor sugerido, variante nueva, vista previa *había · entra · queda* y folio interno `E-0001` |
+| **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir, captura, diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
 | Inventario | Consultar existencias por contenedor, con búsqueda y filtros |
@@ -94,6 +96,17 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
 5. **Exportar y enviar:** *Exportar vales…* abre el explorador de archivos para que elijas la carpeta y el nombre (la siguiente vez abre en la última carpeta usada). Envíalo por correo a la base como siempre y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* te dice qué vales son nuevos o corregidos desde el último envío.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
+
+### Entradas, conteos y movimientos
+- **Entrada de material** (*Vales de entrada → Nueva entrada*): escribe el folio del vale de la base, de dónde viene y
+  quién lo entrega. Por renglón: código → `Enter` → elige la clave (★ = el contenedor donde hay más de ese material) →
+  cantidad. *Entra a* cambia el contenedor; *Otra dimensión* da de alta una variante nueva (avisa si se parece a una
+  que ya existe); *Sin existencia* es para diésel y gases. Revisa *Así queda el inventario* y pulsa **Registrar entrada**.
+- **Devolución:** *Motivo: Devolución* → folio del vale de salida → *Traer renglones* → ajusta las cantidades.
+- **Conteo físico:** elige todo o algunos contenedores, imprime la hoja de conteo (sin cantidades), *Empezar a
+  capturar*, anota lo contado y lo encontrado, y **Aplicar conteo**. Lo que no captures conserva su conteo anterior.
+- **Mover material de contenedor:** *Inventario* → botón *Mover* del renglón → cantidad y destino. El total no cambia.
+- **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.
 
 ### Áreas y personas
 - **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).

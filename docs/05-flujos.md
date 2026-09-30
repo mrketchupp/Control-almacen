@@ -58,9 +58,20 @@ flowchart TD
 
 **Así se evita meter material al contenedor equivocado:**
 1. Si la variante ya vive en un contenedor, se propone ese.
-2. Si vive en varios, se propone el que tiene más existencia.
-3. La vista previa muestra el nombre exacto de la hoja del Excel donde quedará.
-4. Nada se aplica hasta confirmar, y una entrada confirmada se puede **corregir** con motivo (como los vales de salida, sin cancelar folios).
+2. Si vive en varios, se propone el que tiene más existencia (★ sugerido); "Entra a" permite elegir otro (si la
+   variante no está ahí, se crea su renglón al final de esa hoja).
+3. Una dimensión nueva (variante nueva) pide el contenedor y avisa si se parece a una que ya existe ("Usar esta").
+4. La vista previa (*Así queda el inventario*) muestra la hoja exacta del Excel y cuánto había, entra y queda.
+5. No se registra con renglones sin destino ni con un folio de la base ya registrado (salvo que se marque que es otro vale).
+6. Nada se aplica hasta confirmar, y una entrada confirmada se puede **corregir** con motivo (como los vales de salida,
+   sin cancelar folios; el motivo se llena solo con los cambios).
+
+En la herramienta el vale de la base se **captura** (llega en papel, P-04); leerlo de un Excel o de una foto queda
+como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran con *Sin existencia* (no suman).
+
+**Devolución** (P-08): *Vales de entrada → Motivo: Devolución* → folio de salida → *Traer renglones*. Cada renglón
+regresa al renglón del inventario del que salió; se ajusta la cantidad a lo que regresó. Si la base aún no capturó el
+vale en AX, también se puede corregir el vale de salida original.
 
 ## 3. Corrección y devolución
 
@@ -68,16 +79,24 @@ flowchart TD
 |---|---|
 | **Error de captura** en un vale emitido | *Historial → folio → Corregir*. El **motivo se llena solo** con lo que cambió (partidas agregadas, quitadas o modificadas, personas, etapa, fotos) y se puede completar con el porqué. El folio no cambia. La bitácora guarda el motivo, la lista de cambios y antes → después; la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias). |
 | **Vale que no debió emitirse** | No se cancela (todos los folios se usan): se corrige para que refleje lo que realmente salió. |
-| **Devolución de material** | Pendiente de confirmar (P-08). Opción A: corregir el vale original. Opción B: vale de entrada tipo "Devolución" que referencia el folio original. |
+| **Devolución de material** | Vale de entrada con motivo *Devolución* que referencia el folio de salida y regresa cada renglón a su contenedor. Si la base aún no lo captura en AX, también se puede corregir el vale original (P-08). |
 | **Vale ya enviado a la base y luego corregido** | Vuelve a aparecer en *Exportar y enviar → Por enviar a la base* con el cambio "Corregido", para avisar a la base. |
 
 ## 4. Conteo físico
 
-1. Elegir el alcance: todo o algunos contenedores.
-2. (Opcional) Imprimir la hoja de conteo por contenedor, sin cantidades.
-3. Capturar lo contado. La herramienta muestra la diferencia contra el teórico (`TOTAL`) antes de aplicar.
-4. Aplicar: `CANTIDAD` = contado, y CONSUMO/INGRESO se reinician. El conteo registra el último folio de salida y de entrada incluidos.
-5. El conteo anterior queda en el historial.
+1. Elegir el alcance: todo o algunos contenedores (*Conteo físico*).
+2. (Opcional) Imprimir la hoja de conteo por contenedor, sin cantidades ("a ciegas"), con renglones en blanco para lo encontrado.
+3. *Empezar a capturar*: se guarda el corte (último folio de salida y de entrada) de ese momento. La captura se guarda
+   sola y no cambia nada del inventario.
+4. Capturar lo contado. Se ve la diferencia contra lo que dice el sistema (`TOTAL`), o se oculta para capturar a ciegas.
+   Lo encontrado que no tiene renglón se agrega con su contenedor (va al final de esa hoja).
+5. Si se emitieron vales mientras se contaba, la herramienta pregunta si el material ya había salido/entrado al contar
+   (el corte queda al empezar o al aplicar).
+6. Aplicar: en cada renglón contado `CANTIDAD` = contado y CONSUMO/INGRESO se reinician; los no capturados conservan su
+   conteo anterior. El conteo guarda por renglón lo que había antes y se ve en *Conteos anteriores* con sus diferencias.
+
+**Mover material entre contenedores** (*Inventario → Mover*): cantidad y contenedor de destino. El total no cambia; los
+dos renglones quedan como recién contados y el movimiento queda en *Movimientos entre contenedores*.
 
 ## 5. Conciliación contra AX
 

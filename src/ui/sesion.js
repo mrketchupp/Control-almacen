@@ -17,6 +17,7 @@ import {
 } from "../almacen/archivos.js";
 import { infoDeNombre, respaldosABorrar } from "../almacen/respaldos.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
+import { documentoHojaConteo } from "../impresion/conteo.js";
 import { documentoImpresion } from "../impresion/vale.js";
 import { CAPACIDAD_DEFECTO, plantillaArea } from "../servicios/vales.js";
 import { LibroLeido } from "../xlsx/leer.js";
@@ -335,7 +336,16 @@ export class Sesion {
 
   /** Abre el cuadro de impresión del navegador (desde ahí también se guarda en PDF). */
   async imprimirVales(vales) {
-    const documento = await this.documentoVales(vales);
+    await this.imprimirDocumento(await this.documentoVales(vales));
+  }
+
+  /** Hoja de conteo por contenedor, sin cantidades (RF-41). */
+  async imprimirHojaConteo(ubicaciones, fecha = null) {
+    await this.imprimirDocumento(documentoHojaConteo(this.estado, { ubicaciones, fecha }));
+  }
+
+  /** Imprime un documento { css, html } sin mostrar el resto de la página. */
+  async imprimirDocumento(documento) {
     let area = document.getElementById("area-impresion");
     if (!area) {
       area = document.createElement("div");

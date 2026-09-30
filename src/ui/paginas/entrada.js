@@ -1,0 +1,157 @@
+import { useMemo, useState } from "preact/hooks";
+import { aNumero } from "../../nucleo/decimal.js";
+import { Indices } from "../../nucleo/estado.js";
+import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
+import {
+  ErrorEntrada,
+  MOTIVOS_ENTRADA,
+  corregirEntrada,
+  datosParaCorregirEntrada,
+  folioEntrada,
+  resumenCambiosEntrada,
+  validarEntrada,
+} from "../../servicios/entradas.js";
+import { lugarCorto } from "../../servicios/inventario.js";
+import { bitacoraDeVale } from "../../servicios/vales.js";
+import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
+import { html } from "../html.js";
+import { EditorEntrada } from "./entradas.js";
+import { ListaErrores } from "./vales.js";
+
+const ACCIONES = { EMITIR: "Registrada", CORREGIR: "Corregida" };
+
+export function entradaDeRuta() {
+  const m = /^#entrada\/(\d+)/.exec(location.hash);
+  return m ? Number(m[1]) : null;
+}
+
+function CorreccionEntrada({ vale, alTerminar }) {
+  const sesion = useSesion();
+  const [datos, setDatos] = useState(() => datosParaCorregirEntrada(sesion.estado, vale.id));
+  const [motivoPropio, setMotivoPropio] = useState(null);
+  const [errores, setErrores] = useState([]);
+  const cambios = useMemo(() => resumenCambiosEntrada(sesion.estado, vale, datos), [datos, vale]);
+  const { avisos } = useMemo(() => validarEntrada(sesion.estado, datos, { excluirValeId: vale.id }), [datos, vale]);
+  const motivo = motivoPropio ?? cambios.join("\n");
+  const guardar = () =>
+    sesion.tarea("Guardando corrección…", async () => {
+      const faltan = [...validarEntrada(sesion.estado, datos, { excluirValeId: vale.id }).errores];
+      if (!cambios.length) faltan.push({ renglon: null, campo: "vale", mensaje: "No has cambiado nada de la entrada." });
+      else if (!motivo.trim()) faltan.push({ renglon: null, campo: "motivo", mensaje: "Escribe el motivo de la corrección." });
+      setErrores(faltan);
+      if (faltan.length) return;
+      try {
+        await sesion.almacen.modificar((e) => corregirEntrada(e, vale.id, datos, motivo, sesion.usuario));
+        sesion.avisar("exito", `Entrada ${folioEntrada(vale.folio)} corregida. Queda en la bitácora.`);
+        alTerminar();
+      } catch (error) {
+        if (error instanceof ErrorEntrada) setErrores(error.errores.length ? error.errores : [{ renglon: null, campo: "vale", mensaje: error.message }]);
+        else throw error;
+      }
+    });
+  return html`<${Tarjeta} titulo=${`Corregir entrada ${folioEntrada(vale.folio)}`} clase="tarjeta-correccion">
+    <${EditorEntrada}
+      datos=${datos}
+      alCambiar=${setDatos}
+      errores=${errores}
+      excluirValeId=${vale.id}
+      pie=${html`${avisos.filter((a) => a.campo === "cantidad").length
+          ? html`<${Aviso} tipo="advertencia" titulo="Revisa la existencia">
+              <ul>${avisos.filter((a) => a.campo === "cantidad").map((a) => html`<li>${a.mensaje}</li>`)}</ul>
+            <//>`
+          : null}
+        <div class="campo motivo">
+          <span>
+            Motivo de la corrección (queda en la bitácora)
+            ${motivoPropio !== null
+              ? html` · <button type="button" class="enlace-boton" onClick=${() => setMotivoPropio(null)}>↺ Volver a llenarlo con los cambios</button>`
+              : html` · <small class="ayuda">se llena solo con los cambios; puedes agregar el porqué</small>`}
+          </span>
+          <textarea
+            rows=${Math.min(8, Math.max(3, motivo.split("\n").length + 1))}
+            value=${motivo}
+            onInput=${(e) => setMotivoPropio(e.currentTarget.value)}
+            placeholder="Cambia algo de la entrada y aquí aparece qué cambió."
+            aria-label="Motivo de la corrección"
+          ></textarea>
+        </div>
+        <${ListaErrores} errores=${errores} />
+        <div class="acciones-linea pie-editor">
+          <${Boton} onClick=${alTerminar}>Cancelar<//>
+          <span class="espaciador"></span>
+          <${Boton} tipo="primario" onClick=${guardar}>Guardar corrección<//>
+        </div>`}
+    />
+  <//>`;
+}
+
+export function PaginaEntrada() {
+  const sesion = useSesion();
+  const estado = sesion.estado;
+  const id = entradaDeRuta();
+  const vale = estado.vales.find((v) => v.id === id && v.tipo === "ENTRADA");
+  const [corrigiendo, setCorrigiendo] = useState(false);
+  const indices = useMemo(() => new Indices(estado), [estado]);
+  if (!vale) return html`<${Aviso} tipo="advertencia" titulo="No se encontró la entrada">Vuelve al <a href="#historial">historial</a>.<//>`;
+  const lugar = (l) => {
+    if (l.existencia_id === null || l.existencia_id === undefined) return l.no_inventariado ? "Sin existencia" : "—";
+    const e = indices.existencia(l.existencia_id);
+    const u = e && indices.ubicacion(e.ubicacion_id);
+    return u ? html`<span title=${u.hoja_excel.trim()}>${lugarCorto(u)}</span>${e.origen === `ENTRADA ${folioEntrada(vale.folio)}` ? html` <small class="nota">renglón nuevo</small>` : null}` : "—";
+  };
+  const bitacora = bitacoraDeVale(estado, vale.id).reverse();
+  const motivo = vale.motivo ?? "BASE";
+  return html`
+    <div class="cabeza-vale">
+      <div>
+        <span class="folio-grande">Entrada ${folioEntrada(vale.folio)}</span>
+        <${Insignia} tono="ok">${motivo === "DEVOLUCION" ? "DEVOLUCIÓN" : "REGISTRADA"}<//>
+        ${vale.modificado_en ? html`<${Insignia}>Corregida<//>` : null}
+      </div>
+      <div class="acciones-linea">
+        ${!corrigiendo ? html`<${Boton} onClick=${() => setCorrigiendo(true)}>Corregir<//>` : null}
+        <a class="boton boton-texto" href="#historial/entradas">← Historial de entradas</a>
+      </div>
+    </div>
+    ${corrigiendo
+      ? html`<${CorreccionEntrada} vale=${vale} alTerminar=${() => setCorrigiendo(false)} />`
+      : html`
+          <div class="datos datos-texto">
+            <${Dato} etiqueta="Fecha" valor=${fmtFecha(vale.fecha)} />
+            <${Dato} etiqueta="Motivo" valor=${MOTIVOS_ENTRADA[motivo]} detalle=${motivo === "DEVOLUCION" ? html`<a href=${`#vale/${estado.vales.find((v) => v.tipo === "SALIDA" && v.folio === vale.devolucion_folio)?.id ?? ""}`}>del vale ${vale.devolucion_folio}</a>` : ""} />
+            <${Dato} etiqueta="Folio de la base" valor=${vale.folio_externo || "—"} />
+            <${Dato} etiqueta="Viene de" valor=${vale.origen || "—"} detalle=${vale.depto_origen ?? ""} />
+            <${Dato} etiqueta="Entregó" valor=${vale.entrego_nombre || "—"} detalle=${vale.entrego_puesto ?? ""} />
+            <${Dato} etiqueta="Recibió" valor=${vale.recibio_nombre || "—"} detalle=${vale.recibio_puesto ?? ""} />
+          </div>
+          ${vale.observaciones ? html`<${Tarjeta} titulo="Observaciones"><p class="preformateado">${vale.observaciones}</p><//>` : null}
+          <${Tarjeta} titulo=${`Renglones (${vale.lineas.length})`}>
+            <${Tabla}
+              filas=${vale.lineas}
+              columnas=${[
+                { clave: "renglon", titulo: "#", numero: true },
+                { clave: "codigo", titulo: "Código", numero: true },
+                { clave: "descripcion", titulo: "Descripción" },
+                { clave: "clave", titulo: "Clave" },
+                { titulo: "Cantidad", numero: true, render: (l) => num(aNumero(l.cantidad)) },
+                { clave: "um", titulo: "UM" },
+                { titulo: "O.C.", render: (l) => l.oc || "S/OC" },
+                { titulo: "Entró a", render: (l) => lugar(l) },
+              ]}
+            />
+          <//>
+        `}
+    <${Tarjeta} titulo="Bitácora">
+      ${bitacora.length
+        ? html`<ul class="bitacora">
+            ${bitacora.map(
+              (a) => html`<li>
+                <strong>${ACCIONES[a.accion] ?? a.accion}</strong> · ${fmtFechaHora(a.fecha_hora)} · ${a.usuario ?? "sin usuario"}
+                ${a.accion === "CORREGIR" && a.antes?.motivo ? html`<div class="nota preformateado">${a.antes.motivo}</div>` : null}
+              </li>`,
+            )}
+          </ul>`
+        : html`<p class="nota">Sin movimientos.</p>`}
+    <//>
+  `;
+}

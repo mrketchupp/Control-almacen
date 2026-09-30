@@ -5,10 +5,24 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 
 ## Estado
 - Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
-- Fase 2 (vales de salida: borradores, folio, impresión sobre la hoja-formulario, corrección, envíos, áreas, NOV con 4 firmas y fotos) entregada, en aceptación; falta que el usuario valide el vale impreso (P-09) y definir transferencias (P-22).
-- Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F3 (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 4` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`).
+- Fase 2 (vales de salida) **aceptada** (P-09 validado impreso, P-22 así está bien, P-23 lo corrige el usuario).
+- Fase 3 (entradas, conteos, reacomodos) **entregada, en aceptación** — ver "Avance de la Fase 3" abajo.
+- Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F4 conciliación AX (ver `docs/08-plan.md`).
+- Formato del estado: `FORMATO_ESTADO = 5` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos.
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
+
+## Avance de la Fase 3 (para retomar sin depender de la conversación)
+Hecho (con pruebas unitarias y recorrido en Chromium con datos sintéticos, incluida la actualización desde la versión anterior):
+- Núcleo: `src/servicios/entradas.js` (borradores, destino sugerido, variante nueva, vista previa, confirmar `E-0001`, corrección, devoluciones, historial), `conteos.js` (conteo en curso, aplicar total/parcial, sobrantes, vales durante el conteo, historial), `reacomodos.js`, `inventario.js` (renglón nuevo al final de su hoja, variantes parecidas, contenedores sugeridos). `cortesVigentes` en `nucleo/existencias.js` sustituye al "último conteo" como corte único.
+- Exportación: `src/exportadores/entradas.js` (`VALES DE ENTRADA DLTA.xlsx`, tipo `ENTRADAS` en `Almacen.exportar`); hoja de conteo `src/impresion/conteo.js`.
+- Interfaz: `ui/paginas/entradas.js` (captura), `entrada.js` (detalle y corrección), `conteo.js`, `inventario.js` (Mover), `historial.js` (pestañas Salidas/Entradas), exportar, inicio, ayuda, navegación.
+- Docs 04, 05, 06, 08, 09, 10 y README actualizados.
+
+Pendiente:
+- ☐ Aceptación del usuario: registrar una entrada real y revisar el inventario exportado; hacer un conteo con la hoja impresa.
+- ☐ Recorrido con los archivos reales del usuario (solo en local, nunca subirlos) como en rondas anteriores.
+- ☐ P-08: confirmar con el usuario si las devoluciones se registran como entrada o corrigiendo el vale original (la herramienta permite ambas).
+- Futuro (no es F3): leer el vale de la base desde Excel o foto (RF-35); resumen de guardia.
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
@@ -47,4 +61,6 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - NOV: la macro guardaba las firmas **por posición** (P = izquierda = químico, Q = derecha = almacenista). Los migrados quedan así (`firmasPorPosicion`/`conFirmasPorPapel` para mostrarlos); los nuevos se guardan por papel y el exportador los invierte con `almacenista_derecha`.
 - Las fotos del formato NOV (imágenes sobre la zona de partidas) son espacios para las fotos del vale, no se imprimen; las partidas caben arriba (4).
 - UI: no usar `<select>` ni `<datalist>`; usar `Lista`, `Combo` y `CampoSugerido` (`src/ui/componentes.js`).
+- Entradas: folio interno propio (`E-0001`, consecutivo aparte de salidas); B del libro de entradas = folio de la base. Un renglón de entrada va a un renglón existente, a uno nuevo (variante existente en otro contenedor o variante nueva) o *sin existencia*.
+- Conteos: cada renglón descuenta desde **su** conteo (`existencia.conteo_id`); un conteo parcial solo toca lo capturado. El reacomodo deja ambos renglones "recién contados" (conteo `tipo: REACOMODO`, que no se lista como conteo físico).
 - El panel de datos del vale se arma por bloques (`bloques` en `EditorVale`) en el orden de `config.preferencias_vale[almacenista]` (`src/servicios/preferencias.js`). Un bloque nuevo se agrega en `BLOQUES_VALE` y en `bloques`; `normalizarOrden` lo inserta en su lugar para quien ya tenía preferencias.

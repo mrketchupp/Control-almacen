@@ -14,29 +14,29 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
 | P-07 | ¿Cómo debe aparecer un **vale cancelado** en el DIARIO? | **Resuelto por el usuario:** no se cancelan folios; todos se usan y un error se corrige. (Los cancelados de versiones anteriores siguen saliendo como renglón en 0.) |
-| P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. |
-| P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | **F2 imprime sobre la hoja-formulario del propio libro** (logo, colores, bordes, anchos, pie de página y escala de Excel), así que sale prácticamente idéntico. **Falta que el usuario imprima uno y lo compare** antes de cerrar la fase. |
+| P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. **F3 permite las dos**; falta que el usuario confirme cuál prefiere la base. |
+| P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | **Resuelto:** el usuario los comparó impresos y "lucen 98 % similares"; funcionan. |
 | P-10 | Tamaño de hoja e impresora | Carta, vertical, 1 vale por hoja |
 | P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. |
 | P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias o en las áreas marcadas "Exigir Autorizó"; el autorizador habitual se guarda en el área. **Aplicado en F2.** |
 | P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** |
-| P-22 | **Transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | Por ahora se editan libremente en el vale (origen, destino, deptos, observaciones); Autorizó (nombre y puesto) obligatorio. NOV ya se resolvió: datos fijos como el vale existente, 4 firmas y 3 fotos. |
-| P-23 | La línea de observaciones del formato dice `ETAPA DE PERFORACION: 12 1/4""` (dos comillas). ¿Es intencional? | Se respeta tal cual; en cada vale se escribe la etapa como se quiera ver impresa. |
+| P-22 | **Transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | **Resuelto:** así están correctos (se editan en el vale; Autorizó con nombre y puesto obligatorio). |
+| P-23 | La línea de observaciones del formato dice `ETAPA DE PERFORACION: 12 1/4""` (dos comillas). ¿Es intencional? | **Resuelto:** era un error de dedo (una sola comilla); el usuario lo corrige en su formato / en Ajustes. |
 
 ## Entradas
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-05 | En el historial de entradas, ¿"No. folio" debe ser el folio de la base o uno propio? | B = folio de la base; columna extra U = folio interno `E-0001` |
-| P-06 | ¿Alguien más necesita el historial de entradas (la base, auditoría)? | Exportable en `VALES DE ENTRADA DLTA.xlsx`; se envía solo si lo piden |
+| P-05 | En el historial de entradas, ¿"No. folio" debe ser el folio de la base o uno propio? | B = folio de la base; columna extra U = folio interno `E-0001`. **Aplicado en F3.** |
+| P-06 | ¿Alguien más necesita el historial de entradas (la base, auditoría)? | Exportable en `VALES DE ENTRADA DLTA.xlsx`; se envía solo si lo piden. **Aplicado en F3.** |
 
 ## Inventario y conciliación
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
 | P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. |
-| P-11 | ¿Cada cuándo se hace un **conteo físico** completo? ¿Hay conteos cíclicos por contenedor? | Soportar ambos: total y parcial por contenedor |
-| P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos) |
+| P-11 | ¿Cada cuándo se hace un **conteo físico** completo? ¿Hay conteos cíclicos por contenedor? | Soportar ambos: total y parcial por contenedor. **Aplicado en F3.** |
+| P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos). **Aplicado.** |
 | P-17 | Columna **ITEM**: ¿renumerar consecutivo al exportar? | Sí, 1..n por hoja |
 | P-18 | Solicitud de ajuste: ¿solo renglones con diferencia o todos? | Solo con diferencia, con opción de incluir todos |
 

@@ -113,9 +113,15 @@ En `sheet1.xml` se reemplazan:
 Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se genera desde cero con `src/xlsx/nuevo.js` (Arial y el mismo estilo visual que DIARIO).
 
 - Hoja `DIARIO`, con las mismas columnas A–T del DIARIO de salidas, más una columna **U = Folio interno** (`E-0001`).
-- **B = folio de la base** (P-05).
+- **B = folio de la base** (P-05); en una devolución sin folio de la base, `DEV. <folio de salida>`.
 - **C = `XXXXX`, D = `0`**: marca de entrada, igual que en el formato en papel.
-- **Nombre de archivo:** `VALES DE ENTRADA DLTA.xlsx`.
+- E–H: de dónde viene y `RIG 91 · ALMACEN`; P = quien entregó (base), Q = almacenista que recibió; R = `0`.
+- **U = Folio interno** `E-0001`. Encabezado con filtro y panel congelado; fechas con formato `dd/mm/yyyy`.
+- **Nombre de archivo:** `VALES DE ENTRADA DLTA.xlsx` (*Exportar y enviar → Vales de entrada*).
+
+**En el inventario exportado**, los renglones que crea la herramienta (entradas de una variante o contenedor nuevos,
+material encontrado en un conteo, reacomodos) van **al final de la tabla de su hoja**, con el estilo del renglón modelo
+de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuevos se agregan a `ARTICULOS_MX` (P-15).
 
 ---
 

@@ -1,6 +1,7 @@
 import { useMemo } from "preact/hooks";
 import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
 import { resumen } from "../../servicios/consultas.js";
+import { folioEntrada } from "../../servicios/entradas.js";
 import { siguienteFolio, valesPorEnviar } from "../../servicios/vales.js";
 import { Aviso, Boton, Dato, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
@@ -111,7 +112,10 @@ export function PaginaInicio() {
       : null}
     <div class="acciones-linea acciones-inicio">
       <a class="boton boton-primario boton-grande" href="#vales">＋ Nuevo vale · folio ${siguienteFolio(estado)}</a>
+      <a class="boton boton-secundario boton-grande" href="#entradas">＋ Entrada de material · ${folioEntrada(siguienteFolio(estado, "ENTRADA"))}</a>
       ${datos.borradores ? html`<a class="boton boton-secundario" href="#vales">${datos.borradores} borrador(es) en captura</a>` : null}
+      ${datos.borradores_entrada ? html`<a class="boton boton-secundario" href="#entradas">${datos.borradores_entrada} entrada(s) en captura</a>` : null}
+      ${datos.conteo_en_curso ? html`<a class="boton boton-secundario" href="#conteo">Conteo físico en captura</a>` : null}
       ${porEnviar ? html`<a class="boton boton-secundario" href="#exportar">${porEnviar} vale(s) por enviar a la base</a>` : null}
     </div>
     <div class="datos">
@@ -122,13 +126,19 @@ export function PaginaInicio() {
       <${Dato} etiqueta="Renglones en 0 o menos" valor=${num(datos.agotados)} tono=${datos.agotados ? "alerta" : "ok"} detalle="ver en Inventario" />
       <${Dato} etiqueta="Renglones de inventario" valor=${num(datos.existencias)} detalle=${`${datos.ubicaciones} hojas / contenedores`} />
       <${Dato} etiqueta="Artículos en catálogo" valor=${num(datos.articulos)} detalle=${datos.por_confirmar ? `${datos.por_confirmar} por confirmar` : "todos confirmados"} />
-      <${Dato} etiqueta="Conteo base" valor=${fmtFecha(datos.conteo_fecha)} detalle=${`descuenta desde el folio ${(datos.conteo_folio ?? 0) + 1}`} />
+      <${Dato} etiqueta="Entradas" valor=${num(datos.entradas)} detalle=${datos.ultima_entrada ? `última: ${folioEntrada(datos.ultima_entrada)} · ${fmtFecha(datos.fecha_ultima_entrada)}` : "aún no hay"} />
+      <${Dato}
+        etiqueta="Último conteo"
+        valor=${fmtFecha(datos.conteo_fecha)}
+        detalle=${`${datos.conteo_alcance === "PARCIAL" ? "parcial · " : ""}${datos.conteos > 1 ? "cada renglón descuenta desde su conteo" : `descuenta desde el folio ${(datos.conteo_folio ?? 0) + 1}`}`}
+      />
     </div>
     <${Tarjeta} titulo="Uso diario">
       <ol class="pasos">
         <li>Elige quién está en turno (arriba a la derecha).</li>
         <li><a href="#vales">Haz los vales</a> en la herramienta: elige el área y quién recibe, agrega las partidas (código → clave → cantidad) y emite. El folio se asigna solo; imprime el vale para las firmas.</li>
         <li>Resuelve los <a href="#pendientes">pendientes</a> si la insignia muestra un número.</li>
+        <li>Cuando llegue material, regístralo en <a href="#entradas">Vales de entrada</a>: se sugiere el contenedor donde ya está y ves cómo queda antes de confirmar.</li>
         <li><a href="#exportar">Exporta</a> el libro de vales, envíalo a la base y márcalo como enviado.</li>
       </ol>
       ${Object.keys(datos.ultima_exportacion).length

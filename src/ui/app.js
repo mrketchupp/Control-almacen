@@ -13,6 +13,9 @@ import { PaginaPrimeraCarga } from "./paginas/primeraCarga.js";
 import { PaginaRespaldos } from "./paginas/respaldos.js";
 import { PaginaAjustes } from "./paginas/ajustes.js";
 import { PaginaAreas } from "./paginas/areas.js";
+import { PaginaConteo } from "./paginas/conteo.js";
+import { PaginaEntrada } from "./paginas/entrada.js";
+import { PaginaValesEntrada } from "./paginas/entradas.js";
 import { PaginaVale } from "./paginas/vale.js";
 import { PaginaValesSalida } from "./paginas/vales.js";
 import { valesPorEnviar } from "../servicios/vales.js";
@@ -21,9 +24,12 @@ const PAGINAS = {
   inicio: { titulo: "Inicio", componente: PaginaInicio },
   carga: { titulo: "Primera carga", componente: PaginaPrimeraCarga, soloVacia: true },
   vales: { titulo: "Vales de salida", componente: PaginaValesSalida, requiereDatos: true },
+  entradas: { titulo: "Vales de entrada", componente: PaginaValesEntrada, requiereDatos: true },
   historial: { titulo: "Historial de vales", componente: PaginaHistorial, requiereDatos: true },
   vale: { titulo: "Vale", componente: PaginaVale, requiereDatos: true, oculta: true },
+  entrada: { titulo: "Entrada", componente: PaginaEntrada, requiereDatos: true, oculta: true },
   inventario: { titulo: "Inventario", componente: PaginaInventario, requiereDatos: true },
+  conteo: { titulo: "Conteo físico", componente: PaginaConteo, requiereDatos: true },
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true },
   exportar: { titulo: "Exportar y enviar", componente: PaginaExportar, requiereDatos: true },
   areas: { titulo: "Áreas y personas", componente: PaginaAreas, requiereDatos: true },
@@ -109,13 +115,16 @@ function Navegacion({ actual }) {
   const pendientes = useMemo(() => (sesion.estado && !vacia ? lineasPorUbicar(sesion.estado).length : 0), [sesion.estado]);
   const porEnviar = useMemo(() => (sesion.estado && !vacia ? valesPorEnviar(sesion.estado).length : 0), [sesion.estado]);
   const borradores = sesion.estado?.borradores?.length ?? 0;
+  const borradoresEntrada = sesion.estado?.borradores_entrada?.length ?? 0;
   const enlaces = Object.entries(PAGINAS).filter(([, p]) => !p.oculta && (vacia ? !p.requiereDatos : !p.soloVacia));
-  const insignia = { pendientes, exportar: porEnviar, vales: borradores };
+  const insignia = { pendientes, exportar: porEnviar, vales: borradores, entradas: borradoresEntrada, conteo: sesion.estado?.conteo_en_curso ? "•" : 0 };
+  const suaves = new Set(["vales", "entradas", "conteo"]);
+  const titulos = { vales: "Borradores en captura", entradas: "Entradas en captura", conteo: "Conteo en captura", exportar: "Vales por enviar a la base", pendientes: "Renglones por ubicar" };
   return html`<nav class="navegacion" aria-label="Secciones">
     ${enlaces.map(
       ([clave, p]) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""} aria-current=${clave === actual ? "page" : null}>
         ${p.titulo}
-        ${insignia[clave] ? html`<span class=${`contador ${clave === "vales" ? "contador-suave" : ""}`} title=${clave === "vales" ? "Borradores en captura" : clave === "exportar" ? "Vales por enviar a la base" : "Renglones por ubicar"}>${insignia[clave]}</span>` : null}
+        ${insignia[clave] ? html`<span class=${`contador ${suaves.has(clave) ? "contador-suave" : ""}`} title=${titulos[clave]}>${insignia[clave]}</span>` : null}
       </a>`,
     )}
   </nav>`;
@@ -144,7 +153,7 @@ function Marco() {
   }, []);
   let clave = pagina;
   const definicion = PAGINAS[clave];
-  const activa = clave === "vale" ? "historial" : clave;
+  const activa = clave === "vale" || clave === "entrada" ? "historial" : clave;
   if (definicion.requiereDatos && sesion.almacen.vacio) clave = "inicio";
   if (definicion.soloVacia && !sesion.almacen.vacio) clave = "inicio";
   const Componente = PAGINAS[clave].componente;
@@ -163,8 +172,8 @@ function Marco() {
     <div class="cuerpo">
       <${Navegacion} actual=${activa} />
       <main class="contenido">
-        ${clave === "vale" ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
-        <${Componente} key=${clave === "vale" ? ruta : clave} />
+        ${clave === "vale" || clave === "entrada" ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
+        <${Componente} key=${clave === "vale" || clave === "entrada" ? ruta : clave} />
       </main>
     </div>
     ${sesion.ocupado ? html`<div class="ocupado" role="status"><div class="giro"></div>${sesion.ocupado}</div>` : null}

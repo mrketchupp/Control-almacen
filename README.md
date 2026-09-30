@@ -13,9 +13,10 @@ internet. Tiene cuatro objetivos:
 
 ## Estado
 
-**Fase 2 — Vales de salida (entregada, en revisión del usuario).** La herramienta ya emite vales con folio automático,
-los imprime sobre tu propio formato (NOV con sus 4 firmas y fotos), permite corregirlos con bitácora (sin saltar ni cancelar folios) y lleva el control de qué falta
-enviar a la base. Fase 1 (primera carga y exportación idéntica) aceptada.
+**Fase 3 — Vales de entrada y conteos (entregada, en aceptación).** Entradas con contenedor sugerido y vista previa
+(folio `E-0001`), devoluciones, historial y exportación de entradas, conteo físico total o parcial con hoja imprimible y
+movimientos entre contenedores. Fases 1 (primera carga y exportación idéntica) y 2 (vales de salida con impresión sobre
+tu formato, corrección con bitácora y control de envíos) aceptadas.
 Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
 

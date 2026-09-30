@@ -12,7 +12,9 @@ import { claveEstricta } from "./normalizar.js";
 // Formato 3: tipo de área (interna / externa / transferencia) y etapa de perforación.
 // Formato 4: sin cancelación ni folio mínimo; puesto de quien autoriza, segunda fila de
 // firmas (NOV) y fotos de los vales.
-export const FORMATO_ESTADO = 4;
+// Formato 5 (Fase 3): vales de entrada en borrador, conteo en curso y reacomodos entre
+// contenedores. Cada conteo guarda su alcance y sus renglones contados.
+export const FORMATO_ESTADO = 5;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio() {
@@ -34,6 +36,9 @@ export function estadoVacio() {
     auditoria: [],
     borradores: [], // vales en captura: no tienen folio
     envios: [], // cada vez que el DIARIO exportado se envió a la base
+    borradores_entrada: [], // vales de entrada en captura: no tienen folio
+    conteo_en_curso: null, // conteo físico capturándose (aún no cambia el inventario)
+    reacomodos: [], // movimientos entre contenedores (no cambian el total)
     config: {},
   };
 }
@@ -76,6 +81,14 @@ export function migrarEstado(estado) {
       if (tieneDatosFijos(area)) Object.assign(b, { origen: area.origen, depto_origen: area.depto_origen, destino: area.destino, depto_destino: area.depto_destino });
     }
     estado.formato = 4;
+  }
+  if (estado.formato < 5) {
+    estado.borradores_entrada ??= [];
+    estado.conteo_en_curso ??= null;
+    estado.reacomodos ??= [];
+    // Los conteos anteriores (la primera carga) abarcaban todo el inventario.
+    for (const conteo of estado.conteos) conteo.alcance ??= "TOTAL";
+    estado.formato = 5;
   }
   return estado;
 }

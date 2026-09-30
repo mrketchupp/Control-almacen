@@ -3,16 +3,20 @@
 import { clavesDeBusqueda, hayInterseccion } from "../nucleo/catalogo.js";
 import { aNumero } from "../nucleo/decimal.js";
 import { ratio } from "../nucleo/difflib.js";
-import { Indices, auditar, dimensionMostrada, npMostrado, ultimoConteo, umMostrada } from "../nucleo/estado.js";
-import { calcularSaldos } from "../nucleo/existencias.js";
+import { Indices, auditar, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
+import { calcularSaldos, corteDe, cortesVigentes } from "../nucleo/existencias.js";
 import { fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveLaxa } from "../nucleo/normalizar.js";
 
 export function resumen(estado) {
   const salidas = estado.vales.filter((v) => v.tipo === "SALIDA");
+  const entradas = estado.vales.filter((v) => v.tipo === "ENTRADA" && v.estado === "EMITIDO");
+  const ultimaEntrada = entradas.reduce((a, v) => (!a || v.folio > a.folio ? v : a), null);
+  const cortes = cortesVigentes(estado);
   const conFolio = salidas.filter((v) => v.folio !== null && v.folio !== undefined);
   const ultimo = conFolio.reduce((a, v) => (!a || v.folio > a.folio ? v : a), null);
-  const conteo = ultimoConteo(estado);
+  // El último conteo físico (los reacomodos también fijan la cantidad de sus renglones, pero no son conteos).
+  const conteo = [...estado.conteos].reverse().find((c) => c.tipo !== "REACOMODO") ?? null;
   const exportaciones = {};
   for (const e of estado.exportaciones) exportaciones[e.tipo] = e.fecha_hora;
   return {
@@ -26,7 +30,14 @@ export function resumen(estado) {
     por_ubicar: lineasPorUbicar(estado).length,
     por_confirmar: Object.values(estado.articulos).filter((a) => a.por_confirmar).length,
     conteo_fecha: conteo ? conteo.fecha : null,
-    conteo_folio: conteo ? conteo.ultimo_folio_salida : null,
+    conteo_alcance: conteo ? (conteo.alcance ?? "TOTAL") : null,
+    conteo_folio: cortes.salida,
+    conteos: estado.conteos.length,
+    conteo_en_curso: Boolean(estado.conteo_en_curso),
+    entradas: entradas.length,
+    ultima_entrada: ultimaEntrada ? ultimaEntrada.folio : null,
+    fecha_ultima_entrada: ultimaEntrada ? ultimaEntrada.fecha : null,
+    borradores_entrada: estado.borradores_entrada?.length ?? 0,
     ultima_exportacion: exportaciones,
     vales_hoy: salidas.filter((v) => !v.migrado && v.fecha === hoyIso() && v.estado === "EMITIDO").length,
     borradores: estado.borradores?.length ?? 0,
@@ -71,6 +82,8 @@ export function filasInventario(estado) {
       ingreso: aNumero(saldo.ingreso) || null,
       total: aNumero(saldo.total),
       nota: e.nota || "",
+      origen: e.origen || "",
+      ubicacion_id: ubicacion.id,
     });
   }
   return filas;
@@ -108,20 +121,20 @@ export function filasHistorial(estado, tipo = "SALIDA") {
 
 // --------------------------------------------------------- renglones por ubicar
 
+/** Folio de salida más antiguo que todavía descuenta en algún renglón (ver cortesVigentes). */
 export function folioCorteActual(estado) {
-  const conteo = ultimoConteo(estado);
-  return conteo ? conteo.ultimo_folio_salida : 0;
+  return cortesVigentes(estado).salida;
 }
 
 /** Renglones de vales posteriores al conteo que aún no se ligan a un renglón del inventario. */
 export function lineasPorUbicar(estado) {
-  const corte = folioCorteActual(estado);
+  const cortes = cortesVigentes(estado);
   const indices = new Indices(estado);
   const saldos = calcularSaldos(estado);
   const salida = [];
   const vales = [...estado.vales].sort((a, b) => a.tipo.localeCompare(b.tipo) || a.folio - b.folio);
   for (const vale of vales) {
-    if (vale.estado !== "EMITIDO" || !(vale.folio > corte)) continue;
+    if (vale.estado !== "EMITIDO" || !(vale.folio > corteDe(cortes, vale.tipo))) continue;
     for (const linea of [...vale.lineas].sort((a, b) => a.renglon - b.renglon)) {
       if (linea.existencia_id !== null || linea.no_inventariado || linea.codigo === null) continue;
       salida.push({

@@ -6,6 +6,7 @@
 
 import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
+import { NOMBRE_ENTRADAS, exportarEntradas } from "../exportadores/entradas.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
 import { Indices } from "../nucleo/estado.js";
@@ -198,26 +199,31 @@ export class Almacen {
 
   // ------------------------------------------------------------ exportar
 
-  /**
-   * Genera el Excel actualizado sobre la plantilla del usuario.
-   * @param tipo 'VALES' | 'INVENTARIO'
-   * @returns {{ nombre, datos, subcarpeta, resultado }}
-   */
   /** Nombre con el que se exporta (el del archivo original; el inventario lleva la fecha). */
   nombreExportacion(tipo, hoy = hoyIso()) {
+    if (tipo === "ENTRADAS") return NOMBRE_ENTRADAS;
     const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === tipo && p.activa);
     if (!registro) return null;
     return tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
   }
 
   /**
-   * Genera el Excel sobre la plantilla. Con `guardar(nombre, datos)` lo escribe antes de registrar
-   * la exportación (si falla la escritura, no queda registrada).
+   * Genera el Excel: 'VALES' e 'INVENTARIO' sobre la plantilla del usuario; 'ENTRADAS' es un
+   * libro nuevo. Con `guardar(nombre, datos)` lo escribe antes de registrar la exportación (si
+   * falla la escritura, no queda registrada).
+   * @returns {{ nombre, datos, subcarpeta, resultado, destino }}
    */
   async exportar(tipo, usuario, hoy = hoyIso(), { guardar = null } = {}) {
-    const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
-    const resultado = tipo === "VALES" ? exportarVales(this.estado, plantilla) : exportarInventario(this.estado, plantilla);
-    const nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
+    let resultado;
+    let nombre;
+    if (tipo === "ENTRADAS") {
+      resultado = exportarEntradas(this.estado);
+      nombre = NOMBRE_ENTRADAS;
+    } else {
+      const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
+      resultado = tipo === "VALES" ? exportarVales(this.estado, plantilla) : exportarInventario(this.estado, plantilla);
+      nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
+    }
     const huella = await sha256(resultado.datos);
     const destino = guardar ? await guardar(nombre, resultado.datos) : null;
     await this.modificar((estado) => {

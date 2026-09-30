@@ -37,8 +37,10 @@ test("el estado de la versión anterior se migra", () => {
   estado.plantillas_area.find((a) => a.nombre === "MECANICO").depto_origen = "MANTENIMIENTO";
   delete estado.config.etapa_perforacion;
   migrarEstado(estado);
-  assert.equal(estado.formato, 4);
+  assert.equal(estado.formato, 5);
   assert.deepEqual([estado.borradores, estado.envios], [[], []]);
+  assert.deepEqual([estado.borradores_entrada, estado.conteo_en_curso, estado.reacomodos], [[], null, []]);
+  assert.ok(estado.conteos.every((c) => c.alcance === "TOTAL"));
   const tipos = Object.fromEntries(estado.plantillas_area.map((a) => [a.nombre, a.tipo]));
   assert.deepEqual(tipos, { SOLDADOR: "INTERNO", MECANICO: "INTERNO", TRANSFERENCIAS: "TRANSFERENCIA", NOV: "EXTERNO" });
   const mecanico = estado.plantillas_area.find((a) => a.nombre === "MECANICO");

@@ -60,6 +60,7 @@ export function ejecutarPrimeraCarga(inventario, vales, opciones) {
   const conteo = indices.agregarConteo({
     fecha: fechaConteo,
     descripcion: `Conteo inicial (importado de ${inventario.nombre})`,
+    alcance: "TOTAL",
     usuario,
     ultimo_folio_salida: folioCorte,
     ultimo_folio_entrada: 0,

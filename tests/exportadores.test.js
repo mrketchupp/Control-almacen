@@ -6,6 +6,7 @@ import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { exportarEntradas } from "../src/exportadores/entradas.js";
 import { exportarInventario } from "../src/exportadores/inventario.js";
 import { exportarVales } from "../src/exportadores/vales.js";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
@@ -192,10 +193,88 @@ test("LibreOffice abre los exportados", { skip: soffice.status !== 0 && "LibreOf
   const carpeta = mkdtempSync(join(tmpdir(), "exportados-"));
   writeFileSync(join(carpeta, "vales.xlsm"), exportarVales(estado, bytesVales()).datos);
   writeFileSync(join(carpeta, "inventario.xlsx"), exportarInventario(estado, bytesInventario()).datos);
-  for (const nombre of ["vales", "inventario"]) {
-    const ruta = join(carpeta, nombre === "vales" ? "vales.xlsm" : "inventario.xlsx");
+  writeFileSync(join(carpeta, "entradas.xlsx"), exportarEntradas(estado).datos);
+  for (const nombre of ["vales", "inventario", "entradas"]) {
+    const ruta = join(carpeta, nombre === "vales" ? "vales.xlsm" : `${nombre}.xlsx`);
     const r = spawnSync("soffice", ["--headless", "--convert-to", "pdf", "--outdir", carpeta, ruta], { timeout: 180000 });
     assert.equal(r.status, 0, String(r.stderr));
     assert.ok(existsSync(join(carpeta, `${nombre}.pdf`)));
   }
+});
+
+// ------------------------------------------------------------------ fase 3
+
+test("una entrada de material nuevo queda en la hoja y contenedor correctos del inventario exportado (criterio F3)", async () => {
+  const en = await import("../src/servicios/entradas.js");
+  const { estado } = cargaSintetica();
+  const indices = new Indices(estado);
+  const c2cons = estado.ubicaciones.find((u) => u.hoja_excel.trim() === "CONTENEDOR #2 CONSUMIBLE");
+  const b = en.nuevoBorradorEntrada(estado, { usuario: "ALMACENISTA UNO", fecha: "2026-10-02" });
+  b.folio_externo = "B-100";
+  const linea = en.conVarianteNueva({ ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), 701, { indices }), cantidad: "4" }, { dimension: "6310-2RS", um: "PZA", ubicacionId: c2cons.id });
+  const nuevoCodigo = { ...en.lineaEntradaVacia(), codigo: 950, descripcion: "CODIGO NUEVO DE PRUEBA", cantidad: "2" };
+  b.lineas = [linea, en.conVarianteNueva(nuevoCodigo, { dimension: "X1", um: "PZA", ubicacionId: c2cons.id })];
+  en.confirmarEntrada(estado, b.id, { usuario: "ALMACENISTA UNO" });
+
+  const original = bytesInventario();
+  const resultado = exportarInventario(estado, original);
+  const libro = new LibroLeido(resultado.datos);
+  const hoja = libro.hoja("CONTENEDOR #2 CONSUMIBLE");
+  const [, fin] = hoja.tablas()[0].ref.split(":");
+  const ultima = Number(fin.replace(/\D/g, "")) - 1; // antes de la fila de totales
+  // Los dos renglones nuevos van al final de la tabla de esa hoja, con INGRESO y CANTIDAD 0.
+  assert.deepEqual(hoja.fila(ultima - 1, 2, 9).map((x) => (x === null ? null : String(x))), ["701", null, "6310-2RS", null, "0", "PZA", null, "4"]);
+  assert.deepEqual(hoja.fila(ultima, 2, 9).map((x) => (x === null ? null : String(x))), ["950", null, "X1", null, "0", "PZA", null, "2"]);
+  assert.match(hoja.formulas.get(`J${ultima}`), /^Tabla\d+\[\[#This Row\],\[INGRESO\]\]\+Tabla\d+\[\[#This Row\],\[CANTIDAD\]\]-/);
+  assert.equal(hoja.valorRef(`A${ultima + 1}`), "Total");
+  // El código nuevo entra al catálogo oculto para que la descripción no salga #N/A (P-15).
+  const catalogo = libro.hoja("ARTICULOS_MX");
+  const codigos = [];
+  for (let f = 1; f <= catalogo.maxFila; f++) codigos.push(catalogo.valor(f, 1));
+  assert.ok(codigos.includes(950));
+  // Ninguna otra hoja de contenedor cambia de tamaño.
+  const antes = new LibroLeido(exportarInventario(cargaSintetica().estado, original).datos);
+  for (const nombre of libro.nombresHojas.filter((n) => n.startsWith("CONTENEDOR") && n.trim() !== "CONTENEDOR #2 CONSUMIBLE")) {
+    assert.equal(libro.hoja(nombre).tablas()[0].ref, antes.hoja(nombre).tablas()[0].ref, nombre);
+  }
+});
+
+test("entradas: VALES DE ENTRADA DLTA.xlsx con las columnas del DIARIO y el folio interno", async () => {
+  const en = await import("../src/servicios/entradas.js");
+  const { exportarEntradas, ENCABEZADOS_ENTRADAS } = await import("../src/exportadores/entradas.js");
+  const { estado } = cargaSintetica();
+  const indices = new Indices(estado);
+  const vacio = exportarEntradas(estado);
+  assert.equal(vacio.renglones, 0);
+  const b = en.nuevoBorradorEntrada(estado, { usuario: "ALMACENISTA UNO", fecha: "2026-10-02" });
+  Object.assign(b, { folio_externo: "12345", origen: "BASE DOS BOCAS", depto_origen: "ALMACEN GENERAL", entrego_nombre: "chofer uno" });
+  b.lineas = [
+    { ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), 708, { indices }), cantidad: "3", oc: "4500123" },
+    { ...en.entradaSinExistencia({ ...en.lineaEntradaVacia(), codigo: 136, descripcion: "DIESEL", um: "LTS" }), cantidad: "500" },
+  ];
+  en.confirmarEntrada(estado, b.id, { usuario: "ALMACENISTA UNO" });
+  const { datos, renglones, ultimoFolio } = exportarEntradas(estado);
+  assert.deepEqual([renglones, ultimoFolio], [2, 1]);
+  const hoja = new LibroLeido(datos).hoja("DIARIO");
+  assert.deepEqual(hoja.fila(1, 1, 21), ENCABEZADOS_ENTRADAS);
+  const fila = hoja.fila(2, 1, 21);
+  assert.ok(fila[0] instanceof FechaCelda);
+  assert.equal(isoDesdeSerial(fila[0].serial), "2026-10-02");
+  assert.deepEqual(fila.slice(1, 18).map((x) => (x === null ? null : String(x))), [
+    "12345", "XXXXX", "0", "BASE DOS BOCAS", "ALMACEN GENERAL", "RIG 91", "ALMACEN", "4500123", "3", "708", fila[11], "ISOFLEX", "PZA", "0", "CHOFER UNO", "ALMACENISTA UNO", "0",
+  ]);
+  assert.equal(fila[20], "E-0001");
+  assert.equal(hoja.fila(3, 1, 21)[8], "S/OC");
+});
+
+test("hoja de conteo: una por contenedor, sin cantidades y con renglones en blanco", async () => {
+  const { documentoHojaConteo } = await import("../src/impresion/conteo.js");
+  const { estado } = cargaSintetica();
+  const ids = estado.ubicaciones.slice(0, 2).map((u) => u.id);
+  const { html, css } = documentoHojaConteo(estado, { ubicaciones: ids, fecha: "2026-10-05", usuario: "ALMACENISTA UNO" });
+  assert.equal(html.match(/class="conteo-hoja"/g).length, 2);
+  assert.match(html, /Hoja de conteo · CONTENEDOR #1 INVENTARIABLE/);
+  assert.match(html, /05\/10\/2026/);
+  assert.ok(!/>7</.test(html.split("CONTENEDOR #1 CONSUMIBLE")[0].replace(/<td class="n">7<\/td>/g, "")), "no muestra existencias");
+  assert.match(css, /@page/);
 });

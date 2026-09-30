@@ -207,6 +207,7 @@ h3 {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   padding: 8px 12px;
   border-radius: 6px;
   color: var(--texto);
@@ -2102,4 +2103,114 @@ select.con-error {
   .previa-vale.partidas-izquierda {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---------------------------------------------------------------- fase 3: entradas, conteos y reacomodos */
+
+.tabla-partidas .c-destino {
+  width: 250px;
+}
+
+.editor-entrada .celda-clave .lista {
+  margin-top: 4px;
+}
+
+.lista-entra .lista-boton {
+  padding: 3px 8px;
+  font-size: 0.8rem;
+}
+
+.clave-alta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.fila-alta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.fila-alta .campo-chico {
+  width: 160px;
+}
+
+.fila-alta .parecidas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+}
+
+.opcion-especial {
+  color: var(--primario);
+  font-weight: 600;
+}
+
+.previa-entrada .tabla td {
+  vertical-align: top;
+}
+
+.casilla {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.casilla input {
+  margin-top: 3px;
+}
+
+.aviso-folio {
+  padding: 8px 10px;
+  border: 1px solid var(--alerta, #b7791f);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.acciones-linea.sin-margen {
+  margin: 0;
+  flex-wrap: nowrap;
+}
+
+.acciones-linea.sin-margen input {
+  flex: 1;
+  min-width: 0;
+}
+
+.casillas-contenedores {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 6px 16px;
+  margin: 12px 0;
+}
+
+.pastillas-resumen {
+  margin-top: 8px;
+}
+
+.tabla-conteo .entrada-cantidad {
+  width: 90px;
+  text-align: right;
+}
+
+.fila-diferencia td {
+  background: var(--alerta-suave, #fff7e6);
+}
+
+.pestanas-vista {
+  margin-bottom: 14px;
+}
+
+.filtro-ancho {
+  flex: 1 1 260px;
+}
+
+.boton-mover {
+  padding: 2px 6px;
+  font-size: 0.82rem;
 }

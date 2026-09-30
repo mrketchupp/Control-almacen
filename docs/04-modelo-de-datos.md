@@ -148,7 +148,20 @@ erDiagram
 | justificacion | texto | Obligatoria si la cantidad supera la existencia del renglón elegido |
 | encabezado_original | JSON | Migración: encabezado del renglón cuando difería del del vale (se exporta tal cual) |
 
-**`conteo`** (id, fecha, alcance: total o lista de ubicaciones, usuario, notas, `ultimo_folio_salida`, `ultimo_folio_entrada`) y **`conteo_linea`** (conteo_id, existencia_id, cantidad_contada, cantidad_teorica_previa).
+**`conteo`**: id, fecha, `alcance` (`TOTAL` / `PARCIAL`), `ubicaciones` (ids contados), usuario, observaciones,
+`ultimo_folio_salida` y `ultimo_folio_entrada` (corte: vales ya reflejados en lo contado), `lineas` y `nuevos`.
+Cada línea guarda `existencia_id`, `contado`, `teorico` (el TOTAL que decía el sistema), `cantidad_anterior` y
+`conteo_anterior_id` (el historial no se pierde). `nuevos` son los renglones creados por material encontrado. Un
+conteo con `tipo: "REACOMODO"` lo genera un movimiento entre contenedores (ver abajo) y no se lista como conteo físico.
+
+**`conteo_en_curso`** (uno a la vez): el conteo mientras se captura (`ubicaciones`, `corte` = folios al empezar,
+`capturas` {existencia_id → contado}, `nuevos` [sobrantes], `fecha`). No cambia el inventario hasta aplicarlo.
+
+**`reacomodos`**: fecha, usuario, `desde_existencia_id`, `hacia_existencia_id`, `renglon_nuevo`, código, clave, UM,
+`cantidad`, hojas de origen y destino, `conteo_id` (el REACOMODO que fijó ambos renglones) y motivo.
+
+**`existencia.origen`**: en los renglones creados por la herramienta, qué los creó (`ENTRADA E-0003`,
+`CONTEO 05/10/2026`, `REACOMODO desde #1 Inv.`). Van al final de su hoja y empiezan sin conteo propio.
 
 **`borrador`** (lista `borradores` del estado): vales en captura, uno por pestaña. Mismos campos de encabezado y
 renglones que `vale`, sin folio. Se guardan solos mientras se escribe y **no consumen folio**; al emitir se validan,
@@ -181,13 +194,22 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **4**). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **5**). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
-para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada área.
+para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada área; el 5 agrega
+`borradores_entrada`, `conteo_en_curso` y `reacomodos`, y marca los conteos anteriores como `alcance: TOTAL`.
 
 Los borradores llevan además `etapa_perforacion`. Entregó no se captura: al emitir es siempre el almacenista en turno.
+
+**Vales de entrada** (`vale.tipo = ENTRADA`): `folio` es el consecutivo interno propio (se muestra `E-0001`),
+independiente del de salidas; `folio_externo` = folio del vale de la base; `motivo` = `BASE` o `DEVOLUCION` (con
+`devolucion_folio`, el folio de salida que se devuelve); origen/depto de donde viene, destino `RIG 91 · ALMACEN`,
+entregó = quien trae el material y recibió = almacenista en turno. Cada renglón lleva su `existencia_id` (el renglón
+del inventario al que entra; si era una variante o un contenedor nuevos, se crean al confirmar) o `no_inventariado`.
+**`borradores_entrada`**: entradas en captura, con el mismo encabezado y renglones que además pueden traer
+`ubicacion_id` + `variante_id` (otro contenedor) o `ubicacion_id` + `dimension`/`np` (variante nueva).
 
 `config.preferencias_vale` guarda, por nombre de almacenista, cómo quiere ver la pantalla del vale:
 `{ "<ALMACENISTA>": { "orden": ["area", "fecha", …], "lado": "datos-izquierda" | "partidas-izquierda" } }`
@@ -206,6 +228,15 @@ TOTAL    = CANTIDAD + INGRESO − CONSUMO      ← en el Excel sigue siendo fór
 ```
 
 El corte se hace **por folio, no por fecha**. Así no hay ambigüedad cuando un vale y un conteo ocurren el mismo día.
+
+**Cada renglón tiene su propio conteo** (`existencia.conteo_id`). Un conteo parcial solo cambia los renglones que se
+contaron; los demás siguen descontando desde su conteo anterior. Por eso "el folio de corte" ya no es uno solo:
+`cortesVigentes` da el más antiguo en uso (lo usan *Pendientes*, *Traer vales del Excel* y la marca "Anterior al
+conteo" de un vale). Un renglón creado por la herramienta sin conteo cuenta todos sus movimientos.
+
+**Reacomodo** (mover material entre contenedores): los dos renglones quedan como recién contados, CANTIDAD = lo que
+queda en cada uno (origen: TOTAL − movido; destino: TOTAL + movido) y un conteo `REACOMODO` con el corte de ese momento.
+Así el total no cambia, CONSUMO / INGRESO siguen siendo solo vales y la CANTIDAD nunca queda negativa.
 
 ## Reglas de normalización
 

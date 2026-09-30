@@ -51,7 +51,7 @@ Criterios de aceptación (✔ = verificado por el desarrollo con los archivos re
 - ✔ Un respaldo restaurado en otro navegador produce los mismos datos (prueba automática).
 - ✔ Abrir `ControlAlmacen.html` en Edge y probar respaldos y restauración (el usuario pidió destacar el respaldo más reciente y hacer más claro el botón *Restaurar*: atendido al inicio de F2).
 
-## Fase 2 — Vales de salida ✅ (entregada, en aceptación)
+## Fase 2 — Vales de salida ✅ (aceptada)
 Entregables:
 - **Nuevo vale** con pestañas (varios borradores que se guardan solos y no gastan folio), plantillas por área y buscador de variantes que muestra la existencia por contenedor.
 - Folio automático (último + 1, sin saltos ni cancelaciones) dentro de un cambio atómico; validaciones con mensajes por renglón; justificación cuando se pide más de lo que hay; división en folios consecutivos cuando el vale supera la capacidad del formato (21/20/19 según la hoja).
@@ -87,20 +87,35 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ✔ Es imposible duplicar o saltar un folio: prueba automática con 12 emisiones simultáneas y guardado lento (3 con errores que no consumen folio).
 - ✔ Recorrido completo en Chromium con los archivos reales (fuera del repositorio): nuevo vale → vista previa → emitir → imprimir → corregir (motivo automático) → dividir → exportar → marcar enviado → traer del Excel → áreas; NOV con 4 firmas y fotos impresas en su lugar; respaldo con fotos; ninguna lista nativa del navegador; sin errores en consola ni conexiones de red.
 - ✔ La impresión de las hojas reales se comparó contra el PDF de LibreOffice de la misma hoja: mismo logo, colores, marco, firmas y pie.
-- ☐ Imprimir un vale en la impresora del almacén y compararlo con uno hecho en Excel (P-09).
+- ✔ Imprimir un vale en la impresora del almacén y compararlo con uno hecho en Excel (P-09: el usuario los comparó, "98 % similares").
+- ✔ Transferencias: se capturan como están (P-22).
 - ☐ Emitir un vale de 10 renglones en menos de 2 minutos.
 - ☐ El DIARIO exportado es aceptado por la base sin comentarios (prueba real de un envío).
 
-## Fase 3 — Vales de entrada y conteos
+## Fase 3 — Vales de entrada y conteos ✅ (entregada, en aceptación)
 Entregables:
-- Vale de entrada con ubicación sugerida, alta de variante y vista previa antes/después.
-- Historial y exportación de entradas.
+- **Vales de entrada** en pestañas (borradores que se guardan solos): folio de la base, de dónde viene, quién entrega;
+  por renglón código → clave con el contenedor sugerido (el de más existencia, ★), "Entra a" para cambiarlo, variante
+  nueva con aviso de parecidas, *Sin existencia* para diésel y gases. Vista previa *Así queda el inventario* (había,
+  entra, queda, hoja). Folio interno consecutivo `E-0001`; corrección con motivo automático y bitácora; aviso de folio de
+  la base repetido. Devoluciones que regresan al renglón de donde salió el material (P-08).
+- **Historial** con pestañas Salidas / Entradas (filtros por fecha, folio de la base, código, O.C. y texto) y
+  exportación de `VALES DE ENTRADA DLTA.xlsx` (columnas del DIARIO + folio interno).
+- **Conteo físico** total o por contenedor: hoja de conteo imprimible a ciegas, captura que se guarda sola, diferencias
+  contra el sistema, material encontrado, aviso de vales emitidos durante el conteo, historial de conteos.
+- **Mover entre contenedores** desde *Inventario*, con historial.
+- Estado formato 5 (se migra solo); cada renglón del inventario descuenta desde su propio conteo.
 - (El vale de la base llega en papel, P-04: se captura. La lectura por OCR queda como mejora futura.)
-- Conteo físico total o parcial, hoja de conteo imprimible y reacomodo entre contenedores.
 
-Criterios de aceptación:
-- [ ] Una entrada de material nuevo queda en la hoja/contenedor correcto del Excel exportado.
-- [ ] Un conteo parcial reinicia CONSUMO/INGRESO solo en las ubicaciones contadas.
+Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
+- ✔ Una entrada de material nuevo queda en la hoja/contenedor correcto del Excel exportado (prueba automática: al final
+  de la tabla de esa hoja, con INGRESO, fórmulas y fila de totales; las demás hojas no cambian; código nuevo en `ARTICULOS_MX`).
+- ✔ Un conteo parcial reinicia CONSUMO/INGRESO solo en las ubicaciones contadas (prueba automática y en el inventario exportado).
+- ✔ Recorrido en Chromium: entrada con sugerido, variante nueva y sin existencia → corrección → historial → mover →
+  conteo parcial y total con material encontrado → devolución → exportaciones → respaldo; datos de la versión anterior
+  abiertos con la nueva; sin errores en consola ni conexiones de red.
+- ☐ Registrar una entrada real y revisar el inventario exportado.
+- ☐ Hacer un conteo (aunque sea de un contenedor) con la hoja impresa.
 
 ## Fase 4 — Conciliación contra AX
 Entregables:

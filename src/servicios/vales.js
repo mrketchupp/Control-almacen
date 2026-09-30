@@ -6,8 +6,8 @@
 
 import { conEtapa, etapaDe, etiquetasFirmasExtra, tieneDatosFijos, tieneEtapa, tipoDeArea } from "../nucleo/areas.js";
 import { CERO, aNumero, dec, decTexto } from "../nucleo/decimal.js";
-import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, ultimoConteo, umMostrada } from "../nucleo/estado.js";
-import { calcularSaldos } from "../nucleo/existencias.js";
+import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
+import { calcularSaldos, corteDe, cortesVigentes, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
 
@@ -354,10 +354,15 @@ export function disponibles(estado, ids, excluirValeId = null) {
   if (excluirValeId !== null) {
     const vale = estado.vales.find((v) => v.id === excluirValeId);
     if (vale && vale.estado === "EMITIDO") {
+      const conteos = new Map(estado.conteos.map((c) => [c.id, c]));
+      const existencias = new Map(estado.existencias.map((e) => [e.id, e]));
       for (const l of vale.lineas) {
-        if (l.existencia_id !== null && salida.has(l.existencia_id)) {
-          salida.set(l.existencia_id, salida.get(l.existencia_id).plus(dec(l.cantidad) ?? CERO));
-        }
+        if (l.existencia_id === null || !salida.has(l.existencia_id)) continue;
+        // Solo lo que ese vale movía en el renglón (si es anterior a su conteo, no movía nada).
+        if (!cuentaParaSaldo(conteos.get(existencias.get(l.existencia_id)?.conteo_id), vale)) continue;
+        const cantidad = dec(l.cantidad) ?? CERO;
+        const actual = salida.get(l.existencia_id);
+        salida.set(l.existencia_id, vale.tipo === "ENTRADA" ? actual.minus(cantidad) : actual.plus(cantidad));
       }
     }
   }
@@ -573,10 +578,14 @@ function foto(vale) {
   };
 }
 
-/** ¿El vale es anterior al conteo vigente? (ya está reflejado en CANTIDAD; no descuenta) */
+/**
+ * ¿El vale es anterior a todos los conteos vigentes? Entonces ya está reflejado en la CANTIDAD
+ * de cada renglón y no descuenta en ninguno (con conteos parciales, uno posterior al conteo
+ * más antiguo puede descontar en unos renglones y en otros no).
+ */
 export function esHistorial(estado, vale) {
-  const conteo = ultimoConteo(estado);
-  return Boolean(conteo) && vale.folio !== null && vale.folio <= conteo.ultimo_folio_salida;
+  if (!estado.conteos.length || vale.folio === null || vale.folio === undefined) return false;
+  return vale.folio <= corteDe(cortesVigentes(estado), vale.tipo);
 }
 
 /** Datos editables de un vale emitido (para abrirlo en el editor de corrección). */

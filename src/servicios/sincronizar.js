@@ -2,7 +2,8 @@
 // después de la primera carga (folios mayores al último que la herramienta conoce).
 // Así el siguiente folio que emita la herramienta nunca choca con uno hecho en papel.
 
-import { Indices, auditar, ultimoConteo } from "../nucleo/estado.js";
+import { Indices, auditar } from "../nucleo/estado.js";
+import { cortesVigentes } from "../nucleo/existencias.js";
 import { limpiarDiario, respuestasVacias } from "./limpieza.js";
 import { agregarValesMigrados } from "./primeraCarga.js";
 
@@ -34,8 +35,9 @@ export function importarValesNuevos(estado, libroVales, usuario = null) {
   const indices = new Indices(estado);
   for (const [codigo, descripcion] of resultado.codigos_nuevos) indices.obtenerOCrearArticulo(codigo, descripcion, "DIARIO");
   const reporte = { lineas_ubicadas: 0, lineas_migradas: 0, por_ubicar: [] };
-  const conteo = ultimoConteo(estado);
-  agregarValesMigrados(estado, indices, resultado.vales, { folioCorte: conteo ? conteo.ultimo_folio_salida : 0, usuario }, reporte);
+  // Se ligan al inventario los posteriores al conteo más antiguo vigente; en cada renglón solo
+  // descuentan los posteriores a su propio conteo.
+  agregarValesMigrados(estado, indices, resultado.vales, { folioCorte: cortesVigentes(estado).salida, usuario }, reporte);
   auditar(estado, {
     usuario,
     entidad: "sistema",

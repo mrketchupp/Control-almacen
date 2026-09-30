@@ -27,6 +27,27 @@ export function cuentaParaSaldo(conteo, vale) {
   return vale.folio > corte;
 }
 
+/**
+ * Folio de corte más antiguo entre los conteos vigentes (los que fijan la CANTIDAD de algún
+ * renglón). Con conteos parciales cada renglón tiene su propio corte: los vales con folio
+ * mayor que este pueden afectar a algún renglón; los anteriores ya no afectan a ninguno.
+ */
+export function cortesVigentes(estado) {
+  const usados = new Set();
+  for (const e of estado.existencias) if (e.activo !== false && e.conteo_id !== null && e.conteo_id !== undefined) usados.add(e.conteo_id);
+  let salida = null;
+  let entrada = null;
+  for (const c of estado.conteos) {
+    if (!usados.has(c.id)) continue;
+    salida = salida === null ? c.ultimo_folio_salida : Math.min(salida, c.ultimo_folio_salida);
+    entrada = entrada === null ? (c.ultimo_folio_entrada ?? 0) : Math.min(entrada, c.ultimo_folio_entrada ?? 0);
+  }
+  return { salida: salida ?? 0, entrada: entrada ?? 0 };
+}
+
+/** Corte de un tipo de vale ('SALIDA' / 'ENTRADA'). */
+export const corteDe = (cortes, tipo) => (tipo === "ENTRADA" ? cortes.entrada : cortes.salida);
+
 /** Map id de existencia → Saldo. */
 export function calcularSaldos(estado, idsExistencia = null) {
   const filtro = idsExistencia ? new Set(idsExistencia) : null;

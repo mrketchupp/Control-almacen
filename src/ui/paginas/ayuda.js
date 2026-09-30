@@ -26,6 +26,18 @@ export function PaginaAyuda() {
         <dd>Abre la herramienta en el nuevo y restaura el respaldo más reciente de OneDrive.</dd>
         <dt>¿Se modifican mis Excel originales?</dt>
         <dd>No. Se leen y se guardan copias como plantillas; las exportaciones son archivos nuevos.</dd>
+        <dt>¿A qué contenedor entra el material de un vale de entrada?</dt>
+        <dd>
+          Si ya está en un contenedor, se sugiere ese (si está en varios, el que tiene más, con ★). Si es una dimensión nueva, eliges el
+          contenedor y se agrega un renglón al final de esa hoja. Antes de registrar ves cuánto había, cuánto entra y cuánto queda.
+        </dd>
+        <dt>¿Qué hace un conteo parcial?</dt>
+        <dd>
+          Solo cambia los renglones que capturas: su CANTIDAD pasa a ser lo contado y CONSUMO / INGRESO vuelven a empezar. Los demás
+          renglones siguen con su conteo anterior. Nada cambia hasta que pulsas <em>Aplicar conteo</em>.
+        </dd>
+        <dt>¿Cómo paso material de un contenedor a otro?</dt>
+        <dd>En <a href="#inventario">Inventario</a>, botón <em>Mover</em> del renglón. El total no cambia y queda en el historial de movimientos.</dd>
       </dl>
     <//>
   `;

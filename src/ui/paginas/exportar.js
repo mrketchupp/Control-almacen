@@ -111,6 +111,7 @@ export function PaginaExportar() {
   const conDialogo = soportaGuardarComo();
   const historial = [...estado.exportaciones].reverse().slice(0, 20);
   const porEnviar = valesPorEnviar(estado).length;
+  const entradas = estado.vales.filter((v) => v.tipo === "ENTRADA").length;
   return html`
     <p class="introduccion">
       Se generan sobre <strong>tus propios archivos</strong> (las plantillas que subiste en la primera carga), así que
@@ -135,6 +136,14 @@ export function PaginaExportar() {
       <${Tarjeta} titulo="Inventario (.xlsx)">
         <p>Actualiza CONSUMO e INGRESO por contenedor con los vales posteriores al conteo. El nombre lleva la fecha de hoy.</p>
         <${Boton} tipo="primario" onClick=${() => exportar("INVENTARIO")}>${conDialogo ? "Exportar inventario…" : "Exportar inventario"}<//>
+      <//>
+      <${Tarjeta} titulo="Vales de entrada (.xlsx)">
+        <p>
+          Historial de entradas con las columnas del DIARIO (B = folio de la base, U = folio interno E-0001). Es un archivo nuevo;
+          envíalo solo si la base lo pide.
+        </p>
+        <${Boton} disabled=${!entradas} onClick=${() => exportar("ENTRADAS")}>${conDialogo ? "Exportar entradas…" : "Exportar entradas"}<//>
+        ${entradas ? null : html`<p class="nota">Aún no hay entradas registradas.</p>`}
       <//>
     </div>
     <${PorEnviar} />

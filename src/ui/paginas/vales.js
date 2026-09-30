@@ -34,21 +34,21 @@ import { html } from "../html.js";
 
 // ---------------------------------------------------------------- utilidades
 
-const normal = (t) =>
+export const normal = (t) =>
   String(t ?? "")
     .toUpperCase()
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .trim();
 
-const palabras = (t) => normal(t).split(/\s+/).filter(Boolean);
+export const palabras = (t) => normal(t).split(/\s+/).filter(Boolean);
 
 function lugarDe(ubicacion) {
   return `#${ubicacion.contenedor} ${ubicacion.clase === "INV" ? "Inv." : "Cons."}`;
 }
 
 /** Artículos del catálogo para buscar por código AX (o por descripción). */
-function indiceArticulos(estado, indices) {
+export function indiceArticulos(estado, indices) {
   const renglones = new Map();
   for (const e of estado.existencias) {
     if (e.activo === false) continue;
@@ -120,7 +120,7 @@ function buscarRapido(items, consulta, limite = 12) {
     .slice(0, limite);
 }
 
-function listas(estado) {
+export function listas(estado) {
   const unicos = (valores) => [...new Set(valores.filter(Boolean).map((v) => String(v).trim()))].sort((a, b) => a.localeCompare(b, "es"));
   return {
     personas: unicos(estado.personas.filter((p) => p.activo !== false).map((p) => p.nombre)),
@@ -130,7 +130,7 @@ function listas(estado) {
   };
 }
 
-function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
+export function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
   return html`<label class=${`campo ${error ? "con-error" : ""} ${clase}`}>
     <span>${etiqueta}</span>
     ${children}
@@ -227,7 +227,7 @@ function FotosVale({ fotos = [], espacios, alCambiar }) {
 
 // ---------------------------------------------------------------- partidas
 
-function CeldaCodigo({ linea, articulos, alElegir, alNuevo, error }) {
+export function CeldaCodigo({ linea, articulos, alElegir, alNuevo, error }) {
   const [texto, setTexto] = useState(linea.codigo ? String(linea.codigo) : "");
   useEffect(() => setTexto(linea.codigo ? String(linea.codigo) : ""), [linea.codigo]);
   const buscando = texto.trim() !== (linea.codigo ? String(linea.codigo) : "");
