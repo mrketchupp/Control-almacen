@@ -48,16 +48,23 @@ function Correccion({ vale, alTerminar }) {
     ${historial
       ? html`<${Aviso} tipo="info">Este vale es anterior al conteo físico: la corrección solo cambia el historial y el DIARIO; no mueve existencias.<//>`
       : null}
-    <${EditorVale} datos=${datos} alCambiar=${setDatos} errores=${errores} excluirValeId=${vale.id} />
-    <label class="campo campo-todo motivo">
-      <span>Motivo de la corrección (obligatorio, queda en la bitácora)</span>
-      <input value=${motivo} onInput=${(e) => setMotivo(e.currentTarget.value)} placeholder="Ej. se entregaron 3 piezas, no 2" />
-    </label>
-    <${ListaErrores} errores=${errores} />
-    <div class="acciones-linea">
-      <${Boton} tipo="primario" onClick=${guardar}>Guardar corrección<//>
-      <${Boton} onClick=${alTerminar}>Cancelar<//>
-    </div>
+    <${EditorVale}
+      datos=${datos}
+      alCambiar=${setDatos}
+      errores=${errores}
+      excluirValeId=${vale.id}
+      entrego=${{ nombre: vale.entrego_nombre || "—", puesto: vale.entrego_puesto || "" }}
+      pie=${html`<label class="campo motivo">
+          <span>Motivo de la corrección (obligatorio, queda en la bitácora)</span>
+          <input value=${motivo} onInput=${(e) => setMotivo(e.currentTarget.value)} placeholder="Ej. se entregaron 3 piezas, no 2" />
+        </label>
+        <${ListaErrores} errores=${errores} />
+        <div class="acciones-linea pie-editor">
+          <${Boton} onClick=${alTerminar}>Cancelar<//>
+          <span class="espaciador"></span>
+          <${Boton} tipo="primario" onClick=${guardar}>Guardar corrección<//>
+        </div>`}
+    />
   <//>`;
 }
 

@@ -404,6 +404,8 @@ FORMULARIOS = {
     "NOV": ("MANTENIMIENTO", "NOV ENERGY", "QUIMICO UNO", "QUIMICO", 0),
 }
 FIRMAS_INVERTIDAS = {"NOV"}
+# Lugar de destino: los vales internos llegan al mismo equipo; NOV y transferencias no.
+LUGAR_DESTINO = {"NOV": "RIG 91 - TANQUE NOV", "TRANSFERENCIAS": "RIG 48"}
 # Renglones del formato por hoja (MECANICO tiene 19, como el real).
 RENGLONES_FORMATO = {"MECANICO ": 19}
 
@@ -550,7 +552,7 @@ def generar_vales(ruta: Path) -> Path:
         )
         ws["C18"], ws["E18"], ws["H18"], ws["I18"] = (
             "Destino: ",
-            "RIG 91",
+            LUGAR_DESTINO.get(hoja, "RIG 91"),
             "Departamento: ",
             d_destino,
         )
@@ -575,6 +577,7 @@ def generar_vales(ruta: Path) -> Path:
             "ESTE MATERIAL CUMPLE CON LAS ESPECIFICACIONES REQUERIDAS POR EL USUARIO"
         )
         ws[f"C{45 + dz}"] = "MATERIAL SUMINISTRADO PARA USO EN MANTENIMIENTO DEL RIG 91"
+        ws[f"C{46 + dz}"] = 'ETAPA DE PERFORACION: 8 1/2"'
         # Fila espaciadora de 1 px con un número olvidado: Excel no lo muestra.
         ws[f"C{47 + dz}"] = 3
         ws.row_dimensions[47 + dz].height = 0.75

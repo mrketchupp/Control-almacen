@@ -20,6 +20,8 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. |
 | P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias o en las áreas marcadas "Exigir Autorizó"; el autorizador habitual se guarda en el área. **Aplicado en F2.** |
 | P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** |
+| P-22 | **NOV y transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | Por ahora se editan libremente en el vale (origen, destino, deptos, observaciones); Autorizó obligatorio en transferencias. Se revisa con el usuario. |
+| P-23 | La línea de observaciones del formato dice `ETAPA DE PERFORACION: 12 1/4""` (dos comillas). ¿Es intencional? | Se respeta tal cual; en cada vale se escribe la etapa como se quiera ver impresa. |
 
 ## Entradas
 

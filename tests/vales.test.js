@@ -32,9 +32,73 @@ test("el estado de la versión anterior se migra", () => {
   delete estado.borradores;
   delete estado.envios;
   estado.formato = 1;
+  // un estado de la Fase 2: áreas sin tipo y MECANICO saliendo de MANTENIMIENTO
+  for (const a of estado.plantillas_area) delete a.tipo;
+  estado.plantillas_area.find((a) => a.nombre === "MECANICO").depto_origen = "MANTENIMIENTO";
+  delete estado.config.etapa_perforacion;
   migrarEstado(estado);
-  assert.equal(estado.formato, 2);
+  assert.equal(estado.formato, 3);
   assert.deepEqual([estado.borradores, estado.envios], [[], []]);
+  const tipos = Object.fromEntries(estado.plantillas_area.map((a) => [a.nombre, a.tipo]));
+  assert.deepEqual(tipos, { SOLDADOR: "INTERNO", MECANICO: "INTERNO", TRANSFERENCIAS: "TRANSFERENCIA", NOV: "EXTERNO" });
+  const mecanico = estado.plantillas_area.find((a) => a.nombre === "MECANICO");
+  assert.deepEqual([mecanico.origen, mecanico.depto_origen, mecanico.destino], ["RIG 91", "ALMACEN", "RIG 91"]);
+  // un borrador a medias hecho con la versión anterior toma los datos fijos del área
+  const b = { id: 99, plantilla_area_id: mecanico.id, origen: "RIG 91", depto_origen: "MANTENIMIENTO", destino: "RIG 91", observaciones: "", lineas: [] };
+  const otro = cargaSintetica().estado;
+  otro.formato = 2;
+  otro.plantillas_area.find((a) => a.nombre === "MECANICO").depto_origen = "MANTENIMIENTO";
+  otro.borradores = [{ ...b, plantilla_area_id: otro.plantillas_area.find((a) => a.nombre === "MECANICO").id }];
+  migrarEstado(otro);
+  assert.equal(otro.borradores[0].depto_origen, "ALMACEN");
+  assert.equal(estado.config.etapa_perforacion, '8 1/2"');
+});
+
+test("áreas internas: datos fijos, etapa de perforación y entregó = almacenista en turno", () => {
+  const { estado, mecanico, sellos } = preparar();
+  assert.equal(mecanico.depto_origen, "ALMACEN");
+  const b = v.nuevoBorrador(estado, { usuario: "ALMACENISTA UNO", plantillaId: mecanico.id, fecha: "2026-10-01" });
+  assert.equal(b.etapa_perforacion, '8 1/2"');
+  assert.match(b.observaciones, /^ESTE MATERIAL CUMPLE/);
+  assert.match(b.observaciones, /ETAPA DE PERFORACION: 8 1\/2"$/);
+  b.lineas.push({ ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "1" });
+  b.etapa_perforacion = "";
+  assert.ok(v.validarVale(estado, b).errores.some((e) => e.campo === "etapa_perforacion"));
+  b.etapa_perforacion = '12 1/4"';
+  b.entrego_nombre = "OTRA PERSONA";
+  // emite quien está en turno, sin importar lo que traía el borrador
+  const [vale] = v.emitirBorrador(estado, b.id, { usuario: "ALMACENISTA PRUEBA" });
+  assert.equal(vale.entrego_nombre, "ALMACENISTA PRUEBA");
+  assert.equal(vale.entrego_puesto, "ALMACENISTA");
+  assert.equal(vale.observaciones.split("\n").at(-1), 'ETAPA DE PERFORACION: 12 1/4"');
+  assert.equal(vale.observaciones.split("\n").length, 3);
+  // la etapa usada queda para el siguiente vale
+  assert.equal(estado.config.etapa_perforacion, '12 1/4"');
+  assert.equal(v.nuevoBorrador(estado, {}).etapa_perforacion, '12 1/4"');
+  // al corregir, la etapa se recupera del vale
+  assert.equal(v.datosParaCorregir(estado, vale.id).etapa_perforacion, '12 1/4"');
+});
+
+test("código → clave: opciones del inventario con lugar y existencia", () => {
+  const { estado } = preparar();
+  const opciones = v.opcionesDeClave(estado, 701);
+  assert.ok(opciones.length >= 2);
+  assert.ok(opciones.every((o) => o.lugar.startsWith("#") && typeof o.total === "number"));
+  // varios renglones: no se elige solo
+  const varios = v.conArticulo(estado, v.lineaVacia(), 701);
+  assert.equal(varios.existencia_id, null);
+  assert.equal(varios.no_inventariado, false);
+  const elegido = v.conExistencia(estado, { ...varios, cantidad: "2" }, opciones[1].id);
+  assert.equal(elegido.clave, opciones[1].clave);
+  assert.equal(elegido.cantidad, "2");
+  // un solo renglón: se asigna solo
+  const unico = [...new Set(estado.existencias.map((e) => new Indices(estado).variante(e.variante_id).codigo))].find(
+    (c) => v.opcionesDeClave(estado, c).length === 1,
+  );
+  assert.ok(v.conArticulo(estado, v.lineaVacia(), unico).existencia_id !== null);
+  // sin existencia (diésel): no inventariado, la clave se escribe a mano
+  const diesel = v.conArticulo(estado, v.lineaVacia(), 136);
+  assert.deepEqual([diesel.no_inventariado, diesel.existencia_id, diesel.descripcion], [true, null, "SUMINISTRO DE DIESEL Y COMBUSTIBLE"]);
 });
 
 test("un borrador toma los datos de la plantilla del área y el almacenista en turno", () => {

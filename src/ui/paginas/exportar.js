@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
-import { leerArchivoSubido } from "../../almacen/archivos.js";
+import { leerArchivoSubido, soportaGuardarComo } from "../../almacen/archivos.js";
 import { leerVales } from "../../importadores/vales.js";
 import { lineasPorUbicar } from "../../servicios/consultas.js";
 import { importarValesNuevos, revisarValesNuevos } from "../../servicios/sincronizar.js";
@@ -91,19 +91,33 @@ export function PaginaExportar() {
   const estado = sesion.estado;
   const pendientes = useMemo(() => lineasPorUbicar(estado).length, [estado]);
   const [exportoVales, setExportoVales] = useState(false);
-  const exportar = (tipo) =>
-    sesion.tarea("Generando Excel…", async () => {
-      const destino = await sesion.exportar(tipo);
+  const exportar = async (tipo) => {
+    // Primero "Guardar como" (tiene que abrirse directo desde el clic); luego se genera el archivo.
+    let archivo;
+    try {
+      archivo = await sesion.elegirDestinoExportacion(tipo);
+    } catch (error) {
+      sesion.avisar("error", `No se pudo abrir la ventana para guardar: ${error.message}`);
+      return;
+    }
+    if (archivo === null) return; // canceló
+    await sesion.tarea("Generando Excel…", async () => {
+      const destino = await sesion.exportar(tipo, archivo);
       sesion.avisar("exito", `Listo: ${destino}`);
       if (tipo === "VALES") setExportoVales(true);
     });
+  };
   const destino = sesion.carpetaLista ? `${sesion.carpeta.name}/exportaciones/${hoyIso()}/` : "tu carpeta de Descargas";
+  const conDialogo = soportaGuardarComo();
   const historial = [...estado.exportaciones].reverse().slice(0, 20);
   const porEnviar = valesPorEnviar(estado).length;
   return html`
     <p class="introduccion">
       Se generan sobre <strong>tus propios archivos</strong> (las plantillas que subiste en la primera carga), así que
-      conservan logos, botones, macros, formatos y la configuración de impresión. Se guardan en <code>${destino}</code>.
+      conservan logos, botones, macros, formatos y la configuración de impresión.${" "}
+      ${conDialogo
+        ? "Al exportar se abre el explorador de archivos para que elijas la carpeta (recuerda la última que usaste)."
+        : html`Se guardan en <code>${destino}</code>.`}
     </p>
     ${pendientes
       ? html`<${Aviso} tipo="advertencia" titulo=${`${pendientes} renglón(es) por ubicar`}>
@@ -113,14 +127,14 @@ export function PaginaExportar() {
     <div class="rejilla-2">
       <${Tarjeta} titulo="Vales de salida (.xlsm)">
         <p>Reescribe solo la hoja <strong>DIARIO</strong> con el historial completo. Es el archivo que envías a la base.</p>
-        <${Boton} tipo="primario" onClick=${() => exportar("VALES")}>Exportar vales<//>
+        <${Boton} tipo="primario" onClick=${() => exportar("VALES")}>${conDialogo ? "Exportar vales…" : "Exportar vales"}<//>
         ${exportoVales && porEnviar
           ? html`<p class="nota">Cuando lo envíes por correo, márcalo como enviado abajo.</p>`
           : null}
       <//>
       <${Tarjeta} titulo="Inventario (.xlsx)">
         <p>Actualiza CONSUMO e INGRESO por contenedor con los vales posteriores al conteo. El nombre lleva la fecha de hoy.</p>
-        <${Boton} tipo="primario" onClick=${() => exportar("INVENTARIO")}>Exportar inventario<//>
+        <${Boton} tipo="primario" onClick=${() => exportar("INVENTARIO")}>${conDialogo ? "Exportar inventario…" : "Exportar inventario"}<//>
       <//>
     </div>
     <${PorEnviar} />

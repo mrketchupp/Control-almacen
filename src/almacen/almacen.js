@@ -141,23 +141,35 @@ export class Almacen {
    * @param tipo 'VALES' | 'INVENTARIO'
    * @returns {{ nombre, datos, subcarpeta, resultado }}
    */
-  async exportar(tipo, usuario, hoy = hoyIso()) {
+  /** Nombre con el que se exporta (el del archivo original; el inventario lleva la fecha). */
+  nombreExportacion(tipo, hoy = hoyIso()) {
+    const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === tipo && p.activa);
+    if (!registro) return null;
+    return tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
+  }
+
+  /**
+   * Genera el Excel sobre la plantilla. Con `guardar(nombre, datos)` lo escribe antes de registrar
+   * la exportación (si falla la escritura, no queda registrada).
+   */
+  async exportar(tipo, usuario, hoy = hoyIso(), { guardar = null } = {}) {
     const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
     const resultado = tipo === "VALES" ? exportarVales(this.estado, plantilla) : exportarInventario(this.estado, plantilla);
     const nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
     const huella = await sha256(resultado.datos);
+    const destino = guardar ? await guardar(nombre, resultado.datos) : null;
     await this.modificar((estado) => {
       estado.exportaciones.push({
         id: estado.exportaciones.length + 1,
         tipo,
-        archivo: `exportaciones/${hoy}/${nombre}`,
+        archivo: destino ?? `exportaciones/${hoy}/${nombre}`,
         sha256: huella,
         usuario,
         fecha_hora: ahoraIso(),
         ultimo_folio: resultado.ultimoFolio ?? null,
       });
     });
-    return { nombre, datos: resultado.datos, subcarpeta: `exportaciones/${hoy}`, resultado };
+    return { nombre, datos: resultado.datos, subcarpeta: `exportaciones/${hoy}`, resultado, destino };
   }
 
   // ------------------------------------------------------------ respaldos

@@ -1,33 +1,55 @@
 import { useMemo, useState } from "preact/hooks";
-import { filasHistorial } from "../../servicios/consultas.js";
-import { Buscador, Tabla, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { filasHistorial, filtrarHistorial } from "../../servicios/consultas.js";
+import { Boton, Buscador, Tabla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+
+const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "" };
 
 export function PaginaHistorial() {
   const sesion = useSesion();
   const filas = useMemo(() => filasHistorial(sesion.estado), [sesion.estado]);
-  const [texto, setTexto] = useState("");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
-  const [estadoVale, setEstadoVale] = useState("");
-  const porTexto = useFiltroTexto(filas, texto, ["folio", "descripcion", "codigo", "clave", "destino", "depto", "recibio", "oc", "notas"]);
-  const visibles = porTexto
-    .filter((f) => (!desde || f.fecha_iso >= desde) && (!hasta || f.fecha_iso <= hasta) && (!estadoVale || f.estado === estadoVale))
-    .map((f) => (f.estado === "CANCELADO" ? { ...f, _clase: "fila-cancelada" } : f));
+  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
+  const deptos = useMemo(() => [...new Set(filas.map((f) => f.depto).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
+  const personas = useMemo(() => [...new Set(filas.map((f) => f.recibio).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
+  const visibles = useMemo(
+    () => filtrarHistorial(filas, filtros).map((f) => (f.estado === "CANCELADO" ? { ...f, _clase: "fila-cancelada" } : f)),
+    [filas, filtros],
+  );
+  const activos = Object.entries(filtros).filter(([, v]) => v).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
   return html`
-    <div class="filtros">
-      <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Folio, código, descripción, persona, área…" />
-      <label class="en-linea">Desde <input type="date" value=${desde} onChange=${(e) => setDesde(e.currentTarget.value)} /></label>
-      <label class="en-linea">Hasta <input type="date" value=${hasta} onChange=${(e) => setHasta(e.currentTarget.value)} /></label>
-      <select value=${estadoVale} onChange=${(e) => setEstadoVale(e.currentTarget.value)} aria-label="Estado">
-        <option value="">Todos</option>
-        <option value="EMITIDO">Emitidos</option>
-        <option value="CANCELADO">Cancelados</option>
-      </select>
-      <a class="boton boton-primario" href="#vales">＋ Nuevo vale</a>
-      <span class="conteo">${num(visibles.length)} renglones · ${num(folios)} folios</span>
+    <div class="filtros filtros-historial">
+      <${Buscador} valor=${filtros.texto} alCambiar=${(texto) => setFiltros({ ...filtros, texto })} placeholder="Buscar en todo: folio, descripción, clave, O.C.…" />
+      <label class="filtro">
+        <span>Código AX</span>
+        <input inputmode="numeric" value=${filtros.codigo} onInput=${poner("codigo")} placeholder="Ej. 701" />
+      </label>
+      <label class="filtro">
+        <span>Área destino</span>
+        <select value=${filtros.depto} onChange=${poner("depto")}>
+          <option value="">Todas</option>
+          ${deptos.map((d) => html`<option value=${d}>${d}</option>`)}
+        </select>
+      </label>
+      <label class="filtro">
+        <span>Recibió</span>
+        <input list="lista-recibio" value=${filtros.recibio} onInput=${poner("recibio")} placeholder="Nombre" />
+        <datalist id="lista-recibio">${personas.map((p) => html`<option value=${p} />`)}</datalist>
+      </label>
+      <label class="filtro">
+        <span>Estado</span>
+        <select value=${filtros.estado} onChange=${poner("estado")}>
+          <option value="">Todos</option>
+          <option value="EMITIDO">Emitidos</option>
+          <option value="CANCELADO">Cancelados</option>
+        </select>
+      </label>
+      <label class="filtro"><span>Desde</span><input type="date" value=${filtros.desde} onChange=${poner("desde")} /></label>
+      <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
+      ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS)}>Quitar filtros (${activos})<//>` : null}
     </div>
+    <p class="conteo">${num(visibles.length)} renglones · ${num(folios)} folios${activos ? " con los filtros elegidos" : ""}</p>
     <${Tabla}
       limite=${200}
       filas=${visibles}
@@ -44,7 +66,7 @@ export function PaginaHistorial() {
         { clave: "oc", titulo: "O.C." },
         { titulo: "Notas", render: (f) => (f.notas ? html`<span class="nota-icono" title=${f.notas}>ⓘ</span>` : "") },
       ]}
-      vacia="Ningún renglón coincide con el filtro."
+      vacia="Ningún renglón coincide con los filtros."
     />
   `;
 }

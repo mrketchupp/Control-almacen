@@ -86,9 +86,13 @@ export function valoresDeVale(modelo, vale) {
   return valores;
 }
 
+// Margen alrededor de la tabla: con bordes colapsados, la mitad exterior del marco queda fuera de
+// la tabla y el lienzo (overflow hidden) la recortaba; el borde derecho casi no se veía.
+const ORILLA = 3;
+
 function medidas(modelo) {
-  const ancho = modelo.columnas.reduce((s, c) => s + c.px, 0);
-  const alto = modelo.filas.reduce((s, f) => s + f.px, 0);
+  const ancho = modelo.columnas.reduce((s, c) => s + c.px, 0) + 2 * ORILLA;
+  const alto = modelo.filas.reduce((s, f) => s + f.px, 0) + 2 * ORILLA;
   const { margenes, horizontal } = modelo.pagina;
   const paginaAncho = (horizontal ? CARTA.alto : CARTA.ancho) - margenes.izq - margenes.der;
   const paginaAlto = (horizontal ? CARTA.ancho : CARTA.alto) - margenes.sup - margenes.inf;
@@ -115,6 +119,10 @@ export function paginaHtml(modelo, valores = new Map()) {
   const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : modelo.valor(r, c));
   const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
   const altoFila = new Map(modelo.filas.map((f) => [f.r, f.px]));
+  const bordeIzquierdo = (r) =>
+    estilos.bordesCss(modelo.estiloDe(r, modelo.area.c1))["border-left"] ||
+    estilos.bordesCss(modelo.estiloDe(r, modelo.area.c1 - 1))["border-right"] ||
+    null;
 
   const filasHtml = modelo.filas.map(({ r, px }) => {
     const celdas = [];
@@ -141,7 +149,8 @@ export function paginaHtml(modelo, valores = new Map()) {
         if (v) bordes["border-left"] = v;
       }
       if (finCol === area.c2 && !bordes["border-right"]) {
-        const v = estilos.bordesCss(modelo.estiloDe(r, finCol + 1))["border-left"];
+        // El marco es parejo: sin borde derecho, se usa el de la celda vecina o el izquierdo de la fila.
+        const v = estilos.bordesCss(modelo.estiloDe(r, finCol + 1))["border-left"] || bordeIzquierdo(r);
         if (v) bordes["border-right"] = v;
       }
       if (r === area.r1 && !bordes["border-top"]) {
@@ -180,7 +189,7 @@ export function paginaHtml(modelo, valores = new Map()) {
   const imagenes = modelo.imagenes
     .map(
       (i) =>
-        `<img alt="" src="${i.src}" style="left:${i.x.toFixed(1)}px;top:${i.y.toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
+        `<img alt="" src="${i.src}" style="left:${(i.x + ORILLA).toFixed(1)}px;top:${(i.y + ORILLA).toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
     )
     .join("");
   const centrado = modelo.pagina.centrado ? "margin-left:auto;margin-right:auto;" : "";
@@ -191,8 +200,8 @@ export function paginaHtml(modelo, valores = new Map()) {
   return (
     `<section class="vale-pagina" style="height:${(paginaAlto - 0.02).toFixed(2)}in">` +
     seccion(modelo.pagina.encabezado, "vale-encabezado") +
-    `<div class="vale-lienzo" style="${centrado}width:${ancho}px;height:${alto}px;zoom:${escala}">` +
-    `<table class="vale-tabla" style="width:${ancho}px"><colgroup>${columnas}</colgroup><tbody>${filasHtml.join("")}</tbody></table>` +
+    `<div class="vale-lienzo" style="${centrado}width:${ancho}px;height:${alto}px;padding:${ORILLA}px;zoom:${escala}">` +
+    `<table class="vale-tabla" style="width:${ancho - 2 * ORILLA}px"><colgroup>${columnas}</colgroup><tbody>${filasHtml.join("")}</tbody></table>` +
     `${imagenes}</div>${seccion(modelo.pagina.pie, "vale-pie")}</section>`
   );
 }
@@ -206,7 +215,7 @@ export function cssImpresion(modelo) {
     ".vale-pie,.vale-encabezado{display:flex;justify-content:space-between;font:7pt Arial,sans-serif;color:#000}" +
     ".vale-pie{position:absolute;left:0;right:0;bottom:0}.vale-pie span,.vale-encabezado span{flex:1}.vale-pie span:nth-child(2),.vale-encabezado span:nth-child(2){text-align:center}.vale-pie span:last-child,.vale-encabezado span:last-child{text-align:right}" +
     ".vale-pagina,.vale-pagina *{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
-    ".vale-lienzo{position:relative;overflow:hidden;background:#fff;color:#000}" +
+    ".vale-lienzo{position:relative;overflow:hidden;box-sizing:border-box;background:#fff;color:#000}" +
     ".vale-tabla{table-layout:fixed;border-collapse:collapse;color:#000}" +
     ".vale-tabla td{padding:0 2px;line-height:1.1;box-sizing:border-box}" +
     ".vale-lienzo img{position:absolute}"

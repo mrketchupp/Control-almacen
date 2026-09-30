@@ -11,21 +11,23 @@ import { PaginaInventario } from "./paginas/inventario.js";
 import { PaginaPendientes } from "./paginas/pendientes.js";
 import { PaginaPrimeraCarga } from "./paginas/primeraCarga.js";
 import { PaginaRespaldos } from "./paginas/respaldos.js";
+import { PaginaAjustes } from "./paginas/ajustes.js";
 import { PaginaAreas } from "./paginas/areas.js";
 import { PaginaVale } from "./paginas/vale.js";
-import { PaginaNuevoVale } from "./paginas/vales.js";
+import { PaginaValesSalida } from "./paginas/vales.js";
 import { valesPorEnviar } from "../servicios/vales.js";
 
 const PAGINAS = {
   inicio: { titulo: "Inicio", componente: PaginaInicio },
   carga: { titulo: "Primera carga", componente: PaginaPrimeraCarga, soloVacia: true },
-  vales: { titulo: "Nuevo vale", componente: PaginaNuevoVale, requiereDatos: true },
+  vales: { titulo: "Vales de salida", componente: PaginaValesSalida, requiereDatos: true },
   historial: { titulo: "Historial de vales", componente: PaginaHistorial, requiereDatos: true },
   vale: { titulo: "Vale", componente: PaginaVale, requiereDatos: true, oculta: true },
   inventario: { titulo: "Inventario", componente: PaginaInventario, requiereDatos: true },
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true },
   exportar: { titulo: "Exportar y enviar", componente: PaginaExportar, requiereDatos: true },
   areas: { titulo: "Áreas y personas", componente: PaginaAreas, requiereDatos: true },
+  ajustes: { titulo: "Ajustes", componente: PaginaAjustes, requiereDatos: true },
   respaldos: { titulo: "Respaldos", componente: PaginaRespaldos },
   ayuda: { titulo: "Ayuda", componente: PaginaAyuda },
 };

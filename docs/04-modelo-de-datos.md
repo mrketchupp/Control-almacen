@@ -87,13 +87,14 @@ erDiagram
 | Campo | Notas |
 |---|---|
 | nombre | SOLDADOR, TOP DRIVE, … |
+| tipo | `INTERNO` (departamento del equipo), `EXTERNO` (otra compañía, p. ej. NOV) o `TRANSFERENCIA` (a otro equipo). Si falta, se deduce: transferencia por nombre/naturaleza; externa si el destino es distinto del origen |
 | hoja_excel | Hoja-formulario del libro de vales con la que se **imprime** el vale (nula = la del departamento) |
-| origen, depto_origen, destino, depto_destino | Valores por defecto |
+| origen, depto_origen, destino, depto_destino | Valores por defecto. En las **internas** son fijos: `RIG 91 · ALMACEN` → `RIG 91 · <depto del área>` |
 | recibe_nombre, recibe_puesto | Receptor habitual |
 | autoriza_nombre | Quién autoriza habitualmente (transferencias) |
 | requiere_autoriza | Transferencias: sí (P-14) |
 | naturaleza | `CONSUMO` / `TRANSFERENCIA` |
-| observaciones | Las líneas fijas del formato (C44:C46) |
+| observaciones | Las líneas fijas del formato (C44:C46). En las internas solo cambia, en cada vale, la línea `ETAPA DE PERFORACION: …` |
 | lote_defecto | Se copia a la columna LOTE de cada renglón nuevo |
 | activo | Las inactivas no se ofrecen al hacer vales |
 
@@ -169,13 +170,16 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 | **`plantilla_excel`** | tipo (`INVENTARIO` / `VALES`), ruta, hash, fecha, activa |
 | **`exportacion`** | tipo, fecha, archivo, hash, usuario, último folio incluido, marcada como enviada |
 | **`auditoria`** | fecha_hora, usuario, entidad, entidad_id, acción, antes (JSON), después (JSON), motivo |
-| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `folio_minimo_salida`…) |
+| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `folio_minimo_salida`, `etapa_perforacion` actual, `captura_rapida`…) |
 
 `folio_minimo_salida` permite saltar folios usados en papel fuera de la herramienta: el siguiente folio es
 `max(último folio + 1, folio_minimo_salida)` y solo puede aumentar.
 
-El estado lleva `formato` (hoy **2**). Al abrir un estado o un respaldo de un formato anterior se migra solo
-(`migrarEstado`): el formato 2 agregó `borradores` y `envios`.
+El estado lleva `formato` (hoy **3**). Al abrir un estado o un respaldo de un formato anterior se migra solo
+(`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
+de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`.
+
+Los borradores llevan además `etapa_perforacion`. Entregó no se captura: al emitir es siempre el almacenista en turno.
 
 ## Cálculo de existencias
 

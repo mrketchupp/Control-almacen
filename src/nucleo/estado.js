@@ -4,11 +4,13 @@
 //
 // Cantidades como texto decimal ("12.5"); fechas como texto ISO.
 
+import { esInterna, etapaDe, normalizarArea } from "./areas.js";
 import { ahoraIso } from "./fechas.js";
 import { claveEstricta } from "./normalizar.js";
 
 // Formato 2 (Fase 2): borradores de vales y envíos a la base.
-export const FORMATO_ESTADO = 2;
+// Formato 3: tipo de área (interna / externa / transferencia) y etapa de perforación.
+export const FORMATO_ESTADO = 3;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio() {
@@ -44,6 +46,20 @@ export function migrarEstado(estado) {
     estado.borradores ??= [];
     estado.envios ??= [];
     estado.formato = 2;
+  }
+  if (estado.formato < 3) {
+    // Los vales internos salen de RIG 91 · ALMACEN y llegan al mismo equipo.
+    for (const area of estado.plantillas_area) normalizarArea(area);
+    estado.config ??= {};
+    const interna = estado.plantillas_area.find((a) => esInterna(a) && etapaDe(a.observaciones) !== null);
+    estado.config.etapa_perforacion ??= interna ? etapaDe(interna.observaciones) : "";
+    estado.config.captura_rapida ??= false;
+    for (const b of estado.borradores) {
+      b.etapa_perforacion ??= etapaDe(b.observaciones) ?? estado.config.etapa_perforacion;
+      const area = estado.plantillas_area.find((a) => a.id === b.plantilla_area_id);
+      if (esInterna(area)) Object.assign(b, { origen: area.origen, depto_origen: area.depto_origen, destino: area.destino });
+    }
+    estado.formato = 3;
   }
   return estado;
 }

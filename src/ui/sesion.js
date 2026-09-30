@@ -7,10 +7,13 @@ import {
   borrarDeCarpeta,
   descargar,
   elegirCarpeta,
+  elegirDondeGuardar,
+  escribirEnArchivo,
   escribirEnCarpeta,
   listarCarpeta,
   permisoCarpeta,
   soportaCarpetas,
+  soportaGuardarComo,
 } from "../almacen/archivos.js";
 import { infoDeNombre, respaldosABorrar } from "../almacen/respaldos.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
@@ -92,6 +95,7 @@ export class Sesion {
     this.carpeta = await this.backend.leerAjuste("carpeta");
     this.permiso = this.carpeta ? await permisoCarpeta(this.carpeta) : null;
     this.ultimoRespaldo = await this.backend.leerAjuste("ultimo_respaldo");
+    this.exportoConDialogo = Boolean(await this.backend.leerAjuste("exporto_con_dialogo"));
     if (navigator.storage?.persisted) {
       this.persistente = await navigator.storage.persisted();
       if (!this.persistente && navigator.storage.persist) this.persistente = await navigator.storage.persist();
@@ -303,9 +307,33 @@ export class Sesion {
 
   // ------------------------------------------------------------ exportar
 
-  async exportar(tipo) {
-    const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario);
-    const destino = await this.guardarArchivo(subcarpeta, nombre, datos);
+  /**
+   * Abre "Guardar como" para elegir dónde queda el Excel exportado. Debe llamarse directo
+   * desde el clic (el navegador lo exige). La primera vez empieza en la carpeta de la
+   * herramienta; después, en la última carpeta usada.
+   * @returns el archivo elegido; null si se canceló; undefined si el navegador no lo permite
+   */
+  async elegirDestinoExportacion(tipo) {
+    if (!soportaGuardarComo()) return undefined;
+    const nombre = this.almacen.nombreExportacion(tipo);
+    if (!nombre) return undefined;
+    const startIn = !this.exportoConDialogo && this.carpetaLista ? this.carpeta : "documents";
+    return elegirDondeGuardar(nombre, { startIn });
+  }
+
+  /** Exporta al archivo elegido con "Guardar como" o, sin él, a la carpeta / Descargas. */
+  async exportar(tipo, archivo = undefined) {
+    let destino;
+    if (archivo) {
+      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { guardar: (_, datos) => escribirEnArchivo(archivo, datos) }));
+      if (!this.exportoConDialogo) {
+        this.exportoConDialogo = true;
+        await this.backend.guardarAjuste("exporto_con_dialogo", true);
+      }
+    } else {
+      const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario);
+      destino = await this.guardarArchivo(subcarpeta, nombre, datos);
+    }
     if (this.carpetaLista) await this.respaldar("exportacion", { descargarSiNoHayCarpeta: false });
     return destino;
   }

@@ -27,6 +27,34 @@ export function descargar(nombre, datos) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+export const soportaGuardarComo = () => typeof window !== "undefined" && "showSaveFilePicker" in window;
+
+/**
+ * Ventana "Guardar como" del explorador de archivos. Recuerda la última carpeta usada.
+ * @returns el archivo elegido, o null si el usuario canceló
+ */
+export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "control-almacen-exportar" } = {}) {
+  const extension = nombre.slice(nombre.lastIndexOf(".")).toLowerCase();
+  try {
+    return await window.showSaveFilePicker({
+      id,
+      startIn,
+      suggestedName: nombre,
+      types: [{ description: extension === ".xlsm" ? "Libro de Excel con macros" : "Libro de Excel", accept: { [TIPOS[extension]]: [extension] } }],
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") return null;
+    throw error;
+  }
+}
+
+export async function escribirEnArchivo(archivo, datos) {
+  const escritor = await archivo.createWritable();
+  await escritor.write(datos);
+  await escritor.close();
+  return archivo.name;
+}
+
 export async function elegirCarpeta() {
   return window.showDirectoryPicker({ id: "control-almacen", mode: "readwrite", startIn: "documents" });
 }

@@ -150,3 +150,112 @@ export function useFiltroTexto(filas, texto, campos) {
 export function confirmar(texto) {
   return window.confirm(texto);
 }
+
+/**
+ * Campo de texto con lista de opciones (combobox). El padre calcula las opciones a partir
+ * del texto. Flechas para moverse, Enter elige, Escape cierra.
+ *   extra: { etiqueta, alElegir } → última opción fija (p. ej. "Otra clave…")
+ *   alEnter(e): Enter con la lista cerrada o vacía
+ *   alSalir(): al perder el foco (sin haber elegido de la lista)
+ */
+export function Combo({
+  id,
+  valor,
+  alEscribir,
+  opciones,
+  render,
+  alElegir,
+  clave = (o, i) => i,
+  extra = null,
+  placeholder = "",
+  clase = "",
+  ariaLabel,
+  deshabilitado = false,
+  alEnter = null,
+  alSalir = null,
+  abrirAlEnfocar = true,
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [marcado, setMarcado] = useState(0);
+  const total = opciones.length + (extra ? 1 : 0);
+  const elegir = (i) => {
+    setAbierto(false);
+    if (i < opciones.length) alElegir(opciones[i]);
+    else extra?.alElegir();
+  };
+  const tecla = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (!abierto) setAbierto(true);
+      else setMarcado(Math.min(marcado + 1, total - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMarcado(Math.max(marcado - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (abierto && total) elegir(Math.min(marcado, total - 1));
+      else alEnter?.(e);
+    } else if (e.key === "Escape") setAbierto(false);
+  };
+  return html`<div class=${`combo ${clase}`}>
+    <input
+      id=${id}
+      value=${valor}
+      placeholder=${placeholder}
+      disabled=${deshabilitado}
+      autocomplete="off"
+      role="combobox"
+      aria-expanded=${abierto && total > 0}
+      aria-label=${ariaLabel || placeholder}
+      onInput=${(e) => {
+        alEscribir(e.currentTarget.value);
+        setAbierto(true);
+        setMarcado(0);
+      }}
+      onFocus=${() => {
+        if (abrirAlEnfocar) setAbierto(true);
+        setMarcado(0);
+      }}
+      onBlur=${() => {
+        setAbierto(false);
+        alSalir?.();
+      }}
+      onKeyDown=${tecla}
+    />
+    ${abierto && total
+      ? html`<ul class="resultados" role="listbox">
+          ${opciones.map(
+            (o, i) => html`<li
+              key=${clave(o, i)}
+              role="option"
+              aria-selected=${i === marcado}
+              class=${i === marcado ? "marcado" : ""}
+              onMouseDown=${(e) => {
+                e.preventDefault();
+                elegir(i);
+              }}
+            >
+              ${render(o)}
+            </li>`,
+          )}
+          ${extra
+            ? html`<li
+                class=${`manual ${marcado === opciones.length ? "marcado" : ""}`}
+                role="option"
+                onMouseDown=${(e) => {
+                  e.preventDefault();
+                  elegir(opciones.length);
+                }}
+              >
+                ${extra.etiqueta}
+              </li>`
+            : null}
+        </ul>`
+      : null}
+  </div>`;
+}
+
+/** Pastilla de información (secundaria al dato principal). */
+export function Pastilla({ tono = "neutro", titulo, children }) {
+  return html`<span class=${`pastilla pastilla-${tono}`} title=${titulo}>${children}</span>`;
+}

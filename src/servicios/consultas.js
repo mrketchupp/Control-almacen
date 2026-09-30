@@ -239,3 +239,79 @@ export function agregarAlmacenista(estado, nombre) {
   persona.activo = true;
   return persona;
 }
+
+// ----------------------------------------------------------------- recibe
+
+const sinAcentos = (t) =>
+  String(t ?? "")
+    .toUpperCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "");
+
+/**
+ * Personas que pueden recibir un vale, con su puesto y su área habitual (el departamento al
+ * que más vales ha recibido). Así "MECANICO" encuentra a los mecánicos aunque su puesto no
+ * esté capturado.
+ */
+export function personasParaRecibir(estado) {
+  const areas = new Map();
+  for (const v of estado.vales) {
+    if (v.tipo !== "SALIDA" || !v.recibio_nombre || !v.depto_destino) continue;
+    const cuenta = areas.get(v.recibio_nombre) ?? new Map();
+    cuenta.set(v.depto_destino, (cuenta.get(v.depto_destino) ?? 0) + 1);
+    areas.set(v.recibio_nombre, cuenta);
+  }
+  return estado.personas
+    .filter((p) => p.activo !== false)
+    .map((p) => {
+      const cuenta = [...(areas.get(p.nombre) ?? new Map())].sort((a, b) => b[1] - a[1]);
+      const veces = cuenta.reduce((s, [, n]) => s + n, 0);
+      const area = cuenta[0]?.[0] ?? null;
+      return {
+        id: p.id,
+        nombre: p.nombre,
+        puesto: p.puesto ?? null,
+        area,
+        veces,
+        almacenista: Boolean(p.es_almacenista),
+        texto: sinAcentos(`${p.nombre} ${p.puesto ?? ""} ${cuenta.map(([d]) => d).join(" ")}`),
+      };
+    })
+    .sort((a, b) => Number(a.almacenista) - Number(b.almacenista) || b.veces - a.veces || a.nombre.localeCompare(b.nombre, "es"));
+}
+
+/** Filtra personas por palabras (nombre, puesto o área); las del departamento dado van primero. */
+export function buscarPersonas(personas, consulta, { depto = null, limite = 30 } = {}) {
+  const palabras = sinAcentos(consulta).split(/\s+/).filter(Boolean);
+  const deptoLimpio = sinAcentos(depto);
+  const delArea = (p) => Boolean(deptoLimpio) && (sinAcentos(p.area) === deptoLimpio || sinAcentos(p.puesto).includes(deptoLimpio));
+  return personas
+    .filter((p) => palabras.every((w) => p.texto.includes(w)))
+    .sort((a, b) => Number(delArea(b)) - Number(delArea(a)))
+    .slice(0, limite);
+}
+
+// ----------------------------------------------------------------- historial
+
+/**
+ * Filtros combinados del historial (todos deben cumplirse):
+ * { texto, codigo, depto, recibio, estado, desde, hasta }
+ */
+export function filtrarHistorial(filas, filtros = {}) {
+  const palabras = sinAcentos(filtros.texto).split(/\s+/).filter(Boolean);
+  const codigo = String(filtros.codigo ?? "").trim().replace(/^0+/, "");
+  const recibio = sinAcentos(filtros.recibio).trim();
+  return filas.filter((f) => {
+    if (codigo && String(f.codigo ?? "") !== codigo) return false;
+    if (filtros.depto && f.depto !== filtros.depto) return false;
+    if (recibio && !sinAcentos(f.recibio).includes(recibio)) return false;
+    if (filtros.estado && f.estado !== filtros.estado) return false;
+    if (filtros.desde && f.fecha_iso < filtros.desde) return false;
+    if (filtros.hasta && f.fecha_iso > filtros.hasta) return false;
+    if (palabras.length) {
+      const todo = sinAcentos([f.folio, f.descripcion, f.codigo, f.clave, f.destino, f.depto, f.recibio, f.oc, f.notas].join(" "));
+      if (!palabras.every((w) => todo.includes(w))) return false;
+    }
+    return true;
+  });
+}

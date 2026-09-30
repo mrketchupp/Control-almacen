@@ -1,12 +1,13 @@
 import { useEffect, useState } from "preact/hooks";
-import { areaVacia, fijarFolioMinimo, guardarArea, guardarPersona } from "../../servicios/catalogos.js";
-import { siguienteFolio } from "../../servicios/vales.js";
+import { TIPOS_AREA, tipoDeArea } from "../../nucleo/areas.js";
+import { areaVacia, guardarArea, guardarPersona } from "../../servicios/catalogos.js";
 import { Aviso, Boton, Buscador, Tabla, Tarjeta, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 function EditorArea({ area, hojas, alTerminar }) {
   const sesion = useSesion();
-  const [datos, setDatos] = useState({ ...areaVacia(), ...area });
+  const [datos, setDatos] = useState({ ...areaVacia(), ...area, tipo: tipoDeArea({ ...areaVacia(), ...area }) });
+  const interna = datos.tipo === "INTERNO";
   const [error, setError] = useState(null);
   const campo = (clave, etiqueta, opciones = {}) => html`<label class=${`campo ${opciones.ancho ? `campo-${opciones.ancho}` : ""}`}>
     <span>${etiqueta}</span>
@@ -36,15 +37,16 @@ function EditorArea({ area, hojas, alTerminar }) {
         </select>
       </label>
       <label class="campo">
-        <span>Tipo</span>
-        <select value=${datos.naturaleza} onChange=${(e) => setDatos({ ...datos, naturaleza: e.currentTarget.value })}>
-          <option value="CONSUMO">Consumo</option>
-          <option value="TRANSFERENCIA">Transferencia (exige Autorizó)</option>
+        <span>Tipo de área</span>
+        <select value=${datos.tipo} onChange=${(e) => setDatos({ ...datos, tipo: e.currentTarget.value })}>
+          ${Object.entries(TIPOS_AREA).map(([clave, texto]) => html`<option value=${clave}>${texto}</option>`)}
         </select>
       </label>
-      ${campo("origen", "Origen", { lista: "lista-lugares-a" })}
-      ${campo("depto_origen", "Depto. origen", { lista: "lista-deptos-a" })}
-      ${campo("destino", "Destino", { lista: "lista-lugares-a" })}
+      ${interna
+        ? html`<p class="nota campo-2">Interna: el vale sale de <strong>RIG 91 · ALMACEN</strong> y llega a <strong>RIG 91 · ${datos.depto_destino || "(depto. destino)"}</strong>.</p>`
+        : html`${campo("origen", "Origen", { lista: "lista-lugares-a" })}
+            ${campo("depto_origen", "Depto. origen", { lista: "lista-deptos-a" })}
+            ${campo("destino", "Destino", { lista: "lista-lugares-a" })}`}
       ${campo("depto_destino", "Depto. destino", { lista: "lista-deptos-a" })}
       ${campo("recibe_nombre", "Recibe (habitual)", { lista: "lista-personas-a" })}
       ${campo("recibe_puesto", "Puesto de quien recibe")}
@@ -58,7 +60,7 @@ function EditorArea({ area, hojas, alTerminar }) {
         <input type="checkbox" checked=${datos.activo !== false} onChange=${(e) => setDatos({ ...datos, activo: e.currentTarget.checked })} />
         <span>Activa (aparece al hacer vales)</span>
       </label>
-      ${campo("observaciones", "Observaciones que se imprimen", { area: true, ancho: "todo" })}
+      ${campo("observaciones", interna ? "Observaciones que se imprimen (la línea ETAPA DE PERFORACION se llena en cada vale)" : "Observaciones que se imprimen", { area: true, ancho: "todo" })}
     </div>
     <datalist id="lista-personas-a">${sesion.estado.personas.map((p) => html`<option value=${p.nombre} />`)}</datalist>
     <datalist id="lista-deptos-a">${[...new Set(sesion.estado.plantillas_area.flatMap((p) => [p.depto_destino, p.depto_origen]).filter(Boolean))].map((d) => html`<option value=${d} />`)}</datalist>
@@ -109,29 +111,6 @@ function Personas() {
   <//>`;
 }
 
-function Folios() {
-  const sesion = useSesion();
-  const siguiente = siguienteFolio(sesion.estado);
-  const [valor, setValor] = useState(String(siguiente));
-  useEffect(() => setValor(String(siguiente)), [siguiente]);
-  const guardar = () =>
-    sesion.tarea("Guardando…", async () => {
-      await sesion.almacen.modificar((e) => fijarFolioMinimo(e, valor, sesion.usuario));
-      sesion.avisar("exito", `El siguiente vale se emitirá con el folio ${valor}.`);
-    });
-  return html`<${Tarjeta} titulo="Folios">
-    <p>Siguiente folio de salida: <strong class="folio-grande">${siguiente}</strong></p>
-    <p class="nota">
-      Si se usaron folios en papel o en el Excel fuera de la herramienta, importa esos vales en <a href="#exportar">Exportar</a>${" "}
-      (Traer vales del Excel) o, si no existen en ningún archivo, indica aquí el siguiente folio. Solo puede aumentar.
-    </p>
-    <div class="acciones-linea">
-      <input type="number" min=${siguiente} value=${valor} onInput=${(e) => setValor(e.currentTarget.value)} aria-label="Siguiente folio" />
-      <${Boton} onClick=${guardar} disabled=${Number(valor) === siguiente}>Fijar siguiente folio<//>
-    </div>
-  <//>`;
-}
-
 export function PaginaAreas() {
   const sesion = useSesion();
   const [editando, setEditando] = useState(null);
@@ -150,13 +129,12 @@ export function PaginaAreas() {
           { clave: "nombre", titulo: "Área" },
           { titulo: "Destino", render: (a) => a.depto_destino || "—" },
           { titulo: "Recibe", render: (a) => a.recibe_nombre || "—" },
-          { titulo: "Tipo", render: (a) => (a.naturaleza === "TRANSFERENCIA" ? "Transferencia" : "Consumo") },
+          { titulo: "Tipo", render: (a) => ({ INTERNO: "Interna", EXTERNO: "Externa", TRANSFERENCIA: "Transferencia" })[tipoDeArea(a)] },
           { titulo: "Formato", render: (a) => (a.hoja_excel || "según depto.").trim() },
           { titulo: "", render: (a) => html`<${Boton} tamano="chico" onClick=${() => setEditando(a)}>Editar<//>` },
         ]}
       />
     <//>
-    <${Folios} />
     <${Personas} />
   `;
 }

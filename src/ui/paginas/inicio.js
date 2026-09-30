@@ -127,7 +127,7 @@ export function PaginaInicio() {
     <${Tarjeta} titulo="Uso diario">
       <ol class="pasos">
         <li>Elige quién está en turno (arriba a la derecha).</li>
-        <li><a href="#vales">Haz los vales</a> en la herramienta: elige el área, agrega renglones y emite. El folio se asigna solo; imprime el vale para las firmas.</li>
+        <li><a href="#vales">Haz los vales</a> en la herramienta: elige el área y quién recibe, agrega las partidas (código → clave → cantidad) y emite. El folio se asigna solo; imprime el vale para las firmas.</li>
         <li>Resuelve los <a href="#pendientes">pendientes</a> si la insignia muestra un número.</li>
         <li><a href="#exportar">Exporta</a> el libro de vales, envíalo a la base y márcalo como enviado.</li>
       </ol>

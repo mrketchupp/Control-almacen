@@ -7,7 +7,7 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
 - Fase 2 (vales de salida: borradores, folio, impresión sobre la hoja-formulario, corrección/cancelación, envíos, áreas) entregada, en aceptación; falta que el usuario valide el vale impreso (P-09).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F3 (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 2` (`src/nucleo/estado.js`, `migrarEstado`).
+- Formato del estado: `FORMATO_ESTADO = 3` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación.
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Reglas no negociables
@@ -40,5 +40,7 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - La columna `C.U` de DIARIO en realidad es el campo **LOTE** del vale.
 - Diésel (código 136), oxígeno, acetileno y otros insumos van en vales pero **no** llevan existencia.
 - Entrada vs. salida: `XXXXX` en "Pase de Entrada" (C) o en "Pase de Salida" (D) del DIARIO.
+- Vales **internos** (tipo de área `INTERNO`): salen de `RIG 91 · ALMACEN` y llegan a `RIG 91 · <área>`; entregó = almacenista en turno; en observaciones solo cambia `ETAPA DE PERFORACION` (`src/nucleo/areas.js`). NOV es `EXTERNO` y TRANSFERENCIAS `TRANSFERENCIA` (P-22 pendiente).
+- En el formulario, las partidas siguen el orden del vale impreso; lo que viene del inventario (contenedor, existencia) va en pastillas, no como columna.
 - La hoja-formulario NOV pone al almacenista a la **derecha**; las capacidades de renglones varían por hoja (21/20/19): se leen del formato, no se suponen.
 - Los vales nuevos dejan FAMILIA y TRANSFERENCIA/CONSUMO vacías (así vienen los recientes del Excel, P-13); un vale cancelado se exporta como un renglón en 0 con `CANCELADO – motivo` (P-07).

@@ -7,19 +7,20 @@
 | Inicio | Tablero: siguiente folio, vales de hoy, por enviar, por ubicar, renglones en 0 y botón **＋ Nuevo vale** |
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
-| **Nuevo vale** | Hacer vales de salida en pestañas (borradores), con buscador, existencia por contenedor, folio automático e impresión |
-| Historial de vales | Consultar el DIARIO; abrir cualquier folio para imprimirlo, **corregirlo** o **cancelarlo** con motivo |
+| **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
+| Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo, **corregirlo** o **cancelarlo** con motivo |
 | Inventario | Consultar existencias por contenedor, con búsqueda y filtros |
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
 | Exportar y enviar | Generar `VALES DE SALIDA DLTA.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **enviar a la base** y traer vales hechos en el Excel |
-| **Áreas y personas** | Editar las plantillas de cada área, las personas (almacenistas, puestos) y el siguiente folio |
+| **Áreas y personas** | Editar las plantillas de cada área (interna, externa o transferencia) y las personas (almacenistas, puestos) |
+| **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida), etapa de perforación actual y siguiente folio |
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
 
 > Las entradas y la conciliación con AX llegan en las fases 3 y 4 (ver [08-plan.md](08-plan.md)).
 
 ## 1. Abrirla (no se instala nada)
 
-La herramienta es **un solo archivo**: `ControlAlmacen.html` (~270 KB). Dos formas de abrirla:
+La herramienta es **un solo archivo**: `ControlAlmacen.html` (~300 KB). Dos formas de abrirla:
 
 | Forma | Cómo | Nota |
 |---|---|---|
@@ -47,7 +48,7 @@ En cada sesión nueva Edge vuelve a pedir el permiso: aparece un aviso amarillo 
 |---|---|
 | Datos de trabajo | Almacenamiento local de Edge (IndexedDB) de este equipo y esta cuenta de Windows |
 | Respaldos | `OneDrive\ControlAlmacen\respaldos\` |
-| Excel exportados | `OneDrive\ControlAlmacen\exportaciones\AAAA-MM-DD\` |
+| Excel exportados | La carpeta que elijas al exportar (sin esa ventana, `OneDrive\ControlAlmacen\exportaciones\AAAA-MM-DD\`) |
 
 ## 3. Primera carga (la herramienta llega vacía)
 
@@ -72,22 +73,24 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 ## 4. Uso diario
 
 1. **Elige quién está en turno** arriba a la derecha. Queda registrado en cada acción y se pone como "Entregó" en los vales.
-2. **Hacer un vale** (*Nuevo vale* o el botón grande de *Inicio*):
-   1. Elige el **área**: llena origen, destino, quién recibe, observaciones y el formato de impresión. Todo se puede cambiar en el vale.
-   2. En el buscador escribe código, descripción, dimensión o NP. Cada resultado dice **en qué contenedor está y cuánto hay**. `Enter` agrega el primero y salta a la cantidad; otro `Enter` regresa al buscador.
-   3. En **Sale de** confirma el contenedor (si el artículo está en varios). Diésel, gases y lo que no lleva existencia: *No inventariado*.
-   4. Si pides más de lo que hay, la herramienta pide una **justificación** para continuar.
-   5. **Vista previa** muestra el vale sobre tu formato con `BORRADOR` en el folio. **Emitir vale · folio N** asigna el folio y descuenta la existencia.
-   6. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.
-   - Puedes tener **varios vales abiertos** (pestañas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios.
-   - Si el vale tiene más renglones que el formato (21, 20 o 19 según la hoja), se ofrece dividirlo en folios consecutivos.
+2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*):
+   1. A la izquierda elige el **área que recibe**. En las áreas internas el vale sale de *RIG 91 · ALMACEN* y llega a *RIG 91 · área*; entregas tú (el almacenista en turno).
+   2. **Recibió:** escribe el nombre o el puesto ("mecánico") y elige de la lista; su puesto se llena solo.
+   3. **Etapa de perforación:** es lo único que cambia en las observaciones; ya viene con la última que usaste.
+   4. Al centro, en **Partidas**: escribe el **código AX** y `Enter`; en **Clave almacén** aparecen solo las claves de ese código con su contenedor y existencia (pastillas grises); elige con las flechas y `Enter`; escribe la **cantidad** y `Enter` para pasar a la siguiente partida. *Otra clave* sirve para algo que no sale del inventario; el diésel y lo que no lleva existencia quedan como *No inventariado*.
+   5. Si pides más de lo que hay, la herramienta pide una **justificación** para continuar. **✕ Quitar** borra una partida.
+   6. **Vista previa** muestra el vale sobre tu formato con `BORRADOR` en el folio. **Emitir vale · folio N** asigna el folio y descuenta la existencia.
+   7. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.
+   - Puedes tener **varios vales abiertos** (pestañas con el número de partidas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios.
+   - Si el vale tiene más partidas que el formato (21, 20 o 19 según la hoja), se ofrece dividirlo en folios consecutivos.
+   - ¿Prefieres buscar por cualquier dato y que se llene la partida completa? Actívalo en *Ajustes → Captura de partidas*.
 3. **Corregir o cancelar:** *Historial* → clic en el folio. **Corregir** pide el motivo; **Cancelar vale** pide el motivo, devuelve la existencia y el folio no se reutiliza. Todo queda en la **bitácora** del vale.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Exportar y enviar:** *Exportar vales* genera el `.xlsm` en `OneDrive\ControlAlmacen\exportaciones\AAAA-MM-DD\`. Envíalo por correo a la base como siempre y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* te dice qué vales son nuevos, corregidos o cancelados desde el último envío.
-6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Si se usaron folios en papel que no están en ningún archivo, fija el siguiente folio en *Áreas y personas → Folios*.
+5. **Exportar y enviar:** *Exportar vales…* abre el explorador de archivos para que elijas la carpeta y el nombre (la siguiente vez abre en la última carpeta usada). Envíalo por correo a la base como siempre y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* te dice qué vales son nuevos, corregidos o cancelados desde el último envío.
+6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Si se usaron folios en papel que no están en ningún archivo, fija el siguiente folio en *Ajustes → Folios*.
 
 ### Áreas y personas
-- **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).
+- **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).
 - **Personas:** marca quién es almacenista (aparece en "En turno"), corrige puestos y desactiva a quien ya no está (deja de sugerirse, pero su historial queda).
 
 ## 5. Respaldos, cambio de equipo y "empezar de cero"

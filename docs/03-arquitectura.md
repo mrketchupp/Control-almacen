@@ -163,5 +163,9 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
   Nombre/Puesto, AUTORIZA, observaciones), así que cada hoja puede tener su propia capacidad y el orden de firmas
   (NOV firma al revés).
 - `impresion/vale.js` genera páginas carta (`@page`) con `print-color-adjust: exact` para conservar los rellenos. La
+  tabla lleva un margen de 3 px dentro del lienzo para que el marco exterior (bordes colapsados) no se recorte, y el
+  borde derecho del marco replica el izquierdo donde la hoja no lo trae.
+- Los Excel exportados se guardan con la ventana "Guardar como" del navegador (`showSaveFilePicker`, recuerda la última
+  carpeta); si el navegador no la tiene, en la carpeta elegida o en Descargas. La
   interfaz las inserta en `#area-impresion` y llama `window.print()`; Edge ofrece imprimir o *Guardar como PDF*. No se
   usa ninguna biblioteca de PDF ni conexión de red.

@@ -3,6 +3,7 @@
 // La herramienta llega vacía ("cascarón"); los datos reales solo entran por aquí,
 // desde los archivos del usuario, en su propio equipo. Ver docs/07-migracion.md.
 
+import { esInterna, etapaDe, normalizarArea } from "../nucleo/areas.js";
 import { hayInterseccion, clavesDeBusqueda } from "../nucleo/catalogo.js";
 import { CERO, decTexto } from "../nucleo/decimal.js";
 import {
@@ -176,7 +177,11 @@ function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
       orden: i + 1,
       activo: true,
     });
+    normalizarArea(estado.plantillas_area.at(-1));
   });
+  const interna = estado.plantillas_area.find((a) => esInterna(a) && etapaDe(a.observaciones) !== null);
+  estado.config.etapa_perforacion = interna ? etapaDe(interna.observaciones) : "";
+  estado.config.captura_rapida = false;
   reporte.plantillas_area = vales.plantillas.length;
 }
 

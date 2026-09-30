@@ -1,23 +1,33 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { esInterna, tipoDeArea } from "../../nucleo/areas.js";
 import { aNumero, dec } from "../../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../../nucleo/fechas.js";
+import { buscarPersonas, personasParaRecibir } from "../../servicios/consultas.js";
 import {
   ErrorVale,
   aplicarPlantilla,
   borrador as buscarBorrador,
+  conArticulo,
+  conDatosFijos,
+  conEntregaEnTurno,
+  conExistencia,
   descartarBorrador,
   disponibles,
   emitirBorrador,
-  lineaDesdeExistencia,
-  lineaNoInventariada,
+  lineaEnBlanco,
+  lineaVacia,
+  lineasCapturadas,
   nuevoBorrador,
+  observacionesDelVale,
+  opcionesDeClave,
+  pideEtapa,
   requiereAutoriza,
   siguienteFolio,
   validarVale,
 } from "../../servicios/vales.js";
-import { Aviso, Boton, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, Combo, Pastilla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 // ---------------------------------------------------------------- utilidades
@@ -26,16 +36,47 @@ const normal = (t) =>
   String(t ?? "")
     .toUpperCase()
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "");
+    .replace(/\p{M}/gu, "")
+    .trim();
+
+const palabras = (t) => normal(t).split(/\s+/).filter(Boolean);
 
 function lugarDe(ubicacion) {
   return `#${ubicacion.contenedor} ${ubicacion.clase === "INV" ? "Inv." : "Cons."}`;
 }
 
-/** Todo lo que se puede agregar a un vale: renglones del inventario y artículos del catálogo. */
-function indiceBusqueda(estado) {
-  const indices = new Indices(estado);
-  const saldos = calcularSaldos(estado);
+/** Artículos del catálogo para buscar por código AX (o por descripción). */
+function indiceArticulos(estado, indices) {
+  const renglones = new Map();
+  for (const e of estado.existencias) {
+    if (e.activo === false) continue;
+    const codigo = indices.variante(e.variante_id).codigo;
+    renglones.set(codigo, (renglones.get(codigo) ?? 0) + 1);
+  }
+  return Object.values(estado.articulos)
+    .filter((a) => a.activo !== false)
+    .map((a) => ({ codigo: a.codigo, descripcion: a.descripcion, renglones: renglones.get(a.codigo) ?? 0, texto: normal(`${a.codigo} ${a.descripcion}`) }));
+}
+
+function buscarArticulos(items, consulta, limite = 10) {
+  const q = consulta.trim();
+  if (!q) return [];
+  if (/^\d+$/.test(q)) {
+    const n = q.replace(/^0+/, "") || "0";
+    return items
+      .filter((i) => String(i.codigo).startsWith(n))
+      .sort((a, b) => Number(String(b.codigo) === n) - Number(String(a.codigo) === n) || a.codigo - b.codigo)
+      .slice(0, limite);
+  }
+  const ps = palabras(q);
+  return items
+    .filter((i) => ps.every((p) => i.texto.includes(p)))
+    .sort((a, b) => b.renglones - a.renglones || a.codigo - b.codigo)
+    .slice(0, limite);
+}
+
+/** Búsqueda rápida (opcional, en Ajustes): renglones del inventario y artículos sin existencia. */
+function indiceRapido(estado, indices, saldos) {
   const items = [];
   const conExistencia = new Set();
   for (const e of estado.existencias) {
@@ -51,11 +92,9 @@ function indiceBusqueda(estado) {
       id: e.id,
       codigo: v.codigo,
       descripcion,
-      dimension,
-      np,
+      detalle: [dimension, np && `NP ${np}`].filter(Boolean).join(" · ") || "S/D",
       um: umMostrada(e, v) || "",
       lugar: lugarDe(u),
-      hoja: u.hoja_excel.trim(),
       total: aNumero(saldos.get(e.id).total),
       texto: normal(`${v.codigo} ${descripcion} ${dimension} ${np} ${u.hoja_excel}`),
     });
@@ -67,87 +106,17 @@ function indiceBusqueda(estado) {
   return items;
 }
 
-function buscar(items, consulta, limite = 12) {
-  const palabras = normal(consulta).split(/\s+/).filter(Boolean);
-  if (!palabras.length) return [];
+function buscarRapido(items, consulta, limite = 12) {
+  const ps = palabras(consulta);
+  if (!ps.length) return [];
   const codigo = /^\d+$/.test(consulta.trim()) ? Number(consulta.trim()) : null;
-  const encontrados = items.filter((i) => palabras.every((p) => i.texto.includes(p)));
   const puntaje = (i) =>
-    (codigo !== null && i.codigo === codigo ? 0 : codigo !== null && String(i.codigo).startsWith(String(codigo)) ? 1 : 2) * 10 +
-    (i.tipo === "existencia" ? (i.total > 0 ? 0 : 1) : 2);
-  return encontrados.sort((a, b) => puntaje(a) - puntaje(b) || (b.total ?? 0) - (a.total ?? 0)).slice(0, limite);
+    (codigo !== null && i.codigo === codigo ? 0 : 1) * 10 + (i.tipo === "existencia" ? (i.total > 0 ? 0 : 1) : 2);
+  return items
+    .filter((i) => ps.every((p) => i.texto.includes(p)))
+    .sort((a, b) => puntaje(a) - puntaje(b) || (b.total ?? 0) - (a.total ?? 0))
+    .slice(0, limite);
 }
-
-// ---------------------------------------------------------------- buscador
-
-function BuscadorArticulos({ items, alElegir, alManual }) {
-  const [consulta, setConsulta] = useState("");
-  const [marcado, setMarcado] = useState(0);
-  const resultados = useMemo(() => buscar(items, consulta), [items, consulta]);
-  const elegir = (item) => {
-    alElegir(item);
-    setConsulta("");
-    setMarcado(0);
-  };
-  const tecla = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setMarcado(Math.min(marcado + 1, resultados.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setMarcado(Math.max(marcado - 1, 0));
-    } else if (e.key === "Enter" && resultados[marcado]) {
-      e.preventDefault();
-      elegir(resultados[marcado]);
-    } else if (e.key === "Escape") setConsulta("");
-  };
-  return html`<div class="buscador-articulos">
-    <input
-      id="buscar-articulo"
-      type="search"
-      class="buscador"
-      autocomplete="off"
-      placeholder="Agregar renglón: código, descripción, dimensión o NP…  (Enter agrega el primero)"
-      value=${consulta}
-      onInput=${(e) => {
-        setConsulta(e.currentTarget.value);
-        setMarcado(0);
-      }}
-      onKeyDown=${tecla}
-      aria-label="Buscar artículo para agregar"
-    />
-    ${consulta.trim()
-      ? html`<ul class="resultados" role="listbox">
-          ${resultados.map(
-            (r, i) => html`<li
-              key=${`${r.tipo}${r.id ?? r.codigo}`}
-              class=${i === marcado ? "marcado" : ""}
-              role="option"
-              aria-selected=${i === marcado}
-              onMouseDown=${(e) => {
-                e.preventDefault();
-                elegir(r);
-              }}
-            >
-              <strong>${r.codigo}</strong> · ${r.descripcion}
-              ${r.tipo === "existencia"
-                ? html`<span class="res-detalle">${[r.dimension, r.np && `NP ${r.np}`].filter(Boolean).join(" · ") || "S/D"}</span>
-                    <span class=${`res-lugar ${r.total > 0 ? "" : "sin-existencia"}`}>${r.lugar} · hay ${num(r.total)} ${r.um}</span>`
-                : html`<span class="res-lugar no-inv">sin existencia (no inventariado)</span>`}
-            </li>`,
-          )}
-          ${!resultados.length ? html`<li class="vacio">Sin coincidencias.</li>` : null}
-          <li class="manual" onMouseDown=${(e) => {
-            e.preventDefault();
-            alManual(consulta);
-            setConsulta("");
-          }}>＋ Capturar código a mano…</li>
-        </ul>`
-      : null}
-  </div>`;
-}
-
-// ---------------------------------------------------------------- editor
 
 function listas(estado) {
   const unicos = (valores) => [...new Set(valores.filter(Boolean).map((v) => String(v).trim()))].sort((a, b) => a.localeCompare(b, "es"));
@@ -159,197 +128,482 @@ function listas(estado) {
   };
 }
 
-function Campo({ etiqueta, error, children, ancho }) {
-  return html`<label class=${`campo ${error ? "con-error" : ""} ${ancho ? `campo-${ancho}` : ""}`}>
+function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
+  return html`<label class=${`campo ${error ? "con-error" : ""} ${clase}`}>
     <span>${etiqueta}</span>
     ${children}
+    ${ayuda ? html`<small class="ayuda">${ayuda}</small>` : null}
   </label>`;
+}
+
+// ---------------------------------------------------------------- quién recibe
+
+/** Busca a la persona por nombre, puesto o área habitual ("mecánico" lista a los mecánicos). */
+function SelectorPersona({ id, nombre, alElegir, alEscribir, depto, placeholder = "Nombre o puesto…", error }) {
+  const sesion = useSesion();
+  const personas = useMemo(() => personasParaRecibir(sesion.estado), [sesion.estado.personas, sesion.estado.vales]);
+  const [consulta, setConsulta] = useState(null); // null = muestra el nombre elegido
+  const texto = consulta ?? nombre ?? "";
+  const opciones = useMemo(() => buscarPersonas(personas, consulta ?? "", { depto, limite: 40 }), [personas, consulta, depto]);
+  const escribir = (valor) => {
+    setConsulta(valor);
+    alEscribir?.(valor);
+  };
+  return html`<${Combo}
+    id=${id}
+    clase=${error ? "con-error" : ""}
+    valor=${texto}
+    alEscribir=${escribir}
+    opciones=${opciones}
+    clave=${(p) => p.id}
+    render=${(p) => html`<span class="opcion-principal">${p.nombre}</span>
+      ${p.puesto ? html`<${Pastilla} tono="info">${p.puesto}<//>` : null}
+      ${p.area && normal(p.area) !== normal(p.puesto) ? html`<${Pastilla} titulo="Área a la que más vales ha recibido">${p.area}<//>` : null}`}
+    alElegir=${(p) => {
+      setConsulta(null);
+      alElegir(p);
+    }}
+    alSalir=${() => setConsulta(null)}
+    placeholder=${placeholder}
+    ariaLabel="Quién recibe"
+  />`;
+}
+
+// ---------------------------------------------------------------- partidas
+
+function CeldaCodigo({ linea, articulos, alElegir, alNuevo, error }) {
+  const [texto, setTexto] = useState(linea.codigo ? String(linea.codigo) : "");
+  useEffect(() => setTexto(linea.codigo ? String(linea.codigo) : ""), [linea.codigo]);
+  const buscando = texto.trim() !== (linea.codigo ? String(linea.codigo) : "");
+  const opciones = useMemo(() => (buscando ? buscarArticulos(articulos, texto) : []), [texto, buscando, articulos]);
+  const numero = /^\d+$/.test(texto.trim()) ? Number(texto.trim()) : null;
+  const existe = numero !== null && articulos.some((a) => a.codigo === numero);
+  return html`<${Combo}
+    id=${`cod-${linea.uid}`}
+    clase=${`combo-codigo ${error ? "con-error" : ""}`}
+    valor=${texto}
+    alEscribir=${setTexto}
+    opciones=${opciones}
+    clave=${(o) => o.codigo}
+    render=${(o) => html`<strong>${o.codigo}</strong> · ${o.descripcion}
+      ${o.renglones
+        ? html`<${Pastilla} tono="ok">${o.renglones === 1 ? "1 clave en inventario" : `${o.renglones} claves en inventario`}<//>`
+        : html`<${Pastilla}>sin existencia<//>`}`}
+    alElegir=${(o) => alElegir(o.codigo, true)}
+    extra=${buscando && numero && !existe ? { etiqueta: `＋ Usar el código ${numero} (no está en el catálogo)`, alElegir: () => alNuevo(numero) } : null}
+    alSalir=${() => {
+      if (!buscando) return;
+      if (existe) alElegir(numero, false);
+      else setTexto(linea.codigo ? String(linea.codigo) : "");
+    }}
+    placeholder="Código"
+    ariaLabel="Código AX"
+  />`;
+}
+
+function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay, pedido }) {
+  const elegida = opciones.find((o) => o.id === linea.existencia_id) ?? null;
+  const filtradas = useMemo(() => {
+    const q = normal(linea.clave);
+    if (!q || (elegida && normal(elegida.clave) === q)) return opciones;
+    const ps = palabras(q);
+    return opciones.filter((o) => ps.every((p) => normal(`${o.clave} ${o.lugar} ${o.hoja}`).includes(p)));
+  }, [opciones, linea.clave, elegida]);
+
+  if (!Number.isInteger(linea.codigo)) {
+    return html`<input class="entrada-clave" disabled placeholder="Primero el código" aria-label="Clave almacén" />`;
+  }
+  const pastillas = elegida
+    ? html`<${Pastilla} tono="lugar" titulo=${elegida.hoja}>${elegida.lugar}<//>
+        <${Pastilla} tono=${hay !== null && pedido !== null && pedido.gt(hay) ? "alerta" : hay !== null && hay.lte(0) ? "alerta" : "ok"} titulo="Existencia en ese contenedor antes de este vale">
+          hay ${num(aNumero(hay ?? elegida.total))} ${elegida.um}
+        <//>`
+    : linea.no_inventariado
+      ? html`<${Pastilla} titulo="Diésel, gases, servicios o material sin existencia: queda en el historial pero no descuenta">No inventariado · no descuenta<//>`
+      : html`<${Pastilla} tono="error">Elige una clave de la lista<//>`;
+
+  if (!opciones.length) {
+    return html`<div class="celda-clave">
+      <input
+        id=${`clv-${linea.uid}`}
+        class=${`entrada-clave ${error ? "con-error" : ""}`}
+        value=${linea.clave}
+        placeholder="S/D"
+        onInput=${(e) => alEscribir(e.currentTarget.value)}
+        onKeyDown=${(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById(`cant-${linea.uid}`)?.focus();
+          }
+        }}
+        aria-label="Clave almacén"
+      />
+      <div class="pastillas">${pastillas}</div>
+    </div>`;
+  }
+  return html`<div class="celda-clave">
+    <${Combo}
+      id=${`clv-${linea.uid}`}
+      clase=${error ? "con-error" : ""}
+      valor=${linea.clave}
+      alEscribir=${alEscribir}
+      opciones=${filtradas}
+      clave=${(o) => o.id}
+      render=${(o) => html`<span class="opcion-principal">${o.clave}</span>
+        <${Pastilla} tono="lugar" titulo=${o.hoja}>${o.lugar}<//>
+        <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>`}
+      alElegir=${(o) => alElegir(o, true)}
+      extra=${{ etiqueta: "Otra clave: no sale del inventario (no descuenta)", alElegir: alOtra }}
+      alSalir=${() => {
+        const exactas = opciones.filter((o) => normal(o.clave) === normal(linea.clave));
+        if (exactas.length === 1 && linea.existencia_id !== exactas[0].id) alElegir(exactas[0], false);
+      }}
+      placeholder="Clave / dimensión"
+      ariaLabel="Clave almacén"
+    />
+    <div class="pastillas">${pastillas}</div>
+  </div>`;
 }
 
 /**
  * Editor de un vale (borrador nuevo o corrección de uno emitido).
  * @param datos     vale en edición
  * @param alCambiar recibe los datos actualizados
+ * @param entrego   {nombre, puesto} fijo (corrección); si no, el almacenista en turno
  */
-export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null }) {
+export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
-  const items = useMemo(() => indiceBusqueda(estado), [estado.existencias, estado.vales, estado.articulos]);
-  const opciones = useMemo(() => listas(estado), [estado.personas, estado.plantillas_area]);
   const indices = useMemo(() => new Indices(estado), [estado]);
+  const saldos = useMemo(() => calcularSaldos(estado), [estado.existencias, estado.vales, estado.conteos]);
+  const articulos = useMemo(() => indiceArticulos(estado, indices), [estado.articulos, estado.existencias]);
+  const rapido = useMemo(() => (estado.config?.captura_rapida ? indiceRapido(estado, indices, saldos) : []), [estado.config?.captura_rapida, saldos]);
+  const opcionesListas = useMemo(() => listas(estado), [estado.personas, estado.plantillas_area]);
+  const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
+  const interna = esInterna(area);
+  const tipo = area ? tipoDeArea(area) : null;
   const errorEn = (campo, renglon = null) => errores.find((e) => e.campo === campo && e.renglon === renglon);
   const cambiar = (cambios) => alCambiar({ ...datos, ...cambios });
-  const cambiarLinea = (uid, cambios) => cambiar({ lineas: datos.lineas.map((l) => (l.uid === uid ? { ...l, ...cambios } : l)) });
-  // Al agregar un renglón, el foco pasa a su cantidad en cuanto se pinta (sin perder teclas).
+
+  // Foco: al elegir el código pasa a la clave; al elegir la clave, a la cantidad.
   const enfocar = useRef(null);
   useLayoutEffect(() => {
     if (!enfocar.current) return;
-    const entrada = document.getElementById(`cant-${enfocar.current}`);
+    const entrada = document.getElementById(enfocar.current);
     if (entrada) {
       entrada.focus();
-      entrada.select();
+      entrada.select?.();
       enfocar.current = null;
     }
   });
 
-  const ids = datos.lineas.map((l) => l.existencia_id).filter((x) => x !== null && x !== undefined);
-  const hay = useMemo(() => disponibles(estado, [...new Set(ids)], excluirValeId), [estado, ids.join(","), excluirValeId]);
+  const cambiarLinea = (uid, cambio, siguiente = null) => {
+    if (siguiente) enfocar.current = siguiente;
+    cambiar({ lineas: datos.lineas.map((l) => (l.uid === uid ? (typeof cambio === "function" ? cambio(l) : { ...l, ...cambio }) : l)) });
+  };
+  const agregarLinea = (tras = null) => {
+    const nueva = lineaVacia(area?.lote_defecto ?? "");
+    enfocar.current = `cod-${nueva.uid}`;
+    const lineas = [...datos.lineas];
+    const i = tras ? lineas.findIndex((l) => l.uid === tras) : -1;
+    lineas.splice(i >= 0 ? i + 1 : lineas.length, 0, nueva);
+    cambiar({ lineas });
+  };
+  const siguienteFila = (uid) => {
+    const i = datos.lineas.findIndex((l) => l.uid === uid);
+    const siguiente = datos.lineas[i + 1];
+    if (siguiente) {
+      document.getElementById(`cod-${siguiente.uid}`)?.focus();
+    } else agregarLinea(uid);
+  };
+  const quitar = (uid) => cambiar({ lineas: datos.lineas.filter((l) => l.uid !== uid) });
+
+  // Existencia disponible (antes de este vale) y lo que pide este vale por renglón del inventario.
+  const ids = [...new Set(datos.lineas.map((l) => l.existencia_id).filter((x) => x !== null && x !== undefined))];
+  const hay = useMemo(() => disponibles(estado, ids, excluirValeId), [estado, ids.join(","), excluirValeId]);
   const pedidos = new Map();
   for (const l of datos.lineas) {
     if (l.existencia_id === null || l.existencia_id === undefined) continue;
     pedidos.set(l.existencia_id, (pedidos.get(l.existencia_id) ?? dec(0)).plus(dec(l.cantidad) ?? 0));
   }
+  const opcionesPorCodigo = useMemo(() => new Map(), [estado]);
+  const opcionesDe = (codigo) => {
+    if (!opcionesPorCodigo.has(codigo)) opcionesPorCodigo.set(codigo, opcionesDeClave(estado, codigo, { indices, saldos }));
+    return opcionesPorCodigo.get(codigo);
+  };
 
-  const agregar = (item) => {
-    const base = item.tipo === "existencia" ? lineaDesdeExistencia(estado, item.id, indices) : lineaNoInventariada(estado, item.codigo);
-    const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id);
-    const linea = { ...base, lote: area?.lote_defecto ?? "" };
-    enfocar.current = linea.uid;
-    cambiar({ lineas: [...datos.lineas, linea] });
+  const agregarRapido = (item) => {
+    const vacia = datos.lineas.find(lineaEnBlanco);
+    const base = vacia ?? lineaVacia(area?.lote_defecto ?? "");
+    const linea = item.tipo === "existencia" ? conExistencia(estado, base, item.id, indices) : conArticulo(estado, base, item.codigo, { indices });
+    enfocar.current = `cant-${linea.uid}`;
+    cambiar({ lineas: vacia ? datos.lineas.map((l) => (l.uid === vacia.uid ? linea : l)) : [...datos.lineas, linea] });
   };
-  const manual = (consulta) => {
-    const codigo = Number((window.prompt("Código AX:", /^\d+$/.test(consulta.trim()) ? consulta.trim() : "") || "").trim());
-    if (!Number.isInteger(codigo) || codigo <= 0) return;
-    const conocido = estado.articulos[codigo]?.descripcion;
-    const descripcion = conocido ?? (window.prompt("Descripción del artículo (quedará por confirmar en el catálogo):") || "").trim().toUpperCase();
-    if (!descripcion) return;
-    const linea = lineaNoInventariada(estado, codigo, descripcion);
-    enfocar.current = linea.uid;
-    cambiar({ lineas: [...datos.lineas, linea] });
-  };
-  const elegirOrigen = (linea, valor) => {
-    if (valor === "no") {
-      cambiarLinea(linea.uid, { existencia_id: null, variante_id: null, no_inventariado: true });
-      return;
-    }
-    const nueva = lineaDesdeExistencia(estado, Number(valor), indices);
-    cambiarLinea(linea.uid, { existencia_id: nueva.existencia_id, variante_id: nueva.variante_id, no_inventariado: false, clave: nueva.clave, um: linea.um || nueva.um });
-  };
-  const alternativas = (codigo) => items.filter((i) => i.tipo === "existencia" && i.codigo === codigo);
+
   const autoriza = requiereAutoriza(estado, datos);
-  const areas = estado.plantillas_area.filter((p) => p.activo !== false);
-  const persona = (campoNombre, campoPuesto) => (e) => {
-    const nombre = e.currentTarget.value;
-    const conocido = estado.personas.find((p) => p.nombre === nombre.trim().toUpperCase());
-    cambiar({ [campoNombre]: nombre, ...(conocido?.puesto && campoPuesto && !datos[campoPuesto] ? { [campoPuesto]: conocido.puesto } : {}) });
-  };
+  const areas = estado.plantillas_area.filter((p) => p.activo !== false || p.id === datos.plantilla_area_id);
+  const enTurno = sesion.usuario ? conEntregaEnTurno(estado, datos, sesion.usuario) : null;
+  const quienEntrega = entrego ?? (enTurno ? { nombre: enTurno.entrego_nombre, puesto: enTurno.entrego_puesto } : null);
+  const observaciones = observacionesDelVale(estado, datos) ?? "";
+  const capturadas = lineasCapturadas(datos.lineas);
+  let numero = 0;
 
   return html`
-    <datalist id="lista-personas">${opciones.personas.map((p) => html`<option value=${p} />`)}</datalist>
-    <datalist id="lista-deptos">${opciones.deptos.map((p) => html`<option value=${p} />`)}</datalist>
-    <datalist id="lista-lugares">${opciones.lugares.map((p) => html`<option value=${p} />`)}</datalist>
-    <datalist id="lista-puestos">${opciones.puestos.map((p) => html`<option value=${p} />`)}</datalist>
+    <datalist id="lista-deptos">${opcionesListas.deptos.map((p) => html`<option value=${p} />`)}</datalist>
+    <datalist id="lista-lugares">${opcionesListas.lugares.map((p) => html`<option value=${p} />`)}</datalist>
+    <datalist id="lista-puestos">${opcionesListas.puestos.map((p) => html`<option value=${p} />`)}</datalist>
+    <datalist id="lista-personas">${opcionesListas.personas.map((p) => html`<option value=${p} />`)}</datalist>
 
-    <div class="editor-encabezado">
-      <${Campo} etiqueta="Área (plantilla)" ancho="2">
-        <select
-          value=${datos.plantilla_area_id ?? ""}
-          onChange=${(e) => {
-            const copia = structuredClone(datos);
-            aplicarPlantilla(estado, copia, e.currentTarget.value ? Number(e.currentTarget.value) : null);
-            alCambiar(copia);
-          }}
-        >
-          <option value="">— Sin área —</option>
-          ${areas.map((a) => html`<option value=${a.id}>${a.nombre}${a.naturaleza === "TRANSFERENCIA" ? " (transferencia)" : ""}</option>`)}
-        </select>
-      <//>
-      <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
-        <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
-      <//>
-      <${Campo} etiqueta="Origen"><input list="lista-lugares" value=${datos.origen} onInput=${(e) => cambiar({ origen: e.currentTarget.value })} /><//>
-      <${Campo} etiqueta="Depto. origen"><input list="lista-deptos" value=${datos.depto_origen} onInput=${(e) => cambiar({ depto_origen: e.currentTarget.value })} /><//>
-      <${Campo} etiqueta="Destino"><input list="lista-lugares" value=${datos.destino} onInput=${(e) => cambiar({ destino: e.currentTarget.value })} /><//>
-      <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
-        <input list="lista-deptos" value=${datos.depto_destino} onInput=${(e) => cambiar({ depto_destino: e.currentTarget.value })} />
-      <//>
-      <${Campo} etiqueta="Entregó" error=${errorEn("entrego_nombre")}>
-        <input list="lista-personas" value=${datos.entrego_nombre} onInput=${persona("entrego_nombre", "entrego_puesto")} />
-      <//>
-      <${Campo} etiqueta="Puesto (entregó)"><input list="lista-puestos" value=${datos.entrego_puesto} onInput=${(e) => cambiar({ entrego_puesto: e.currentTarget.value })} /><//>
-      <${Campo} etiqueta="Recibió" error=${errorEn("recibio_nombre")}>
-        <input list="lista-personas" value=${datos.recibio_nombre} onInput=${persona("recibio_nombre", "recibio_puesto")} />
-      <//>
-      <${Campo} etiqueta="Puesto (recibió)"><input list="lista-puestos" value=${datos.recibio_puesto} onInput=${(e) => cambiar({ recibio_puesto: e.currentTarget.value })} /><//>
-      <${Campo} etiqueta=${autoriza ? "Autorizó (obligatorio)" : "Autorizó"} error=${errorEn("autorizo_nombre")}>
-        <input list="lista-personas" value=${datos.autorizo_nombre} onInput=${(e) => cambiar({ autorizo_nombre: e.currentTarget.value })} />
-      <//>
-      <${Campo} etiqueta="Observaciones" ancho="todo">
-        <textarea rows="2" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
-      <//>
-    </div>
+    <div class="editor-vale">
+      <aside class="vale-datos" aria-label="Datos del vale">
+        <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
+          <select
+            value=${datos.plantilla_area_id ?? ""}
+            onChange=${(e) => {
+              const copia = structuredClone(datos);
+              aplicarPlantilla(estado, copia, e.currentTarget.value ? Number(e.currentTarget.value) : null);
+              alCambiar(copia);
+            }}
+          >
+            <option value="">— Elige el área —</option>
+            ${areas.map((a) => html`<option value=${a.id}>${a.nombre}${tipoDeArea(a) === "TRANSFERENCIA" ? " (transferencia)" : tipoDeArea(a) === "EXTERNO" ? " (externa)" : ""}</option>`)}
+          </select>
+        <//>
+        <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
+          <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
+        <//>
+        <${Campo} etiqueta="Recibió" error=${errorEn("recibio_nombre")} ayuda="Busca por nombre o por puesto (p. ej. mecánico).">
+          <${SelectorPersona}
+            id="recibio"
+            nombre=${datos.recibio_nombre}
+            depto=${datos.depto_destino}
+            error=${errorEn("recibio_nombre")}
+            alEscribir=${(valor) => cambiar({ recibio_nombre: valor })}
+            alElegir=${(p) => cambiar({ recibio_nombre: p.nombre, recibio_puesto: p.puesto ?? datos.recibio_puesto ?? "" })}
+          />
+        <//>
+        <${Campo} etiqueta="Puesto de quien recibe">
+          <input list="lista-puestos" value=${datos.recibio_puesto} onInput=${(e) => cambiar({ recibio_puesto: e.currentTarget.value })} />
+        <//>
+        ${pideEtapa(estado, datos)
+          ? html`<${Campo} etiqueta="Etapa de perforación" error=${errorEn("etapa_perforacion")} ayuda="Es lo único que cambia en las observaciones; se recuerda para los siguientes vales.">
+              <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })} />
+            <//>`
+          : null}
+        ${autoriza
+          ? html`<${Campo} etiqueta="Autorizó (obligatorio)" error=${errorEn("autorizo_nombre")}>
+              <input list="lista-personas" value=${datos.autorizo_nombre} onInput=${(e) => cambiar({ autorizo_nombre: e.currentTarget.value })} />
+            <//>`
+          : null}
 
-    <${BuscadorArticulos} items=${items} alElegir=${agregar} alManual=${manual} />
+        ${area && interna
+          ? html`<dl class="datos-fijos">
+              <dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
+              <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>
+            </dl>`
+          : area || datos.origen || datos.destino
+            ? html`<div class="rejilla-campos">
+                <${Campo} etiqueta="Origen"><input list="lista-lugares" value=${datos.origen} onInput=${(e) => cambiar({ origen: e.currentTarget.value })} /><//>
+                <${Campo} etiqueta="Depto. origen"><input list="lista-deptos" value=${datos.depto_origen} onInput=${(e) => cambiar({ depto_origen: e.currentTarget.value })} /><//>
+                <${Campo} etiqueta="Destino"><input list="lista-lugares" value=${datos.destino} onInput=${(e) => cambiar({ destino: e.currentTarget.value })} /><//>
+                <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
+                  <input list="lista-deptos" value=${datos.depto_destino} onInput=${(e) => cambiar({ depto_destino: e.currentTarget.value })} />
+                <//>
+              </div>`
+            : null}
+        <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
+          <dt>Entrega</dt>
+          <dd>
+            ${quienEntrega
+              ? html`${quienEntrega.nombre}
+                  <small>${[quienEntrega.puesto, entrego ? null : "en turno"].filter(Boolean).join(" · ")}</small>`
+              : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
+          </dd>
+        </dl>
 
-    ${datos.lineas.length
-      ? html`<div class="tabla-contenedor editor-lineas">
+        ${area && interna
+          ? html`<div class="campo">
+              <span>Observaciones (así salen en el vale)</span>
+              <p class="observaciones-fijas">${observaciones || "—"}</p>
+            </div>`
+          : html`<${Campo} etiqueta="Observaciones">
+              <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
+            <//>`}
+        ${tipo && !interna ? html`<p class="nota">Área ${tipo === "TRANSFERENCIA" ? "de transferencia" : "externa"}: sus datos se pueden editar en cada vale.</p>` : null}
+      </aside>
+
+      <section class="vale-partidas" aria-label="Partidas del vale">
+        <header class="partidas-cabeza">
+          <h2>Partidas</h2>
+          <span class=${`contador-partidas ${capacidad && capturadas.length > capacidad ? "excedido" : ""}`}>
+            ${capturadas.length}${capacidad ? ` de ${capacidad}` : ""}
+          </span>
+          <span class="nota">Como aparecerán en el vale. Lo de color gris es información del inventario.</span>
+        </header>
+
+        ${estado.config?.captura_rapida ? html`<${BusquedaRapida} items=${rapido} alElegir=${agregarRapido} />` : null}
+
+        <div class="tabla-contenedor tabla-partidas">
           <table class="tabla">
-            <thead>
+            <colgroup>
+              <col class="c-num" /><col class="c-oc" /><col class="c-cant" /><col class="c-cod" /><col />
+              <col class="c-clave" /><col class="c-um" /><col class="c-lote" /><col class="c-quitar" />
+            </colgroup>
+            <thead class="cabecera-vale">
               <tr>
-                <th>#</th><th>Artículo</th><th>Sale de</th><th>Clave</th><th class="numero">Cantidad</th><th>UM</th><th>O.C.</th><th>Lote</th><th></th>
+                <th class="numero">#</th>
+                <th>O.C.</th>
+                <th class="numero">Cantidad</th>
+                <th>Código</th>
+                <th class="col-descripcion">Descripción del material</th>
+                <th>Clave almacén</th>
+                <th title="Presentación (unidad)">Present.</th>
+                <th>Lote</th>
+                <th><span class="solo-lector">Quitar</span></th>
               </tr>
             </thead>
             <tbody>
-              ${datos.lineas.map((l, i) => {
-                const n = i + 1;
-                const opcionesOrigen = alternativas(l.codigo);
-                const existencia = l.existencia_id !== null && l.existencia_id !== undefined;
-                const disponible = existencia ? hay.get(l.existencia_id) : null;
-                const excede = existencia && disponible && pedidos.get(l.existencia_id)?.gt(disponible);
-                return html`<tr key=${l.uid} class=${errores.some((e) => e.renglon === n) ? "fila-error" : ""}>
-                    <td class="numero">${n}</td>
-                    <td class="articulo">
-                      <strong>${l.codigo}</strong>
-                      ${l.no_inventariado && !opcionesOrigen.length
-                        ? html`<input class="entrada-descripcion" value=${l.descripcion} onInput=${(e) => cambiarLinea(l.uid, { descripcion: e.currentTarget.value })} />`
-                        : html` · ${l.descripcion}`}
-                    </td>
-                    <td>
-                      <select value=${existencia ? String(l.existencia_id) : "no"} onChange=${(e) => elegirOrigen(l, e.currentTarget.value)} class=${errorEn("existencia_id", n) ? "con-error" : ""}>
-                        ${!existencia && !l.no_inventariado ? html`<option value="" disabled selected>— Elige —</option>` : null}
-                        ${opcionesOrigen.map(
-                          (o) => html`<option value=${String(o.id)}>${o.lugar} · ${[o.dimension, o.np && `NP ${o.np}`].filter(Boolean).join(" · ") || "S/D"} · hay ${num(o.total)}</option>`,
-                        )}
-                        <option value="no">No inventariado (no descuenta)</option>
-                      </select>
-                    </td>
-                    <td><input class="entrada-clave" value=${l.clave} onInput=${(e) => cambiarLinea(l.uid, { clave: e.currentTarget.value })} /></td>
+              ${datos.lineas.map((l) => {
+                const blanco = lineaEnBlanco(l);
+                if (!blanco) numero += 1;
+                const n = blanco ? null : numero;
+                const opciones = Number.isInteger(l.codigo) ? opcionesDe(l.codigo) : [];
+                const conExist = l.existencia_id !== null && l.existencia_id !== undefined;
+                const disponible = conExist ? (hay.get(l.existencia_id) ?? null) : null;
+                const pedido = conExist ? (pedidos.get(l.existencia_id) ?? null) : null;
+                const excede = conExist && disponible !== null && pedido?.gt(disponible);
+                const conocido = Number.isInteger(l.codigo) && Boolean(estado.articulos[l.codigo]);
+                return html`<tr key=${l.uid} class=${n && errores.some((e) => e.renglon === n) ? "fila-error" : ""}>
+                    <td class="numero">${n ?? ""}</td>
+                    <td><input class="entrada-oc" placeholder="S/OC" value=${l.oc} onInput=${(e) => cambiarLinea(l.uid, { oc: e.currentTarget.value })} aria-label="O.C." /></td>
                     <td>
                       <input
                         id=${`cant-${l.uid}`}
-                        class=${`entrada-cantidad ${errorEn("cantidad", n) ? "con-error" : ""}`}
+                        class=${`entrada-cantidad ${n && errorEn("cantidad", n) ? "con-error" : ""}`}
                         inputmode="decimal"
                         value=${l.cantidad}
                         onInput=${(e) => cambiarLinea(l.uid, { cantidad: e.currentTarget.value.replace(",", ".") })}
                         onKeyDown=${(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            document.getElementById("buscar-articulo")?.focus();
+                            siguienteFila(l.uid);
                           }
                         }}
+                        aria-label="Cantidad"
                       />
                     </td>
-                    <td><input class=${`entrada-um ${errorEn("um", n) ? "con-error" : ""}`} value=${l.um} onInput=${(e) => cambiarLinea(l.uid, { um: e.currentTarget.value })} /></td>
-                    <td><input class="entrada-oc" placeholder="S/OC" value=${l.oc} onInput=${(e) => cambiarLinea(l.uid, { oc: e.currentTarget.value })} /></td>
-                    <td><input class="entrada-lote" value=${l.lote} onInput=${(e) => cambiarLinea(l.uid, { lote: e.currentTarget.value })} /></td>
-                    <td><button type="button" class="quitar" title="Quitar renglón" onClick=${() => cambiar({ lineas: datos.lineas.filter((x) => x.uid !== l.uid) })}>×</button></td>
+                    <td>
+                      <${CeldaCodigo}
+                        linea=${l}
+                        articulos=${articulos}
+                        error=${n && errorEn("codigo", n)}
+                        alElegir=${(codigo, mover) => {
+                          if (codigo === l.codigo) {
+                            if (mover) enfocar.current = conocido && opciones.length === 1 ? `cant-${l.uid}` : `clv-${l.uid}`;
+                            return;
+                          }
+                          const nueva = conArticulo(estado, l, codigo, { indices });
+                          const destino = nueva.existencia_id !== null ? `cant-${l.uid}` : `clv-${l.uid}`;
+                          cambiarLinea(l.uid, nueva, mover ? destino : null);
+                        }}
+                        alNuevo=${(codigo) => cambiarLinea(l.uid, { ...conArticulo(estado, l, codigo, { indices }), descripcion: "" }, `desc-${l.uid}`)}
+                      />
+                    </td>
+                    <td class="col-descripcion">
+                      ${Number.isInteger(l.codigo) && !conocido
+                        ? html`<input
+                            id=${`desc-${l.uid}`}
+                            class=${n && errorEn("descripcion", n) ? "con-error" : ""}
+                            value=${l.descripcion}
+                            placeholder="Descripción (código nuevo, queda por confirmar)"
+                            onInput=${(e) => cambiarLinea(l.uid, { descripcion: e.currentTarget.value })}
+                          />`
+                        : html`<span class="descripcion">${l.descripcion || html`<span class="nota">—</span>`}</span>`}
+                    </td>
+                    <td>
+                      <${CeldaClave}
+                        linea=${l}
+                        opciones=${opciones}
+                        hay=${disponible}
+                        pedido=${pedido}
+                        error=${n && (errorEn("existencia_id", n) || errorEn("clave", n))}
+                        alElegir=${(o, mover) => cambiarLinea(l.uid, (actual) => conExistencia(estado, actual, o.id, indices), mover ? `cant-${l.uid}` : null)}
+                        alOtra=${() => cambiarLinea(l.uid, { existencia_id: null, variante_id: null, no_inventariado: true }, `cant-${l.uid}`)}
+                        alEscribir=${(valor) =>
+                          cambiarLinea(l.uid, (actual) => {
+                            const elegida = opciones.find((o) => o.id === actual.existencia_id);
+                            const sigue = elegida && normal(elegida.clave) === normal(valor);
+                            return {
+                              ...actual,
+                              clave: valor,
+                              existencia_id: sigue ? actual.existencia_id : null,
+                              variante_id: sigue ? actual.variante_id : null,
+                              no_inventariado: opciones.length === 0 ? true : sigue ? false : actual.no_inventariado && !elegida,
+                            };
+                          })}
+                      />
+                    </td>
+                    <td><input class=${`entrada-um ${n && errorEn("um", n) ? "con-error" : ""}`} value=${l.um} onInput=${(e) => cambiarLinea(l.uid, { um: e.currentTarget.value })} aria-label="Presentación (UM)" /></td>
+                    <td><input class="entrada-lote" value=${l.lote} onInput=${(e) => cambiarLinea(l.uid, { lote: e.currentTarget.value })} aria-label="Lote" /></td>
+                    <td>
+                      <button type="button" class="boton-quitar" title="Quitar esta partida del vale" onClick=${() => quitar(l.uid)}>
+                        <span aria-hidden="true">✕</span> Quitar
+                      </button>
+                    </td>
                   </tr>
                   ${excede
                     ? html`<tr class="fila-aviso" key=${`${l.uid}-aviso`}>
                         <td></td>
                         <td colspan="8">
-                          <span class="alerta">Existencia en ${opcionesOrigen.find((o) => o.id === l.existencia_id)?.lugar ?? "ese contenedor"}: ${num(aNumero(disponible))}.</span>
+                          <span class="alerta">En ese contenedor hay ${num(aNumero(disponible))} y el vale pide ${num(aNumero(pedido))}.</span>
                           Justificación para continuar:
-                          <input class=${`entrada-justificacion ${errorEn("justificacion", n) ? "con-error" : ""}`} value=${l.justificacion} onInput=${(e) => cambiarLinea(l.uid, { justificacion: e.currentTarget.value })} placeholder="Ej. material recibido sin vale de entrada" />
+                          <input
+                            class=${`entrada-justificacion ${n && errorEn("justificacion", n) ? "con-error" : ""}`}
+                            value=${l.justificacion}
+                            onInput=${(e) => cambiarLinea(l.uid, { justificacion: e.currentTarget.value })}
+                            placeholder="Ej. material recibido sin vale de entrada"
+                          />
                         </td>
                       </tr>`
                     : null}`;
               })}
             </tbody>
           </table>
-        </div>`
-      : html`<p class="vacio">Aún no hay renglones. Busca un artículo arriba y pulsa Enter.</p>`}
+        </div>
+        <div class="acciones-linea">
+          <${Boton} onClick=${() => agregarLinea()}>＋ Agregar partida<//>
+          <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida.</span>
+        </div>
+        ${pie}
+      </section>
+    </div>
   `;
+}
+
+function BusquedaRapida({ items, alElegir }) {
+  const [consulta, setConsulta] = useState("");
+  const resultados = useMemo(() => buscarRapido(items, consulta), [items, consulta]);
+  return html`<div class="busqueda-rapida">
+    <${Combo}
+      id="buscar-articulo"
+      valor=${consulta}
+      alEscribir=${setConsulta}
+      opciones=${resultados}
+      clave=${(r) => `${r.tipo}${r.id ?? r.codigo}`}
+      render=${(r) => html`<strong>${r.codigo}</strong> · ${r.descripcion}
+        ${r.tipo === "existencia"
+          ? html`<span class="res-detalle">${r.detalle}</span>
+              <${Pastilla} tono="lugar">${r.lugar}<//>
+              <${Pastilla} tono=${r.total > 0 ? "ok" : "alerta"}>hay ${num(r.total)} ${r.um}<//>`
+          : html`<${Pastilla}>no inventariado<//>`}`}
+      alElegir=${(r) => {
+        alElegir(r);
+        setConsulta("");
+      }}
+      placeholder="Búsqueda rápida: código, descripción, dimensión o NP (Enter agrega la partida completa)"
+      ariaLabel="Búsqueda rápida de artículos"
+    />
+  </div>`;
 }
 
 export function ListaErrores({ errores }) {
@@ -392,11 +646,6 @@ export function VistaPrevia({ vales, alCerrar }) {
 
 // ---------------------------------------------------------------- página
 
-function etiquetaBorrador(estado, b) {
-  const area = estado.plantillas_area.find((p) => p.id === b.plantilla_area_id);
-  return `${area?.nombre ?? (b.depto_destino || "Sin área")} · ${b.lineas.length} reng.`;
-}
-
 function EmitidoOk({ vales, alNuevo }) {
   const sesion = useSesion();
   const folios = vales.map((v) => v.folio).join(", ");
@@ -412,7 +661,13 @@ function EmitidoOk({ vales, alNuevo }) {
   <//>`;
 }
 
-export function PaginaNuevoVale() {
+/** Datos del vale tal como se emitirán (para validar y para la vista previa). */
+function paraEmitir(estado, datos, usuario) {
+  const listo = conDatosFijos(estado, conEntregaEnTurno(estado, datos, usuario));
+  return { ...listo, observaciones: observacionesDelVale(estado, listo), lineas: lineasCapturadas(listo.lineas) };
+}
+
+export function PaginaValesSalida() {
   const sesion = useSesion();
   const estado = sesion.estado;
   const [activo, setActivo] = useState(estado.borradores[0]?.id ?? null);
@@ -420,6 +675,7 @@ export function PaginaNuevoVale() {
   const [errores, setErrores] = useState([]);
   const [emitidos, setEmitidos] = useState(null);
   const [previa, setPrevia] = useState(null);
+  const [capacidad, setCapacidad] = useState(null);
   const pendiente = useRef(null);
 
   // Carga el borrador activo en el editor (solo al cambiar de pestaña).
@@ -428,6 +684,14 @@ export function PaginaNuevoVale() {
     setDatos(b ? structuredClone(b) : null);
     setErrores([]);
   }, [activo]);
+  // Capacidad del formato impreso del área elegida.
+  useEffect(() => {
+    if (!datos) return;
+    sesion
+      .capacidadPara(datos)
+      .then(setCapacidad)
+      .catch(() => setCapacidad(null));
+  }, [datos?.id, datos?.plantilla_area_id]);
 
   const guardar = async (valor) => {
     clearTimeout(pendiente.current);
@@ -439,16 +703,20 @@ export function PaginaNuevoVale() {
   };
   const cambiar = (valor) => {
     setDatos(valor);
-    if (errores.length) setErrores(validarVale(estado, valor).errores);
+    if (errores.length) setErrores(validarVale(estado, paraEmitir(estado, valor, sesion.usuario)).errores);
     clearTimeout(pendiente.current);
     pendiente.current = setTimeout(() => guardar(valor).catch((e) => sesion.avisar("error", e.message)), 600);
   };
   useEffect(() => () => clearTimeout(pendiente.current), []);
 
   const nuevo = () =>
-    sesion.tarea("Creando borrador…", async () => {
+    sesion.tarea("Creando vale…", async () => {
       if (datos && pendiente.current) await guardar(datos);
-      const creado = await sesion.almacen.modificar((e) => nuevoBorrador(e, { usuario: sesion.usuario }).id);
+      const creado = await sesion.almacen.modificar((e) => {
+        const b = nuevoBorrador(e, { usuario: sesion.usuario });
+        b.lineas.push(lineaVacia());
+        return b.id;
+      });
       setEmitidos(null);
       setActivo(creado);
     });
@@ -458,7 +726,7 @@ export function PaginaNuevoVale() {
     setActivo(id);
   };
   const descartar = () => {
-    if (datos.lineas.length && !confirmar("¿Descartar este borrador? No consume folio.")) return;
+    if (lineasCapturadas(datos.lineas).length && !confirmar("¿Descartar este vale en borrador? No gasta folio.")) return;
     return sesion.tarea("Descartando…", async () => {
       clearTimeout(pendiente.current);
       pendiente.current = null;
@@ -468,26 +736,26 @@ export function PaginaNuevoVale() {
   };
   const emitir = () =>
     sesion.tarea("Emitiendo…", async () => {
-      const { errores: faltan } = validarVale(sesion.estado, datos);
+      const listo = paraEmitir(sesion.estado, datos, sesion.usuario);
+      const { errores: faltan } = validarVale(sesion.estado, listo);
       setErrores(faltan);
       if (faltan.length) return;
-      if (!sesion.usuario && !confirmar("No has elegido quién está en turno (arriba a la derecha). ¿Emitir de todos modos?")) return;
-      const capacidad = await sesion.capacidadPara(datos);
+      const capacidadFormato = await sesion.capacidadPara(datos);
       let dividir = false;
-      if (datos.lineas.length > capacidad) {
-        const hojas = Math.ceil(datos.lineas.length / capacidad);
-        if (!confirmar(`El formato impreso de esta área admite ${capacidad} renglones y el vale tiene ${datos.lineas.length}. ¿Dividirlo en ${hojas} vales con folios consecutivos?`)) return;
+      if (listo.lineas.length > capacidadFormato) {
+        const hojas = Math.ceil(listo.lineas.length / capacidadFormato);
+        if (!confirmar(`El formato impreso de esta área admite ${capacidadFormato} partidas y el vale tiene ${listo.lineas.length}. ¿Dividirlo en ${hojas} vales con folios consecutivos?`)) return;
         dividir = true;
       }
       const folio = siguienteFolio(sesion.estado);
-      if (!confirmar(`¿Emitir el vale con el folio ${folio}${dividir ? ` y siguientes` : ""}? Después solo se puede corregir o cancelar con motivo.`)) return;
+      if (!confirmar(`¿Emitir el vale con el folio ${folio}${dividir ? " y siguientes" : ""}? Después solo se puede corregir o cancelar con motivo.`)) return;
       clearTimeout(pendiente.current);
       pendiente.current = null;
       try {
         const vales = await sesion.almacen.modificar((e) => {
           const b = buscarBorrador(e, datos.id);
           Object.assign(b, structuredClone(datos));
-          return emitirBorrador(e, datos.id, { usuario: sesion.usuario, capacidad, dividir });
+          return emitirBorrador(e, datos.id, { usuario: sesion.usuario, capacidad: capacidadFormato, dividir });
         });
         setEmitidos(vales);
         setActivo(sesion.estado.borradores[0]?.id ?? null);
@@ -502,44 +770,53 @@ export function PaginaNuevoVale() {
     });
 
   const borradores = estado.borradores;
+  const nombreDe = (b) => estado.plantillas_area.find((p) => p.id === b.plantilla_area_id)?.nombre ?? "Sin área";
+  const folio = siguienteFolio(estado);
   return html`
-    <div class="pestanas" role="tablist">
-      ${borradores.map(
-        (b) => html`<button
-          type="button"
-          role="tab"
-          aria-selected=${b.id === activo && !emitidos}
-          class=${`pestana ${b.id === activo && !emitidos ? "activa" : ""}`}
-          onClick=${() => cambiarPestana(b.id)}
-        >
-          ${etiquetaBorrador(estado, b.id === datos?.id ? datos : b)}
-        </button>`,
-      )}
-      <button type="button" class="pestana nueva" onClick=${nuevo}>＋ Nuevo vale</button>
-    </div>
+    ${borradores.length
+      ? html`<div class="pestanas" role="tablist" aria-label="Vales en borrador">
+          ${borradores.map((b) => {
+            const actual = b.id === datos?.id ? datos : b;
+            const n = lineasCapturadas(actual.lineas).length;
+            const activa = b.id === activo && !emitidos;
+            return html`<button type="button" role="tab" aria-selected=${activa} class=${`pestana ${activa ? "activa" : ""}`} onClick=${() => cambiarPestana(b.id)}>
+              ${nombreDe(actual)}
+              <span class="pastilla-conteo" title=${`${n} ${n === 1 ? "partida" : "partidas"}`}>${n}</span>
+            </button>`;
+          })}
+          <button type="button" class="pestana nueva" onClick=${nuevo}>＋ Nuevo vale</button>
+        </div>`
+      : null}
 
     ${emitidos ? html`<${EmitidoOk} vales=${emitidos} alNuevo=${nuevo} />` : null}
 
     ${!emitidos && datos
-      ? html`<${Tarjeta}
-          titulo=${`Borrador · se emitirá con el folio ${siguienteFolio(estado)}`}
-          acciones=${html`<span class="nota">Se guarda solo · creado ${fmtFecha(datos.creado_en)}</span>`}
-        >
-          <${EditorVale} datos=${datos} alCambiar=${cambiar} errores=${errores} />
-          <${ListaErrores} errores=${errores} />
-          <div class="acciones-linea pie-editor">
-            <${Boton} tipo="peligro-texto" onClick=${descartar}>Descartar borrador<//>
-            <span class="espaciador"></span>
-            <${Boton} disabled=${!datos.lineas.length} onClick=${() => setPrevia([{ ...datos, folio: null, tipo: "SALIDA" }])}>Vista previa<//>
-            <${Boton} tipo="primario" tamano="grande" disabled=${!datos.lineas.length} onClick=${emitir}>Emitir vale · folio ${siguienteFolio(estado)}<//>
+      ? html`<div class="barra-borrador">
+            <span>Borrador · se emitirá con el folio <strong class="folio-grande">${folio}</strong></span>
+            <span class="nota">Se guarda solo · creado ${fmtFecha(datos.creado_en)}</span>
           </div>
-        <//>`
+          <${EditorVale}
+            datos=${datos}
+            alCambiar=${cambiar}
+            errores=${errores}
+            capacidad=${capacidad}
+            pie=${html`<${ListaErrores} errores=${errores} />
+              <div class="acciones-linea pie-editor">
+                <${Boton} tipo="peligro-texto" onClick=${descartar}>Descartar borrador<//>
+                <span class="espaciador"></span>
+                <${Boton} disabled=${!lineasCapturadas(datos.lineas).length} onClick=${() => setPrevia([{ ...paraEmitir(estado, datos, sesion.usuario), folio: null, tipo: "SALIDA" }])}>Vista previa<//>
+                <${Boton} tipo="primario" tamano="grande" disabled=${!lineasCapturadas(datos.lineas).length} onClick=${emitir}>Emitir vale · folio ${folio}<//>
+              </div>`}
+          />`
       : null}
 
-    ${!emitidos && !datos
-      ? html`<${Tarjeta}>
-          <p>No hay vales en captura. Cada vale nuevo se guarda solo como borrador y no consume folio hasta que lo emites.</p>
-          <${Boton} tipo="primario" tamano="grande" onClick=${nuevo}>＋ Nuevo vale<//>
+    ${!emitidos && !datos && !borradores.length
+      ? html`<${Tarjeta} clase="tarjeta-inicio-vales">
+          <p>
+            Cada vale se guarda solo como <strong>borrador</strong> mientras lo llenas y no gasta folio hasta que lo emites.
+            Puedes tener varios abiertos a la vez.
+          </p>
+          <${Boton} tipo="primario" tamano="grande" onClick=${nuevo}>＋ Nuevo vale · folio ${folio}<//>
         <//>`
       : null}
 

@@ -36,7 +36,7 @@ La versión web se validó contra la de escritorio con los archivos reales: mism
 verificación y mismos Excel exportados celda por celda.
 
 Entregables:
-- `ControlAlmacen.html` (un solo archivo, ~190 KB en F1; ~270 KB con F2) con datos en IndexedDB y respaldos `.zip` en la carpeta elegida (OneDrive).
+- `ControlAlmacen.html` (un solo archivo, ~190 KB en F1; ~300 KB con F2) con datos en IndexedDB y respaldos `.zip` en la carpeta elegida (OneDrive).
 - Importadores: catálogo, inventario físico, DIARIO (con reglas de limpieza y lectura de la lista de revisión v2), plantillas por área.
 - Exportadores sobre plantilla: inventario `.xlsx` y vales `.xlsm`.
 - Respaldo, retención y restauración; copias internas del navegador.
@@ -63,6 +63,15 @@ Entregables:
 - **Áreas y personas:** edición de plantillas (incluye formato de impresión y lote por defecto), personas, almacenistas y folios.
 - Tablero de inicio (siguiente folio, vales de hoy, por enviar, por ubicar, renglones en 0).
 - Respaldos: el más reciente se muestra en grande y *Restaurar* es un botón (comentario del usuario sobre F1).
+
+**Ronda de comentarios del usuario (aplicada):** borde derecho del vale impreso igual a los demás; página *Vales de
+salida* sin repeticiones de "Nuevo vale" y sin pestañas cuando no hay borradores; datos del vale a la izquierda y
+partidas al centro con las columnas del vale; vales internos con origen/destino fijos (`RIG 91 · ALMACEN` → `RIG 91 ·
+área`), entregó = almacenista en turno, autorizó solo en transferencias y observaciones fijas donde solo cambia la etapa
+de perforación; quién recibe se busca por nombre o puesto; partidas código → clave (filtrada por el código, con
+contenedor y existencia en pastillas); borrar partida más claro; contador de partidas en la pestaña; búsqueda rápida
+opcional en *Ajustes*; historial con filtros combinables; exportar con ventana "Guardar como". Pendiente de revisar
+con el usuario: NOV y transferencias.
 
 Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
 - ✔ Es imposible duplicar o saltar un folio: prueba automática con 12 emisiones simultáneas y guardado lento (3 con errores que no consumen folio).

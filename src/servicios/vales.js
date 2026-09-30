@@ -4,7 +4,8 @@
 //
 // Ver docs/05-flujos.md §1 y §3 y los requerimientos RF-10 a RF-21.
 
-import { CERO, dec, decTexto } from "../nucleo/decimal.js";
+import { conEtapa, esInterna, etapaDe, tieneEtapa } from "../nucleo/areas.js";
+import { CERO, aNumero, dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, ultimoConteo, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, hoyIso } from "../nucleo/fechas.js";
@@ -93,6 +94,74 @@ export function lineaDesdeExistencia(estado, existenciaId, indices = new Indices
   };
 }
 
+/** ¿Renglón sin capturar? (la fila vacía lista para escribir el siguiente código) */
+export const lineaEnBlanco = (l) => !Number.isInteger(l.codigo) && !texto(l.cantidad) && !texto(l.clave);
+
+/** Renglones capturados (sin las filas vacías). */
+export const lineasCapturadas = (lineas) => (lineas ?? []).filter((l) => !lineaEnBlanco(l));
+
+/** Renglón en blanco para capturar código → clave → cantidad. */
+export function lineaVacia(lote = "") {
+  return { ...lineaBase(), lote: lote ?? "" };
+}
+
+/**
+ * Renglones del inventario de un código, para elegir la CLAVE ALMACÉN (y con ella de qué
+ * contenedor sale). Cada opción trae su lugar y la existencia actual.
+ */
+export function opcionesDeClave(estado, codigo, { indices = new Indices(estado), saldos = null } = {}) {
+  if (!Number.isInteger(codigo)) return [];
+  const existencias = estado.existencias.filter((e) => e.activo !== false && indices.variante(e.variante_id).codigo === codigo);
+  const totales = saldos ?? calcularSaldos(estado, existencias.map((e) => e.id));
+  return existencias
+    .map((e) => {
+      const v = indices.variante(e.variante_id);
+      const u = indices.ubicacion(e.ubicacion_id);
+      return {
+        id: e.id,
+        clave: claveParaVale(dimensionMostrada(e, v), npMostrado(e, v)),
+        lugar: `#${u.contenedor} ${u.clase === "INV" ? "Inv." : "Cons."}`,
+        hoja: u.hoja_excel.trim(),
+        total: aNumero(totales.get(e.id)?.total ?? CERO),
+        um: umMostrada(e, v) || "",
+        orden: u.orden * 100000 + e.orden,
+      };
+    })
+    .sort((a, b) => a.orden - b.orden);
+}
+
+/** El renglón con el artículo elegido. Si solo está en un renglón del inventario, se asigna solo (RF-12). */
+export function conArticulo(estado, linea, codigo, { indices = new Indices(estado), descripcion = null } = {}) {
+  const opciones = opcionesDeClave(estado, codigo, { indices });
+  const base = {
+    ...linea,
+    codigo,
+    descripcion: estado.articulos[codigo]?.descripcion ?? descripcion ?? linea.descripcion ?? "",
+    existencia_id: null,
+    variante_id: null,
+    clave: "",
+    um: "",
+    no_inventariado: opciones.length === 0,
+    justificacion: "",
+  };
+  return opciones.length === 1 ? conExistencia(estado, base, opciones[0].id, indices) : base;
+}
+
+/** El renglón saliendo de un renglón del inventario (fija clave, UM y contenedor). */
+export function conExistencia(estado, linea, existenciaId, indices = new Indices(estado)) {
+  const d = lineaDesdeExistencia(estado, existenciaId, indices);
+  return {
+    ...linea,
+    codigo: d.codigo,
+    descripcion: d.descripcion,
+    existencia_id: d.existencia_id,
+    variante_id: d.variante_id,
+    clave: d.clave,
+    um: d.um || linea.um,
+    no_inventariado: false,
+  };
+}
+
 /** Renglón de un artículo del catálogo que no lleva existencia (diésel, gases, servicios). */
 export function lineaNoInventariada(estado, codigo, descripcion = null) {
   return {
@@ -120,6 +189,7 @@ export function aplicarPlantilla(estado, borrador, plantillaId) {
     observaciones: p.observaciones ?? "",
     naturaleza: p.naturaleza || "CONSUMO",
   });
+  borrador.observaciones = observacionesDelVale(estado, borrador) ?? "";
   if (p.lote_defecto) for (const l of borrador.lineas) if (!l.lote) l.lote = p.lote_defecto;
   return borrador;
 }
@@ -143,6 +213,7 @@ export function nuevoBorrador(estado, { usuario = null, plantillaId = null, fech
     recibio_puesto: "",
     autorizo_nombre: "",
     observaciones: "",
+    etapa_perforacion: estado.config?.etapa_perforacion ?? "",
     naturaleza: "CONSUMO",
     lineas: [],
   };
@@ -157,6 +228,36 @@ export function borrador(estado, id) {
 
 export function descartarBorrador(estado, id) {
   estado.borradores = estado.borradores.filter((b) => b.id !== id);
+}
+
+/**
+ * Observaciones con las que sale el vale. En las áreas internas el texto es el del área y
+ * solo cambia la etapa de perforación; en las demás, lo que se escribió en el vale.
+ */
+export function observacionesDelVale(estado, datos) {
+  const area = plantillaArea(estado, datos.plantilla_area_id);
+  const etapa = texto(datos.etapa_perforacion);
+  if (esInterna(area) && tieneEtapa(area.observaciones) && etapa) return conEtapa(area.observaciones, etapa);
+  return datos.observaciones;
+}
+
+/** En un área interna, origen y destino son siempre los del área (RIG 91 · ALMACEN → RIG 91 · depto). */
+export function conDatosFijos(estado, datos) {
+  const area = plantillaArea(estado, datos.plantilla_area_id);
+  if (!esInterna(area)) return datos;
+  return { ...datos, origen: area.origen ?? "", depto_origen: area.depto_origen ?? "", destino: area.destino ?? "", depto_destino: area.depto_destino ?? "" };
+}
+
+/** ¿Este vale pide la etapa de perforación? (área interna cuyas observaciones la llevan) */
+export function pideEtapa(estado, datos) {
+  const area = plantillaArea(estado, datos.plantilla_area_id);
+  return esInterna(area) && tieneEtapa(area.observaciones);
+}
+
+/** Entregó: siempre el almacenista en turno, con su puesto. */
+export function conEntregaEnTurno(estado, datos, usuario) {
+  if (!texto(usuario)) return datos;
+  return { ...datos, entrego_nombre: usuario, entrego_puesto: puestoDe(estado, usuario) || "ALMACENISTA" };
 }
 
 // ---------------------------------------------------------------- validación
@@ -200,19 +301,22 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
   if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(datos.fecha))) error(null, "fecha", "Falta la fecha.");
   if (historial) {
     // Vale anterior al conteo: solo es historial (no descuenta), se corrige con lo mínimo.
-    (datos.lineas ?? []).forEach((l, i) => {
+    lineasCapturadas(datos.lineas).forEach((l, i) => {
       if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(i + 1, "codigo", `Renglón ${i + 1}: falta el código.`);
     });
     return { errores, avisos };
   }
   if (!texto(datos.depto_destino) && !texto(datos.destino)) error(null, "depto_destino", "Falta el destino o departamento que recibe.");
-  if (!texto(datos.entrego_nombre)) error(null, "entrego_nombre", "Falta quién entrega.");
+  if (!texto(datos.entrego_nombre)) error(null, "entrego_nombre", "Falta quién entrega: elige quién está en turno (arriba a la derecha).");
   if (!texto(datos.recibio_nombre)) error(null, "recibio_nombre", "Falta quién recibe.");
+  if (excluirValeId === null && pideEtapa(estado, datos) && !texto(datos.etapa_perforacion)) {
+    error(null, "etapa_perforacion", "Falta la etapa de perforación.");
+  }
   if (requiereAutoriza(estado, datos) && !texto(datos.autorizo_nombre)) {
     error(null, "autorizo_nombre", "Esta área requiere que alguien autorice.");
   }
-  const lineas = datos.lineas ?? [];
-  if (!lineas.length) error(null, "lineas", "El vale no tiene renglones.");
+  const lineas = lineasCapturadas(datos.lineas);
+  if (!lineas.length) error(null, "lineas", "El vale no tiene partidas.");
   const indices = new Indices(estado);
   const pedidos = new Map();
   lineas.forEach((l, i) => {
@@ -226,7 +330,7 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
       if (!indices.existencia(l.existencia_id)) error(n, "existencia_id", `Renglón ${n}: el renglón de inventario ya no existe.`);
       else if (cantidad !== null) pedidos.set(l.existencia_id, (pedidos.get(l.existencia_id) ?? CERO).plus(cantidad));
     } else if (!l.no_inventariado) {
-      error(n, "existencia_id", `Renglón ${n}: elige de qué contenedor sale o márcalo como no inventariado.`);
+      error(n, "existencia_id", `Renglón ${n}: elige la clave de la lista (o "Otra clave" si no sale del inventario).`);
     }
   });
   if (pedidos.size) {
@@ -272,7 +376,7 @@ function lineaLimpia(estado, l, renglon, id) {
     cantidad: decTexto(dec(l.cantidad)),
     codigo: l.codigo,
     descripcion: texto(l.descripcion).toUpperCase(),
-    clave: textoONulo(l.clave),
+    clave: textoONulo(l.clave) ?? (l.no_inventariado ? "S/D" : null),
     um: unidad(l.um) || null,
     lote: mayus(l.lote),
     variante_id: l.existencia_id !== null && l.existencia_id !== undefined ? (l.variante_id ?? null) : null,
@@ -307,8 +411,11 @@ function registrarPersonas(estado, encabezado) {
  * @returns los vales emitidos
  */
 export function emitirBorrador(estado, borradorId, { usuario = null, capacidad = CAPACIDAD_DEFECTO, dividir = false } = {}) {
-  const datos = borrador(estado, borradorId);
-  if (!datos) throw new ErrorVale("El borrador ya no existe (¿se emitió en otra ventana?).");
+  const guardado = borrador(estado, borradorId);
+  if (!guardado) throw new ErrorVale("El borrador ya no existe (¿se emitió en otra ventana?).");
+  const datos = conDatosFijos(estado, conEntregaEnTurno(estado, guardado, usuario));
+  datos.observaciones = observacionesDelVale(estado, datos);
+  datos.lineas = lineasCapturadas(datos.lineas);
   const { errores } = validarVale(estado, datos);
   if (errores.length) throw new ErrorVale("El vale tiene datos pendientes.", errores);
   const grupos = [];
@@ -355,6 +462,8 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
     folio += 1;
   }
   descartarBorrador(estado, borradorId);
+  // La etapa usada queda como la actual para los siguientes vales.
+  if (pideEtapa(estado, datos)) estado.config.etapa_perforacion = texto(datos.etapa_perforacion);
   auditar(estado, {
     usuario,
     entidad: "vale",
@@ -391,6 +500,7 @@ export function datosParaCorregir(estado, valeId) {
     ...Object.fromEntries(CAMPOS_ENCABEZADO.map((c) => [c, vale[c] ?? ""])),
     plantilla_area_id: vale.plantilla_area_id ?? null,
     naturaleza: vale.naturaleza || "CONSUMO",
+    etapa_perforacion: etapaDe(vale.observaciones) ?? "",
     lineas: vale.lineas.map((l) => ({
       ...lineaBase(),
       ...l,
@@ -417,8 +527,9 @@ export function corregirVale(estado, valeId, datos, motivo, usuario = null) {
   if (!texto(motivo)) throw new ErrorVale("Escribe el motivo de la corrección.", [{ renglon: null, campo: "motivo", mensaje: "Falta el motivo." }]);
   const { errores } = validarVale(estado, datos, { excluirValeId: valeId, historial: esHistorial(estado, vale) });
   if (errores.length) throw new ErrorVale("La corrección tiene datos pendientes.", errores);
+  datos = { ...datos, lineas: lineasCapturadas(datos.lineas) };
   const antes = foto(vale);
-  const encabezado = encabezadoLimpio(datos);
+  const encabezado = encabezadoLimpio({ ...datos, observaciones: observacionesDelVale(estado, datos) });
   asegurarArticulos(estado, datos.lineas);
   registrarPersonas(estado, encabezado);
   const previas = new Map(vale.lineas.map((l) => [l.id, l]));
