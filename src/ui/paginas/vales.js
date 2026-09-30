@@ -5,6 +5,7 @@ import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../../nucleo
 import { calcularSaldos } from "../../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../../nucleo/fechas.js";
 import { buscarPersonas, personasParaFirma } from "../../servicios/consultas.js";
+import { preferenciasVale } from "../../servicios/preferencias.js";
 import {
   ErrorVale,
   aplicarPlantilla,
@@ -413,139 +414,139 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   const quienEntrega = entrego ?? (enTurno ? { nombre: enTurno.entrego_nombre, puesto: enTurno.entrego_puesto } : null);
   const observaciones = observacionesDelVale(estado, datos) ?? "";
   const capturadas = lineasCapturadas(datos.lineas);
+  const preferencias = preferenciasVale(estado, sesion.usuario);
   let numero = 0;
 
-  return html`
-    <div class="editor-vale">
-      <aside class="vale-datos" aria-label="Datos del vale">
-        <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
-          <${Lista}
-            id="area-vale"
-            valor=${datos.plantilla_area_id ?? ""}
-            alCambiar=${(valor) => {
-              const copia = structuredClone(datos);
-              aplicarPlantilla(estado, copia, valor ? Number(valor) : null);
-              alCambiar(copia);
-            }}
-            ariaLabel="Área que recibe"
-            placeholder="— Elige el área —"
-            opciones=${areas.map((a) => ({
-              valor: a.id,
-              etiqueta: a.nombre,
-              detalle: tipoDeArea(a) === "TRANSFERENCIA" ? "transferencia" : tipoDeArea(a) === "EXTERNO" ? "externa" : null,
-            }))}
-          />
-        <//>
-        <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
-          <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
-        <//>
-        ${!fijo && (area || datos.origen || datos.destino)
-          ? html`<div class="rejilla-campos">
+  // Bloques del panel de datos, en el orden que eligió quien está en turno (Ajustes).
+  const persona = (id, etiqueta, campo, { ayuda = null, error = null, puestos = [] } = {}) => html`
+    <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda}>
+      <${SelectorPersona}
+        id=${id}
+        ariaLabel=${etiqueta}
+        campo=${`${campo}_nombre`}
+        puestos=${puestos}
+        nombre=${datos[`${campo}_nombre`]}
+        depto=${datos.depto_destino}
+        error=${error}
+        alEscribir=${(valor) => cambiar({ [`${campo}_nombre`]: valor })}
+        alElegir=${(p) => cambiar({ [`${campo}_nombre`]: p.nombre, [`${campo}_puesto`]: p.puesto ?? datos[`${campo}_puesto`] ?? "" })}
+      />
+    <//>
+  `;
+  const puestoDe = (etiqueta, campo, sugerencias = opcionesListas.puestos) => html`
+    <${Campo} etiqueta=${etiqueta}>
+      <${CampoSugerido} valor=${datos[`${campo}_puesto`] ?? ""} alCambiar=${(valor) => cambiar({ [`${campo}_puesto`]: valor })} sugerencias=${sugerencias} ariaLabel=${etiqueta} />
+    <//>
+  `;
+  const bloques = {
+    area: html`
+      <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
+        <${Lista}
+          id="area-vale"
+          valor=${datos.plantilla_area_id ?? ""}
+          alCambiar=${(valor) => {
+            const copia = structuredClone(datos);
+            aplicarPlantilla(estado, copia, valor ? Number(valor) : null);
+            alCambiar(copia);
+          }}
+          ariaLabel="Área que recibe"
+          placeholder="— Elige el área —"
+          opciones=${areas.map((a) => ({
+            valor: a.id,
+            etiqueta: a.nombre,
+            detalle: tipoDeArea(a) === "TRANSFERENCIA" ? "transferencia" : tipoDeArea(a) === "EXTERNO" ? "externa" : null,
+          }))}
+        />
+      <//>
+    `,
+    fecha: html`
+      <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
+        <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
+      <//>
+    `,
+    origen_destino:
+      !fijo && (area || datos.origen || datos.destino)
+        ? html`
+            <div class="rejilla-campos">
               <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
               <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
               <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
               <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
                 <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
               <//>
+            </div>
+            ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: origen, destino, observaciones y quién autoriza se capturan en cada vale.</p>` : null}
+          `
+        : null,
+    recibio: html`
+      ${persona("recibio", "Recibió", "recibio", {
+        error: errorEn("recibio_nombre"),
+        ayuda: extras ? "Firma a la izquierda, arriba." : "Busca por nombre o por puesto (p. ej. mecánico).",
+      })}
+      ${puestoDe("Puesto de quien recibe", "recibio")}
+    `,
+    firmas_extra: extras
+      ? html`
+          ${persona("firma-izq", extras.izq, "firma_extra_izq", { ayuda: "Firma a la izquierda, abajo." })}
+          ${puestoDe(`Puesto (${extras.izq.toLowerCase()})`, "firma_extra_izq")}
+          ${persona("firma-der", extras.der, "firma_extra_der", { ayuda: "Firma a la derecha, abajo." })}
+          ${puestoDe(`Puesto (${extras.der.toLowerCase()})`, "firma_extra_der")}
+        `
+      : null,
+    autorizo: autoriza
+      ? html`
+          ${persona("autorizo", "Autorizó (obligatorio)", "autorizo", {
+            error: errorEn("autorizo_nombre"),
+            ayuda: "Primero se sugieren RIG MANAGER e ITP.",
+            puestos: PUESTOS_AUTORIZAN,
+          })}
+          ${puestoDe("Puesto de quien autoriza", "autorizo", [...new Set([...PUESTOS_AUTORIZAN, ...opcionesListas.puestos])])}
+        `
+      : null,
+    etapa: pideEtapa(estado, datos)
+      ? html`
+          <${Campo} etiqueta="Etapa de perforación" error=${errorEn("etapa_perforacion")} ayuda="Es lo único que cambia en las observaciones; se recuerda para los siguientes vales.">
+            <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })} />
+          <//>
+        `
+      : null,
+    observaciones: !(area && fijo)
+      ? html`
+          <${Campo} etiqueta="Observaciones">
+            <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
+          <//>
+        `
+      : null,
+    automaticos: html`
+      <div class="datos-automaticos">
+        <span class="subtitulo-panel">Se llenan solos</span>
+        <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
+          <dt>Entrega</dt>
+          <dd>
+            ${quienEntrega
+              ? html`${quienEntrega.nombre}
+                  <small>${[quienEntrega.puesto, entrego ? null : "en turno", extras ? "firma a la derecha, arriba" : null].filter(Boolean).join(" · ")}</small>`
+              : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
+          </dd>
+          ${area && fijo
+            ? html`<dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
+                <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>`
+            : null}
+        </dl>
+        ${area && fijo
+          ? html`<div class="campo">
+              <span>Observaciones (así salen en el vale)</span>
+              <p class="observaciones-fijas">${observaciones || "—"}</p>
             </div>`
           : null}
-        <${Campo} etiqueta="Recibió" error=${errorEn("recibio_nombre")} ayuda=${extras ? "Firma a la izquierda, arriba." : "Busca por nombre o por puesto (p. ej. mecánico)."}>
-          <${SelectorPersona}
-            id="recibio"
-            ariaLabel="Recibió"
-            nombre=${datos.recibio_nombre}
-            depto=${datos.depto_destino}
-            error=${errorEn("recibio_nombre")}
-            alEscribir=${(valor) => cambiar({ recibio_nombre: valor })}
-            alElegir=${(p) => cambiar({ recibio_nombre: p.nombre, recibio_puesto: p.puesto ?? datos.recibio_puesto ?? "" })}
-          />
-        <//>
-        <${Campo} etiqueta="Puesto de quien recibe">
-          <${CampoSugerido} valor=${datos.recibio_puesto} alCambiar=${(valor) => cambiar({ recibio_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel="Puesto de quien recibe" />
-        <//>
-        ${extras
-          ? html`<${Campo} etiqueta=${extras.izq} ayuda="Firma a la izquierda, abajo.">
-                <${SelectorPersona}
-                  id="firma-izq"
-                  ariaLabel=${extras.izq}
-                  campo="firma_extra_izq_nombre"
-                  nombre=${datos.firma_extra_izq_nombre}
-                  depto=${datos.depto_destino}
-                  alEscribir=${(valor) => cambiar({ firma_extra_izq_nombre: valor })}
-                  alElegir=${(p) => cambiar({ firma_extra_izq_nombre: p.nombre, firma_extra_izq_puesto: p.puesto ?? datos.firma_extra_izq_puesto ?? "" })}
-                />
-              <//>
-              <${Campo} etiqueta=${`Puesto (${extras.izq.toLowerCase()})`}>
-                <${CampoSugerido} valor=${datos.firma_extra_izq_puesto} alCambiar=${(valor) => cambiar({ firma_extra_izq_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel=${`Puesto ${extras.izq}`} />
-              <//>`
-          : null}
-        ${extras
-          ? html`<${Campo} etiqueta=${extras.der} ayuda="Firma a la derecha, abajo.">
-                <${SelectorPersona}
-                  id="firma-der"
-                  ariaLabel=${extras.der}
-                  campo="firma_extra_der_nombre"
-                  nombre=${datos.firma_extra_der_nombre}
-                  depto=${datos.depto_destino}
-                  alEscribir=${(valor) => cambiar({ firma_extra_der_nombre: valor })}
-                  alElegir=${(p) => cambiar({ firma_extra_der_nombre: p.nombre, firma_extra_der_puesto: p.puesto ?? datos.firma_extra_der_puesto ?? "" })}
-                />
-              <//>
-              <${Campo} etiqueta=${`Puesto (${extras.der.toLowerCase()})`}>
-                <${CampoSugerido} valor=${datos.firma_extra_der_puesto} alCambiar=${(valor) => cambiar({ firma_extra_der_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel=${`Puesto ${extras.der}`} />
-              <//>`
-          : null}
-        ${autoriza
-          ? html`<${Campo} etiqueta="Autorizó (obligatorio)" error=${errorEn("autorizo_nombre")} ayuda="Primero se sugieren RIG MANAGER e ITP.">
-                <${SelectorPersona}
-                  id="autorizo"
-                  ariaLabel="Autorizó"
-                  campo="autorizo_nombre"
-                  puestos=${PUESTOS_AUTORIZAN}
-                  nombre=${datos.autorizo_nombre}
-                  depto=${datos.depto_destino}
-                  error=${errorEn("autorizo_nombre")}
-                  alEscribir=${(valor) => cambiar({ autorizo_nombre: valor })}
-                  alElegir=${(p) => cambiar({ autorizo_nombre: p.nombre, autorizo_puesto: p.puesto ?? datos.autorizo_puesto ?? "" })}
-                />
-              <//>
-              <${Campo} etiqueta="Puesto de quien autoriza">
-                <${CampoSugerido} valor=${datos.autorizo_puesto ?? ""} alCambiar=${(valor) => cambiar({ autorizo_puesto: valor })} sugerencias=${[...new Set([...PUESTOS_AUTORIZAN, ...opcionesListas.puestos])]} ariaLabel="Puesto de quien autoriza" />
-              <//>`
-          : null}
-        ${pideEtapa(estado, datos)
-          ? html`<${Campo} etiqueta="Etapa de perforación" error=${errorEn("etapa_perforacion")} ayuda="Es lo único que cambia en las observaciones; se recuerda para los siguientes vales.">
-              <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })} />
-            <//>`
-          : null}
-        ${!(area && fijo)
-          ? html`<${Campo} etiqueta="Observaciones">
-              <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
-            <//>`
-          : null}
-        <div class="datos-automaticos">
-          <span class="subtitulo-panel">Se llenan solos</span>
-          <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
-            <dt>Entrega</dt>
-            <dd>
-              ${quienEntrega
-                ? html`${quienEntrega.nombre}
-                    <small>${[quienEntrega.puesto, entrego ? null : "en turno", extras ? "firma a la derecha, arriba" : null].filter(Boolean).join(" · ")}</small>`
-                : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
-            </dd>
-            ${area && fijo
-              ? html`<dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
-                  <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>`
-              : null}
-          </dl>
-          ${area && fijo
-            ? html`<div class="campo">
-                <span>Observaciones (así salen en el vale)</span>
-                <p class="observaciones-fijas">${observaciones || "—"}</p>
-              </div>`
-            : null}
-        </div>
-        ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: origen, destino y observaciones se pueden editar en cada vale.</p>` : null}
+      </div>
+    `,
+  };
+
+  return html`
+    <div class=${`editor-vale ${preferencias.lado}`}>
+      <aside class="vale-datos" aria-label="Datos del vale">
+        ${preferencias.orden.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
       </aside>
 
       <div class="vale-principal">
@@ -796,6 +797,7 @@ export function PaginaValesSalida() {
   const [previa, setPrevia] = useState(null);
   const [capacidad, setCapacidad] = useState(null);
   const pendiente = useRef(null);
+  const porGuardar = useRef(null);
 
   // Carga el borrador activo en el editor (solo al cambiar de pestaña).
   useEffect(() => {
@@ -815,6 +817,7 @@ export function PaginaValesSalida() {
   const guardar = async (valor) => {
     clearTimeout(pendiente.current);
     pendiente.current = null;
+    porGuardar.current = null;
     await sesion.almacen.modificar((e) => {
       const b = buscarBorrador(e, valor.id);
       if (b) Object.assign(b, structuredClone(valor), { actualizado_en: ahoraIso() });
@@ -824,9 +827,16 @@ export function PaginaValesSalida() {
     setDatos(valor);
     if (errores.length) setErrores(validarVale(estado, paraEmitir(estado, valor, sesion.usuario)).errores);
     clearTimeout(pendiente.current);
+    porGuardar.current = valor;
     pendiente.current = setTimeout(() => guardar(valor).catch((e) => sesion.avisar("error", e.message)), 600);
   };
-  useEffect(() => () => clearTimeout(pendiente.current), []);
+  // Al salir de la página, lo que faltaba por guardar se guarda en ese momento (no se descarta).
+  useEffect(
+    () => () => {
+      if (pendiente.current && porGuardar.current) guardar(porGuardar.current).catch((e) => sesion.avisar("error", e.message));
+    },
+    [],
+  );
 
   const nuevo = () =>
     sesion.tarea("Creando vale…", async () => {

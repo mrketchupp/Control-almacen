@@ -1253,12 +1253,6 @@ select.con-error {
   align-items: start;
 }
 
-@media (max-width: 1100px) {
-  .editor-vale {
-    grid-template-columns: 1fr;
-  }
-}
-
 .vale-datos,
 .vale-partidas,
 .vale-fotos,
@@ -1660,12 +1654,6 @@ select.con-error {
   padding: 5px 7px;
 }
 
-@media (max-width: 1250px) {
-  .editor-vale {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-}
-
 /* ---------------------------------------------------------------- listas desplegables propias */
 
 .lista {
@@ -1918,5 +1906,200 @@ select.con-error {
 
   .tabla-partidas .c-um {
     width: 112px;
+  }
+}
+
+/* ---------------------------------------------------------------- preferencias de cada almacenista */
+
+.bloque-vale {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editor-vale.partidas-izquierda {
+  grid-template-columns: minmax(0, 1fr) 300px;
+}
+
+.editor-vale.partidas-izquierda > .vale-datos {
+  order: 2;
+}
+
+@media (max-width: 1250px) {
+  .editor-vale {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .editor-vale.partidas-izquierda {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .editor-vale,
+  .editor-vale.partidas-izquierda {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.previa-vale {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  gap: 12px;
+  max-width: 860px;
+  padding: 12px;
+  border: 1px dashed var(--borde);
+  border-radius: var(--radio);
+  background: var(--fondo);
+}
+
+.previa-vale.partidas-izquierda {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+}
+
+.previa-vale.partidas-izquierda > .previa-datos {
+  order: 2;
+}
+
+.previa-datos,
+.previa-partidas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.previa-bloques {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.previa-bloque {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 10px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--superficie-2);
+  cursor: grab;
+  user-select: none;
+}
+
+.previa-bloque:hover {
+  border-color: var(--primario);
+}
+
+.previa-bloque:active {
+  cursor: grabbing;
+}
+
+.previa-bloque.soltar-antes::before,
+.previa-bloque.soltar-despues::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--primario);
+}
+
+.previa-bloque.soltar-antes::before {
+  top: -5px;
+}
+
+.previa-bloque.soltar-despues::after {
+  bottom: -5px;
+}
+
+/* Seis puntitos (2 × 3) dibujados con CSS: no dependen de la fuente de Windows. */
+.asa-arrastre {
+  flex: none;
+  width: 10px;
+  height: 16px;
+  color: var(--texto-suave);
+  background-image: radial-gradient(circle, currentColor 1.3px, transparent 1.7px);
+  background-size: 5px 5.33px;
+}
+
+.previa-bloque:hover .asa-arrastre {
+  color: var(--primario);
+}
+
+.previa-texto {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.previa-texto small {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+.previa-mover {
+  display: flex;
+  flex: none;
+}
+
+.previa-mover .boton {
+  padding: 2px 7px;
+}
+
+.previa-mover .boton:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.previa-renglones,
+.previa-fotos {
+  display: grid;
+  gap: 6px;
+}
+
+.previa-renglones span {
+  height: 18px;
+  border-radius: 4px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+}
+
+.previa-fotos {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.previa-fotos span {
+  height: 44px;
+  border-radius: 4px;
+  border: 1px dashed var(--borde);
+}
+
+.previa-boton {
+  align-self: flex-end;
+  margin-top: auto;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: var(--primario);
+  color: #fff;
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 700px) {
+  .previa-vale,
+  .previa-vale.partidas-izquierda {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

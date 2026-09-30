@@ -176,18 +176,23 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 | **`plantilla_excel`** | tipo (`INVENTARIO` / `VALES`), ruta, hash, fecha, activa |
 | **`exportacion`** | tipo, fecha, archivo, hash, usuario, último folio incluido, marcada como enviada |
 | **`auditoria`** | fecha_hora, usuario, entidad, entidad_id, acción, antes (JSON), después (JSON), motivo |
-| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `etapa_perforacion` actual, `captura_rapida`…) |
+| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `etapa_perforacion` actual, `captura_rapida`, `preferencias_vale`…) |
 
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **3**). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **4**). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
 para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada área.
 
 Los borradores llevan además `etapa_perforacion`. Entregó no se captura: al emitir es siempre el almacenista en turno.
+
+`config.preferencias_vale` guarda, por nombre de almacenista, cómo quiere ver la pantalla del vale:
+`{ "<ALMACENISTA>": { "orden": ["area", "fecha", …], "lado": "datos-izquierda" | "partidas-izquierda" } }`
+(`src/servicios/preferencias.js`). Es opcional y se completa al leerla (bloques desconocidos o repetidos se quitan y los
+que falten se insertan en su lugar de fábrica), así que no cambia el formato ni necesita migración; viaja en los respaldos.
 
 ## Cálculo de existencias
 
