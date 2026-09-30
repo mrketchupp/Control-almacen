@@ -200,9 +200,15 @@ function FotosVale({ fotos = [], espacios, alCambiar }) {
     if (archivo) sesion.tarea("Guardando foto…", async () => poner(i, await sesion.agregarFoto(archivo)));
   };
   const puestas = claves.filter(Boolean).length;
-  return html`<div class="campo">
-    <span>Fotos (${puestas} de ${espacios.length})</span>
-    <div class="fotos-vale">
+  // Mismo acomodo que en el formato: cada espacio con su ancho y proporción.
+  const columnas = espacios.map((e) => `${Math.round(e.ancho)}fr`).join(" ");
+  return html`<section class="vale-fotos" aria-label="Fotos del vale">
+    <header class="partidas-cabeza">
+      <h2>Fotos</h2>
+      <span class="contador-partidas">${puestas} de ${espacios.length}</span>
+      <span class="nota">Se imprimen en el mismo lugar y tamaño que en tu formato. Se guardan reducidas en este equipo.</span>
+    </header>
+    <div class="fotos-vale" style=${`grid-template-columns:${columnas}`}>
       ${espacios.map(
         (espacio, i) => html`<div class="foto-espacio" style=${`aspect-ratio:${Math.round(espacio.ancho)}/${Math.round(espacio.alto)}`}>
           ${claves[i]
@@ -215,8 +221,7 @@ function FotosVale({ fotos = [], espacios, alCambiar }) {
         </div>`,
       )}
     </div>
-    <small class="ayuda">Se imprimen en el mismo lugar y tamaño que en tu formato. Se guardan reducidas en este equipo.</small>
-  </div>`;
+  </section>`;
 }
 
 // ---------------------------------------------------------------- partidas
@@ -434,6 +439,16 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
         <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
           <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
         <//>
+        ${!fijo && (area || datos.origen || datos.destino)
+          ? html`<div class="rejilla-campos">
+              <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
+              <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
+              <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
+              <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
+                <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
+              <//>
+            </div>`
+          : null}
         <${Campo} etiqueta="Recibió" error=${errorEn("recibio_nombre")} ayuda=${extras ? "Firma a la izquierda, arriba." : "Busca por nombre o por puesto (p. ej. mecánico)."}>
           <${SelectorPersona}
             id="recibio"
@@ -464,15 +479,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                 <${CampoSugerido} valor=${datos.firma_extra_izq_puesto} alCambiar=${(valor) => cambiar({ firma_extra_izq_puesto: valor })} sugerencias=${opcionesListas.puestos} ariaLabel=${`Puesto ${extras.izq}`} />
               <//>`
           : null}
-        <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
-          <dt>Entrega</dt>
-          <dd>
-            ${quienEntrega
-              ? html`${quienEntrega.nombre}
-                  <small>${[quienEntrega.puesto, entrego ? null : "en turno", extras ? "firma a la derecha, arriba" : null].filter(Boolean).join(" · ")}</small>`
-              : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
-          </dd>
-        </dl>
         ${extras
           ? html`<${Campo} etiqueta=${extras.der} ayuda="Firma a la derecha, abajo.">
                 <${SelectorPersona}
@@ -512,35 +518,37 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
               <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })} />
             <//>`
           : null}
-
-        ${area && fijo
-          ? html`<dl class="datos-fijos">
-              <dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
-              <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>
-            </dl>`
-          : area || datos.origen || datos.destino
-            ? html`<div class="rejilla-campos">
-                <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
-                <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
-                <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
-                <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
-                  <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
-                <//>
+        ${!(area && fijo)
+          ? html`<${Campo} etiqueta="Observaciones">
+              <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
+            <//>`
+          : null}
+        <div class="datos-automaticos">
+          <span class="subtitulo-panel">Se llenan solos</span>
+          <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
+            <dt>Entrega</dt>
+            <dd>
+              ${quienEntrega
+                ? html`${quienEntrega.nombre}
+                    <small>${[quienEntrega.puesto, entrego ? null : "en turno", extras ? "firma a la derecha, arriba" : null].filter(Boolean).join(" · ")}</small>`
+                : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
+            </dd>
+            ${area && fijo
+              ? html`<dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
+                  <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>`
+              : null}
+          </dl>
+          ${area && fijo
+            ? html`<div class="campo">
+                <span>Observaciones (así salen en el vale)</span>
+                <p class="observaciones-fijas">${observaciones || "—"}</p>
               </div>`
             : null}
-
-        ${area && fijo
-          ? html`<div class="campo">
-              <span>Observaciones (así salen en el vale)</span>
-              <p class="observaciones-fijas">${observaciones || "—"}</p>
-            </div>`
-          : html`<${Campo} etiqueta="Observaciones">
-              <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
-            <//>`}
-        ${espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null}
-        ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: sus datos se pueden editar en cada vale.</p>` : null}
+        </div>
+        ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: origen, destino y observaciones se pueden editar en cada vale.</p>` : null}
       </aside>
 
+      <div class="vale-principal">
       <section class="vale-partidas" aria-label="Partidas del vale">
         <header class="partidas-cabeza">
           <h2>Partidas</h2>
@@ -566,7 +574,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                 <th>Código</th>
                 <th class="col-descripcion">Descripción del material</th>
                 <th>Clave almacén</th>
-                <th title="Presentación (unidad)">Pres.</th>
+                <th title="Presentación (unidad de medida)"><span class="si-hay-espacio">Presentación</span><span class="si-no-hay-espacio">U.M.</span></th>
                 <th>Lote</th>
                 <th><span class="solo-lector">Quitar</span></th>
               </tr>
@@ -683,8 +691,10 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           <${Boton} onClick=${() => agregarLinea()}>＋ Agregar partida<//>
           <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida.</span>
         </div>
-        ${pie}
       </section>
+      ${espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null}
+      ${pie ? html`<div class="vale-pie">${pie}</div>` : null}
+      </div>
     </div>
   `;
 }

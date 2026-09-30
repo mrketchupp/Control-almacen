@@ -1260,7 +1260,9 @@ select.con-error {
 }
 
 .vale-datos,
-.vale-partidas {
+.vale-partidas,
+.vale-fotos,
+.vale-pie {
   background: var(--superficie);
   border: 1px solid var(--borde);
   border-radius: var(--radio);
@@ -1433,6 +1435,7 @@ select.con-error {
   padding-top: 6px;
   font-size: 0.86rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .combo {
@@ -1851,4 +1854,69 @@ select.con-error {
   background: var(--superficie);
   color: var(--texto);
   resize: vertical;
+}
+
+/* ---------------------------------------------------------------- columna principal del vale */
+
+.vale-principal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.vale-pie .pie-editor {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.vale-pie .motivo + .aviso,
+.vale-pie .motivo + .acciones-linea {
+  margin-top: 12px;
+}
+
+.vale-fotos .fotos-vale {
+  max-width: 640px;
+  gap: 10px;
+}
+
+.datos-automaticos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--borde);
+}
+
+.subtitulo-panel {
+  color: var(--texto-suave);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* "Presentación" cuando cabe; si no, "U.M." (quien usa el formato sabe que es lo mismo). */
+.vale-partidas {
+  container-type: inline-size;
+}
+
+.si-hay-espacio {
+  display: none;
+}
+
+@container (min-width: 900px) {
+  .si-hay-espacio {
+    display: inline;
+  }
+
+  .si-no-hay-espacio {
+    display: none;
+  }
+
+  .tabla-partidas .c-um {
+    width: 112px;
+  }
 }

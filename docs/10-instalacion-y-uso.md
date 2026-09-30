@@ -74,7 +74,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 
 1. **Elige quién está en turno** arriba a la derecha. Queda registrado en cada acción y se pone como "Entregó" en los vales.
 2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*):
-   1. A la izquierda elige el **área que recibe**. En las áreas internas el vale sale de *RIG 91 · ALMACEN* y llega a *RIG 91 · área*; entregas tú (el almacenista en turno).
+   1. A la izquierda elige el **área que recibe**. En transferencias, justo debajo capturas origen y destino. En las demás, lo que se llena solo (quién entrega, de dónde sale, a dónde llega y las observaciones) queda al final del panel, en *Se llenan solos*.
    2. **Recibió:** escribe el nombre o el puesto ("mecánico") y elige de la lista; su puesto se llena solo.
    3. **Etapa de perforación:** es lo único que cambia en las observaciones; ya viene con la última que usaste.
    4. Al centro, en **Partidas**: escribe el **código AX** y `Enter`; en **Clave almacén** aparecen solo las claves de ese código con su contenedor y existencia (pastillas grises); elige con las flechas y `Enter`; escribe la **cantidad** y `Enter` para pasar a la siguiente partida. *Otra clave* sirve para algo que no sale del inventario; el diésel y lo que no lleva existencia quedan como *No inventariado*.
@@ -85,7 +85,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - Si el vale tiene más partidas que el formato (21, 20 o 19 según la hoja), se ofrece dividirlo en folios consecutivos.
    - ¿Prefieres buscar por cualquier dato y que se llene la partida completa? Actívalo en *Ajustes → Captura de partidas*.
 3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
-   - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto**; se imprimen donde van en tu formato. El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
+   - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
    - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
 5. **Exportar y enviar:** *Exportar vales…* abre el explorador de archivos para que elijas la carpeta y el nombre (la siguiente vez abre en la última carpeta usada). Envíalo por correo a la base como siempre y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* te dice qué vales son nuevos o corregidos desde el último envío.
