@@ -186,6 +186,14 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 | **`corte_ax_linea`** | corte_id, las 10 columnas del reporte, variante_id resuelta, método (`exacto` / `equivalencia` / `aproximado` / `manual` / `sin_pareja`), puntaje |
 | **`equivalencia_ax`** | (codigo, tamano, color) → variante_id, confirmado_por, fecha. **Memoria de emparejamientos.** |
 
+En el estado (formato 6, F4): `estado.cortes_ax = [{ id, fecha, almacen, archivo, huella, folio_salida, importado_en,
+importado_por, lineas: [{ id, fila, codigo, codigo_texto, nombre, modelo, um, almacen, tamano, color, disponible,
+valor_financiero, valor_inventario }] }]` (textos tal como vienen del reporte; cantidades y valores como texto decimal)
+y `estado.equivalencias_ax = { "código|tamaño|color" (claves estrictas): { variante_id | null, codigo, tamano, color,
+confirmado_por, fecha } }` (`null` = "no está en el físico"). La pareja de cada renglón **no se guarda**: se calcula
+cada vez (`servicios/conciliacion.js`, `emparejar`) con las equivalencias primero, así el inventario puede cambiar sin
+dejar parejas viejas. `config.almacen_ax` = almacén que se filtra (por defecto `RIG91-IX25`).
+
 ### Operación
 
 | Tabla | Campos |

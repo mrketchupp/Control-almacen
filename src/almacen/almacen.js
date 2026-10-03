@@ -6,7 +6,9 @@
 
 import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
+import { exportarSolicitudAjuste, nombreSolicitud } from "../exportadores/ajuste.js";
 import { NOMBRE_ENTRADAS, exportarEntradas } from "../exportadores/entradas.js";
+import { corteAx } from "../servicios/conciliacion.js";
 import { estadoAlCierre } from "../servicios/corte.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
@@ -201,20 +203,25 @@ export class Almacen {
   // ------------------------------------------------------------ exportar
 
   /** Nombre con el que se exporta (el del archivo original; el inventario lleva la fecha). */
-  nombreExportacion(tipo, hoy = hoyIso()) {
+  nombreExportacion(tipo, hoy = hoyIso(), { corteAx: corteAxId = null } = {}) {
     if (tipo === "ENTRADAS") return NOMBRE_ENTRADAS;
+    if (tipo === "AJUSTE") {
+      const c = corteAx(this.estado, corteAxId);
+      return c ? nombreSolicitud(c.fecha) : null;
+    }
     const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === tipo && p.activa);
     if (!registro) return null;
     return tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
   }
 
   /**
-   * Genera el Excel: 'VALES' e 'INVENTARIO' sobre la plantilla del usuario; 'ENTRADAS' es un
-   * libro nuevo. Con `guardar(nombre, datos)` lo escribe antes de registrar la exportación (si
-   * falla la escritura, no queda registrada).
+   * Genera el Excel: 'VALES' e 'INVENTARIO' sobre la plantilla del usuario; 'ENTRADAS' y 'AJUSTE'
+   * (solicitud de ajuste de un corte de AX: `corteAx`, `todos`) son libros nuevos. Con
+   * `guardar(nombre, datos)` lo escribe antes de registrar la exportación (si falla la escritura,
+   * no queda registrada).
    * @returns {{ nombre, datos, subcarpeta, resultado, destino }}
    */
-  async exportar(tipo, usuario, hoy = hoyIso(), { guardar = null, corte = null } = {}) {
+  async exportar(tipo, usuario, hoy = hoyIso(), { guardar = null, corte = null, corteAx: corteAxId = null, todos = false } = {}) {
     let resultado;
     let nombre;
     // Con `corte` (AAAA-MM-DD) se exporta como estaba al cierre de ese día (reporte diario).
@@ -223,6 +230,11 @@ export class Almacen {
     if (tipo === "ENTRADAS") {
       resultado = exportarEntradas(estado);
       nombre = NOMBRE_ENTRADAS;
+    } else if (tipo === "AJUSTE") {
+      const c = corteAx(estado, corteAxId);
+      if (!c) throw new Error("El corte de AX ya no existe.");
+      resultado = exportarSolicitudAjuste(estado, c, { todos });
+      nombre = resultado.nombre;
     } else {
       const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
       resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla);
@@ -240,6 +252,7 @@ export class Almacen {
         fecha_hora: ahoraIso(),
         ultimo_folio: resultado.ultimoFolio ?? null,
         corte: corte ?? null,
+        corte_ax: corteAxId ?? null,
       });
     });
     return { nombre, datos: resultado.datos, subcarpeta: `exportaciones/${hoy}`, resultado, destino };

@@ -149,10 +149,19 @@ flowchart LR
     F --> G[Exportar solicitud de ajuste]
 ```
 
+- **Emparejamiento** (`servicios/conciliacion.js`): nivel 1, equivalencias confirmadas (también "no está en el
+  físico"); nivel 2, exacto tras normalizar: `Tamaño` = dimensión y `Color` vacío o = NP, `Tamaño + Color` = dimensión
+  (+ NP), o `Tamaño` de 10 caracteres con el que empieza la dimensión física (AX la corta); las unidades se comparan
+  equivalentes (`m` = `MTS`, `LITROS` = `LTS`…); nivel 3, aproximado con puntaje (se **sugiere**; el usuario confirma con
+  *Es esta*, elige otra o *No está en el físico*). Lo confirmado se recuerda para los siguientes cortes. Un código de
+  AX sin ningún renglón físico va directo a "en AX y no en el físico".
 - **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante.
-- **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03).
-- **Diferencia explicada** = físico − AX + salidas en tránsito − entradas en tránsito. Si da 0, la diferencia se marca como "explicada por vales" y se listan los folios.
-- **Valuación:** costo unitario = Valor financiero / Disponible del renglón AX.
+- **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
+- **Diferencia explicada** = físico − AX + salidas en tránsito − entradas en tránsito. Si da 0, la diferencia se marca como "explicada por vales" y se listan los folios; si no, queda como **sobrante** o **faltante** sin explicar.
+- **Valuación:** costo unitario = Valor financiero / Disponible del renglón AX; valor = lo sin explicar × costo.
+- **Vistas:** por renglón de AX, por artículo (código, sin depender del emparejamiento), por contenedor y valuada; filtros
+  *con diferencia, sin explicar, sobrantes, faltantes, explicadas*. Aparte, las listas "en AX y no en el físico" y "en el
+  físico y no en AX" (RF-55).
 
 ## 6. Reporte diario, exportación y SharePoint
 

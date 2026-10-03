@@ -28,6 +28,8 @@ const TRAZOS = {
   cerrar: ["M6 6l12 12", "M18 6 6 18"],
   etapa: ["M10 3h4v5h-4z", "M8 8h8v3H8z", "M10 11l2 10 2-10", "M4 21h16"],
   descargar: ["M12 4v11", "M8 11l4 4 4-4", "M5 19h14"],
+  balanza: ["M12 3v18", "M7 21h10", "M5 7h14", "M5 7l-3 6a3 3 0 0 0 6 0z", "M19 7l-3 6a3 3 0 0 0 6 0z"],
+  subir: ["M12 15V4", "M8 8l4-4 4 4", "M5 19h14"],
 };
 
 /** <Icono nombre="salida" /> */

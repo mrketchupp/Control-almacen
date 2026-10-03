@@ -12,28 +12,8 @@ import {
   preferenciasVale,
   restablecerPreferenciasVale,
 } from "../../servicios/preferencias.js";
-import { Aviso, Boton, Tarjeta, useSesion } from "../componentes.js";
+import { Aviso, Boton, Segmentos, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
-
-/** Botones de opción en fila (un solo valor elegido). */
-function Segmentos({ etiqueta, valor, opciones, alCambiar }) {
-  return html`<div class="segmentos-campo">
-    <span class="segmentos-etiqueta">${etiqueta}</span>
-    <div class="segmentos" role="radiogroup" aria-label=${etiqueta}>
-      ${Object.entries(opciones).map(
-        ([clave, texto]) => html`<button
-          type="button"
-          role="radio"
-          aria-checked=${String(valor) === clave}
-          class=${`segmento ${String(valor) === clave ? "activo" : ""}`}
-          onClick=${() => alCambiar(clave)}
-        >
-          ${texto}
-        </button>`,
-      )}
-    </div>
-  </div>`;
-}
 
 /** Tema claro u oscuro, dónde salen los avisos y animaciones (por almacenista). */
 export function Personalizacion() {

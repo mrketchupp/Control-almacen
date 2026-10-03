@@ -818,11 +818,67 @@ def _convertir_en_xlsm(ruta: Path) -> None:
     _agregar_calcchain(ruta, [("F21", 2)])
 
 
+# ---------------------------------------------------------------- reporte AX (conciliación, F4)
+# Inventario de AX al 05-09-2026 (los vales hasta el 05 ya están en AX; el folio 9, del 06, va en tránsito).
+# Casos: exactos, Tamaño cortado a 10 caracteres (MARIPOSA 4), NP en Color (FLEXITALIC), error de dedo
+# (P55I317), '1/2"' contra '12', renglones de AX sin físico (703, 709), otro almacén que se filtra,
+# diferencia explicada por un vale en tránsito (705 1/2") y diferencias sin explicar.
+HOJA_AX = "rptInventSumDateTransForDimensi"
+ENCABEZADOS_AX = [
+    "Código de Artículo",
+    "Nombre del Artículo",
+    "Modelo de Inventario",
+    "Unidad de Medida",
+    "Almacén",
+    "Tamaño",
+    "Color",
+    "Disponible",
+    "Valor Financiero",
+    "Valor de Inventario",
+]
+ALMACEN_AX = "RIG91-IX25"
+# (código, tamaño, color, um, disponible, costo unitario, almacén)
+RENGLONES_AX = [
+    (701, "6309-2Z/C3", "", "PZA", 9, 350.0, ALMACEN_AX),
+    (701, "6205-2Z", "", "PZA", 6, 120.5, ALMACEN_AX),
+    (702, "P55I317", "", "PZA", 21, 85.25, ALMACEN_AX),
+    (702, "P557500", "", "PZA", 20, 85.25, ALMACEN_AX),
+    (704, '6"', "FLEXITALIC", "PZA", 65, 40.0, ALMACEN_AX),
+    (705, '1/2"', "", "m", 100, 12.5, ALMACEN_AX),
+    (705, "12", "", "m", 5, 30.0, ALMACEN_AX),
+    (706, "555001", "", "PZA", 1, 900.0, ALMACEN_AX),
+    (707, "MARIPOSA 4", "", "PZA", 4, 1500.0, ALMACEN_AX),
+    (708, "ISOFLEX", "", "PZA", 37, 210.0, ALMACEN_AX),
+    (710, "S/D", "X00489", "PZA", 2, 75.0, ALMACEN_AX),
+    (703, "1/2 X 2", "", "PZA", 10, 4.75, ALMACEN_AX),
+    (709, "CABLE 3/4", "", "m", 50, 18.0, ALMACEN_AX),
+    (701, "6309-2Z/C3", "", "PZA", 99, 350.0, "RIG48-XX10"),
+]
+NOMBRE_AX = "DELTA RIG 91 SINTETICO 050926.xlsx"
+
+
+def generar_ax(ruta: Path) -> Path:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = HOJA_AX
+    ws.append(ENCABEZADOS_AX)
+    for codigo, tamano, color, um, disponible, costo, almacen in RENGLONES_AX:
+        valor = round(disponible * costo, 2)
+        ws.append([f"{codigo:09d}", CATALOGO.get(codigo, "ARTICULO"), "INV", um, almacen, tamano, color, disponible, valor, valor])
+    for fila in range(2, ws.max_row + 1):
+        ws.cell(fila, 8).number_format = "#,##0.00"
+        ws.cell(fila, 9).number_format = "#,##0.00"
+        ws.cell(fila, 10).number_format = "#,##0.00"
+    wb.save(ruta)
+    return ruta
+
+
 def generar_todo(carpeta: Path) -> dict[str, Path]:
     carpeta.mkdir(parents=True, exist_ok=True)
     return {
         "inventario": generar_inventario(carpeta / "INVENTARIO SINTETICO.xlsx"),
         "vales": generar_vales(carpeta / "VALES SINTETICO.xlsm"),
+        "ax": generar_ax(carpeta / NOMBRE_AX),
     }
 
 

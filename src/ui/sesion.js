@@ -395,9 +395,9 @@ export class Sesion {
    * herramienta; después, en la última carpeta usada.
    * @returns el archivo elegido; null si se canceló; undefined si el navegador no lo permite
    */
-  async elegirDestinoExportacion(tipo, { corte = null } = {}) {
+  async elegirDestinoExportacion(tipo, opciones = {}) {
     if (!soportaGuardarComo()) return undefined;
-    const nombre = this.almacen.nombreExportacion(tipo, corte ?? hoyIso());
+    const nombre = this.almacen.nombreExportacion(tipo, opciones.corte ?? hoyIso(), opciones);
     if (!nombre) return undefined;
     const startIn = !this.exportoConDialogo && this.carpetaLista ? this.carpeta : "documents";
     return elegirDondeGuardar(nombre, { startIn });
@@ -405,18 +405,19 @@ export class Sesion {
 
   /**
    * Exporta al archivo elegido con "Guardar como" o, sin él, a la carpeta / Descargas.
-   * corte: AAAA-MM-DD para exportar como estaba al cierre de ese día (reporte diario).
+   * opciones: { corte } (AAAA-MM-DD: como estaba al cierre de ese día, reporte diario) o
+   * { corteAx, todos } (solicitud de ajuste de un corte de AX).
    */
-  async exportar(tipo, archivo = undefined, { corte = null } = {}) {
+  async exportar(tipo, archivo = undefined, opciones = {}) {
     let destino;
     if (archivo) {
-      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { corte, guardar: (_, datos) => escribirEnArchivo(archivo, datos) }));
+      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { ...opciones, guardar: (_, datos) => escribirEnArchivo(archivo, datos) }));
       if (!this.exportoConDialogo) {
         this.exportoConDialogo = true;
         await this.backend.guardarAjuste("exporto_con_dialogo", true);
       }
     } else {
-      const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { corte });
+      const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), opciones);
       destino = await this.guardarArchivo(subcarpeta, nombre, datos);
     }
     if (this.carpetaLista) await this.respaldar("exportacion", { descargarSiNoHayCarpeta: false });

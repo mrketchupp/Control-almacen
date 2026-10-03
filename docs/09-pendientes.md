@@ -34,11 +34,11 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. |
+| P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. **Aplicado en F4** (campo "Base capturó hasta el folio"). |
 | P-11 | ¿Cada cuándo se hace un **conteo físico** completo? ¿Hay conteos cíclicos por contenedor? | Soportar ambos: total y parcial por contenedor. **Aplicado en F3.** |
 | P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos). **Aplicado.** |
 | P-17 | Columna **ITEM**: ¿renumerar consecutivo al exportar? | Sí, 1..n por hoja |
-| P-18 | Solicitud de ajuste: ¿solo renglones con diferencia o todos? | Solo con diferencia, con opción de incluir todos |
+| P-18 | Solicitud de ajuste: ¿solo renglones con diferencia o todos? | Solo con diferencia, con opción de incluir todos. **Aplicado en F4.** |
 
 ## Ya resueltos (historial)
 

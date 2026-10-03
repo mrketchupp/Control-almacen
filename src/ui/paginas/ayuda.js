@@ -50,6 +50,13 @@ export function PaginaAyuda() {
           fecha y el inventario no trae los vales, entradas, conteos ni movimientos posteriores, aunque ya los hayas hecho. Al subirlo,
           <em>Ya lo subí</em> marca solo los vales hasta ese folio; los posteriores siguen pendientes para el reporte de su día.
         </dd>
+        <dt>¿Cómo concilio contra AX?</dt>
+        <dd>
+          En <a href="#conciliacion">Conciliación AX</a> importa el reporte de inventario de AX que manda la base. Confirma las parejas
+          que se escriben distinto (se recuerdan para el siguiente corte) y revisa las diferencias: las que explican los vales
+          posteriores al corte salen con sus folios; las demás, como sobrantes o faltantes con su valor. Descarga la solicitud de
+          ajuste para enviarla. No cambia el inventario.
+        </dd>
         <dt>Descarté un borrador por error</dt>
         <dd>En el aviso que aparece abajo a la derecha pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>
         <dt>¿Cómo paso material de un contenedor a otro?</dt>

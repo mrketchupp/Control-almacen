@@ -144,16 +144,24 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ☐ Registrar una entrada real y revisar el inventario exportado.
 - ☐ Hacer un conteo (aunque sea de un contenedor) con la hoja impresa.
 
-## Fase 4 — Conciliación contra AX
+## Fase 4 — Conciliación contra AX ✅ (entregada, en aceptación)
 Entregables:
 - Importación del reporte AX (completo o filtrado) con historial de cortes.
 - Emparejamiento en tres niveles con memoria de equivalencias.
 - Vistas por artículo, por contenedor y valuadas, con vales en tránsito.
 - Exportación de la solicitud de ajuste (AX + Existencia física + Folios).
 
-Criterios de aceptación:
-- [ ] Con el corte de muestra, al menos el 95% de los renglones AX quedan emparejados tras una sola sesión de confirmación, y el segundo corte reutiliza las equivalencias.
-- [ ] Cada diferencia muestra los folios que la explican, o se marca como no explicada.
+Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
+del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
+con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;
+vistas por renglón de AX, por artículo, por contenedor y valuada con filtros; listas sin pareja; exportación
+`SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`. Estado formato 6 (`cortes_ax`, `equivalencias_ax`).
+
+Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
+- ✔ Con el corte sintético, 92 % queda emparejado solo; tras una sesión de confirmación, 100 %, y el segundo corte reutiliza las equivalencias sin preguntar (prueba automática).
+- ✔ Cada diferencia muestra los folios que la explican (salidas y entradas en tránsito), o queda como sobrante / faltante sin explicar con su valor (prueba automática y en pantalla).
+- ☐ Con el corte real (`DELTA RIG 91 <fecha>.xlsx`): al menos 95 % emparejado tras una sesión de confirmación.
+- ☐ Revisar con la base que la solicitud de ajuste se entienda igual que el reporte de AX.
 
 ## Fase 5 — Piloto en paralelo y cierre
 - Durante **una guardia completa (~14 días)** se trabaja con la herramienta y se siguen enviando los Excel exportados. La base no debe notar diferencia.

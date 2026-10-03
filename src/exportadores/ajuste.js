@@ -1,0 +1,115 @@
+// Solicitud de ajuste (RF-54, docs/06-formatos-excel.md §E): un archivo NUEVO con la misma hoja y las
+// mismas 10 columnas del reporte de AX, más "Existencia física" y "Folios que justifican".
+// Solo van los renglones con diferencia (o todos, si se pide); al final, lo físico que no está en AX.
+
+import { CERO, dec } from "../nucleo/decimal.js";
+import { conciliar, foliosTexto } from "../servicios/conciliacion.js";
+import { letraColumna } from "../xlsx/celdas.js";
+import { LibroNuevo } from "../xlsx/nuevo.js";
+
+export const HOJA_AJUSTE = "rptInventSumDateTransForDimensi";
+export const ENCABEZADOS_AJUSTE = [
+  "Código de Artículo",
+  "Nombre del Artículo",
+  "Modelo de Inventario",
+  "Unidad de Medida",
+  "Almacén",
+  "Tamaño",
+  "Color",
+  "Disponible",
+  "Valor Financiero",
+  "Valor de Inventario",
+  "Existencia física",
+  "Folios que justifican",
+];
+const ANCHOS = [14, 38, 12, 10, 13, 14, 14, 12, 14, 14, 14, 30];
+
+const FUENTE = { nombre: "Arial", tam: 10 };
+const BORDE = "BFBFBF";
+const ENCABEZADO = { fuente: { ...FUENTE, negrita: true }, relleno: "D9E1F2", borde: BORDE, envolver: true, vertical: "center" };
+const AGREGADO = { ...ENCABEZADO, relleno: "FFF2CC" };
+const CELDA = { fuente: FUENTE, borde: BORDE };
+const NUMERO = { ...CELDA, formato: "#,##0.00" };
+
+/** SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx (con la fecha del corte de AX). */
+export function nombreSolicitud(fecha) {
+  const [anio, mes, dia] = String(fecha).split("-");
+  return `SOLICITUD DE AJUSTE RIG 91 ${dia}${mes}${anio.slice(2)}.xlsx`;
+}
+
+const codigoTexto = (codigo) => String(codigo).padStart(9, "0");
+
+/**
+ * @param todos  también los renglones que cuadran
+ * @returns {{ datos: Uint8Array, nombre, renglones, porConfirmar }}
+ */
+export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
+  const c = conciliar(estado, corte);
+  const porVariante = new Map(c.renglones.map((r) => [r.variante_id, r]));
+  const conFisico = new Set();
+  const filas = [];
+  for (const p of c.pares) {
+    const l = p.linea;
+    let fisico;
+    let folios = "";
+    let conDiferencia;
+    if (!p.confirmado) {
+      // Sin confirmar no se sabe con qué se compara: se marca para revisarlo.
+      fisico = null;
+      folios = "POR CONFIRMAR";
+      conDiferencia = true;
+    } else if (p.variante_id === null) {
+      fisico = CERO;
+      conDiferencia = !(dec(l.disponible) ?? CERO).eq(0);
+    } else {
+      const r = porVariante.get(p.variante_id);
+      // Si varios renglones de AX son la misma variante, el físico va en el primero.
+      const primero = !conFisico.has(p.variante_id);
+      conFisico.add(p.variante_id);
+      fisico = primero ? r.fisico : CERO;
+      folios = primero ? foliosTexto(r.folios) : "";
+      conDiferencia = r.estado !== "cuadra";
+    }
+    if (!todos && !conDiferencia) continue;
+    filas.push([
+      l.codigo_texto || codigoTexto(l.codigo),
+      l.nombre,
+      l.modelo,
+      l.um,
+      l.almacen || corte.almacen,
+      l.tamano,
+      l.color,
+      dec(l.disponible),
+      dec(l.valor_financiero),
+      dec(l.valor_inventario),
+      fisico,
+      folios,
+    ]);
+  }
+  for (const r of c.fisicoSinAx) {
+    filas.push([
+      codigoTexto(r.codigo),
+      r.descripcion,
+      "",
+      r.variante.um ?? "",
+      corte.almacen,
+      r.variante.dimension ?? "",
+      r.variante.np ?? "",
+      CERO,
+      null,
+      null,
+      r.fisico,
+      foliosTexto(r.folios),
+    ]);
+  }
+
+  const libro = new LibroNuevo();
+  const ws = libro.agregarHoja(HOJA_AJUSTE);
+  ENCABEZADOS_AJUSTE.forEach((titulo, i) => ws.poner(1, i + 1, titulo, i >= 10 ? AGREGADO : ENCABEZADO));
+  filas.forEach((valores, k) => valores.forEach((valor, i) => ws.poner(k + 2, i + 1, valor, i >= 7 && i <= 10 ? NUMERO : CELDA)));
+  ANCHOS.forEach((ancho, i) => ws.anchos.set(i + 1, ancho));
+  ws.alturas.set(1, 30);
+  ws.congelar = "A2";
+  ws.filtro = `A1:${letraColumna(ENCABEZADOS_AJUSTE.length)}${Math.max(2, filas.length + 1)}`;
+  return { datos: libro.generar(), nombre: nombreSolicitud(corte.fecha), renglones: filas.length, porConfirmar: c.porConfirmar.length };
+}

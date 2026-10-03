@@ -13,10 +13,10 @@ internet. Tiene cuatro objetivos:
 
 ## Estado
 
-**Fase 3 — Vales de entrada y conteos (entregada, en aceptación).** Entradas con contenedor sugerido y vista previa
-(folio `E-0001`), devoluciones, historial y exportación de entradas, conteo físico total o parcial con hoja imprimible y
-movimientos entre contenedores. Fases 1 (primera carga y exportación idéntica) y 2 (vales de salida con impresión sobre
-tu formato, corrección con bitácora y control de envíos) aceptadas.
+**Fase 4 — Conciliación contra AX (entregada, en aceptación).** Importar el reporte de inventario de AX, emparejar sus
+renglones con el inventario (con memoria de equivalencias), ver las diferencias por renglón, artículo, contenedor y en
+pesos con los vales en tránsito que las explican, y exportar la solicitud de ajuste. Fases 1 (primera carga y exportación
+idéntica) y 2 (vales de salida) aceptadas; fase 3 (entradas, conteos y movimientos) entregada.
 Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
 

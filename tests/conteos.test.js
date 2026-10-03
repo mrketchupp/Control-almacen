@@ -167,7 +167,7 @@ test("renglones por ubicar respetan el corte de cada renglón; un respaldo del f
   delete viejo.reacomodos;
   delete viejo.conteos[0].alcance;
   migrarEstado(viejo);
-  assert.equal(viejo.formato, 5);
+  assert.equal(viejo.formato, 6);
   assert.equal(viejo.conteos[0].alcance, "TOTAL");
   // Entradas y conteos funcionan sobre un estado migrado.
   const b = en.nuevoBorradorEntrada(viejo, { usuario: USUARIO });

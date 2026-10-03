@@ -8,20 +8,20 @@ const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado"
 
 /**
  * Exporta un libro: primero "Guardar como" (tiene que abrirse directo desde el clic), luego se
- * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS'. corte: AAAA-MM-DD para el libro
- * como estaba al cierre de ese día (reporte diario).
+ * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS' | 'AJUSTE'. opciones: { corte }
+ * (AAAA-MM-DD, el libro al cierre de ese día) o { corteAx, todos } (solicitud de ajuste).
  */
-export async function exportarConDialogo(sesion, tipo, alTerminar = null, { corte = null } = {}) {
+export async function exportarConDialogo(sesion, tipo, alTerminar = null, opciones = {}) {
   let archivo;
   try {
-    archivo = await sesion.elegirDestinoExportacion(tipo, { corte });
+    archivo = await sesion.elegirDestinoExportacion(tipo, opciones);
   } catch (error) {
     sesion.avisar("error", `No se pudo abrir la ventana para guardar: ${error.message}`);
     return;
   }
   if (archivo === null) return; // canceló
   await sesion.tarea("Generando Excel…", async () => {
-    const destino = await sesion.exportar(tipo, archivo, { corte });
+    const destino = await sesion.exportar(tipo, archivo, opciones);
     sesion.avisar("exito", `Listo: ${destino}`);
     alTerminar?.(destino);
   });

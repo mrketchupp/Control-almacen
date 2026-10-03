@@ -195,6 +195,26 @@ export function Ventana({ titulo, alCerrar, children, clase = "", etiqueta, cabe
   );
 }
 
+/** Botones de opción en fila (un solo valor elegido). */
+export function Segmentos({ etiqueta, valor, opciones, alCambiar }) {
+  return html`<div class="segmentos-campo">
+    ${etiqueta ? html`<span class="segmentos-etiqueta">${etiqueta}</span>` : null}
+    <div class="segmentos" role="radiogroup" aria-label=${etiqueta}>
+      ${Object.entries(opciones).map(
+        ([clave, texto]) => html`<button
+          type="button"
+          role="radio"
+          aria-checked=${String(valor) === clave}
+          class=${`segmento ${String(valor) === clave ? "activo" : ""}`}
+          onClick=${() => alCambiar(clave)}
+        >
+          ${texto}
+        </button>`,
+      )}
+    </div>
+  </div>`;
+}
+
 export function confirmar(texto) {
   return window.confirm(texto);
 }

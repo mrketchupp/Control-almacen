@@ -131,14 +131,18 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 - Se busca la fila de encabezados que contenga `Código de Artículo` (normalmente la fila 1). Las columnas se leen por nombre.
 - Se filtra `Almacén = RIG91-IX25` (configurable). Si el archivo ya viene filtrado, no pasa nada.
 - `Código` → entero. `Tamaño`, `Color`, `Unidad de Medida` → texto sin espacios sobrantes.
-- La fecha de corte se toma del nombre del archivo (`DDMMAA` o `DD-MM-AA`) y el usuario la confirma.
+- La fecha de corte se toma del nombre del archivo (`DDMMAA`, `DD-MM-AA`, `DD.MM.AAAA`…; gana la última fecha válida) y el usuario la confirma.
+- Los textos (nombre, UM, Tamaño, Color) se guardan **tal como vienen** para repetirlos en la solicitud de ajuste; se normalizan solo al comparar. `Código` conserva también su texto con ceros (`000000670`).
+- Si viene el reporte completo, se elige el almacén (por defecto el de la configuración) y se avisa cuántos renglones de otros almacenes se ignoran. Importar el mismo archivo dos veces avisa.
 
 ## E. Solicitud de ajuste (exportación, archivo nuevo)
 
 - Hoja con el mismo nombre y las **mismas 10 columnas** del reporte AX (A–J, mismos encabezados y formatos), más:
   - **K = Existencia física:** `TOTAL` sumado de todas las ubicaciones de la variante.
   - **L = Folios que justifican:** folios de vales en tránsito relacionados, separados por coma. Por ejemplo `545, 551 (S) · E-0003 (E)`.
-- Renglones: solo los que tienen diferencia (físico ≠ Disponible). Opción de incluir todos.
+- Renglones: solo los que tienen diferencia (físico ≠ Disponible, aunque la expliquen los vales). Opción de incluir todos.
+- Si varios renglones de AX son la misma variante, la existencia física va en el primero (los demás, 0). Los renglones aún
+  sin confirmar salen con `Existencia física` vacía y `POR CONFIRMAR` en folios.
 - Los artículos físicos sin renglón en AX van al final: columnas AX llenas con código, nombre, UM, almacén y dimensión; `Disponible = 0`; valores en blanco.
 - **Nombre de archivo:** `SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`.
 

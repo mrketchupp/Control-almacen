@@ -4077,3 +4077,192 @@ body.con-ventana .toast {
   gap: 8px;
   margin-left: auto;
 }
+
+/* ---------------------------------------------------------------- conciliación AX (F4) */
+
+.barra-cortes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.lista-cortes .lista-boton {
+  min-width: 220px;
+  font-weight: 600;
+}
+
+.folio-corte {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.folio-corte input {
+  width: 130px;
+}
+
+.bento-concilia {
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.medidor {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--neutro-suave);
+  overflow: hidden;
+}
+
+.medidor span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
+  transition: width var(--dur-media) ease;
+}
+
+.bento-exportar-ajuste .boton {
+  align-self: flex-start;
+}
+
+.lista-confirmar {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-confirmar > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  animation: aparecer var(--dur-media) ease-out;
+}
+
+.lado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.lado-etiqueta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.flecha-pareja {
+  color: var(--texto-suave);
+  text-align: center;
+}
+
+.acciones-pareja {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lista-pareja .lista-boton {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.lista-pareja .resultados {
+  min-width: 320px;
+  right: 0;
+  left: auto;
+}
+
+code.dim-ax {
+  white-space: nowrap;
+}
+
+.controles-concilia {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+
+.transito {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+
+.transito small {
+  color: var(--texto-suave);
+}
+
+.lugares {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.descripcion-corta {
+  display: inline-block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.vista-contenedores {
+  display: grid;
+  gap: 10px;
+}
+
+.contenedor-concilia > summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.totales-valuada {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 10px;
+}
+
+.bento-sin-pareja {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.campos-importar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .lista-confirmar > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .flecha-pareja {
+    display: none;
+  }
+
+  .bento-sin-pareja {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

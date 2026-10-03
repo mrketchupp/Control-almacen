@@ -14,6 +14,7 @@ import { PaginaPrimeraCarga } from "./paginas/primeraCarga.js";
 import { PaginaRespaldos } from "./paginas/respaldos.js";
 import { PaginaAjustes } from "./paginas/ajustes.js";
 import { PaginaAreas } from "./paginas/areas.js";
+import { PaginaConciliacion } from "./paginas/conciliacion.js";
 import { PaginaConteo } from "./paginas/conteo.js";
 import { PaginaEntrada } from "./paginas/entrada.js";
 import { PaginaValesEntrada } from "./paginas/entradas.js";
@@ -37,6 +38,7 @@ const PAGINAS = {
   inventario: { titulo: "Inventario", componente: PaginaInventario, requiereDatos: true, icono: "inventario" },
   conteo: { titulo: "Conteo físico", componente: PaginaConteo, requiereDatos: true, icono: "conteo" },
   reporte: { titulo: "Reporte diario", componente: PaginaReporte, requiereDatos: true, icono: "reporte" },
+  conciliacion: { titulo: "Conciliación AX", componente: PaginaConciliacion, requiereDatos: true, icono: "balanza" },
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true, icono: "pendientes", soloConAviso: true },
   exportar: { titulo: "Exportar y enviar", componente: PaginaExportar, requiereDatos: true, grupo: "mas", icono: "exportar", detalle: "Libros de Excel y SharePoint" },
   areas: { titulo: "Áreas y personas", componente: PaginaAreas, requiereDatos: true, grupo: "mas", icono: "personas", detalle: "Plantillas del vale y personal" },

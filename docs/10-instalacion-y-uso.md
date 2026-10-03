@@ -9,6 +9,7 @@
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
+| **Conciliación AX** | Importar el reporte de inventario de AX, confirmar las parejas que se escriben distinto (se recuerdan), ver diferencias por renglón, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
@@ -24,8 +25,6 @@ están en el botón **Ajustes y más** (abajo a la izquierda): se abre en primer
 y su contenido a la derecha; se cierra con **✕**, con `Esc` o con un clic fuera. En *Ajustes → Personalización* cada
 almacenista elige **tema** (claro, oscuro o como Windows), dónde salen los **avisos** (arriba o abajo) y si quiere
 **animaciones**.
-
-> La conciliación con AX llega en la fase 4 (ver [08-plan.md](08-plan.md)).
 
 ## 1. Abrirla (no se instala nada)
 
@@ -125,6 +124,21 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
   capturar*, anota lo contado y lo encontrado, y **Aplicar conteo**. Lo que no captures conserva su conteo anterior.
 - **Mover material de contenedor:** *Inventario* → botón *Mover* del renglón → cantidad y destino. El total no cambia.
 - **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.
+
+### Conciliación contra AX
+Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera y los vales posteriores al corte, los
+cheques en tránsito.
+1. *Conciliación AX* → **Importar reporte de AX** → elige el `DELTA RIG 91 <fecha>.xlsx` (completo o filtrado). Revisa el
+   almacén y la fecha del corte (sale del nombre). Si sabes hasta qué folio capturó la base, escríbelo. **Importar corte**.
+2. **Por confirmar:** los renglones que AX escribe distinto (errores de dedo, dimensiones cortadas…). *Es esta* si la
+   sugerencia es correcta, *Otra…* para elegir, o *No está en el físico*. Se recuerda para los siguientes cortes; con
+   *Confirmar las seguras* van todas las de puntaje alto de una vez.
+3. **Diferencias:** cada renglón dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o si
+   *Sobran* / *Faltan* sin explicar. Cambia de vista (por artículo, por contenedor para ir a revisar, valuada en pesos) y
+   filtra. *Cambiar* corrige una pareja.
+4. **Solicitud de ajuste → Descargar:** el reporte de AX con *Existencia física* y *Folios que justifican* (solo lo que
+   tiene diferencia, o todo si marcas la casilla).
+Nada de esto cambia el inventario: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
 
 ### Áreas y personas
 - **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).
