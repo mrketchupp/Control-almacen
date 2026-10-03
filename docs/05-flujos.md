@@ -60,27 +60,44 @@ flowchart TD
 1. Si la variante ya vive en un contenedor, se propone ese.
 2. Si vive en varios, se propone el que tiene más existencia (★ sugerido); "Entra a" permite elegir otro (si la
    variante no está ahí, se crea su renglón al final de esa hoja).
-3. Una dimensión nueva (variante nueva) pide el contenedor y avisa si se parece a una que ya existe ("Usar esta").
-4. La vista previa (*Así queda el inventario*) muestra la hoja exacta del Excel y cuánto había, entra y queda.
+3. Una dimensión nueva (variante nueva) va al contenedor donde ya vive el código (se cambia en "Entra a") y avisa si
+   se parece a una que ya existe ("¿Es la misma que…?").
+4. Cada partida muestra a qué hoja entra y cuánto *hay → queda* (o *renglón nuevo → queda*).
 5. No se registra con renglones sin destino ni con un folio de la base ya registrado (salvo que se marque que es otro vale).
 6. Nada se aplica hasta confirmar, y una entrada confirmada se puede **corregir** con motivo (como los vales de salida,
    sin cancelar folios; el motivo se llena solo con los cambios).
 
-En la herramienta el vale de la base se **captura** (llega en papel, P-04); leerlo de un Excel o de una foto queda
-como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran con *Sin existencia* (no suman).
+En la herramienta el vale de la base se **captura** (llega en papel, P-04), a mano o desde su foto/PDF con Copilot;
+leerlo directo de un Excel queda como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran con *Sin existencia* (no suman).
 
 El vale de entrada solo pide **de dónde viene** (la base o un equipo); el departamento siempre es ALMACEN y no hay
-"motivo" que elegir (comentario del usuario). Las partidas se pueden **capturar desde la foto o el PDF** del vale con el
-asistente de la cuenta de trabajo (ver abajo).
+"motivo" que elegir (comentario del usuario). Al crear una entrada se elige cómo capturarla: **Captura manual** o
+**Desde foto o PDF** (captura asistida con Copilot, ver abajo).
+
+**Pantalla (ronda 6):** una barra fija arriba con el folio interno, el número de partidas, las que están *por revisar*,
+los *datos pendientes* (al pulsarlos se ve la lista y cada uno lleva a su campo) y los botones **Copilot**,
+**Descartar** y **Registrar entrada**, siempre a la vista. Debajo, los datos del vale en un renglón (folio, viene de,
+fecha, entregó; lo automático en una línea). Cada partida es una tarjeta de dos líneas: lo del vale (código,
+descripción, clave / dimensión, cantidad, U.M.) y abajo **Entra a** (el contenedor, con *hay → queda*), **Solicita**
+(va en la columna LOTE) y la O.C. Si la clave escrita no existe en el inventario, la partida es una **variante nueva**
+con esa misma dimensión (no se escribe dos veces) y va al contenedor donde ya vive el código (se cambia en *Entra a*);
+si se parece a una que ya existe, se ofrece usar esa.
+
+**Quién solicita:** en los vales de la base, la columna LOTE trae el nombre y apellido de quien pidió el material. En
+la entrada, LOTE = *Solicita* de cada partida (no el NP del inventario); también lo lee Copilot (`"lote"`).
 
 **Material que regresa** (P-08): *↩ Copiar partidas de un vale de salida* → folio. Cada partida regresa al renglón del
 inventario del que salió; se ajusta la cantidad a lo que regresó. Si la base aún no capturó el vale en AX, también se
 puede corregir el vale de salida original.
 
-**Captura asistida (Copilot):** la herramienta da unas instrucciones con el formato JSON esperado; el usuario las pega
-en su asistente con la foto o el PDF y pega aquí la respuesta. Se llena el borrador (entrada) o la captura (conteo:
-por contenedor + ITEM de la hoja impresa, confirmando con el código); lo dudoso o no reconocido se reporta. La
-herramienta no se conecta a ningún servicio (`src/servicios/capturaIA.js`).
+**Captura asistida (Copilot):** tres pasos — copiar las instrucciones, pegarlas en Copilot con la foto o el PDF y pegar
+aquí la respuesta (se carga sola al pegar). Se llena el borrador (entrada) o la captura (conteo: por contenedor + ITEM
+de la hoja impresa, confirmando con el código); lo dudoso, lo que no se leyó (código o clave) y lo no reconocido se
+reporta y se marca en amarillo. Si la respuesta viene **cortada o mal formada** (llaves o corchetes sin cerrar, comas
+de más o de menos, comillas tipográficas, claves sin comillas, `True`/`None`, comentarios, varias hojas en bloques
+separados), se arregla sola (`servicios/jsonTolerante.js`) y se avisa qué se corrigió. Acepta también nombres
+parecidos (`renglones`, `clave`, `solicita`, `unidad`…). La herramienta no se conecta a ningún servicio
+(`src/servicios/capturaIA.js`).
 
 ## 3. Corrección y devolución
 
@@ -129,9 +146,16 @@ flowchart LR
 
 ## 6. Reporte diario, exportación y SharePoint
 
-*Inicio → Crear reporte diario* (con fecha): los vales de salida de ese día como **imágenes PNG** (una por vale, en un
-.zip con la fecha; se dibujan en el navegador con el mismo HTML de impresión) o PDF, las entradas del día y el bloque
-*Subir al SharePoint* con el libro de vales y el botón **✓ Ya lo subí** (registra el envío).
+*Inicio → Crear reporte diario* (con fecha): entrega los dos libros **como estaban al cierre de ese día**
+(`servicios/corte.js`, `estadoAlCierre`), aunque después se hayan hecho más vales o movimientos:
+
+- **Libro de vales de salida** (`.xlsm`): hasta el último folio con fecha de ese día o anterior.
+- **Inventario de refaccionamiento** (`.xlsx`, con esa fecha en el nombre): CONSUMO e INGRESO solo con los vales y
+  entradas hasta ese corte; los conteos y movimientos posteriores se deshacen (cada línea de conteo guarda la cantidad
+  y el conteo anteriores) y no aparecen los renglones creados después. Las correcciones se toman como están hoy.
+
+También muestra los vales y entradas del día y *Subir al SharePoint* limitado a ese corte: **✓ Ya lo subí** marca solo
+los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendientes para el reporte de su día.
 
 1. **Exportar → Vales:** genera `VALES DE SALIDA DLTA.xlsm` sobre la plantilla registrada, con `DIARIO` completo y actualizado.
 2. La herramienta valida el archivo, lo guarda en la carpeta de exportaciones y registra hasta qué folio se incluyó.

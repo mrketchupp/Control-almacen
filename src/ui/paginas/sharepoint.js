@@ -8,31 +8,36 @@ const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado"
 
 /**
  * Exporta un libro: primero "Guardar como" (tiene que abrirse directo desde el clic), luego se
- * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS'.
+ * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS'. corte: AAAA-MM-DD para el libro
+ * como estaba al cierre de ese día (reporte diario).
  */
-export async function exportarConDialogo(sesion, tipo, alTerminar = null) {
+export async function exportarConDialogo(sesion, tipo, alTerminar = null, { corte = null } = {}) {
   let archivo;
   try {
-    archivo = await sesion.elegirDestinoExportacion(tipo);
+    archivo = await sesion.elegirDestinoExportacion(tipo, { corte });
   } catch (error) {
     sesion.avisar("error", `No se pudo abrir la ventana para guardar: ${error.message}`);
     return;
   }
   if (archivo === null) return; // canceló
   await sesion.tarea("Generando Excel…", async () => {
-    const destino = await sesion.exportar(tipo, archivo);
+    const destino = await sesion.exportar(tipo, archivo, { corte });
     sesion.avisar("exito", `Listo: ${destino}`);
     alTerminar?.(destino);
   });
 }
 
-/** Botón de completado: "ya subí el libro de vales al SharePoint". */
-export function BotonSubido({ pendientes, tamano = "" }) {
+/**
+ * Botón de completado: "ya subí el libro de vales al SharePoint". Con hastaFolio (reporte de un
+ * día) solo se marcan los vales hasta ese folio; los posteriores siguen pendientes.
+ */
+export function BotonSubido({ pendientes, tamano = "", hastaFolio = null }) {
   const sesion = useSesion();
   const marcar = () => {
-    if (!confirmar(`¿Ya subiste al SharePoint el libro de vales con ${pendientes} cambio(s)? Se marcarán como subidos.`)) return;
+    const hasta = hastaFolio ? ` (hasta el folio ${hastaFolio})` : "";
+    if (!confirmar(`¿Ya subiste al SharePoint el libro de vales${hasta} con ${pendientes} cambio(s)? Se marcarán como subidos.`)) return;
     return sesion.tarea("Guardando…", async () => {
-      await sesion.almacen.modificar((e) => registrarEnvio(e, sesion.usuario));
+      await sesion.almacen.modificar((e) => registrarEnvio(e, sesion.usuario, { hastaFolio }));
       sesion.avisar("exito", "Listo: marcado como subido al SharePoint.");
     });
   };

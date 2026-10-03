@@ -1,10 +1,12 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
-import { fechasConVales, nombreImagenesDelDia, reporteDelDia } from "../../servicios/reporte.js";
-import { Boton, Pastilla, Tabla, Tarjeta, useSesion } from "../componentes.js";
+import { describirCorte } from "../../servicios/corte.js";
+import { fechasConVales, reporteDelDia } from "../../servicios/reporte.js";
+import { valesPorEnviar } from "../../servicios/vales.js";
+import { Boton, Pastilla, Tabla, useSesion } from "../componentes.js";
 import { html } from "../html.js";
-import { SubirSharePoint } from "./sharepoint.js";
-import { VistaPrevia } from "./vales.js";
+import { Icono } from "../iconos.js";
+import { BotonSubido, exportarConDialogo } from "./sharepoint.js";
 
 export function fechaDeRuta(hash = location.hash) {
   const m = /^#reporte\/(\d{4}-\d{2}-\d{2})/.exec(hash);
@@ -13,13 +15,31 @@ export function fechaDeRuta(hash = location.hash) {
 
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 const diaSemana = (iso) => DIAS[new Date(`${iso}T12:00:00`).getDay()];
+const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
+const extension = (nombre) => (/\.(\w+)$/.exec(nombre ?? "")?.[1] ?? "xlsx").toUpperCase();
 
-/** Reporte diario: vales del día como imágenes o PDF, y lo que falta subir al SharePoint. */
+/** Botón grande de un archivo del reporte (libro de vales o inventario al cierre del día). */
+function BotonArchivo({ nombre, titulo, detalle, disabled, onClick }) {
+  return html`<button type="button" class="archivo-boton" disabled=${disabled} onClick=${onClick}>
+    <span class="archivo-icono">${extension(nombre)}</span>
+    <span class="archivo-texto">
+      <strong>${titulo}</strong>
+      <span class="nota">${detalle}</span>
+      <span class="archivo-nombre">${nombre ?? "Falta la plantilla: cárgala en Respaldos"}</span>
+    </span>
+    <span class="archivo-bajar" aria-hidden="true">⬇</span>
+  </button>`;
+}
+
+/**
+ * Reporte diario: el libro de vales de salida y el inventario de refaccionamiento como estaban al
+ * cierre del día elegido (lo hecho después no entra), y lo que falta subir al SharePoint hasta ahí.
+ */
 export function PaginaReporte() {
   const sesion = useSesion();
   const estado = sesion.estado;
-  const [fecha, setFechaLocal] = useState(fechaDeRuta() ?? hoyIso());
-  const [previa, setPrevia] = useState(null);
+  const hoy = hoyIso();
+  const [fecha, setFechaLocal] = useState(fechaDeRuta() ?? hoy);
   const setFecha = (f) => {
     if (!f) return;
     setFechaLocal(f);
@@ -27,39 +47,79 @@ export function PaginaReporte() {
   };
   const reporte = useMemo(() => reporteDelDia(estado, fecha), [estado, fecha]);
   const fechas = useMemo(() => fechasConVales(estado), [estado.vales]);
+  const pendientesTotales = useMemo(() => valesPorEnviar(estado).length, [estado]);
   const anterior = fechas.find((f) => f < fecha);
   const siguiente = [...fechas].reverse().find((f) => f > fecha);
-  const vales = reporte.salidas.map((s) => s.vale);
-
-  const descargarImagenes = async () => {
-    const nombre = nombreImagenesDelDia(fecha);
-    let archivo;
-    try {
-      archivo = await sesion.elegirDestino(nombre);
-    } catch (error) {
-      sesion.avisar("error", `No se pudo abrir la ventana para guardar: ${error.message}`);
-      return;
-    }
-    if (archivo === null) return;
-    await sesion.tarea(`Dibujando ${vales.length} ${vales.length === 1 ? "vale" : "vales"}…`, async () => {
-      const destino = await sesion.guardarImagenesVales(vales, nombre, archivo);
-      sesion.avisar("exito", `Imágenes guardadas: ${destino}`);
-    });
-  };
+  const { corte } = reporte;
+  const nombreVales = sesion.almacen.nombreExportacion("VALES", fecha);
+  const nombreInventario = sesion.almacen.nombreExportacion("INVENTARIO", fecha);
+  const posteriores = pendientesTotales - reporte.porSubir.length;
 
   return html`
     <div class="barra-fecha">
       <${Boton} tipo="texto" disabled=${!anterior} onClick=${() => setFecha(anterior)} title="Día anterior con vales">◀<//>
       <label class="fecha-grande">
         <span class="nota">Día del reporte</span>
-        <input type="date" value=${fecha} onChange=${(e) => setFecha(e.currentTarget.value)} aria-label="Fecha del reporte" />
+        <input type="date" value=${fecha} max=${hoy} onChange=${(e) => setFecha(e.currentTarget.value)} aria-label="Fecha del reporte" />
       </label>
       <${Boton} tipo="texto" disabled=${!siguiente} onClick=${() => setFecha(siguiente)} title="Día siguiente con vales">▶<//>
-      <span class="nota">${diaSemana(fecha)} ${fmtFecha(fecha)}${fecha === hoyIso() ? " · hoy" : ""}</span>
-      ${fecha !== hoyIso() ? html`<${Boton} tipo="texto" onClick=${() => setFecha(hoyIso())}>Hoy<//>` : null}
+      <span class="nota">${diaSemana(fecha)} ${fmtFecha(fecha)}${fecha === hoy ? " · hoy" : ""}</span>
+      ${fecha !== hoy ? html`<${Boton} tipo="texto" onClick=${() => setFecha(hoy)}>Hoy<//>` : null}
+    </div>
+
+    <div class="corte-aviso">
+      <span class="corte-icono"><${Icono} nombre="reporte" tam=${22} /></span>
+      <div>
+        <strong>Los libros como estaban al cierre del ${fmtFecha(fecha)}</strong>
+        <p class="nota">
+          ${describirCorte(corte)} · el inventario con lo contado y movido hasta ese día.
+          ${reporte.despues
+            ? html` <strong>${reporte.despues} ${reporte.despues === 1 ? "vale posterior no entra" : "vales posteriores no entran"}</strong> en estos archivos.`
+            : null}
+        </p>
+      </div>
     </div>
 
     <div class="bento bento-reporte">
+      <section class="bento-celda bento-ancha">
+        <header class="bento-cabeza"><h2>Archivos del día</h2></header>
+        <div class="archivos-dia">
+          <${BotonArchivo}
+            nombre=${nombreVales}
+            titulo="Libro de vales de salida"
+            detalle=${corte.salida ? `Hasta el folio ${corte.salida}` : "Aún no había vales a esa fecha"}
+            disabled=${!nombreVales || !corte.salida}
+            onClick=${() => exportarConDialogo(sesion, "VALES", null, { corte: fecha })}
+          />
+          <${BotonArchivo}
+            nombre=${nombreInventario}
+            titulo="Inventario de refaccionamiento"
+            detalle=${`Cerrado al ${fmtFecha(fecha)}`}
+            disabled=${!nombreInventario}
+            onClick=${() => exportarConDialogo(sesion, "INVENTARIO", null, { corte: fecha })}
+          />
+        </div>
+        <p class="nota">Cada botón abre "Guardar como". Los archivos salen sobre tus plantillas, igual que en Exportar.</p>
+      </section>
+
+      <section class="bento-celda">
+        <header class="bento-cabeza">
+          <h2>Subir al SharePoint</h2>
+          <${Pastilla} tono=${reporte.porSubir.length ? "alerta" : "ok"}>${reporte.porSubir.length} por subir<//>
+        </header>
+        ${reporte.porSubir.length
+          ? html`<p class="nota">Vales nuevos o corregidos hasta el folio ${corte.salida}:</p>
+              <div class="folios-pendientes">
+                ${reporte.porSubir.map(
+                  (p) => html`<a class=${`chip-folio chip-${p.motivo}`} href=${`#vale/${p.vale.id}`} title=${MOTIVOS[p.motivo]}>${p.vale.folio}</a>`,
+                )}
+              </div>
+              <p class="nota">Sube el libro de vales de este día y márcalo:</p>
+              <div class="acciones-linea"><${BotonSubido} pendientes=${reporte.porSubir.length} hastaFolio=${corte.salida} /></div>`
+          : html`<p class="ok">✓ Todo lo de este día ya está subido.</p>`}
+        ${posteriores > 0 ? html`<p class="nota">${posteriores} ${posteriores === 1 ? "vale posterior sigue" : "vales posteriores siguen"} pendiente(s); entran en el reporte de su día.</p>` : null}
+      </section>
+
       <section class="bento-celda bento-ancha">
         <header class="bento-cabeza">
           <h2>Vales de salida del día</h2>
@@ -78,19 +138,6 @@ export function PaginaReporte() {
         />
       </section>
 
-      <section class="bento-celda bento-acciones">
-        <header class="bento-cabeza"><h2>Imágenes y PDF</h2></header>
-        <p class="nota">Cada vale tal como se imprime, sobre tu formato.</p>
-        <${Boton} tipo="primario" disabled=${!vales.length} onClick=${descargarImagenes}>🖼 Descargar imágenes<//>
-        <${Boton} disabled=${!vales.length} onClick=${() => setPrevia(vales)}>🖨 Ver / imprimir / PDF<//>
-        <p class="nota">Una imagen PNG por vale, en un .zip con la fecha en el nombre.</p>
-      </section>
-
-      <section class="bento-celda">
-        <header class="bento-cabeza"><h2>Subir al SharePoint</h2></header>
-        <${SubirSharePoint} compacto=${true} />
-      </section>
-
       <section class="bento-celda">
         <header class="bento-cabeza">
           <h2>Material recibido</h2>
@@ -105,7 +152,5 @@ export function PaginaReporte() {
           : html`<p class="nota">Sin entradas este día.</p>`}
       </section>
     </div>
-    ${previa ? html`<${VistaPrevia} vales=${previa} alCerrar=${() => setPrevia(null)} />` : null}
   `;
 }
-

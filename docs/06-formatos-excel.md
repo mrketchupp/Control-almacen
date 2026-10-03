@@ -117,6 +117,7 @@ Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se gene
 - **C = `XXXXX`, D = `0`**: marca de entrada, igual que en el formato en papel.
 - E–H: de dónde viene y `RIG 91 · ALMACEN`; P = quien entregó (base), Q = almacenista que recibió; R = `0`.
 - **U = Folio interno** `E-0001`. Encabezado con filtro y panel congelado; fechas con formato `dd/mm/yyyy`.
+- **O (C.U) = LOTE = quien solicita** el material (como lo anota la base en sus vales), no el NP del inventario.
 - **Nombre de archivo:** `VALES DE ENTRADA DLTA.xlsx` (*Exportar y enviar → Vales de entrada*).
 
 **En el inventario exportado**, los renglones que crea la herramienta (entradas de una variante o contenedor nuevos,

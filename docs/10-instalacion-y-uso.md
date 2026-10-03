@@ -5,10 +5,10 @@
 | Módulo | Qué puedes hacer |
 |---|---|
 | Inicio | Accesos grandes: **Crear un vale**, **Agregar material recibido**, **Crear reporte diario** (con fecha) y **Conteo físico**; *Subir al SharePoint* con botón **Ya lo subí**, último conteo, inventario y uso diario |
-| **Reporte diario** | Los vales de salida de un día como **imágenes PNG (.zip)** o PDF, el libro de vales y lo que falta subir al SharePoint |
+| **Reporte diario** | El **libro de vales** y el **inventario** como estaban **al cierre del día elegido**, los vales y entradas de ese día y lo que falta subir al SharePoint hasta ese folio |
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
-| **Vales de entrada** | Registrar el material que llega de la base o de otro equipo: contenedor sugerido, variante nueva, vista previa *había · entra · queda*, folio interno `E-0001` y captura desde la foto con Copilot |
+| **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
@@ -20,7 +20,10 @@
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
 
 El menú de la izquierda tiene lo del día a día. **Exportar y enviar, Áreas y personas, Ajustes, Respaldos y Ayuda**
-están en el botón **Ajustes y más** (abajo a la izquierda), que abre una ventana con esas opciones.
+están en el botón **Ajustes y más** (abajo a la izquierda): se abre en primer plano con las secciones a la izquierda
+y su contenido a la derecha; se cierra con **✕**, con `Esc` o con un clic fuera. En *Ajustes → Personalización* cada
+almacenista elige **tema** (claro, oscuro o como Windows), dónde salen los **avisos** (arriba o abajo) y si quiere
+**animaciones**.
 
 > La conciliación con AX llega en la fase 4 (ver [08-plan.md](08-plan.md)).
 
@@ -98,19 +101,22 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
    - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Reporte diario y SharePoint:** en *Inicio → Crear reporte diario* elige el día: descarga las **imágenes** de los vales (una PNG por vale en un .zip) o imprímelos/guárdalos en PDF, baja el **libro de vales** (abre el explorador para elegir carpeta y nombre) y súbelo al SharePoint. Luego pulsa **✓ Ya lo subí**. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
+5. **Reporte diario y SharePoint:** en *Inicio → Crear reporte diario* elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Cada botón abre el explorador para elegir carpeta y nombre. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
 ### Entradas, conteos y movimientos
-- **Entrada de material** (*Vales de entrada → Nueva entrada*): escribe el folio del vale, de dónde viene (la base o
-  el equipo) y quién lo entrega; el departamento siempre es ALMACEN. Por partida: código → `Enter` → elige la clave
-  (★ = el contenedor donde hay más de ese material) → cantidad. *Entra a* cambia el contenedor; *Otra dimensión* da de
-  alta una variante nueva (avisa si se parece a una que ya existe); *Sin existencia* es para diésel y gases. Revisa
-  *Así queda el inventario* y pulsa **Registrar entrada**.
-- **Capturar desde la foto con Copilot** (entradas y conteo): abre *✨ Capturar desde la foto o PDF*, pulsa
-  **Copiar instrucciones**, pégalas en Copilot (Microsoft 365, cuenta de trabajo) con la foto o el PDF, copia el bloque
-  de código que te devuelva, pégalo y pulsa **Cargar al borrador**. Lo dudoso queda marcado *revisar*. La herramienta
-  no se conecta a nada: solo lee el texto que pegas.
+- **Entrada de material** (*Vales de entrada → Nueva entrada*): elige **Captura manual** o **Desde foto o PDF**.
+  Arriba quedan siempre a la vista el folio, los pendientes y los botones **Registrar entrada** y **Descartar**.
+  Escribe el folio del vale, de dónde viene y quién lo entrega; el departamento siempre es ALMACEN. Por partida:
+  código → `Enter` → clave (★ = el contenedor donde hay más) → cantidad. Abajo de cada partida: **Entra a** (cambia
+  el contenedor; muestra *hay → queda*), **Solicita** (quien pidió el material; va en LOTE) y la O.C. Si escribes una
+  clave que no existe, se da de alta como **variante nueva** con esa dimensión (te avisa si se parece a una que ya
+  existe). *Sin existencia* (en *Entra a*) es para diésel y gases.
+- **Capturar desde la foto con Copilot:** en *Desde foto o PDF* (o con el botón **Copilot** de la barra; en el conteo,
+  *✨ Capturar desde la foto o PDF*): **Copiar instrucciones**, pégalas en Copilot (Microsoft 365, cuenta de trabajo)
+  con la foto o el PDF, copia su respuesta y pégala en el paso 3: se carga sola. Si viene cortada o con errores de
+  formato, se arregla sola y te dice qué corrigió. Lo dudoso queda en amarillo (*revisar* → *✓ ya la revisé*). La
+  herramienta no se conecta a nada: solo lee el texto que pegas.
 - **Material que regresa:** *↩ Copiar partidas de un vale de salida* (debajo de las partidas) → folio → *Copiar
   partidas*; cada partida vuelve al renglón del que salió y ajustas las cantidades.
 - **Conteo físico:** elige todo o algunos contenedores, imprime la hoja de conteo (sin cantidades), *Empezar a

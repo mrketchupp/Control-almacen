@@ -8,6 +8,7 @@
 //  - un renglón nuevo al final de la hoja de un contenedor (`ubicacion_id`), de una variante
 //    existente (`variante_id`) o nueva (`dimension`, `np`, `um`), con aviso de parecidas;
 //  - ninguno (`no_inventariado`): diésel, gases y lo que no lleva existencia.
+// El LOTE de cada partida es quien solicita el material (así lo anota la base); no se llena con el NP.
 // Nada toca el inventario hasta confirmar, y la entrada confirmada recibe su folio interno
 // consecutivo (E-0001), independiente del folio de la base. Ver docs/05-flujos.md §2.
 
@@ -17,8 +18,8 @@ import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, siguien
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
-import { crearRenglon, lugarCorto, renglonDe } from "./inventario.js";
-import { claveDeRenglon, conLoteDeNp, disponibles, loteDeRenglon, siguienteFolio } from "./vales.js";
+import { crearRenglon, lugarCorto, renglonDe, ubicacionesSugeridas } from "./inventario.js";
+import { SIN_DIMENSION, claveDeRenglon, disponibles, loteDeRenglon, siguienteFolio } from "./vales.js";
 
 export class ErrorEntrada extends Error {
   constructor(mensaje, errores = []) {
@@ -76,6 +77,8 @@ export function nuevoBorradorEntrada(estado, { usuario = null, fecha = hoyIso() 
     creado_en: ahoraIso(),
     actualizado_en: ahoraIso(),
     creado_por: usuario,
+    // Cómo se captura: null (aún no elige), 'manual' o 'asistida' (desde la foto con Copilot).
+    modo: null,
     motivo: "BASE",
     folio_externo: "",
     folio_repetido: false,
@@ -147,19 +150,17 @@ export function destinosDeCodigo(estado, codigo, { indices = new Indices(estado)
 export function conRenglonExistente(estado, linea, existenciaId, indices = new Indices(estado)) {
   const e = indices.existencia(existenciaId);
   const v = indices.variante(e.variante_id);
-  return conLoteDeNp(
-    {
-      ...linea,
-      ...SIN_DESTINO,
-      codigo: v.codigo,
-      descripcion: texto(linea.descripcion) || (indices.articulo(v.codigo)?.descripcion ?? ""),
-      existencia_id: e.id,
-      variante_id: v.id,
-      clave: claveDeRenglon(dimensionMostrada(e, v)),
-      um: umMostrada(e, v) || linea.um,
-    },
-    loteDeRenglon(npMostrado(e, v)),
-  );
+  return {
+    ...linea,
+    ...SIN_DESTINO,
+    codigo: v.codigo,
+    descripcion: texto(linea.descripcion) || (indices.articulo(v.codigo)?.descripcion ?? ""),
+    existencia_id: e.id,
+    variante_id: v.id,
+    clave: claveDeRenglon(dimensionMostrada(e, v)),
+    um: umMostrada(e, v) || linea.um,
+    alta: false,
+  };
 }
 
 /** Con el código elegido: su descripción y, si solo hay un renglón de ese código, ese destino. */
@@ -169,6 +170,7 @@ export function entradaConArticulo(estado, linea, codigo, { indices = new Indice
     ...SIN_DESTINO,
     codigo,
     clave: "",
+    alta: false,
     descripcion: descripcion ?? indices.articulo(codigo)?.descripcion ?? (linea.codigo === codigo ? linea.descripcion : ""),
   };
   const opciones = destinosDeCodigo(estado, codigo, { indices });
@@ -186,23 +188,104 @@ export function conOtroContenedor(estado, linea, ubicacionId, indices = new Indi
 
 /** Alta de variante (RF-33): código + dimensión + NP + UM, en un renglón nuevo del contenedor elegido. */
 export function conVarianteNueva(linea, { dimension = "", np = "", um = "", ubicacionId = null } = {}) {
-  return conLoteDeNp(
-    {
-      ...linea,
-      ...SIN_DESTINO,
-      ubicacion_id: ubicacionId,
-      dimension: texto(dimension).toUpperCase(),
-      np: texto(np).toUpperCase(),
-      um: unidad(um) || linea.um,
-      clave: claveDeRenglon(texto(dimension).toUpperCase()),
-    },
-    texto(np).toUpperCase(),
-  );
+  const dim = dimensionDeClave(dimension);
+  return {
+    ...linea,
+    ...SIN_DESTINO,
+    ubicacion_id: ubicacionId,
+    dimension: dim,
+    np: texto(np).toUpperCase(),
+    um: unidad(um) || linea.um,
+    clave: claveDeRenglon(dim),
+    alta: true,
+  };
+}
+
+/** La clave escrita es la dimensión tal cual; "SIN DIMENSIÓN" (lo que se muestra cuando no tiene) es vacía. */
+function dimensionDeClave(clave) {
+  const t = texto(clave).toUpperCase();
+  const sinAcentos = (x) => x.normalize("NFKD").replace(/\p{M}/gu, "");
+  return sinAcentos(t) === sinAcentos(SIN_DIMENSION) ? "" : t;
+}
+
+/**
+ * Contenedor para un renglón nuevo de ese código: donde ya vive (el de más existencia). Null si
+ * el código no tiene renglones (entonces se elige en "Entra a").
+ */
+export function contenedorSugerido(estado, codigo, { indices = new Indices(estado), opciones = null } = {}) {
+  const lista = opciones ?? destinosDeCodigo(estado, codigo, { indices });
+  let mejor = null;
+  for (const o of lista) if (!mejor || o.total > mejor.total) mejor = o;
+  return mejor ? mejor.ubicacion_id : null;
+}
+
+/**
+ * Lo que se escribe en Clave / dimensión. Si coincide con el renglón elegido, sigue igual; si es
+ * otra clave, la partida pasa a ser una variante nueva con esa dimensión (sin volver a escribirla
+ * en otro lado), en el contenedor que ya tenía o donde vive el código. Al salir del campo, una
+ * clave igual a la de un renglón existente se elige sola (ver la interfaz).
+ */
+export function conClaveEscrita(estado, linea, valor, { indices = new Indices(estado), opciones = null } = {}) {
+  const lista = opciones ?? destinosDeCodigo(estado, linea.codigo, { indices });
+  const elegida = lista.find((o) => o.id === linea.existencia_id);
+  if (elegida && claveEstricta(elegida.clave) === claveEstricta(valor)) return { ...linea, clave: valor };
+  if (!texto(valor)) return { ...linea, ...SIN_DESTINO, clave: valor, alta: false };
+  const ubicacionId = hay(linea.ubicacion_id) ? linea.ubicacion_id : elegida ? elegida.ubicacion_id : contenedorSugerido(estado, linea.codigo, { indices, opciones: lista });
+  return { ...conVarianteNueva(linea, { dimension: valor, np: linea.np, um: texto(linea.um) || umDelCodigo(lista), ubicacionId }), clave: valor };
+}
+
+/** La unidad más usada por los renglones de un código (para proponerla en una variante nueva). */
+function umDelCodigo(opciones) {
+  const cuenta = new Map();
+  for (const o of opciones) if (o.um) cuenta.set(o.um, (cuenta.get(o.um) ?? 0) + 1);
+  return [...cuenta].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+}
+
+/**
+ * "Entra a": el contenedor elegido para la partida ('sin' = sin existencia). Con variante ya
+ * elegida entra a su renglón de ese contenedor (o a uno nuevo); sin variante, se da de alta con
+ * la clave escrita.
+ */
+export function conContenedor(estado, linea, eleccion, indices = new Indices(estado)) {
+  if (eleccion === "sin") return { ...entradaSinExistencia(linea), alta: false };
+  const ubicacionId = Number(eleccion);
+  const varianteId = hay(linea.existencia_id) ? (indices.existencia(linea.existencia_id)?.variante_id ?? null) : linea.variante_id;
+  if (!linea.alta && hay(varianteId)) return { ...conOtroContenedor(estado, { ...linea, variante_id: varianteId }, ubicacionId, indices), alta: false };
+  if (linea.alta) return { ...linea, ubicacion_id: ubicacionId, no_inventariado: false };
+  const um = texto(linea.um) || umDelCodigo(destinosDeCodigo(estado, linea.codigo, { indices }));
+  return { ...conVarianteNueva(linea, { dimension: linea.clave, np: linea.np, um, ubicacionId }), clave: texto(linea.clave) || claveDeRenglon("") };
+}
+
+/** Contenedor al que entra la partida (o 'sin'); null si aún no tiene destino. */
+export function contenedorDeLinea(linea, indices) {
+  if (linea.no_inventariado) return "sin";
+  if (hay(linea.existencia_id)) return indices.existencia(linea.existencia_id)?.ubicacion_id ?? null;
+  return hay(linea.ubicacion_id) ? linea.ubicacion_id : null;
+}
+
+/** Contenedores para "Entra a": dónde la variante ya tiene su renglón (con su existencia) y dónde sería uno nuevo. */
+export function opcionesEntraA(estado, linea, { indices = new Indices(estado), saldos = null } = {}) {
+  if (!Number.isInteger(linea.codigo)) return [];
+  const varianteId = linea.alta ? null : hay(linea.existencia_id) ? indices.existencia(linea.existencia_id)?.variante_id : linea.variante_id;
+  const propios = new Map();
+  if (hay(varianteId)) for (const e of estado.existencias) if (e.activo !== false && e.variante_id === varianteId && !propios.has(e.ubicacion_id)) propios.set(e.ubicacion_id, renglonDe(estado, varianteId, e.ubicacion_id));
+  const totales = saldos ?? calcularSaldos(estado, [...propios.values()].map((e) => e.id));
+  return ubicacionesSugeridas(estado, linea.codigo, { indices }).map(({ ubicacion }) => {
+    const propio = propios.get(ubicacion.id);
+    const total = propio ? (totales.get(propio.id)?.total ?? CERO) : null;
+    return {
+      valor: ubicacion.id,
+      etiqueta: lugarCorto(ubicacion),
+      hoja: ubicacion.hoja_excel.trim(),
+      propio: Boolean(propio),
+      detalle: `${ubicacion.hoja_excel.trim()} · ${propio ? `ya tiene su renglón (hay ${decTexto(total)})` : "renglón nuevo al final de la hoja"}`,
+    };
+  });
 }
 
 /** Renglón que no lleva existencia (diésel, gases): queda en el historial y no suma. */
 export function entradaSinExistencia(linea) {
-  return { ...linea, ...SIN_DESTINO, no_inventariado: true, clave: texto(linea.clave) || "S/D" };
+  return { ...linea, ...SIN_DESTINO, no_inventariado: true, alta: false, clave: texto(linea.clave) || "S/D" };
 }
 
 /** Variante exacta (si ya existe) para los datos de una variante nueva. */
@@ -563,7 +646,7 @@ export function resumenCambiosEntrada(estado, vale, datos) {
       detalle.push(`entra a ${despues} (antes ${antes})`);
     }
     if (texto(previa.oc).toUpperCase() !== texto(l.oc).toUpperCase()) detalle.push(`O.C. ${texto(previa.oc) || "S/OC"} → ${texto(l.oc) || "S/OC"}`);
-    if (texto(previa.lote).toUpperCase() !== texto(l.lote).toUpperCase()) detalle.push(`lote ${texto(previa.lote) || "—"} → ${texto(l.lote) || "—"}`);
+    if (texto(previa.lote).toUpperCase() !== texto(l.lote).toUpperCase()) detalle.push(`solicita (lote) ${texto(previa.lote) || "—"} → ${texto(l.lote).toUpperCase() || "—"}`);
     if (detalle.length) cambios.push(`Partida ${i + 1} (${describir(previa)}): ${detalle.join("; ")}`);
   });
   vale.lineas.forEach((l) => {

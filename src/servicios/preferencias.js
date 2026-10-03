@@ -65,3 +65,36 @@ export function moverBloque(orden, id, destino) {
   const i = Math.max(0, Math.min(destino, resto.length));
   return [...resto.slice(0, i), id, ...resto.slice(i)];
 }
+
+// ---------------------------------------------------------------- personalización (Ajustes → Personalización)
+// Tema, dónde salen los avisos y animaciones. Por almacenista, como las de la pantalla de vales;
+// sin nadie en turno se usan las del equipo (clave "*").
+
+export const TEMAS = { sistema: "Como Windows", claro: "Claro", oscuro: "Oscuro" };
+export const POSICIONES_AVISOS = { arriba: "Arriba", abajo: "Abajo" };
+export const PERSONALIZACION_DEFECTO = { tema: "sistema", avisos: "arriba", animaciones: true };
+const EQUIPO = "*";
+
+/** Personalización de un almacenista (o la del equipo, o la de fábrica). */
+export function personalizacion(estado, usuario) {
+  const todas = estado?.config?.personalizacion ?? {};
+  const guardada = (usuario && todas[usuario]) || todas[EQUIPO] || {};
+  return {
+    tema: TEMAS[guardada.tema] ? guardada.tema : PERSONALIZACION_DEFECTO.tema,
+    avisos: POSICIONES_AVISOS[guardada.avisos] ? guardada.avisos : PERSONALIZACION_DEFECTO.avisos,
+    animaciones: typeof guardada.animaciones === "boolean" ? guardada.animaciones : PERSONALIZACION_DEFECTO.animaciones,
+    propia: Boolean(usuario && todas[usuario]),
+  };
+}
+
+export function guardarPersonalizacion(estado, usuario, cambios) {
+  const actual = personalizacion(estado, usuario);
+  const nueva = { tema: actual.tema, avisos: actual.avisos, animaciones: actual.animaciones, ...cambios };
+  estado.config.personalizacion ??= {};
+  estado.config.personalizacion[usuario || EQUIPO] = {
+    tema: TEMAS[nueva.tema] ? nueva.tema : PERSONALIZACION_DEFECTO.tema,
+    avisos: POSICIONES_AVISOS[nueva.avisos] ? nueva.avisos : PERSONALIZACION_DEFECTO.avisos,
+    animaciones: Boolean(nueva.animaciones),
+  };
+  return personalizacion(estado, usuario);
+}

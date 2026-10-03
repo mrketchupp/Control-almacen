@@ -247,7 +247,7 @@ test("entradas: VALES DE ENTRADA DLTA.xlsx con las columnas del DIARIO y el foli
   const vacio = exportarEntradas(estado);
   assert.equal(vacio.renglones, 0);
   const b = en.nuevoBorradorEntrada(estado, { usuario: "ALMACENISTA UNO", fecha: "2026-10-02" });
-  Object.assign(b, { folio_externo: "12345", origen: "BASE DOS BOCAS", depto_origen: "ALMACEN GENERAL", entrego_nombre: "chofer uno" });
+  Object.assign(b, { folio_externo: "12345", origen: "BASE PRUEBA", depto_origen: "ALMACEN GENERAL", entrego_nombre: "chofer uno" });
   b.lineas = [
     { ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), 708, { indices }), cantidad: "3", oc: "4500123" },
     { ...en.entradaSinExistencia({ ...en.lineaEntradaVacia(), codigo: 136, descripcion: "DIESEL", um: "LTS" }), cantidad: "500" },
@@ -261,7 +261,7 @@ test("entradas: VALES DE ENTRADA DLTA.xlsx con las columnas del DIARIO y el foli
   assert.ok(fila[0] instanceof FechaCelda);
   assert.equal(isoDesdeSerial(fila[0].serial), "2026-10-02");
   assert.deepEqual(fila.slice(1, 18).map((x) => (x === null ? null : String(x))), [
-    "12345", "XXXXX", "0", "BASE DOS BOCAS", "ALMACEN", "RIG 91", "ALMACEN", "4500123", "3", "708", fila[11], "ISOFLEX", "PZA", "0", "CHOFER UNO", "ALMACENISTA UNO", "0",
+    "12345", "XXXXX", "0", "BASE PRUEBA", "ALMACEN", "RIG 91", "ALMACEN", "4500123", "3", "708", fila[11], "ISOFLEX", "PZA", "0", "CHOFER UNO", "ALMACENISTA UNO", "0",
   ]);
   assert.equal(fila[20], "E-0001");
   assert.equal(hoja.fila(3, 1, 21)[8], "S/OC");

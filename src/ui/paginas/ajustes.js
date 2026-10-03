@@ -3,13 +3,61 @@ import { fijarAjuste } from "../../servicios/catalogos.js";
 import {
   BLOQUES_VALE,
   LADOS,
+  POSICIONES_AVISOS,
+  TEMAS,
+  guardarPersonalizacion,
   guardarPreferenciasVale,
   moverBloque,
+  personalizacion,
   preferenciasVale,
   restablecerPreferenciasVale,
 } from "../../servicios/preferencias.js";
 import { Aviso, Boton, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+
+/** Botones de opción en fila (un solo valor elegido). */
+function Segmentos({ etiqueta, valor, opciones, alCambiar }) {
+  return html`<div class="segmentos-campo">
+    <span class="segmentos-etiqueta">${etiqueta}</span>
+    <div class="segmentos" role="radiogroup" aria-label=${etiqueta}>
+      ${Object.entries(opciones).map(
+        ([clave, texto]) => html`<button
+          type="button"
+          role="radio"
+          aria-checked=${String(valor) === clave}
+          class=${`segmento ${String(valor) === clave ? "activo" : ""}`}
+          onClick=${() => alCambiar(clave)}
+        >
+          ${texto}
+        </button>`,
+      )}
+    </div>
+  </div>`;
+}
+
+/** Tema claro u oscuro, dónde salen los avisos y animaciones (por almacenista). */
+export function Personalizacion() {
+  const sesion = useSesion();
+  const actual = personalizacion(sesion.estado, sesion.usuario);
+  const cambiar = (cambios) =>
+    sesion.almacen.modificar((e) => guardarPersonalizacion(e, sesion.usuario, cambios)).catch((e) => sesion.avisar("error", e.message));
+  return html`<${Tarjeta} titulo="Personalización">
+    <p class="nota">
+      ${sesion.usuario ? html`Se guarda para <strong>${sesion.usuario}</strong> y se aplica cuando está en turno.` : "Nadie en turno: se guarda para este equipo."}
+    </p>
+    <div class="personalizacion">
+      <${Segmentos} etiqueta="Tema" valor=${actual.tema} opciones=${TEMAS} alCambiar=${(tema) => cambiar({ tema })} />
+      <${Segmentos} etiqueta="Avisos" valor=${actual.avisos} opciones=${POSICIONES_AVISOS} alCambiar=${(avisos) => cambiar({ avisos })} />
+      <${Segmentos}
+        etiqueta="Animaciones"
+        valor=${actual.animaciones ? "si" : "no"}
+        opciones=${{ si: "Sí", no: "No, sin movimiento" }}
+        alCambiar=${(v) => cambiar({ animaciones: v === "si" })}
+      />
+    </div>
+    <p class="nota">En vales de entrada y con una ventana abierta, los avisos salen abajo para no tapar los botones.</p>
+  <//>`;
+}
 
 function Captura() {
   const sesion = useSesion();
@@ -187,6 +235,7 @@ function Etapa() {
 
 export function PaginaAjustes() {
   return html`
+    <${Personalizacion} />
     <${Captura} />
     <${PantallaVales} />
     <${Etapa} />

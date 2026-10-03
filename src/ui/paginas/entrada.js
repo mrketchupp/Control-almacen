@@ -139,6 +139,7 @@ export function PaginaEntrada() {
                 { titulo: "Cantidad", numero: true, render: (l) => num(aNumero(l.cantidad)) },
                 { clave: "um", titulo: "UM" },
                 { titulo: "O.C.", render: (l) => l.oc || "S/OC" },
+                { titulo: "Solicita (lote)", render: (l) => l.lote || "—" },
                 { titulo: "Entró a", render: (l) => lugar(l) },
               ]}
             />

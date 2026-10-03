@@ -7,9 +7,11 @@ import {
   ErrorPreferencias,
   LADO_DEFECTO,
   ORDEN_DEFECTO,
+  guardarPersonalizacion,
   guardarPreferenciasVale,
   moverBloque,
   normalizarOrden,
+  personalizacion,
   preferenciasVale,
   restablecerPreferenciasVale,
 } from "../src/servicios/preferencias.js";
@@ -58,4 +60,18 @@ test("mover un bloque a cualquier posición", () => {
   assert.deepEqual(moverBloque(orden, "d", 0), ["d", "a", "b", "c"]);
   assert.deepEqual(moverBloque(orden, "b", 99), ["a", "c", "d", "b"]);
   assert.deepEqual(moverBloque(orden, "c", -3), ["c", "a", "b", "d"]);
+});
+
+test("personalización: por almacenista, la del equipo sin nadie en turno y valores de fábrica", () => {
+  const estado = estadoVacio();
+  assert.deepEqual(personalizacion(estado, "ALMACENISTA UNO"), { tema: "sistema", avisos: "arriba", animaciones: true, propia: false });
+  guardarPersonalizacion(estado, "ALMACENISTA UNO", { tema: "oscuro" });
+  guardarPersonalizacion(estado, "ALMACENISTA UNO", { avisos: "abajo", animaciones: false });
+  assert.deepEqual(personalizacion(estado, "ALMACENISTA UNO"), { tema: "oscuro", avisos: "abajo", animaciones: false, propia: true });
+  // Otro almacenista no hereda la de alguien más; sin nadie en turno se guarda para el equipo.
+  assert.equal(personalizacion(estado, "ALMACENISTA DOS").tema, "sistema");
+  guardarPersonalizacion(estado, null, { tema: "claro", avisos: "no-existe" });
+  assert.deepEqual(personalizacion(estado, null), { tema: "claro", avisos: "arriba", animaciones: true, propia: false });
+  assert.equal(personalizacion(estado, "ALMACENISTA DOS").tema, "claro");
+  assert.equal(personalizacion(estado, "ALMACENISTA UNO").tema, "oscuro");
 });

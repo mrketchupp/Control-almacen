@@ -803,10 +803,12 @@ export function ultimoEnvio(estado) {
  * vale toma un número de un contador; el envío recuerda hasta qué número incluyó.
  * Los vales migrados del Excel ya se habían enviado.
  */
-export function valesPorEnviar(estado) {
+export function valesPorEnviar(estado, { hastaFolio = null } = {}) {
   const desde = ultimoEnvio(estado)?.hasta_cambio ?? 0;
+  // Un vale también queda al día si se subió en un envío parcial (reporte de un día) con ese cambio.
   return estado.vales
-    .filter((v) => v.tipo === "SALIDA" && (v.cambio ?? 0) > desde)
+    .filter((v) => v.tipo === "SALIDA" && (v.cambio ?? 0) > Math.max(desde, v.subido_cambio ?? 0))
+    .filter((v) => hastaFolio === null || v.folio <= hastaFolio)
     .map((v) => ({
       vale: v,
       motivo: v.estado === "CANCELADO" ? "cancelado" : v.migrado || v.enviado_en ? "corregido" : "nuevo",
@@ -814,17 +816,27 @@ export function valesPorEnviar(estado) {
     .sort((a, b) => a.vale.folio - b.vale.folio);
 }
 
-export function registrarEnvio(estado, usuario = null) {
-  const pendientes = valesPorEnviar(estado);
+/**
+ * Marca como subidos al SharePoint los vales pendientes. Con `hastaFolio` (reporte de un día) solo
+ * los de ese folio o anteriores: los posteriores siguen pendientes.
+ */
+export function registrarEnvio(estado, usuario = null, { hastaFolio = null } = {}) {
+  const pendientes = valesPorEnviar(estado, { hastaFolio });
   const ahora = ahoraIso();
-  for (const { vale } of pendientes) if (!vale.enviado_en) vale.enviado_en = ahora;
+  for (const { vale } of pendientes) {
+    if (!vale.enviado_en) vale.enviado_en = ahora;
+    vale.subido_cambio = vale.cambio ?? 0;
+  }
+  const parcial = hastaFolio !== null && valesPorEnviar(estado).length > 0;
   const envio = {
     id: siguienteId(estado, "envio"),
     fecha_hora: ahora,
     usuario,
-    hasta_cambio: estado.secuencias.cambio ?? 0,
-    ultimo_folio: estado.vales.filter((v) => v.tipo === "SALIDA").reduce((m, v) => Math.max(m, v.folio ?? 0), 0),
+    // Un envío parcial no adelanta el contador general (los vales posteriores siguen pendientes).
+    hasta_cambio: parcial ? (ultimoEnvio(estado)?.hasta_cambio ?? 0) : (estado.secuencias.cambio ?? 0),
+    ultimo_folio: hastaFolio ?? estado.vales.filter((v) => v.tipo === "SALIDA").reduce((m, v) => Math.max(m, v.folio ?? 0), 0),
     folios: pendientes.map((p) => p.vale.folio),
+    parcial,
   };
   estado.envios.push(envio);
   auditar(estado, { usuario, entidad: "envio", entidadId: envio.id, accion: "ENVIAR", despues: { folios: envio.folios } });

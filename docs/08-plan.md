@@ -99,10 +99,19 @@ y el NP va en el LOTE; en entradas se dice "partida", sin motivo ni depto. orige
 renglones altos y uniformes para escribir; captura desde foto/PDF con Copilot (copiar instrucciones y pegar el JSON) en
 entradas y conteo; reporte diario con imágenes PNG de los vales del día, PDF, libro de vales y *Subir al SharePoint* con
 botón de completado; menú corto con íconos y ventana *Ajustes y más*; inicio tipo bento con accesos grandes.
+
+**Ronda 6 (aplicada):** el **reporte diario** entrega el libro de vales y el inventario **al cierre del día elegido**
+(no imágenes; se quitó el PNG) y *Ya lo subí* marca solo hasta ese folio; **vales de entrada** rediseñados: elegir
+*Captura manual* o *Desde foto o PDF* (guía de 3 pasos, se carga al pegar, el JSON roto se repara solo), barra fija
+con *Registrar* / *Descartar* y los pendientes, partidas en tarjetas de dos líneas con *Entra a* y *hay → queda*, sin el
+subrenglón de "variante nueva" (la clave escrita es la dimensión), y **Solicita** por partida (LOTE, también en el
+JSON de Copilot); **Ajustes y más** como vista en primer plano (secciones | contenido, se cierra con clic fuera, ✕ o
+Esc); **personalización** por almacenista: tema claro/oscuro/como Windows, avisos arriba o abajo y animaciones;
+animaciones suaves y hover discreto en el inicio.
 Entregables:
 - **Vales de entrada** en pestañas (borradores que se guardan solos): folio de la base, de dónde viene, quién entrega;
   por renglón código → clave con el contenedor sugerido (el de más existencia, ★), "Entra a" para cambiarlo, variante
-  nueva con aviso de parecidas, *Sin existencia* para diésel y gases. Vista previa *Así queda el inventario* (había,
+  nueva con aviso de parecidas, *Sin existencia* para diésel y gases. Vista previa por partida (había,
   entra, queda, hoja). Folio interno consecutivo `E-0001`; corrección con motivo automático y bitácora; aviso de folio de
   la base repetido. Devoluciones que regresan al renglón de donde salió el material (P-08).
 - **Historial** con pestañas Salidas / Entradas (filtros por fecha, folio de la base, código, O.C. y texto) y

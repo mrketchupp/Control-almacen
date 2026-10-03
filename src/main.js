@@ -6,6 +6,7 @@ import { BackendIndexedDB } from "./almacen/bd.js";
 import { App } from "./ui/app.js";
 import { html } from "./ui/html.js";
 import { Sesion } from "./ui/sesion.js";
+import { aplicarPersonalizacion, personalizacionRecordada } from "./ui/tema.js";
 
 const VERSION = typeof __VERSION__ === "undefined" ? "desarrollo" : __VERSION__;
 const raiz = document.getElementById("app");
@@ -56,6 +57,7 @@ async function arrancar() {
 }
 
 document.title = "Control de Almacén";
+aplicarPersonalizacion({ tema: "sistema", avisos: "arriba", animaciones: true, ...personalizacionRecordada() });
 document.documentElement.dataset.version = VERSION;
 
 /**

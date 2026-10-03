@@ -24,7 +24,7 @@ function preparar() {
 
 function borrador(estado, lineas, extra = {}) {
   const b = en.nuevoBorradorEntrada(estado, { usuario: USUARIO, fecha: "2026-10-02" });
-  Object.assign(b, { folio_externo: "B-100", origen: "BASE DOS BOCAS", depto_origen: "ALMACEN GENERAL", ...extra });
+  Object.assign(b, { folio_externo: "B-100", origen: "BASE PRUEBA", depto_origen: "ALMACEN GENERAL", ...extra });
   b.lineas = lineas;
   return b;
 }
@@ -146,6 +146,49 @@ test("la misma variante en otro contenedor crea su renglón; sin existencia no s
   assert.equal(nuevo.variante_id, balero2.variante_id);
   assert.equal(nuevo.origen, "ENTRADA E-0001");
   assert.equal(total(estado, nuevo.id), "2");
+});
+
+test("clave escrita: si no existe es variante nueva sin capturarla aparte; Entra a cambia el contenedor; LOTE = quien solicita", () => {
+  const { estado, indices, renglones, ubicacion } = preparar();
+  const base = { ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), 701, { indices }), um: "PZA", cantidad: "2", lote: "SOLICITANTE UNO" };
+  assert.equal(base.existencia_id, null);
+  // Clave nueva: variante nueva en el contenedor donde hay más de ese código.
+  const nueva = en.conClaveEscrita(estado, base, "6400", { indices });
+  assert.deepEqual([nueva.alta, nueva.dimension, nueva.clave, nueva.lote], [true, "6400", "6400", "SOLICITANTE UNO"]);
+  assert.equal(indices.ubicacion(nueva.ubicacion_id).hoja_excel.trim(), "CONTENEDOR #1 INVENTARIABLE");
+  assert.equal(en.destinoDe(estado, nueva, indices).tipo, "nuevo");
+  assert.equal(en.conClaveEscrita(estado, base, "sin dimensión", { indices }).dimension, "");
+  assert.equal(en.conClaveEscrita(estado, base, "S/D", { indices }).dimension, "S/D");
+  // Sin unidad escrita, se propone la que usa ese código.
+  assert.equal(en.conClaveEscrita(estado, { ...base, um: "" }, "6401", { indices }).um, "PZA");
+  // Entra a: otro contenedor para la variante nueva (sigue siendo la misma clave).
+  const c2cons = ubicacion("CONTENEDOR #2 CONSUMIBLE");
+  const movida = en.conContenedor(estado, nueva, c2cons.id, indices);
+  assert.deepEqual([movida.ubicacion_id, movida.alta, movida.dimension], [c2cons.id, true, "6400"]);
+  // La clave de un renglón que ya existe se resuelve a ese renglón.
+  const existente = en.conClaveEscrita(estado, base, "6309-2Z/C3", { indices });
+  assert.equal(en.destinoDe(estado, existente, indices).tipo, "renglon");
+  // Renglón existente → otro contenedor (renglón nuevo de la misma variante) → sin existencia.
+  const [balero1] = renglones(701);
+  const fila = en.conRenglonExistente(estado, base, balero1.id, indices);
+  assert.equal(fila.lote, "SOLICITANTE UNO"); // el NP no pisa al solicitante
+  const opciones = en.opcionesEntraA(estado, fila, { indices });
+  assert.ok(opciones.find((o) => o.valor === balero1.ubicacion_id).propio);
+  assert.ok(!opciones.find((o) => o.valor === c2cons.id).propio);
+  const otra = en.conContenedor(estado, fila, c2cons.id, indices);
+  assert.deepEqual([otra.existencia_id, otra.variante_id, otra.ubicacion_id], [null, balero1.variante_id, c2cons.id]);
+  assert.equal(en.contenedorDeLinea(otra, indices), c2cons.id);
+  const sin = en.conContenedor(estado, fila, "sin", indices);
+  assert.equal(en.destinoDe(estado, sin, indices).tipo, "sin_existencia");
+  assert.equal(en.contenedorDeLinea(sin, indices), "sin");
+  // De "sin existencia" a un contenedor: se da de alta con la clave escrita.
+  const deVuelta = en.conContenedor(estado, { ...sin, clave: "7000" }, c2cons.id, indices);
+  assert.deepEqual([deVuelta.alta, deVuelta.dimension, deVuelta.ubicacion_id], [true, "7000", c2cons.id]);
+  // Al confirmar, el LOTE de la partida es el solicitante.
+  const b = borrador(estado, [nueva]);
+  const vale = en.confirmarEntrada(estado, b.id, { usuario: USUARIO });
+  assert.equal(vale.lineas[0].lote, "SOLICITANTE UNO");
+  assert.equal(vale.lineas[0].clave, "6400");
 });
 
 test("corregir una entrada: motivo con los cambios, avisa si la existencia queda negativa y no deja renglones huérfanos", () => {

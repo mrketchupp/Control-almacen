@@ -19,8 +19,6 @@ import { infoDeNombre, respaldosABorrar } from "../almacen/respaldos.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
 import { documentoHojaConteo } from "../impresion/conteo.js";
 import { documentoImpresion } from "../impresion/vale.js";
-import { crearZip } from "../xlsx/zip.js";
-import { bytesADataUrl, hojaAPng } from "./imagen.js";
 import { CAPACIDAD_DEFECTO, plantillaArea } from "../servicios/vales.js";
 import { LibroLeido } from "../xlsx/leer.js";
 
@@ -359,43 +357,6 @@ export class Sesion {
     return documentoImpresion(paginas);
   }
 
-  /**
-   * Cada vale como imagen PNG, tal como se imprime (para el reporte del día).
-   * @returns [[nombre, bytes]]
-   */
-  async imagenesVales(vales, { escala = 2 } = {}) {
-    const archivos = [];
-    const sinAcentos = (t) => String(t ?? "").normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9 _.-]/g, "").trim();
-    for (const vale of vales) {
-      const modelo = await this.formulario(await this.hojaParaVale(vale));
-      const fotos = [];
-      for (const clave of vale.fotos ?? []) {
-        const foto = clave ? await this.almacen.leerFoto(clave) : null;
-        fotos.push(foto ? await bytesADataUrl(foto.datos, foto.mime || "image/jpeg") : null);
-      }
-      const documento = documentoImpresion([{ modelo, vale: this._paraImprimir(vale), fotos }]);
-      const area = sinAcentos(vale.depto_destino || vale.destino || "");
-      archivos.push([`Vale ${vale.folio}${area ? ` - ${area}` : ""}.png`, await hojaAPng(documento, modelo.pagina, escala)]);
-    }
-    return archivos;
-  }
-
-  /**
-   * "Guardar como" para un archivo nuevo (llamar directo desde el clic).
-   * @returns el archivo elegido; null si se canceló; undefined si el navegador no tiene la ventana
-   */
-  async elegirDestino(nombre, id = "control-almacen-imagenes") {
-    if (!soportaGuardarComo()) return undefined;
-    return elegirDondeGuardar(nombre, { startIn: this.carpetaLista ? this.carpeta : "documents", id });
-  }
-
-  /** Imágenes de los vales en un .zip, al archivo elegido (o a la carpeta / Descargas). @returns destino */
-  async guardarImagenesVales(vales, nombreZip, archivo = undefined) {
-    const datos = crearZip(await this.imagenesVales(vales), { comprimir: false });
-    if (archivo) return escribirEnArchivo(archivo, datos);
-    return this.guardarArchivo(`exportaciones/${hoyIso()}`, nombreZip, datos);
-  }
-
   /** Abre el cuadro de impresión del navegador (desde ahí también se guarda en PDF). */
   async imprimirVales(vales) {
     await this.imprimirDocumento(await this.documentoVales(vales));
@@ -434,25 +395,28 @@ export class Sesion {
    * herramienta; después, en la última carpeta usada.
    * @returns el archivo elegido; null si se canceló; undefined si el navegador no lo permite
    */
-  async elegirDestinoExportacion(tipo) {
+  async elegirDestinoExportacion(tipo, { corte = null } = {}) {
     if (!soportaGuardarComo()) return undefined;
-    const nombre = this.almacen.nombreExportacion(tipo);
+    const nombre = this.almacen.nombreExportacion(tipo, corte ?? hoyIso());
     if (!nombre) return undefined;
     const startIn = !this.exportoConDialogo && this.carpetaLista ? this.carpeta : "documents";
     return elegirDondeGuardar(nombre, { startIn });
   }
 
-  /** Exporta al archivo elegido con "Guardar como" o, sin él, a la carpeta / Descargas. */
-  async exportar(tipo, archivo = undefined) {
+  /**
+   * Exporta al archivo elegido con "Guardar como" o, sin él, a la carpeta / Descargas.
+   * corte: AAAA-MM-DD para exportar como estaba al cierre de ese día (reporte diario).
+   */
+  async exportar(tipo, archivo = undefined, { corte = null } = {}) {
     let destino;
     if (archivo) {
-      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { guardar: (_, datos) => escribirEnArchivo(archivo, datos) }));
+      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { corte, guardar: (_, datos) => escribirEnArchivo(archivo, datos) }));
       if (!this.exportoConDialogo) {
         this.exportoConDialogo = true;
         await this.backend.guardarAjuste("exporto_con_dialogo", true);
       }
     } else {
-      const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario);
+      const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { corte });
       destino = await this.guardarArchivo(subcarpeta, nombre, datos);
     }
     if (this.carpetaLista) await this.respaldar("exportacion", { descargarSiNoHayCarpeta: false });

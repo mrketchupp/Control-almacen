@@ -205,7 +205,14 @@ Los borradores llevan además `etapa_perforacion`. Entregó no se captura: al em
 
 **Clave y lote de una partida** (comentario del usuario, ronda 5): al elegir un renglón del inventario, CLAVE ALMACÉN =
 su dimensión tal cual y LOTE = su NP (`claveDeRenglon`, `loteDeRenglon`, `conLoteDeNp` en `servicios/vales.js`). Un lote
-puesto así se reemplaza si cambia el renglón elegido; uno escrito a mano se respeta.
+puesto así se reemplaza si cambia el renglón elegido; uno escrito a mano se respeta. **En las entradas no:** el LOTE es
+quien solicita el material (ronda 6).
+
+**Campos opcionales de la ronda 6** (no cambian `FORMATO_ESTADO`: si faltan se usan los valores de siempre):
+`borrador_entrada.modo` (`null` = aún no elige, `manual`, `asistida`); `vale.subido_cambio` (cambio con el que el vale
+se marcó como subido al SharePoint en un envío parcial del reporte diario; `envio.parcial`); y
+`config.personalizacion[almacenista | "*"] = { tema: sistema|claro|oscuro, avisos: arriba|abajo, animaciones }`
+(`"*"` = la del equipo cuando no hay nadie en turno).
 
 **Vales de entrada** (`vale.tipo = ENTRADA`): `folio` es el consecutivo interno propio (se muestra `E-0001`),
 independiente del de salidas; `folio_externo` = folio del vale que llega (obligatorio); `origen` = de dónde viene;

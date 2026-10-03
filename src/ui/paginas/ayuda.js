@@ -45,8 +45,10 @@ export function PaginaAyuda() {
         </dd>
         <dt>¿Qué es el reporte diario?</dt>
         <dd>
-          Desde <a href="#inicio">Inicio</a> → <em>Crear reporte diario</em> eliges un día y descargas los vales de salida de ese día
-          como imágenes (una por vale, en un .zip) o en PDF, bajas el libro de vales y lo marcas como subido al SharePoint.
+          Desde <a href="#inicio">Inicio</a> → <em>Crear reporte diario</em> eliges un día y descargas el libro de vales de salida y el
+          inventario de refaccionamiento <strong>como estaban al cierre de ese día</strong>: el libro llega hasta el último folio de esa
+          fecha y el inventario no trae los vales, entradas, conteos ni movimientos posteriores, aunque ya los hayas hecho. Al subirlo,
+          <em>Ya lo subí</em> marca solo los vales hasta ese folio; los posteriores siguen pendientes para el reporte de su día.
         </dd>
         <dt>Descarté un borrador por error</dt>
         <dd>En el aviso que aparece abajo a la derecha pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>

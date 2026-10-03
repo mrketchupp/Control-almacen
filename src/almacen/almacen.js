@@ -7,6 +7,7 @@
 import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
 import { NOMBRE_ENTRADAS, exportarEntradas } from "../exportadores/entradas.js";
+import { estadoAlCierre } from "../servicios/corte.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
 import { Indices } from "../nucleo/estado.js";
@@ -213,16 +214,19 @@ export class Almacen {
    * falla la escritura, no queda registrada).
    * @returns {{ nombre, datos, subcarpeta, resultado, destino }}
    */
-  async exportar(tipo, usuario, hoy = hoyIso(), { guardar = null } = {}) {
+  async exportar(tipo, usuario, hoy = hoyIso(), { guardar = null, corte = null } = {}) {
     let resultado;
     let nombre;
+    // Con `corte` (AAAA-MM-DD) se exporta como estaba al cierre de ese día (reporte diario).
+    const cierre = corte ? estadoAlCierre(this.estado, corte) : null;
+    const estado = cierre ? cierre.estado : this.estado;
     if (tipo === "ENTRADAS") {
-      resultado = exportarEntradas(this.estado);
+      resultado = exportarEntradas(estado);
       nombre = NOMBRE_ENTRADAS;
     } else {
       const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
-      resultado = tipo === "VALES" ? exportarVales(this.estado, plantilla) : exportarInventario(this.estado, plantilla);
-      nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
+      resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla);
+      nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, corte ?? hoy);
     }
     const huella = await sha256(resultado.datos);
     const destino = guardar ? await guardar(nombre, resultado.datos) : null;
@@ -235,6 +239,7 @@ export class Almacen {
         usuario,
         fecha_hora: ahoraIso(),
         ultimo_folio: resultado.ultimoFolio ?? null,
+        corte: corte ?? null,
       });
     });
     return { nombre, datos: resultado.datos, subcarpeta: `exportaciones/${hoy}`, resultado, destino };

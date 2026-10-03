@@ -152,7 +152,7 @@ export function PaginaInicio() {
         <a class="accion-enlace" href=${`#reporte/${fechaReporte}`}>
           <span class="accion-icono"><${Icono} nombre="reporte" tam=${26} /></span>
           <strong>Crear reporte diario</strong>
-          <small>Imágenes de los vales del día y lo que falta subir</small>
+          <small>Libro de vales e inventario al cierre del día</small>
         </a>
         <div class="accion-fecha">
           <input type="date" value=${fechaReporte} max=${hoy} onChange=${(e) => setFechaReporte(e.currentTarget.value || hoy)} aria-label="Fecha del reporte" />
@@ -207,7 +207,7 @@ export function PaginaInicio() {
           <li><strong>Elige quién está en turno</strong> (arriba a la derecha).</li>
           <li><strong><a href="#vales">Haz los vales</a>:</strong> área, quién recibe y partidas (código → clave → cantidad). El folio se asigna solo; imprímelo para las firmas.</li>
           <li><strong>Cuando llegue material</strong>, regístralo en <a href="#entradas">Vales de entrada</a> (puedes capturarlo desde la foto con Copilot).</li>
-          <li><strong>Al final del día</strong>, <a href=${`#reporte/${hoy}`}>crea el reporte diario</a>: descarga las imágenes, sube el libro al SharePoint y márcalo con "Ya lo subí".</li>
+          <li><strong>Al final del día</strong>, <a href=${`#reporte/${hoy}`}>crea el reporte diario</a>: descarga el libro de vales y el inventario de ese día, súbelos al SharePoint y márcalo con "Ya lo subí".</li>
         </ol>
       </section>
     </div>

@@ -147,6 +147,47 @@ export function useFiltroTexto(filas, texto, campos) {
   }, [filas, texto]);
 }
 
+/**
+ * Ventana en primer plano sobre la página, con el fondo oscurecido. Se cierra con ✕, con Escape
+ * o con un clic fuera de ella.
+ */
+export function Ventana({ titulo, alCerrar, children, clase = "", etiqueta, cabeza = null }) {
+  const caja = useRef(null);
+  const cerrar = useRef(alCerrar);
+  cerrar.current = alCerrar;
+  useEffect(() => {
+    const previo = document.activeElement;
+    const tecla = (e) => {
+      // Escape primero cierra la lista abierta de un campo; la ventana, después.
+      if (e.key !== "Escape" || caja.current?.querySelector(".resultados")) return;
+      e.stopPropagation();
+      cerrar.current();
+    };
+    document.addEventListener("keydown", tecla);
+    document.body.classList.add("con-ventana");
+    if (!caja.current?.contains(document.activeElement)) caja.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", tecla);
+      if (!document.querySelector(".ventana-fondo + .ventana-fondo")) document.body.classList.remove("con-ventana");
+      if (previo && document.contains(previo)) previo.focus?.();
+    };
+  }, []);
+  return html`<div
+    class="ventana-fondo"
+    onMouseDown=${(e) => {
+      if (e.target === e.currentTarget) alCerrar();
+    }}
+  >
+    <div class=${`ventana ${clase}`} role="dialog" aria-modal="true" aria-label=${etiqueta ?? titulo} tabindex="-1" ref=${caja}>
+      <header class="ventana-cabeza">
+        ${cabeza ?? html`<h2>${titulo}</h2>`}
+        <button type="button" class="ventana-cerrar" onClick=${alCerrar} title="Cerrar (Esc)" aria-label="Cerrar">✕</button>
+      </header>
+      <div class="ventana-cuerpo">${children}</div>
+    </div>
+  </div>`;
+}
+
 export function confirmar(texto) {
   return window.confirm(texto);
 }
@@ -279,7 +320,11 @@ const sinAcentos = (t) =>
  * Lista desplegable con el estilo de la herramienta (sustituye a <select>, cuya lista la
  * dibuja el navegador y no se puede estilizar). opciones: [{ valor, etiqueta, detalle? }]
  */
-export function Lista({ id, valor, opciones, alCambiar, ariaLabel, placeholder = "— Elige —", clase = "", deshabilitado = false }) {
+/**
+ * Lista desplegable (sustituye a <select>). mostrar(actual): contenido del botón (si no, la
+ * etiqueta de la opción elegida); cada opción puede traer render() para dibujarse distinto.
+ */
+export function Lista({ id, valor, opciones, alCambiar, ariaLabel, placeholder = "— Elige —", clase = "", deshabilitado = false, mostrar = null, titulo }) {
   const [abierta, setAbierta] = useState(false);
   const [marcado, setMarcado] = useState(0);
   const lista = useRef(null);
@@ -330,12 +375,13 @@ export function Lista({ id, valor, opciones, alCambiar, ariaLabel, placeholder =
       aria-haspopup="listbox"
       aria-expanded=${abierta}
       aria-label=${ariaLabel}
+      title=${titulo}
       disabled=${deshabilitado}
       onClick=${() => (abierta ? setAbierta(false) : abrir())}
       onKeyDown=${tecla}
       onBlur=${() => setAbierta(false)}
     >
-      <span class=${`lista-valor ${actual ? "" : "lista-vacia"}`}>${actual ? actual.etiqueta : placeholder}</span>
+      ${mostrar ? mostrar(actual) : html`<span class=${`lista-valor ${actual ? "" : "lista-vacia"}`}>${actual ? actual.etiqueta : placeholder}</span>`}
       <span class="lista-flecha" aria-hidden="true">▾</span>
     </button>
     ${abierta && opciones.length
@@ -351,7 +397,7 @@ export function Lista({ id, valor, opciones, alCambiar, ariaLabel, placeholder =
                 elegir(o);
               }}
             >
-              <span>${o.etiqueta}</span>${o.detalle ? html`<span class="res-detalle">${o.detalle}</span>` : null}
+              ${o.render ? o.render() : html`<span>${o.etiqueta}</span>${o.detalle ? html`<span class="res-detalle">${o.detalle}</span>` : null}`}
             </li>`,
           )}
         </ul>`
