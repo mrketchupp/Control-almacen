@@ -1,9 +1,10 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
+import { fijarAjuste } from "../../servicios/catalogos.js";
 import { resumen } from "../../servicios/consultas.js";
 import { folioEntrada } from "../../servicios/entradas.js";
 import { siguienteFolio } from "../../servicios/vales.js";
-import { Boton, Tarjeta, num, useSesion } from "../componentes.js";
+import { Boton, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { SubirSharePoint } from "./sharepoint.js";
@@ -108,11 +109,62 @@ function Accion({ href, icono, titulo, detalle, tono = "", children = null }) {
   </div>`;
 }
 
+/** Etapa de perforación actual (va en las observaciones de los vales internos); se cambia aquí mismo. */
+function BentoEtapa() {
+  const sesion = useSesion();
+  const actual = sesion.estado.config?.etapa_perforacion ?? "";
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(actual);
+  useEffect(() => setValor(actual), [actual]);
+  useEffect(() => {
+    if (!editando) return;
+    const campo = document.getElementById("etapa-inicio");
+    campo?.focus();
+    campo?.select();
+  }, [editando]);
+  const cancelar = () => {
+    setValor(actual);
+    setEditando(false);
+  };
+  const guardar = () =>
+    sesion.tarea("Guardando…", async () => {
+      await sesion.almacen.modificar((e) => fijarAjuste(e, "etapa_perforacion", valor.trim(), sesion.usuario));
+      setEditando(false);
+      sesion.avisar("exito", "Etapa de perforación guardada: se usará en los vales nuevos.");
+    });
+  return html`<section class="bento-celda bento-etapa">
+    <header class="bento-cabeza">
+      <span class="cabeza-icono"><${Icono} nombre="etapa" /></span>
+      <h2>Etapa de perforación</h2>
+    </header>
+    ${editando
+      ? html`<div class="etapa-editar">
+          <input
+            id="etapa-inicio"
+            value=${valor}
+            onInput=${(e) => setValor(e.currentTarget.value)}
+            onKeyDown=${(e) => {
+              if (e.key === "Enter" && valor.trim() !== actual) guardar();
+              if (e.key === "Escape") cancelar();
+            }}
+            placeholder='Ej. 12 1/4"'
+            aria-label="Etapa de perforación actual"
+          />
+          <div class="acciones-linea">
+            <${Boton} tipo="primario" tamano="chico" disabled=${valor.trim() === actual} onClick=${guardar}>Guardar<//>
+            <${Boton} tipo="texto" tamano="chico" onClick=${cancelar}>Cancelar<//>
+          </div>
+        </div>`
+      : html`<p class="dato-grande dato-etapa" title=${actual}>${actual || "—"}</p>`}
+    <p class="nota">Va en las observaciones de los vales internos; cada vale nuevo la trae puesta.</p>
+    ${editando ? null : html`<button type="button" class="enlace-boton enlace-flecha" onClick=${() => setEditando(true)}>Cambiar etapa →</button>`}
+  </section>`;
+}
+
 export function PaginaInicio() {
   const sesion = useSesion();
   const estado = sesion.estado;
   const datos = useMemo(() => (estado && !sesion.almacen.vacio ? resumen(estado) : null), [estado]);
-  const [fechaReporte, setFechaReporte] = useState(hoyIso());
   if (!datos) return html`<${Bienvenida} />`;
   const hoy = hoyIso();
   const ahora = new Date();
@@ -148,17 +200,7 @@ export function PaginaInicio() {
         titulo="Agregar material recibido"
         detalle=${datos.borradores_entrada ? `${datos.borradores_entrada} en borrador · ${folioEntrada(siguienteFolio(estado, "ENTRADA"))}` : `Siguiente: ${folioEntrada(siguienteFolio(estado, "ENTRADA"))}`}
       />
-      <div class="bento-celda bento-accion">
-        <a class="accion-enlace" href=${`#reporte/${fechaReporte}`}>
-          <span class="accion-icono"><${Icono} nombre="reporte" tam=${26} /></span>
-          <strong>Crear reporte diario</strong>
-          <small>Libro de vales e inventario al cierre del día</small>
-        </a>
-        <div class="accion-fecha">
-          <input type="date" value=${fechaReporte} max=${hoy} onChange=${(e) => setFechaReporte(e.currentTarget.value || hoy)} aria-label="Fecha del reporte" />
-          <a class="boton boton-secundario boton-chico" href=${`#reporte/${fechaReporte}`}>Abrir</a>
-        </div>
-      </div>
+      <${Accion} href="#reporte" icono="reporte" titulo="Crear reporte diario" detalle="Libro de vales e inventario al cierre del día" />
       <${Accion}
         href="#conteo"
         icono="conteo"
@@ -188,15 +230,7 @@ export function PaginaInicio() {
         <a class="enlace-flecha" href="#conteo">Ver conteos →</a>
       </section>
 
-      <section class="bento-celda">
-        <header class="bento-cabeza">
-          <span class="cabeza-icono"><${Icono} nombre="inventario" /></span>
-          <h2>Inventario</h2>
-        </header>
-        <p class="dato-grande">${num(datos.existencias)} <small>renglones</small></p>
-        <p class="nota">${datos.agotados ? html`<a href="#inventario">${num(datos.agotados)} en 0 o menos</a>` : "Ninguno en 0."} · ${datos.ubicaciones} contenedores</p>
-        <a class="enlace-flecha" href="#inventario">Ver inventario →</a>
-      </section>
+      <${BentoEtapa} />
 
       <section class="bento-celda bento-completa">
         <header class="bento-cabeza">

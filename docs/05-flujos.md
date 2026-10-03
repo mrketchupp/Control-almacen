@@ -146,7 +146,8 @@ flowchart LR
 
 ## 6. Reporte diario, exportación y SharePoint
 
-*Inicio → Crear reporte diario* (con fecha): entrega los dos libros **como estaban al cierre de ese día**
+*Reporte diario* (en el menú, después de *Conteo físico*; o *Inicio → Crear reporte diario*), con la fecha en la
+página: entrega los dos libros **como estaban al cierre de ese día**
 (`servicios/corte.js`, `estadoAlCierre`), aunque después se hayan hecho más vales o movimientos:
 
 - **Libro de vales de salida** (`.xlsm`): hasta el último folio con fecha de ese día o anterior.

@@ -4,8 +4,8 @@
 
 | Módulo | Qué puedes hacer |
 |---|---|
-| Inicio | Accesos grandes: **Crear un vale**, **Agregar material recibido**, **Crear reporte diario** (con fecha) y **Conteo físico**; *Subir al SharePoint* con botón **Ya lo subí**, último conteo, inventario y uso diario |
-| **Reporte diario** | El **libro de vales** y el **inventario** como estaban **al cierre del día elegido**, los vales y entradas de ese día y lo que falta subir al SharePoint hasta ese folio |
+| Inicio | Accesos grandes: **Crear un vale**, **Agregar material recibido**, **Crear reporte diario** y **Conteo físico**; *Subir al SharePoint* con botón **Ya lo subí**, último conteo, **etapa de perforación** (se cambia ahí mismo) y uso diario |
+| **Reporte diario** | En el menú, después de *Conteo físico*. **Descarga** el **libro de vales** y el **inventario** como estaban **al cierre del día elegido**; muestra los vales y entradas de ese día y lo que falta subir al SharePoint hasta ese folio |
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
@@ -101,7 +101,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
    - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Reporte diario y SharePoint:** en *Inicio → Crear reporte diario* elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Cada botón abre el explorador para elegir carpeta y nombre. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
+5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
 ### Entradas, conteos y movimientos

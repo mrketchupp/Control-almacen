@@ -36,7 +36,7 @@ const PAGINAS = {
   entrada: { titulo: "Entrada", componente: PaginaEntrada, requiereDatos: true, oculta: true },
   inventario: { titulo: "Inventario", componente: PaginaInventario, requiereDatos: true, icono: "inventario" },
   conteo: { titulo: "Conteo físico", componente: PaginaConteo, requiereDatos: true, icono: "conteo" },
-  reporte: { titulo: "Reporte diario", componente: PaginaReporte, requiereDatos: true, oculta: true },
+  reporte: { titulo: "Reporte diario", componente: PaginaReporte, requiereDatos: true, icono: "reporte" },
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true, icono: "pendientes", soloConAviso: true },
   exportar: { titulo: "Exportar y enviar", componente: PaginaExportar, requiereDatos: true, grupo: "mas", icono: "exportar", detalle: "Libros de Excel y SharePoint" },
   areas: { titulo: "Áreas y personas", componente: PaginaAreas, requiereDatos: true, grupo: "mas", icono: "personas", detalle: "Plantillas del vale y personal" },
@@ -258,7 +258,7 @@ function Marco() {
   const rutaFondo = esDeMas(ruta) ? fondo.current : ruta;
   let clave = paginaDeHash(rutaFondo);
   const definicion = PAGINAS[clave];
-  const activa = clave === "vale" || clave === "entrada" ? "historial" : clave === "reporte" ? "inicio" : clave;
+  const activa = clave === "vale" || clave === "entrada" ? "historial" : clave;
   if (definicion.requiereDatos && sesion.almacen.vacio) clave = "inicio";
   if (definicion.soloVacia && !sesion.almacen.vacio) clave = "inicio";
   const Componente = PAGINAS[clave].componente;

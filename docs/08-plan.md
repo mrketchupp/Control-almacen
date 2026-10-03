@@ -108,6 +108,13 @@ subrenglón de "variante nueva" (la clave escrita es la dimensión), y **Solicit
 JSON de Copilot); **Ajustes y más** como vista en primer plano (secciones | contenido, se cierra con clic fuera, ✕ o
 Esc); **personalización** por almacenista: tema claro/oscuro/como Windows, avisos arriba o abajo y animaciones;
 animaciones suaves y hover discreto en el inicio.
+
+**Ronda 7 (aplicada):** *Ajustes y más* casi a pantalla completa (la vista previa de *Mi pantalla de vales* ya cabe y,
+si la ventana es angosta, las partidas pasan abajo); en el inicio, el bento de *Inventario* cambia por **Etapa de
+perforación** (se ve y se cambia ahí), *Crear un vale* oscurece su propio azul al pasar el mouse y *Crear reporte
+diario* ya no lleva fecha: el **Reporte diario** queda en el menú después de *Conteo físico*; en el reporte, cada
+archivo dice **Descargar** y muestra *✓ Descargado* con el nombre del archivo.
+
 Entregables:
 - **Vales de entrada** en pestañas (borradores que se guardan solos): folio de la base, de dónde viene, quién entrega;
   por renglón código → clave con el contenedor sugerido (el de más existencia, ★), "Entra a" para cambiarlo, variante

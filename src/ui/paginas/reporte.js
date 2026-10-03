@@ -18,16 +18,20 @@ const diaSemana = (iso) => DIAS[new Date(`${iso}T12:00:00`).getDay()];
 const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
 const extension = (nombre) => (/\.(\w+)$/.exec(nombre ?? "")?.[1] ?? "xlsx").toUpperCase();
 
-/** Botón grande de un archivo del reporte (libro de vales o inventario al cierre del día). */
-function BotonArchivo({ nombre, titulo, detalle, disabled, onClick }) {
-  return html`<button type="button" class="archivo-boton" disabled=${disabled} onClick=${onClick}>
+/**
+ * Tarjeta de descarga de un archivo del reporte (libro de vales o inventario al cierre del día):
+ * todo es clicable y dice "Descargar"; después muestra dónde quedó.
+ */
+function BotonArchivo({ nombre, titulo, detalle, disabled, descargado, onClick }) {
+  return html`<button type="button" class=${`archivo-boton ${descargado ? "descargado" : ""}`} disabled=${disabled} onClick=${onClick} aria-label=${`Descargar ${titulo}`}>
     <span class="archivo-icono">${extension(nombre)}</span>
     <span class="archivo-texto">
       <strong>${titulo}</strong>
       <span class="nota">${detalle}</span>
       <span class="archivo-nombre">${nombre ?? "Falta la plantilla: cárgala en Respaldos"}</span>
+      ${descargado ? html`<span class="archivo-listo">✓ Descargado: ${descargado}</span>` : null}
     </span>
-    <span class="archivo-bajar" aria-hidden="true">⬇</span>
+    <span class="archivo-accion"><${Icono} nombre="descargar" tam=${18} /> ${descargado ? "Otra vez" : "Descargar"}</span>
   </button>`;
 }
 
@@ -40,9 +44,11 @@ export function PaginaReporte() {
   const estado = sesion.estado;
   const hoy = hoyIso();
   const [fecha, setFechaLocal] = useState(fechaDeRuta() ?? hoy);
+  const [descargados, setDescargados] = useState({});
   const setFecha = (f) => {
     if (!f) return;
     setFechaLocal(f);
+    setDescargados({});
     history.replaceState(null, "", `#reporte/${f}`);
   };
   const reporte = useMemo(() => reporteDelDia(estado, fecha), [estado, fecha]);
@@ -82,24 +88,30 @@ export function PaginaReporte() {
 
     <div class="bento bento-reporte">
       <section class="bento-celda bento-ancha">
-        <header class="bento-cabeza"><h2>Archivos del día</h2></header>
+        <header class="bento-cabeza">
+          <span class="cabeza-icono"><${Icono} nombre="descargar" /></span>
+          <h2>Descargar los archivos del día</h2>
+        </header>
+        <p class="nota">Pulsa cada archivo para descargarlo: se abre «Guardar como» para elegir la carpeta y el nombre.</p>
         <div class="archivos-dia">
           <${BotonArchivo}
             nombre=${nombreVales}
             titulo="Libro de vales de salida"
             detalle=${corte.salida ? `Hasta el folio ${corte.salida}` : "Aún no había vales a esa fecha"}
             disabled=${!nombreVales || !corte.salida}
-            onClick=${() => exportarConDialogo(sesion, "VALES", null, { corte: fecha })}
+            descargado=${descargados.VALES}
+            onClick=${() => exportarConDialogo(sesion, "VALES", (destino) => setDescargados((d) => ({ ...d, VALES: destino })), { corte: fecha })}
           />
           <${BotonArchivo}
             nombre=${nombreInventario}
             titulo="Inventario de refaccionamiento"
             detalle=${`Cerrado al ${fmtFecha(fecha)}`}
             disabled=${!nombreInventario}
-            onClick=${() => exportarConDialogo(sesion, "INVENTARIO", null, { corte: fecha })}
+            descargado=${descargados.INVENTARIO}
+            onClick=${() => exportarConDialogo(sesion, "INVENTARIO", (destino) => setDescargados((d) => ({ ...d, INVENTARIO: destino })), { corte: fecha })}
           />
         </div>
-        <p class="nota">Cada botón abre "Guardar como". Los archivos salen sobre tus plantillas, igual que en Exportar.</p>
+        <p class="nota">Salen sobre tus plantillas, igual que en Exportar y enviar.</p>
       </section>
 
       <section class="bento-celda">

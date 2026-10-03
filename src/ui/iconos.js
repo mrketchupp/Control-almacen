@@ -26,6 +26,8 @@ const TRAZOS = {
   caja: ["M3 8l9-5 9 5v8l-9 5-9-5z", "M3 8l9 5 9-5", "M12 13v8"],
   tema: ["M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"],
   cerrar: ["M6 6l12 12", "M18 6 6 18"],
+  etapa: ["M10 3h4v5h-4z", "M8 8h8v3H8z", "M10 11l2 10 2-10", "M4 21h16"],
+  descargar: ["M12 4v11", "M8 11l4 4 4-4", "M5 19h14"],
 };
 
 /** <Icono nombre="salida" /> */

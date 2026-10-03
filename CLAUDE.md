@@ -22,7 +22,8 @@ Pendiente:
 - ☐ Aceptación del usuario: registrar una entrada real y revisar el inventario exportado; hacer un conteo con la hoja impresa.
 - ☐ Recorrido con los archivos reales del usuario (solo en local, nunca subirlos) como en rondas anteriores.
 - Ronda 5 de comentarios aplicada (ver `docs/08-plan.md`): Deshacer al descartar, clave/lote, entradas sin motivo, hoja de conteo, captura con Copilot, menú *Ajustes y más*, inicio bento.
-- Ronda 6 aplicada: reporte diario = libros al cierre del día (`servicios/corte.js`; se quitó el PNG), entradas rediseñadas (modo manual/asistida, barra fija, tarjetas, Solicita = LOTE, JSON tolerante), *Ajustes y más* en primer plano, personalización (tema, avisos, animaciones). Falta que el usuario la revise.
+- Ronda 6 aplicada: reporte diario = libros al cierre del día (`servicios/corte.js`; se quitó el PNG), entradas rediseñadas (modo manual/asistida, barra fija, tarjetas, Solicita = LOTE, JSON tolerante), *Ajustes y más* en primer plano, personalización (tema, avisos, animaciones).
+- Ronda 7 aplicada: *Ajustes y más* más amplia (`.ventana.ventana-mas`, container query en la vista previa), bento de Etapa de perforación en el inicio (en lugar de Inventario), *Reporte diario* en el menú (sin fecha en el inicio) y descargas explícitas en el reporte. Falta que el usuario la revise.
 - Futuro (no es F3): leer el vale de la base desde Excel o foto (RF-35); resumen de guardia.
 
 ## Reglas no negociables
