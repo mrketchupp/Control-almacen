@@ -269,8 +269,13 @@ const sinAcentos = (t) =>
  */
 export function personasParaFirma(estado, campo = "recibio_nombre") {
   const usos = new Map();
+  const nombrePorId = new Map(estado.personas.map((p) => [p.id, p.nombre]));
+  const canonico = new Map(Object.entries(estado.alias ?? {}).filter(([, id]) => nombrePorId.has(id)).map(([alias, id]) => [alias, nombrePorId.get(id)]));
+  const otrosNombres = new Map();
+  for (const [alias, nombre] of canonico) otrosNombres.set(nombre, [...(otrosNombres.get(nombre) ?? []), alias]);
   for (const v of estado.vales) {
-    const nombre = v.tipo === "SALIDA" ? v[campo] : null;
+    const escrito = v.tipo === "SALIDA" ? v[campo] : null;
+    const nombre = canonico.get(escrito) ?? escrito;
     if (!nombre) continue;
     const cuenta = usos.get(nombre) ?? new Map();
     const depto = v.depto_destino || "";
@@ -289,7 +294,7 @@ export function personasParaFirma(estado, campo = "recibio_nombre") {
         veces,
         porDepto,
         almacenista: Boolean(p.es_almacenista),
-        texto: sinAcentos(`${p.nombre} ${p.puesto ?? ""} ${[...porDepto.keys()].join(" ")}`),
+        texto: sinAcentos(`${p.nombre} ${p.puesto ?? ""} ${[...porDepto.keys()].join(" ")} ${(otrosNombres.get(p.nombre) ?? []).join(" ")}`),
       };
     })
     .sort((a, b) => Number(a.almacenista) - Number(b.almacenista) || b.veces - a.veces || a.nombre.localeCompare(b.nombre, "es"));

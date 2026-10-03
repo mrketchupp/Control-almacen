@@ -102,6 +102,10 @@ test("vale de entrada: encabezado, renglón existente, variante nueva y código 
   const [grasa] = en.lineasEntradaCapturadas(otra.datos.lineas);
   assert.deepEqual([grasa.codigo, grasa.cantidad, grasa.lote], [708, "1", "PERSONA DOS"]);
   assert.equal(aplicarEntradaIA(estado, b, [{ codigo: "708", cantidad: 2 }]).reporte.partidas, 1);
+  // NP dentro de la clave leída: se separa y se encuentra el renglón.
+  const conNp = aplicarEntradaIA(estado, b, { partidas: [{ codigo: "704", cantidad: 1, dimension: '6" NP: FLEXITALIC', um: "PZA" }] });
+  const [empaqueNp] = en.lineasEntradaCapturadas(conNp.datos.lineas);
+  assert.deepEqual([empaqueNp.clave, empaqueNp.np, conNp.reporte.conRenglon], ['6"', "FLEXITALIC", 1]);
 });
 
 test("conteo: por contenedor + ITEM, por código si el ITEM no cuadra, encontrados y contenedores fuera del conteo", () => {

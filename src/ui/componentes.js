@@ -1,4 +1,5 @@
 import { createContext } from "preact";
+import { createPortal } from "preact/compat";
 import { useContext, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { html } from "./html.js";
 
@@ -151,15 +152,17 @@ export function useFiltroTexto(filas, texto, campos) {
  * Ventana en primer plano sobre la página, con el fondo oscurecido. Se cierra con ✕, con Escape
  * o con un clic fuera de ella.
  */
-export function Ventana({ titulo, alCerrar, children, clase = "", etiqueta, cabeza = null }) {
+export function Ventana({ titulo, alCerrar, children, clase = "", etiqueta, cabeza = null, cerrando = false }) {
   const caja = useRef(null);
   const cerrar = useRef(alCerrar);
   cerrar.current = alCerrar;
   useEffect(() => {
     const previo = document.activeElement;
     const tecla = (e) => {
-      // Escape primero cierra la lista abierta de un campo; la ventana, después.
+      // Escape primero cierra la lista abierta de un campo; la ventana, después (solo la de arriba).
       if (e.key !== "Escape" || caja.current?.querySelector(".resultados")) return;
+      const ventanas = document.querySelectorAll(".ventana");
+      if (ventanas[ventanas.length - 1] !== caja.current) return;
       e.stopPropagation();
       cerrar.current();
     };
@@ -168,12 +171,14 @@ export function Ventana({ titulo, alCerrar, children, clase = "", etiqueta, cabe
     if (!caja.current?.contains(document.activeElement)) caja.current?.focus();
     return () => {
       document.removeEventListener("keydown", tecla);
-      if (!document.querySelector(".ventana-fondo + .ventana-fondo")) document.body.classList.remove("con-ventana");
+      if (document.querySelectorAll(".ventana").length <= 1) document.body.classList.remove("con-ventana");
       if (previo && document.contains(previo)) previo.focus?.();
     };
   }, []);
-  return html`<div
-    class="ventana-fondo"
+  // Siempre sobre toda la página (aunque se abra dentro de otra ventana o de un contenedor).
+  return createPortal(
+    html`<div
+    class=${`ventana-fondo ${cerrando ? "cerrando" : ""}`}
     onMouseDown=${(e) => {
       if (e.target === e.currentTarget) alCerrar();
     }}
@@ -185,7 +190,9 @@ export function Ventana({ titulo, alCerrar, children, clase = "", etiqueta, cabe
       </header>
       <div class="ventana-cuerpo">${children}</div>
     </div>
-  </div>`;
+  </div>`,
+    document.body,
+  );
 }
 
 export function confirmar(texto) {

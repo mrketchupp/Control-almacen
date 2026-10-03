@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { ErrorCapturaIA, INSTRUCCIONES, describirArreglos, interpretarRespuesta } from "../../servicios/capturaIA.js";
 import { Boton, useSesion } from "../componentes.js";
 import { html } from "../html.js";
@@ -38,6 +38,8 @@ export function PasosCopilot({ tipo, alCargar, grande = false, alReporte = null 
   const [copiado, setCopiado] = useState(false);
   const [reporte, setReporte] = useState(null);
   const [error, setError] = useState(null);
+  const [listo, setListo] = useState(false);
+  const area = useRef(null);
   const copiar = async () => {
     const ok = await copiarTexto(instrucciones.texto);
     setCopiado(ok);
@@ -52,12 +54,31 @@ export function PasosCopilot({ tipo, alCargar, grande = false, alReporte = null 
       const resumen = [...(arreglo ? [`ℹ ${arreglo}`] : []), ...(lineas ?? [])];
       setReporte(resumen);
       setPegado("");
+      setListo(true);
       alReporte?.(resumen);
     } catch (e) {
       if (!(e instanceof ErrorCapturaIA)) throw e;
       setError(e.message);
       setPegado(texto);
     }
+  };
+  // "Pegar": lee el portapapeles (el navegador puede pedir permiso la primera vez).
+  const pegar = async () => {
+    setError(null);
+    let texto = "";
+    try {
+      texto = await navigator.clipboard.readText();
+    } catch {
+      setError("El navegador no dejó leer el portapapeles. Haz clic en el cuadro de abajo y pulsa Ctrl+V.");
+      area.current?.focus();
+      return;
+    }
+    if (!texto.trim()) {
+      setError("El portapapeles está vacío: en Copilot pulsa «Copiar» sobre el bloque de código y vuelve aquí.");
+      return;
+    }
+    setPegado(texto);
+    cargar(texto);
   };
   const destino = tipo === "entrada" ? "del vale" : "de la hoja de conteo";
   return html`<div class=${`pasos-copilot ${grande ? "pasos-grandes" : ""}`}>
@@ -87,24 +108,38 @@ export function PasosCopilot({ tipo, alCargar, grande = false, alReporte = null 
         <span class="paso-numero">3</span>
         <div class="paso-pegar">
           <strong>Copia su respuesta y pégala aquí</strong>
-          <textarea
-            class="pegar-ia"
-            rows=${grande ? 7 : 5}
-            value=${pegado}
-            onInput=${(e) => setPegado(e.currentTarget.value)}
-            onPaste=${(e) => {
-              const texto = e.clipboardData?.getData("text");
-              if (!texto) return;
-              e.preventDefault();
-              cargar(texto);
-            }}
-            placeholder="Pega aquí el bloque de código (se carga solo)"
-            aria-label="Respuesta de Copilot (JSON)"
-          ></textarea>
-          <div class="acciones-linea">
-            <${Boton} tipo="primario" disabled=${!pegado.trim()} onClick=${() => cargar()}>Cargar<//>
-            <span class="nota">Si viene incompleto o mal cerrado, se arregla solo.</span>
-          </div>
+          ${listo
+            ? html`<div class="ia-listo" role="status">
+                <span class="ia-check" aria-hidden="true">✓</span>
+                <span>
+                  <strong>Listo</strong>
+                  <small>${(reporte ?? []).find((r) => r.startsWith("✓")) ?? "Se cargó al borrador."}</small>
+                </span>
+                <button type="button" class="enlace-boton" onClick=${() => setListo(false)}>Pegar otra</button>
+              </div>`
+            : html`<div class="acciones-linea pegar-acciones">
+                  <${Boton} tipo="primario" onClick=${pegar}><span aria-hidden="true">📋</span> Pegar<//>
+                  <span class="nota">o pégala en el cuadro con Ctrl+V</span>
+                </div>
+                <textarea
+                  ref=${area}
+                  class="pegar-ia"
+                  rows=${grande ? 6 : 4}
+                  value=${pegado}
+                  onInput=${(e) => setPegado(e.currentTarget.value)}
+                  onPaste=${(e) => {
+                    const texto = e.clipboardData?.getData("text");
+                    if (!texto) return;
+                    e.preventDefault();
+                    cargar(texto);
+                  }}
+                  placeholder="Pega aquí el bloque de código (se carga solo)"
+                  aria-label="Respuesta de Copilot (JSON)"
+                ></textarea>
+                <div class="acciones-linea">
+                  ${pegado.trim() ? html`<${Boton} onClick=${() => cargar()}>Cargar lo escrito<//>` : null}
+                  <span class="nota">Si viene incompleto o mal cerrado, se arregla solo.</span>
+                </div>`}
         </div>
       </li>
     </ol>

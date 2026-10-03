@@ -108,13 +108,15 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 - **Entrada de material** (*Vales de entrada → Nueva entrada*): elige **Captura manual** o **Desde foto o PDF**.
   Arriba quedan siempre a la vista el folio, los pendientes y los botones **Registrar entrada** y **Descartar**.
   Escribe el folio del vale, de dónde viene y quién lo entrega; el departamento siempre es ALMACEN. Por partida:
-  código → `Enter` → clave (★ = el contenedor donde hay más) → cantidad. Abajo de cada partida: **Entra a** (cambia
+  código → `Enter` → clave (★ = el contenedor donde hay más) → **NP** → cantidad. Si la clave trae el NP (`… NP: 123`),
+  se pasa solo a su campo. Arriba, los botones *⚠ pendientes*, *por revisar* y *con clave nueva* muestran solo esas
+  partidas. Abajo de cada partida: **Entra a** (cambia
   el contenedor; muestra *hay → queda*), **Solicita** (quien pidió el material; va en LOTE) y la O.C. Si escribes una
   clave que no existe, se da de alta como **variante nueva** con esa dimensión (te avisa si se parece a una que ya
   existe). *Sin existencia* (en *Entra a*) es para diésel y gases.
 - **Capturar desde la foto con Copilot:** en *Desde foto o PDF* (o con el botón **Copilot** de la barra; en el conteo,
   *✨ Capturar desde la foto o PDF*): **Copiar instrucciones**, pégalas en Copilot (Microsoft 365, cuenta de trabajo)
-  con la foto o el PDF, copia su respuesta y pégala en el paso 3: se carga sola. Si viene cortada o con errores de
+  con la foto o el PDF, copia su respuesta y pulsa **Pegar** en el paso 3 (o `Ctrl+V` en el cuadro): se carga sola. Si viene cortada o con errores de
   formato, se arregla sola y te dice qué corrigió. Lo dudoso queda en amarillo (*revisar* → *✓ ya la revisé*). La
   herramienta no se conecta a nada: solo lee el texto que pegas.
 - **Material que regresa:** *↩ Copiar partidas de un vale de salida* (debajo de las partidas) → folio → *Copiar
@@ -127,6 +129,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 ### Áreas y personas
 - **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).
 - **Personas:** marca quién es almacenista (aparece en "En turno"), corrige puestos y desactiva a quien ya no está (deja de sugerirse, pero su historial queda).
+- **Nombres repetidos:** si una persona aparece escrita de varias formas (p. ej. `FULANO MENGANO ZUTANO`, `MENGANO ZUTANO FULANO`, `F. MENGANA ZUTANO`), la tarjeta *Nombres repetidos* lo propone: elige el nombre que se queda y pulsa **Unificar** (los otros quedan como "también:" de esa persona). También puedes marcar personas en la columna *Unir* y pulsar **Unificar…**. **Los vales ya hechos no cambian**; el aviso trae *Deshacer*. Si no son la misma, *No son la misma persona* y ya no se vuelve a sugerir.
 
 ## 5. Respaldos, cambio de equipo y "empezar de cero"
 

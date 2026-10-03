@@ -158,9 +158,27 @@ export function conRenglonExistente(estado, linea, existenciaId, indices = new I
     existencia_id: e.id,
     variante_id: v.id,
     clave: claveDeRenglon(dimensionMostrada(e, v)),
+    np: loteDeRenglon(npMostrado(e, v)),
     um: umMostrada(e, v) || linea.um,
     alta: false,
   };
+}
+
+// "NP", "N/P", "P/N", "No. de parte", "Part number"… seguido de un separador (no "NPT" de rosca).
+const MARCA_NP = /(?:^|[\s,;(\-/])(?:N\.?\s?\/?\s?P\.?|P\s?\/\s?N\.?|NO\.?\s+(?:DE\s+)?PARTE|N[UÚ]M(?:ERO)?\.?\s+DE\s+PARTE|PART\s*(?:NO\.?|NUMBER))(?![A-ZÁÉÍÓÚÑ])\s*[:#.\-]?\s*/i;
+
+/**
+ * Si la clave trae el número de parte ("6309-2Z NP: SKF123", "BRIDA 6\" N/P 45-A"), lo separa:
+ * la dimensión queda en la clave y el NP va al NP del inventario.
+ * @returns {{ dimension, np }} np vacío si no traía
+ */
+export function separarNp(clave) {
+  const t = texto(clave);
+  const m = MARCA_NP.exec(t);
+  if (!m) return { dimension: t, np: "" };
+  const np = t.slice(m.index + m[0].length).replace(/[)\s]+$/, "").trim();
+  if (!np) return { dimension: t, np: "" };
+  return { dimension: t.slice(0, m.index).replace(/[\s,;\-/(]+$/, "").trim(), np };
 }
 
 /** Con el código elegido: su descripción y, si solo hay un renglón de ese código, ese destino. */
@@ -229,9 +247,49 @@ export function conClaveEscrita(estado, linea, valor, { indices = new Indices(es
   const lista = opciones ?? destinosDeCodigo(estado, linea.codigo, { indices });
   const elegida = lista.find((o) => o.id === linea.existencia_id);
   if (elegida && claveEstricta(elegida.clave) === claveEstricta(valor)) return { ...linea, clave: valor };
-  if (!texto(valor)) return { ...linea, ...SIN_DESTINO, clave: valor, alta: false };
+  // El NP del renglón que estaba elegido no pasa a la variante nueva (era de ese renglón).
+  const np = elegida && claveEstricta(linea.np) === claveEstricta(elegida.np) ? "" : linea.np;
+  if (!texto(valor)) return { ...linea, ...SIN_DESTINO, clave: valor, np, alta: false };
   const ubicacionId = hay(linea.ubicacion_id) ? linea.ubicacion_id : elegida ? elegida.ubicacion_id : contenedorSugerido(estado, linea.codigo, { indices, opciones: lista });
-  return { ...conVarianteNueva(linea, { dimension: valor, np: linea.np, um: texto(linea.um) || umDelCodigo(lista), ubicacionId }), clave: valor };
+  return { ...conVarianteNueva(linea, { dimension: valor, np, um: texto(linea.um) || umDelCodigo(lista), ubicacionId }), clave: valor };
+}
+
+/**
+ * Lo que se escribe en NP. Con el NP del renglón elegido no cambia nada; otro NP es otra
+ * variante (misma dimensión, ese NP) en el mismo contenedor. Al salir del campo se busca si
+ * ya existe (conClaveYNp).
+ */
+export function conNpEscrito(estado, linea, valor, { indices = new Indices(estado), opciones = null } = {}) {
+  const lista = opciones ?? destinosDeCodigo(estado, linea.codigo, { indices });
+  const elegida = lista.find((o) => o.id === linea.existencia_id);
+  if (elegida && claveEstricta(elegida.np) === claveEstricta(valor)) return { ...linea, np: valor };
+  // Aún sin clave ni renglón: solo se guarda (se usa al escribir o elegir la clave).
+  if (!Number.isInteger(linea.codigo) || (!elegida && !linea.alta && !texto(linea.clave))) return { ...linea, np: valor };
+  const ubicacionId = hay(linea.ubicacion_id) ? linea.ubicacion_id : elegida ? elegida.ubicacion_id : contenedorSugerido(estado, linea.codigo, { indices, opciones: lista });
+  return { ...conVarianteNueva(linea, { dimension: linea.clave, np: valor, um: texto(linea.um) || umDelCodigo(lista), ubicacionId }), clave: linea.clave, np: valor };
+}
+
+/**
+ * Al salir de Clave o NP: si la clave trae el NP, se separa; si clave + NP son los de un renglón
+ * del inventario, entra a ese (el del mismo contenedor o el sugerido); si no, es variante nueva.
+ * Devuelve la misma línea si no hay nada que cambiar.
+ */
+export function conClaveYNp(estado, linea, { indices = new Indices(estado), opciones = null } = {}) {
+  if (!Number.isInteger(linea.codigo) || linea.no_inventariado) return linea;
+  const lista = opciones ?? destinosDeCodigo(estado, linea.codigo, { indices });
+  const separado = separarNp(linea.clave);
+  const clave = separado.np ? separado.dimension : texto(linea.clave);
+  const np = separado.np || texto(linea.np);
+  if (!clave && !np) return linea;
+  const iguales = lista.filter((o) => claveEstricta(o.clave) === claveEstricta(clave) && (!np || claveEstricta(o.np) === claveEstricta(np)));
+  const actual = lista.find((o) => o.id === linea.existencia_id);
+  if (actual && iguales.includes(actual)) return separado.np ? { ...linea, clave: actual.clave, np: actual.np } : linea;
+  const elegida =
+    iguales.find((o) => o.ubicacion_id === linea.ubicacion_id) ?? iguales.find((o) => !np && !texto(o.np) && o.sugerida) ?? iguales.find((o) => o.sugerida) ?? iguales[0];
+  if (elegida) return conRenglonExistente(estado, linea, elegida.id, indices);
+  if (!separado.np) return linea;
+  const ubicacionId = hay(linea.ubicacion_id) ? linea.ubicacion_id : contenedorSugerido(estado, linea.codigo, { indices, opciones: lista });
+  return { ...conVarianteNueva(linea, { dimension: clave, np, um: texto(linea.um) || umDelCodigo(lista), ubicacionId }), clave };
 }
 
 /** La unidad más usada por los renglones de un código (para proponerla en una variante nueva). */

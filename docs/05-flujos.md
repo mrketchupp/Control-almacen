@@ -83,6 +83,15 @@ descripción, clave / dimensión, cantidad, U.M.) y abajo **Entra a** (el conten
 con esa misma dimensión (no se escribe dos veces) y va al contenedor donde ya vive el código (se cambia en *Entra a*);
 si se parece a una que ya existe, se ofrece usar esa.
 
+**NP (ronda 8):** cada partida tiene su campo **NP** (el número de parte del inventario). Al elegir un renglón trae su
+NP; otro NP es otra variante (misma dimensión) en el mismo contenedor. Si la clave escrita o leída por Copilot trae el
+NP (`6309-2Z NP: SKF123`, `N/P`, `P/N`, `No. de parte`…), al salir del campo se separa: la dimensión queda en la clave y
+el NP pasa a su campo (`separarNp`; no confunde la rosca `NPT`).
+
+**Lo que requiere atención (ronda 8):** en la barra, *⚠ pendientes*, *por revisar* (Copilot no estaba seguro) y *con
+clave nueva* son botones: muestran solo esas partidas, con sus mensajes en cada tarjeta, y marcan *✓ resuelta* las que
+se van arreglando. Al pulsar *Registrar* con pendientes se filtran solas.
+
 **Quién solicita:** en los vales de la base, la columna LOTE trae el nombre y apellido de quien pidió el material. En
 la entrada, LOTE = *Solicita* de cada partida (no el NP del inventario); también lo lee Copilot (`"lote"`).
 
@@ -91,7 +100,8 @@ inventario del que salió; se ajusta la cantidad a lo que regresó. Si la base a
 puede corregir el vale de salida original.
 
 **Captura asistida (Copilot):** tres pasos — copiar las instrucciones, pegarlas en Copilot con la foto o el PDF y pegar
-aquí la respuesta (se carga sola al pegar). Se llena el borrador (entrada) o la captura (conteo: por contenedor + ITEM
+aquí la respuesta con el botón **Pegar** (o `Ctrl+V` en el cuadro; se carga sola). Se ve *✓ Listo* y la guía da paso
+suave a las partidas, que entran una tras otra y destellan un momento. Se llena el borrador (entrada) o la captura (conteo: por contenedor + ITEM
 de la hoja impresa, confirmando con el código); lo dudoso, lo que no se leyó (código o clave) y lo no reconocido se
 reporta y se marca en amarillo. Si la respuesta viene **cortada o mal formada** (llaves o corchetes sin cerrar, comas
 de más o de menos, comillas tipográficas, claves sin comillas, `True`/`None`, comentarios, varias hojas en bloques

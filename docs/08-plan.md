@@ -115,6 +115,11 @@ perforación** (se ve y se cambia ahí), *Crear un vale* oscurece su propio azul
 diario* ya no lleva fecha: el **Reporte diario** queda en el menú después de *Conteo físico*; en el reporte, cada
 archivo dice **Descargar** y muestra *✓ Descargado* con el nombre del archivo.
 
+**Ronda 8 (aplicada):** en vales de entrada, campo **NP** por partida (y el NP que venga dentro de la clave se pasa
+solo a su campo); los indicadores de la barra (*pendientes*, *por revisar*, *con clave nueva*) **filtran** las partidas
+que requieren atención; captura con Copilot con botón **Pegar** y transición suave (*✓ Listo* → partidas que entran una
+tras otra). En *Áreas y personas*, **unificar nombres repetidos** (sugeridos o marcados a mano) sin tocar los vales.
+
 Entregables:
 - **Vales de entrada** en pestañas (borradores que se guardan solos): folio de la base, de dónde viene, quién entrega;
   por renglón código → clave con el contenedor sugerido (el de más existencia, ★), "Entra a" para cambiarlo, variante

@@ -15,6 +15,7 @@ import {
   entradaConArticulo,
   lineaEntradaVacia,
   lineasEntradaCapturadas,
+  separarNp,
 } from "./entradas.js";
 import { nuevoSobrante } from "./conteos.js";
 import { ErrorJson, estaIncompleto, leerJsonTolerante } from "./jsonTolerante.js";
@@ -257,8 +258,12 @@ export function aplicarEntradaIA(estado, borrador, respuesta, { indices = new In
     // Código del catálogo: su descripción (la leída puede venir cortada); código nuevo: la leída.
     const conocido = Boolean(estado.articulos[codigo]);
     linea = entradaConArticulo(estado, linea, codigo, { indices, descripcion: conocido ? null : texto(p.descripcion).toUpperCase() });
-    const dimension = claveEstricta(p.dimension);
-    const np = claveEstricta(p.np);
+    // Si la clave leída trae el NP ("6309-2Z NP: SKF"), el NP va a su campo.
+    const separado = separarNp(texto(p.dimension));
+    const dimTexto = separado.np ? separado.dimension : texto(p.dimension);
+    const npTexto = texto(p.np) || separado.np;
+    const dimension = claveEstricta(dimTexto);
+    const np = claveEstricta(npTexto);
     const opciones = destinosDeCodigo(estado, codigo, { indices });
     const iguales = opciones.filter((o) => {
       const mismaDim = claveEstricta(o.clave) === dimension || (!dimension && claveEstricta(o.clave) === "");
@@ -275,7 +280,7 @@ export function aplicarEntradaIA(estado, borrador, respuesta, { indices = new In
     } else if (linea.existencia_id === null || linea.existencia_id === undefined || dimension) {
       // Clave que no está en el inventario: variante nueva, en el contenedor donde ya vive ese código.
       const ubicacionId = contenedorSugerido(estado, codigo, { indices });
-      linea = { ...conVarianteNueva(linea, { dimension: texto(p.dimension), np: texto(p.np), um: texto(p.um) || linea.um, ubicacionId }), alta: true };
+      linea = { ...conVarianteNueva(linea, { dimension: dimTexto, np: npTexto, um: texto(p.um) || linea.um, ubicacionId }), alta: true };
       reporte.nuevas += 1;
     } else {
       reporte.conRenglon += 1;

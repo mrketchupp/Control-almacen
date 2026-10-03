@@ -129,6 +129,9 @@ export class Indices {
     this.conteos = new Map(estado.conteos.map((c) => [c.id, c]));
     this.existencias = new Map(estado.existencias.map((e) => [e.id, e]));
     this.personas = new Map(estado.personas.map((p) => [p.nombre, p]));
+    // Un nombre unificado con otra persona (alias) lleva a esa persona: no se vuelve a crear repetida.
+    const porId = new Map(estado.personas.map((p) => [p.id, p]));
+    for (const [nombre, id] of Object.entries(estado.alias ?? {})) if (!this.personas.has(nombre) && porId.has(id)) this.personas.set(nombre, porId.get(id));
   }
 
   variante(id) {

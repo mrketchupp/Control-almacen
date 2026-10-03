@@ -80,6 +80,10 @@ erDiagram
 | activo | bool | En 0 no se borra: el renglón sigue en el Excel con 0, como hoy |
 
 **`persona`** (id, nombre, puesto, área, es_almacenista, activo) y **`persona_alias`** (alias → persona_id): unifican las variantes de nombre del historial.
+En el estado es `estado.alias` (nombre escrito → id de persona). *Áreas y personas → Nombres repetidos* (ronda 8,
+`servicios/personas.js`) lo usa para unificar: la persona que queda conserva su nombre y las demás pasan a ser alias
+(salen de la lista; `Indices.persona` y las sugerencias de firmas las resuelven a la que queda). **Los vales no
+cambian.** `config.personas_distintas` guarda los pares marcados como "no son la misma persona".
 
 **`departamento`**, **`destino`**: listas simples.
 

@@ -3361,7 +3361,7 @@ body.con-ventana {
 .partidas-titulos,
 .partida-linea1 {
   display: grid;
-  grid-template-columns: 34px minmax(110px, 0.9fr) minmax(160px, 2fr) minmax(150px, 1.4fr) 92px 74px 34px;
+  grid-template-columns: 34px minmax(100px, 0.8fr) minmax(150px, 1.8fr) minmax(140px, 1.3fr) minmax(100px, 0.9fr) 86px 70px 34px;
   gap: 8px;
   align-items: center;
 }
@@ -3623,45 +3623,45 @@ body.con-ventana {
   }
 
   .partida-linea1 {
-    grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr) 30px;
+    grid-template-columns: 34px repeat(3, minmax(0, 1fr)) 30px;
+    grid-template-areas:
+      "num cod  cla  cla  quitar"
+      ".   desc desc desc ."
+      ".   np   cant um   .";
     align-items: end;
   }
 
-  .partida-linea1 .pf-desc {
-    grid-column: 2 / 4;
+  .partida-linea1 .partida-num {
+    grid-area: num;
+    align-self: center;
   }
 
   .partida-linea1 .pf-codigo {
-    grid-row: 1;
-    grid-column: 2;
+    grid-area: cod;
+  }
+
+  .partida-linea1 .pf-desc {
+    grid-area: desc;
   }
 
   .partida-linea1 .pf-clave {
-    grid-column: 3;
-    grid-row: 1;
+    grid-area: cla;
   }
 
-  .partida-linea1 .boton-quitar,
-  .partida-linea1 > span:last-child {
-    grid-column: 4;
-    grid-row: 1;
-  }
-
-  .partida-linea1 .pf-cant,
-  .partida-linea1 .pf-um {
-    grid-row: 3;
+  .partida-linea1 .pf-np {
+    grid-area: np;
   }
 
   .partida-linea1 .pf-cant {
-    grid-column: 2;
+    grid-area: cant;
   }
 
   .partida-linea1 .pf-um {
-    grid-column: 3;
+    grid-area: um;
   }
 
-  .partida-linea1 .partida-num {
-    grid-row: 1;
+  .partida-linea1 .pf-quitar {
+    grid-area: quitar;
     align-self: center;
   }
 
@@ -3838,4 +3838,242 @@ body.con-ventana .toast {
   color: var(--primario);
   font-weight: 600;
   box-shadow: var(--sombra);
+}
+
+/* ---------------------------------------------------------------- entradas: atención, NP y transiciones (ronda 8) */
+
+.chip-filtro {
+  cursor: pointer;
+  transition: background var(--dur-corta) ease, box-shadow var(--dur-corta) ease;
+}
+
+.chip-filtro:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent);
+}
+
+.chip-filtro.activo {
+  box-shadow: 0 0 0 2px currentColor;
+  font-weight: 600;
+}
+
+.chip-info {
+  background: var(--primario-suave);
+  border-color: transparent;
+  color: var(--primario);
+}
+
+.filtro-partidas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radio);
+  background: var(--primario-suave);
+  animation: aparecer var(--dur-media) ease-out;
+}
+
+.partida-errores {
+  margin: 6px 0 0 42px;
+  padding: 0 0 0 16px;
+  color: var(--error);
+  font-size: 0.85rem;
+}
+
+.partida-entrada.resuelta {
+  border-left-color: var(--ok);
+}
+
+.partida-resuelta {
+  display: inline-block;
+  margin: 6px 0 0 42px;
+  color: var(--ok);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pf-np input:disabled {
+  background: var(--superficie-2);
+}
+
+/* Al llegar lo de Copilot: las partidas entran una tras otra y lo nuevo destella un momento. */
+.editor-entrada.entrando .partida-entrada {
+  animation: subir 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+.partida-entrada.reciente {
+  animation: destello 2.4s ease-out;
+}
+
+.editor-entrada.entrando .partida-entrada.reciente {
+  animation: subir 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards, destello 2.4s ease-out;
+  animation-delay: calc(var(--i, 0) * 45ms), calc(var(--i, 0) * 45ms);
+}
+
+@keyframes destello {
+  0%,
+  30% {
+    background: var(--primario-suave);
+    border-color: var(--primario);
+  }
+}
+
+/* La guía de 3 pasos: "Listo" y luego se va suave hacia arriba. */
+.captura-asistida.saliendo {
+  animation: irse 0.4s ease-in 0.65s forwards;
+  pointer-events: none;
+}
+
+@keyframes irse {
+  to {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.985);
+  }
+}
+
+.ventana-fondo.cerrando {
+  animation: desvanecer 0.3s ease-in forwards;
+}
+
+.ventana-fondo.cerrando .ventana {
+  animation: bajar 0.3s ease-in forwards;
+}
+
+@keyframes desvanecer {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes bajar {
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+
+.pegar-acciones {
+  margin: 8px 0 0;
+}
+
+.ia-listo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 14px;
+  border-radius: var(--radio);
+  background: var(--ok-suave);
+  animation: aparecer var(--dur-media) ease-out;
+}
+
+.ia-listo > span:nth-child(2) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.ia-listo small {
+  color: var(--texto-suave);
+}
+
+.ia-check {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--ok);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  animation: rebote 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes rebote {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- personas repetidas */
+
+.grupos-repetidos {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grupo-repetido {
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+}
+
+.grupo-repetido .acciones-linea {
+  margin: 8px 0 0;
+}
+
+.grupo-nombres {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grupo-nombres > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background var(--dur-corta) ease, opacity var(--dur-corta) ease;
+}
+
+.grupo-nombres > li.queda {
+  background: var(--ok-suave);
+}
+
+.grupo-nombres > li.fuera {
+  opacity: 0.55;
+}
+
+.grupo-queda {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 260px;
+  cursor: pointer;
+}
+
+.grupo-incluir {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+.alias-persona {
+  display: block;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+}
+
+.seleccion-unir {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }

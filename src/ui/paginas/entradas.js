@@ -8,7 +8,9 @@ import {
   ErrorEntrada,
   borradorEntrada,
   conClaveEscrita,
+  conClaveYNp,
   conContenedor,
+  conNpEscrito,
   conRenglonExistente,
   confirmarEntrada,
   contenedorDeLinea,
@@ -30,6 +32,7 @@ import { siguienteFolio } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Ventana, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
+import { hayAnimaciones } from "../tema.js";
 import { PasosCopilot } from "./capturaIA.js";
 import { CeldaCodigo, indiceArticulos, listas, normal, palabras } from "./vales.js";
 
@@ -39,7 +42,7 @@ const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 // ---------------------------------------------------------------- partes de una partida
 
 /** Clave / dimensión: los renglones del inventario de ese código; si se escribe otra, es una variante nueva. */
-function CeldaClave({ linea, opciones, alElegir, alEscribir, error }) {
+function CeldaClave({ linea, opciones, alElegir, alEscribir, alSalir, error }) {
   const elegida = opciones.find((o) => o.id === linea.existencia_id) ?? null;
   const filtradas = useMemo(() => {
     const q = normal(linea.clave);
@@ -60,12 +63,7 @@ function CeldaClave({ linea, opciones, alElegir, alEscribir, error }) {
       <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>
       ${o.sugerida && o.enVarios ? html`<${Pastilla} tono="info" titulo="Es el contenedor donde hay más de esta variante">★ sugerido<//>` : null}`}
     alElegir=${(o, mover = true) => alElegir(o, mover)}
-    alSalir=${() => {
-      // Una clave escrita igual a la de un renglón existente se elige sola (el sugerido).
-      const exactas = opciones.filter((o) => normal(o.clave) === normal(linea.clave));
-      const mejor = exactas.find((o) => o.ubicacion_id === linea.ubicacion_id) ?? exactas.find((o) => o.sugerida) ?? exactas[0];
-      if (mejor && !elegida) alElegir(mejor, false);
-    }}
+    alSalir=${alSalir}
     placeholder=${opciones.length ? "Elige o escribe" : "Escribe la clave"}
     ariaLabel="Clave / dimensión"
   />`;
@@ -150,8 +148,11 @@ function Parecidas({ estado, indices, linea, alUsar }) {
  * Editor de una entrada (borrador nuevo o corrección de una confirmada): datos del vale arriba y
  * cada partida como una tarjeta de dos líneas (lo del vale | a dónde entra, quién solicita y O.C.).
  * @param excluirValeId  en una corrección, la entrada que se corrige
+ * @param filtro   { etiqueta, uids, resueltas, alQuitar }: solo esas partidas (lo que requiere atención)
+ * @param entrando las partidas aparecen escalonadas (al llegar de la captura con Copilot)
+ * @param recientes uids recién cargados (se resaltan un momento)
  */
-export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = null, pie = null }) {
+export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = null, pie = null, filtro = null, entrando = false, recientes = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -184,7 +185,14 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
   });
   const cambiarLinea = (uid, cambio, siguiente = null) => {
     if (siguiente) enfocar.current = siguiente;
-    cambiar({ lineas: datos.lineas.map((l) => (l.uid === uid ? (typeof cambio === "function" ? cambio(l) : { ...l, ...cambio }) : l)) });
+    let cambio_ = false;
+    const lineas = datos.lineas.map((l) => {
+      if (l.uid !== uid) return l;
+      const nueva = typeof cambio === "function" ? cambio(l) : { ...l, ...cambio };
+      if (nueva !== l) cambio_ = true;
+      return nueva;
+    });
+    if (cambio_) cambiar({ lineas });
   };
   const agregarLinea = (tras = null) => {
     const nueva = lineaEntradaVacia();
@@ -224,7 +232,9 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
   const capturadas = lineasEntradaCapturadas(datos.lineas).length;
   let numero = 0;
 
-  return html`<div class="editor-entrada">
+  let indiceVisible = 0;
+
+  return html`<div class=${`editor-entrada ${entrando ? "entrando" : ""}`}>
     <section class="entrada-encabezado" aria-label="Datos del vale">
       <div class="encabezado-campos">
         <label class=${`campo ${errorEn("folio_externo") ? "con-error" : ""}`}>
@@ -279,13 +289,26 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
         <span class="nota">Código → clave → cantidad. Abajo de cada una: a qué contenedor entra, quién la solicita y la O.C.</span>
       </header>
       <div class="partidas-titulos" aria-hidden="true">
-        <span>#</span><span>Código</span><span>Descripción</span><span>Clave / dimensión</span><span>Cantidad</span><span>U.M.</span><span></span>
+        <span>#</span><span>Código</span><span>Descripción</span><span>Clave / dimensión</span><span>NP</span><span>Cantidad</span><span>U.M.</span><span></span>
       </div>
+      ${filtro
+        ? html`<div class="filtro-partidas" role="status">
+            <span>
+              ${filtro.resueltas.size >= filtro.uids.size
+                ? html`<strong>✓ Listo:</strong> ya no queda nada ${filtro.etiqueta}.`
+                : html`Mostrando <strong>${filtro.uids.size} ${filtro.uids.size === 1 ? "partida" : "partidas"}</strong> ${filtro.etiqueta}${filtro.resueltas.size ? ` · ${filtro.resueltas.size} ya resuelta(s)` : ""}.`}
+            </span>
+            <${Boton} tamano="chico" onClick=${filtro.alQuitar}>Ver todas las partidas<//>
+          </div>`
+        : null}
       <ol class="lista-partidas">
         ${datos.lineas.map((l) => {
           const blanco = !Number.isInteger(l.codigo) && !texto(l.cantidad) && !texto(l.clave) && !l.alta;
           if (!blanco) numero += 1;
           const n = blanco ? null : numero;
+          if (filtro && !filtro.uids.has(l.uid)) return null;
+          const orden = Math.min(indiceVisible++, 14);
+          const mensajes = n ? errores.filter((e) => e.renglon === n) : [];
           const opciones = Number.isInteger(l.codigo) ? opcionesDe(l.codigo) : [];
           const conocido = Number.isInteger(l.codigo) && Boolean(estado.articulos[l.codigo]);
           const fila = previa.find((p) => p.uid === l.uid);
@@ -296,10 +319,12 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
             const renglon = opciones.find((o) => o.variante_id === variante.id && o.sugerida);
             if (renglon) cambiarLinea(l.uid, (actual) => conRenglonExistente(estado, actual, renglon.id, indices), `cant-${l.uid}`);
           };
+          const resuelta = filtro?.resueltas.has(l.uid);
           return html`<li
             key=${l.uid}
             id=${`partida-${l.uid}`}
-            class=${`partida-entrada ${blanco ? "partida-vacia" : ""} ${conError ? "con-error" : ""} ${l.dudoso ? "dudosa" : ""}`}
+            style=${`--i: ${orden}`}
+            class=${`partida-entrada ${blanco ? "partida-vacia" : ""} ${conError ? "con-error" : ""} ${l.dudoso ? "dudosa" : ""} ${recientes?.has(l.uid) ? "reciente" : ""} ${resuelta ? "resuelta" : ""}`}
           >
             <div class="partida-linea1">
               <span class="partida-num" aria-label=${n ? `Partida ${n}` : "Partida nueva"}>${n ?? "＋"}</span>
@@ -340,6 +365,20 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
                   error=${n && faltaClave && errorEn("destino", n)}
                   alElegir=${(o, mover) => cambiarLinea(l.uid, (actual) => conRenglonExistente(estado, actual, o.id, indices), mover ? `cant-${l.uid}` : null)}
                   alEscribir=${(valor) => cambiarLinea(l.uid, (actual) => conClaveEscrita(estado, actual, valor, { indices, opciones }))}
+                  alSalir=${() => cambiarLinea(l.uid, (actual) => conClaveYNp(estado, actual, { indices, opciones }))}
+                />
+              </div>
+              <div class="pf pf-np">
+                <span class="mini">NP</span>
+                <input
+                  id=${`np-${l.uid}`}
+                  value=${l.np ?? ""}
+                  disabled=${!Number.isInteger(l.codigo) || l.no_inventariado}
+                  placeholder=${Number.isInteger(l.codigo) ? "Sin NP" : ""}
+                  title="Número de parte (NP del inventario). Si la clave lo trae, se pasa aquí solo."
+                  onInput=${(e) => cambiarLinea(l.uid, (actual) => conNpEscrito(estado, actual, e.currentTarget.value, { indices, opciones }))}
+                  onBlur=${() => cambiarLinea(l.uid, (actual) => conClaveYNp(estado, actual, { indices, opciones }))}
+                  aria-label="NP (número de parte)"
                 />
               </div>
               <div class="pf pf-cant">
@@ -371,8 +410,8 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
                 />
               </div>
               ${blanco
-                ? html`<span></span>`
-                : html`<button type="button" class="boton-quitar" title="Quitar esta partida" aria-label=${`Quitar la partida ${n}`} onClick=${() => quitar(l.uid)}>✕</button>`}
+                ? html`<span class="pf-quitar"></span>`
+                : html`<button type="button" class="boton-quitar pf-quitar" title="Quitar esta partida" aria-label=${`Quitar la partida ${n}`} onClick=${() => quitar(l.uid)}>✕</button>`}
             </div>
             ${blanco
               ? null
@@ -411,11 +450,20 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
                       </span>`
                     : null}
                 </div>`}
+            ${mensajes.length
+              ? html`<ul class="partida-errores">
+                  ${mensajes.map((e) => {
+                    const m = e.mensaje.replace(/^Partida \d+: /, "");
+                    return html`<li>${m.charAt(0).toUpperCase()}${m.slice(1)}</li>`;
+                  })}
+                </ul>`
+              : null}
+            ${resuelta ? html`<span class="partida-resuelta">✓ resuelta</span>` : null}
             ${fila?.variante_nueva && texto(l.dimension) ? html`<${Parecidas} estado=${estado} indices=${indices} linea=${l} alUsar=${usarVariante} />` : null}
           </li>`;
         })}
       </ol>
-      <div class="acciones-linea">
+      <div class="acciones-linea" hidden=${Boolean(filtro)}>
         <${Boton} onClick=${() => agregarLinea()}>＋ Agregar partida<//>
         ${copiando
           ? html`<span class="copiar-salida">
@@ -498,41 +546,63 @@ function ConfirmadaOk({ vale, alNueva }) {
   <//>`;
 }
 
-/** Barra fija arriba: estado del borrador y las acciones (siempre a la vista). */
-function BarraEntrada({ folio, datos, validacion, verErrores, setVerErrores, alDescartar, alRegistrar, alCopilot }) {
+// Lo que requiere atención, para filtrar las partidas desde la barra.
+const ATENCION = {
+  pendientes: { etiqueta: "con datos pendientes", clase: "chip-error", texto: (n) => `⚠ ${n} ${n === 1 ? "pendiente" : "pendientes"}`, titulo: "Partidas a las que les falta algo para registrar" },
+  revisar: { etiqueta: "por revisar", clase: "chip-alerta", texto: (n) => `${n} por revisar`, titulo: "Partidas que Copilot no leyó con seguridad" },
+  nuevas: { etiqueta: "con clave nueva", clase: "chip-info", texto: (n) => `${n} con clave nueva`, titulo: "Partidas que darán de alta una variante nueva en el inventario" },
+};
+
+/** Partidas que requieren atención, por tipo (uids), y los pendientes del encabezado. */
+function requiereAtencion(estado, datos, validacion) {
   const lineas = lineasEntradaCapturadas(datos.lineas);
-  const revisar = lineas.filter((l) => l.dudoso).length;
+  const conError = new Set(validacion.errores.filter((e) => e.renglon).map((e) => lineas[e.renglon - 1]?.uid));
+  const nuevas = new Set(vistaPreviaEntrada(estado, datos).filter((p) => p.variante_nueva).map((p) => p.uid));
+  return {
+    pendientes: lineas.filter((l) => conError.has(l.uid)).map((l) => l.uid),
+    revisar: lineas.filter((l) => l.dudoso).map((l) => l.uid),
+    nuevas: lineas.filter((l) => nuevas.has(l.uid)).map((l) => l.uid),
+    encabezado: validacion.errores.filter((e) => !e.renglon),
+  };
+}
+
+/**
+ * Barra fija arriba: estado del borrador y las acciones (siempre a la vista). Los chips de lo que
+ * requiere atención filtran las partidas.
+ */
+function BarraEntrada({ folio, datos, validacion, atencion, filtro, alFiltrar, verErrores, setVerErrores, alDescartar, alRegistrar, alCopilot }) {
+  const lineas = lineasEntradaCapturadas(datos.lineas);
   const faltan = validacion.errores.length;
   const ir = (error) => {
-    const uid = error.renglon ? lineas[error.renglon - 1]?.uid : null;
-    const ids = {
-      folio_externo: "folio-base",
-      origen: "viene-de",
-      fecha: "fecha-entrada",
-      codigo: `cod-${uid}`,
-      cantidad: `cant-${uid}`,
-      descripcion: `desc-${uid}`,
-      um: `um-${uid}`,
-      destino: `eclv-${uid}`,
-    };
-    const destino = (error.campo === "destino" && document.getElementById(`entra-${uid}`)?.disabled === false ? document.getElementById(`entra-${uid}`) : null) ?? document.getElementById(ids[error.campo]);
-    (uid ? document.getElementById(`partida-${uid}`) : destino)?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    const ids = { folio_externo: "folio-base", origen: "viene-de", fecha: "fecha-entrada" };
+    const destino = document.getElementById(ids[error.campo]);
+    destino?.scrollIntoView?.({ block: "center", behavior: "smooth" });
     destino?.focus?.({ preventScroll: true });
   };
+  const chips = Object.entries(ATENCION).filter(([tipo]) => atencion[tipo].length || filtro === tipo);
   return html`<div class="barra-entrada" role="region" aria-label="Acciones de la entrada">
     <div class="barra-entrada-fila">
       <div class="barra-entrada-estado">
         <span class="folio-grande" title="Folio interno con el que se registrará">${folio}</span>
         <span class="nota">Borrador · se guarda solo</span>
         <span class="chip-estado">${lineas.length} ${lineas.length === 1 ? "partida" : "partidas"}</span>
-        ${revisar ? html`<span class="chip-estado chip-alerta" title="Partidas que Copilot no leyó con seguridad">${revisar} por revisar</span>` : null}
-        ${faltan
-          ? html`<button type="button" class=${`chip-estado chip-error ${verErrores ? "abierto" : ""}`} onClick=${() => setVerErrores(!verErrores)} aria-expanded=${verErrores}>
-              ⚠ ${faltan} ${faltan === 1 ? "dato pendiente" : "datos pendientes"} ▾
+        ${chips.map(
+          ([tipo, a]) => html`<button
+            type="button"
+            class=${`chip-estado chip-filtro ${a.clase} ${filtro === tipo ? "activo" : ""}`}
+            aria-pressed=${filtro === tipo}
+            title=${`${a.titulo}. Pulsa para ver solo esas.`}
+            onClick=${() => alFiltrar(tipo)}
+          >
+            ${a.texto(atencion[tipo].length)}${filtro === tipo ? " ✕" : ""}
+          </button>`,
+        )}
+        ${atencion.encabezado.length
+          ? html`<button type="button" class=${`chip-estado chip-error ${verErrores ? "activo" : ""}`} onClick=${() => setVerErrores(!verErrores)} aria-expanded=${verErrores}>
+              ⚠ Faltan datos del vale ▾
             </button>`
-          : lineas.length
-            ? html`<span class="chip-estado chip-ok">✓ lista para registrar</span>`
-            : null}
+          : null}
+        ${!faltan && lineas.length ? html`<span class="chip-estado chip-ok">✓ lista para registrar</span>` : null}
       </div>
       <div class="barra-entrada-acciones">
         <${Boton} tipo="texto" onClick=${alCopilot} title="Leer el vale desde una foto o PDF con Copilot"><${Icono} nombre="chispa" tam=${16} /> Copilot<//>
@@ -540,9 +610,9 @@ function BarraEntrada({ folio, datos, validacion, verErrores, setVerErrores, alD
         <${Boton} tipo="primario" disabled=${!lineas.length} onClick=${alRegistrar}>Registrar entrada<//>
       </div>
     </div>
-    ${verErrores && faltan
+    ${verErrores && atencion.encabezado.length
       ? html`<ul class="barra-errores">
-          ${validacion.errores.map(
+          ${atencion.encabezado.map(
             (e) => html`<li>
               <button type="button" class="enlace-boton" onClick=${() => ir(e)}>${e.mensaje}</button>
             </li>`,
@@ -562,6 +632,12 @@ export function PaginaValesEntrada() {
   const [confirmada, setConfirmada] = useState(null);
   const [ventanaIA, setVentanaIA] = useState(false);
   const [reporteIA, setReporteIA] = useState(null);
+  // Filtro de lo que requiere atención: { tipo, uids } (las partidas que había al activarlo).
+  const [filtro, setFiltro] = useState(null);
+  // Transición al cargar lo de Copilot: 'guia' (sale la guía) | 'ventana' (se cierra la ventana).
+  const [transicion, setTransicion] = useState(null);
+  const [entrando, setEntrando] = useState(false);
+  const [recientes, setRecientes] = useState(null);
   useEffect(() => {
     const abrir = () => {
       const id = sesion.tomarPestana("borradores_entrada");
@@ -581,6 +657,7 @@ export function PaginaValesEntrada() {
     setIntentado(false);
     setVerErrores(false);
     setReporteIA(null);
+    setFiltro(null);
   }, [activo]);
 
   const guardar = async (valor) => {
@@ -608,6 +685,19 @@ export function PaginaValesEntrada() {
     () => (datos ? validarEntrada(estado, { ...datos, recibio_nombre: sesion.usuario || datos.recibio_nombre }) : { errores: [], avisos: [] }),
     [estado, datos, sesion.usuario],
   );
+  const atencion = useMemo(
+    () => (datos ? requiereAtencion(estado, datos, validacion) : { pendientes: [], revisar: [], nuevas: [], encabezado: [] }),
+    [estado, datos, validacion],
+  );
+  const filtrar = (tipo) => setFiltro(filtro?.tipo === tipo ? null : { tipo, uids: new Set(atencion[tipo]) });
+  const filtroEditor = filtro
+    ? {
+        etiqueta: ATENCION[filtro.tipo].etiqueta,
+        uids: filtro.uids,
+        resueltas: new Set([...filtro.uids].filter((uid) => !atencion[filtro.tipo].includes(uid))),
+        alQuitar: () => setFiltro(null),
+      }
+    : null;
 
   const nueva = () =>
     sesion.tarea("Creando entrada…", async () => {
@@ -645,7 +735,10 @@ export function PaginaValesEntrada() {
       const { errores: faltan } = validarEntrada(sesion.estado, listo);
       setIntentado(true);
       if (faltan.length) {
-        setVerErrores(true);
+        // Se muestran solo las partidas con pendientes (y lo que falta del encabezado).
+        if (atencion.pendientes.length) setFiltro({ tipo: "pendientes", uids: new Set(atencion.pendientes) });
+        setVerErrores(atencion.encabezado.length > 0);
+        window.scrollTo({ top: 0, behavior: hayAnimaciones() ? "smooth" : "auto" });
         return;
       }
       const folio = folioEntrada(siguienteFolio(sesion.estado, "ENTRADA"));
@@ -667,10 +760,29 @@ export function PaginaValesEntrada() {
         setVerErrores(true);
       }
     });
-  // Lo que devuelve Copilot se agrega al borrador; el resumen queda arriba de las partidas.
+  // Lo que devuelve Copilot se agrega al borrador; el resumen queda arriba de las partidas. Con
+  // animaciones, primero se ve "Listo" y la guía (o la ventana) se va suave antes de mostrar las partidas.
   const cargarIA = (respuesta) => {
     const { datos: nuevo, reporte } = aplicarEntradaIA(sesion.estado, datos, respuesta);
-    cambiar({ ...nuevo, modo: nuevo.modo ?? "asistida" });
+    const previas = new Set(datos.lineas.map((l) => l.uid));
+    const cargadas = new Set(lineasEntradaCapturadas(nuevo.lineas).filter((l) => !previas.has(l.uid)).map((l) => l.uid));
+    const guiada = !lineasEntradaCapturadas(datos.lineas).length;
+    const aplicar = () => {
+      cambiar({ ...nuevo, modo: nuevo.modo ?? "asistida" });
+      setTransicion(null);
+      setVentanaIA(false);
+      setFiltro(null);
+      setRecientes(cargadas);
+      setEntrando(guiada);
+      setTimeout(() => {
+        setRecientes(null);
+        setEntrando(false);
+      }, 2600);
+    };
+    if (hayAnimaciones()) {
+      setTransicion(guiada ? "guia" : "ventana");
+      setTimeout(aplicar, guiada ? 1100 : 380);
+    } else aplicar();
     const lineas = [
       `✓ ${reporte.partidas} ${reporte.partidas === 1 ? "partida cargada" : "partidas cargadas"}: ${reporte.conRenglon} a su renglón del inventario${reporte.nuevas ? `, ${reporte.nuevas} con clave nueva (revisa su contenedor en "Entra a")` : ""}.`,
       ...(reporte.sinCodigo.length ? [`⚠ Sin código legible: partida(s) ${reporte.sinCodigo.join(", ")}. Escríbelo a mano.`] : []),
@@ -679,10 +791,7 @@ export function PaginaValesEntrada() {
     ];
     return lineas;
   };
-  const alReporteIA = (lineas) => {
-    setReporteIA(lineas);
-    setVentanaIA(false);
-  };
+  const alReporteIA = (lineas) => setReporteIA(lineas);
   const copiarSalidaAlEmpezar = (folio) => {
     try {
       const traidos = datosDeDevolucion(estado, folio);
@@ -732,6 +841,9 @@ export function PaginaValesEntrada() {
             folio=${folio}
             datos=${datos}
             validacion=${validacion}
+            atencion=${atencion}
+            filtro=${filtro?.tipo ?? null}
+            alFiltrar=${filtrar}
             verErrores=${verErrores}
             setVerErrores=${setVerErrores}
             alDescartar=${descartar}
@@ -739,7 +851,7 @@ export function PaginaValesEntrada() {
             alCopilot=${() => setVentanaIA(true)}
           />
           ${modo === "asistida" && !capturadas
-            ? html`<section class="captura-asistida">
+            ? html`<section class=${`captura-asistida ${transicion === "guia" ? "saliendo" : ""}`}>
                 <header>
                   <span class="modo-icono"><${Icono} nombre="chispa" tam=${26} /></span>
                   <div>
@@ -758,9 +870,17 @@ export function PaginaValesEntrada() {
                       <button type="button" class="ventana-cerrar" title="Cerrar" aria-label="Cerrar el resumen" onClick=${() => setReporteIA(null)}>✕</button>
                     </div>`
                   : null}
-                <${EditorEntrada} key=${datos.id} datos=${datos} alCambiar=${cambiar} errores=${intentado ? validacion.errores : []} />`}
+                <${EditorEntrada}
+                  key=${datos.id}
+                  datos=${datos}
+                  alCambiar=${cambiar}
+                  errores=${intentado || filtro?.tipo === "pendientes" ? validacion.errores : []}
+                  filtro=${filtroEditor}
+                  entrando=${entrando}
+                  recientes=${recientes}
+                />`}
           ${ventanaIA
-            ? html`<${Ventana} titulo="Leer el vale con Copilot" clase="ventana-copilot" alCerrar=${() => setVentanaIA(false)}>
+            ? html`<${Ventana} titulo="Leer el vale con Copilot" clase="ventana-copilot" cerrando=${transicion === "ventana"} alCerrar=${() => setVentanaIA(false)}>
                 <p class="nota">Las partidas que lea se agregan después de las que ya tienes.</p>
                 <${PasosCopilot} tipo="entrada" alCargar=${cargarIA} alReporte=${alReporteIA} />
               <//>`

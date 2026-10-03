@@ -96,6 +96,8 @@ export function guardarPersona(estado, datos, usuario = null) {
   const nombre = nombrePersona(datos.nombre);
   if (!nombre) throw new ErrorCatalogo("Falta el nombre.");
   if (estado.personas.some((p) => p.id !== datos.id && p.nombre === nombre)) throw new ErrorCatalogo(`Ya existe ${nombre}.`);
+  const unificada = estado.personas.find((p) => p.id === estado.alias?.[nombre] && p.id !== datos.id);
+  if (unificada) throw new ErrorCatalogo(`${nombre} ya está unificado con ${unificada.nombre}.`);
   let persona = estado.personas.find((p) => p.id === datos.id);
   const antes = persona ? { ...persona } : null;
   const limpio = {

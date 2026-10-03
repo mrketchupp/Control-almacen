@@ -24,3 +24,9 @@ export function personalizacionRecordada() {
     return null;
   }
 }
+
+/** ¿Se anima? (no, si el almacenista las quitó o Windows pide reducir el movimiento). */
+export function hayAnimaciones() {
+  if (document.documentElement.dataset.animaciones === "no") return false;
+  return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { TIPOS_AREA, etiquetasFirmasExtra, tipoDeArea } from "../../nucleo/areas.js";
 import { areaVacia, guardarArea, guardarPersona } from "../../servicios/catalogos.js";
-import { Aviso, Boton, Buscador, CampoSugerido, Lista, Tabla, Tarjeta, useFiltroTexto, useSesion } from "../componentes.js";
+import { aliasDe, marcarDistintas, personasRepetidas, unificarPersonas, usosPorNombre } from "../../servicios/personas.js";
+import { Aviso, Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, Tarjeta, Ventana, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 function EditorArea({ area, hojas, alTerminar }) {
@@ -102,11 +103,141 @@ function EditorArea({ area, hojas, alTerminar }) {
   <//>`;
 }
 
+/** Une personas (la que queda + las demás como alias) con "Deshacer" en el aviso. */
+function useUnificar() {
+  const sesion = useSesion();
+  return (conservar, otras) =>
+    sesion.tarea("Unificando…", async () => {
+      const e0 = sesion.estado;
+      const copia = structuredClone({
+        personas: e0.personas,
+        alias: e0.alias ?? {},
+        plantillas_area: e0.plantillas_area,
+        usuario_en_turno: e0.config.usuario_en_turno ?? null,
+        preferencias_vale: e0.config.preferencias_vale ?? null,
+        personalizacion: e0.config.personalizacion ?? null,
+      });
+      const queda = await sesion.almacen.modificar((e) => unificarPersonas(e, conservar.id, otras.map((p) => p.id), sesion.usuario).nombre);
+      sesion.avisar("exito", `Listo: ${otras.map((p) => p.nombre).join(", ")} ${otras.length === 1 ? "quedó" : "quedaron"} como ${queda}. Los vales no cambiaron.`, 15000, {
+        etiqueta: "↶ Deshacer",
+        alHacer: () =>
+          sesion.almacen.modificar((e) => {
+            Object.assign(e, { personas: copia.personas, alias: copia.alias, plantillas_area: copia.plantillas_area });
+            for (const clave of ["usuario_en_turno", "preferencias_vale", "personalizacion"]) {
+              if (copia[clave] === null) delete e.config[clave];
+              else e.config[clave] = copia[clave];
+            }
+          }),
+      });
+    });
+}
+
+/** Un grupo de nombres que parecen la misma persona: cuál queda, cuáles se unen. */
+function GrupoRepetido({ grupo, alUnificar, alDescartar }) {
+  const [queda, setQueda] = useState(grupo[0].persona.id);
+  const [incluidas, setIncluidas] = useState(() => new Set(grupo.map((x) => x.persona.id)));
+  const otras = grupo.filter((x) => x.persona.id !== queda && incluidas.has(x.persona.id)).map((x) => x.persona);
+  const conservar = grupo.find((x) => x.persona.id === queda).persona;
+  return html`<li class="grupo-repetido">
+    <ul class="grupo-nombres">
+      ${grupo.map(
+        ({ persona, usos }) => html`<li class=${`${persona.id === queda ? "queda" : ""} ${incluidas.has(persona.id) ? "" : "fuera"}`}>
+          <label class="grupo-queda" title="Este nombre se queda en la lista">
+            <input type="radio" name=${`queda-${grupo[0].persona.id}`} checked=${persona.id === queda} onChange=${() => setQueda(persona.id)} />
+            <strong>${persona.nombre}</strong>
+          </label>
+          <span class="nota">${persona.puesto || "sin puesto"} · ${usos} ${usos === 1 ? "firma" : "firmas"}</span>
+          ${persona.es_almacenista ? html`<${Pastilla} tono="info">almacenista<//>` : null}
+          ${persona.id === queda
+            ? html`<${Pastilla} tono="ok">se queda<//>`
+            : html`<label class="grupo-incluir">
+                <input
+                  type="checkbox"
+                  checked=${incluidas.has(persona.id)}
+                  onChange=${(e) => {
+                    const nuevo = new Set(incluidas);
+                    if (e.currentTarget.checked) nuevo.add(persona.id);
+                    else nuevo.delete(persona.id);
+                    setIncluidas(nuevo);
+                  }}
+                />
+                unir
+              </label>`}
+        </li>`,
+      )}
+    </ul>
+    <div class="acciones-linea">
+      <${Boton} tipo="primario" tamano="chico" disabled=${!otras.length} onClick=${() => alUnificar(conservar, otras)}>Unificar en «${conservar.nombre}»<//>
+      <${Boton} tipo="texto" tamano="chico" onClick=${() => alDescartar(grupo.map((x) => x.persona.id))}>No son la misma persona<//>
+    </div>
+  </li>`;
+}
+
+/** Nombres que parecen la misma persona escrita de otra forma (sugerencias para limpiar la lista). */
+function Repetidas() {
+  const sesion = useSesion();
+  const unificar = useUnificar();
+  const grupos = useMemo(() => personasRepetidas(sesion.estado), [sesion.estado.personas, sesion.estado.config?.personas_distintas, sesion.estado.vales]);
+  const [verTodos, setVerTodos] = useState(false);
+  if (!grupos.length) return null;
+  const descartar = (ids) => sesion.tarea("Guardando…", () => sesion.almacen.modificar((e) => marcarDistintas(e, ids)));
+  const visibles = verTodos ? grupos : grupos.slice(0, 5);
+  return html`<${Tarjeta} titulo=${`Nombres repetidos (${grupos.length})`} clase="tarjeta-repetidos">
+    <p class="nota">
+      Parecen la misma persona escrita de otra forma (orden de nombres y apellidos, acentos, iniciales o una letra distinta).
+      Elige el nombre que se queda y unifica: los otros quedan como sus alias. <strong>Los vales ya hechos no cambian</strong>;
+      solo se limpia la lista y las áreas que usaban esos nombres.
+    </p>
+    <ol class="grupos-repetidos">
+      ${visibles.map((g) => html`<${GrupoRepetido} key=${g.map((x) => x.persona.id).join("-")} grupo=${g} alUnificar=${unificar} alDescartar=${descartar} />`)}
+    </ol>
+    ${grupos.length > visibles.length ? html`<${Boton} tipo="texto" onClick=${() => setVerTodos(true)}>Ver los ${grupos.length} grupos<//>` : null}
+  <//>`;
+}
+
+/** Unir a mano las personas marcadas en la tabla: se elige el nombre que queda. */
+function VentanaUnir({ personas, alCerrar }) {
+  const sesion = useSesion();
+  const unificar = useUnificar();
+  const usos = useMemo(() => usosPorNombre(sesion.estado), []);
+  const [queda, setQueda] = useState(personas[0].id);
+  const conservar = personas.find((p) => p.id === queda);
+  return html`<${Ventana} titulo="Unificar personas" alCerrar=${alCerrar}>
+    <p>¿Qué nombre se queda? Los demás quedan como sus alias. Los vales ya hechos no cambian.</p>
+    <div class="opciones-radio">
+      ${personas.map(
+        (p) => html`<label>
+          <input type="radio" name="unir-queda" checked=${p.id === queda} onChange=${() => setQueda(p.id)} />
+          <span><strong>${p.nombre}</strong> <span class="nota">${p.puesto || "sin puesto"} · ${usos.get(p.nombre) ?? 0} firmas</span></span>
+        </label>`,
+      )}
+    </div>
+    <div class="acciones-linea">
+      <${Boton}
+        tipo="primario"
+        onClick=${async () => {
+          await unificar(
+            conservar,
+            personas.filter((p) => p.id !== queda),
+          );
+          alCerrar(true);
+        }}
+      >
+        Unificar en «${conservar.nombre}»
+      <//>
+      <${Boton} tipo="texto" onClick=${() => alCerrar(false)}>Cancelar<//>
+    </div>
+  <//>`;
+}
+
 function Personas() {
   const sesion = useSesion();
   const [texto, setTexto] = useState("");
+  const [marcadas, setMarcadas] = useState(() => new Set());
+  const [uniendo, setUniendo] = useState(false);
   const personas = [...sesion.estado.personas].sort((a, b) => Number(b.es_almacenista) - Number(a.es_almacenista) || a.nombre.localeCompare(b.nombre, "es"));
-  const visibles = useFiltroTexto(personas, texto, ["nombre", "puesto"]);
+  const conAlias = personas.map((p) => ({ ...p, alias: aliasDe(sesion.estado, p.id).join(" · ") }));
+  const visibles = useFiltroTexto(conAlias, texto, ["nombre", "puesto", "alias"]);
   const cambiar = (persona, cambios) =>
     sesion.tarea("Guardando…", () => sesion.almacen.modificar((e) => guardarPersona(e, { ...persona, ...cambios }, sesion.usuario)));
   const agregar = () => {
@@ -115,14 +246,40 @@ function Personas() {
     const puesto = (window.prompt("Puesto:") || "").trim();
     return sesion.tarea("Guardando…", () => sesion.almacen.modificar((e) => guardarPersona(e, { nombre, puesto }, sesion.usuario)));
   };
+  const marcar = (id, si) => {
+    const nuevo = new Set(marcadas);
+    if (si) nuevo.add(id);
+    else nuevo.delete(id);
+    setMarcadas(nuevo);
+  };
+  const seleccion = personas.filter((p) => marcadas.has(p.id));
   return html`<${Tarjeta} titulo="Personas" acciones=${html`<${Boton} onClick=${agregar}>＋ Agregar persona<//>`}>
-    <p class="nota">Los almacenistas aparecen en "En turno". Las personas inactivas no se sugieren en los vales.</p>
-    <div class="filtros"><${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Buscar persona o puesto…" /></div>
+    <p class="nota">
+      Los almacenistas aparecen en "En turno". Las personas inactivas no se sugieren en los vales. Para juntar a una persona
+      escrita de varias formas, márcalas en <em>Unir</em> y pulsa <em>Unificar</em>.
+    </p>
+    <div class="filtros">
+      <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Buscar persona, puesto u otro nombre…" />
+      ${seleccion.length
+        ? html`<span class="seleccion-unir">
+            ${seleccion.length} marcadas
+            <${Boton} tipo="primario" tamano="chico" disabled=${seleccion.length < 2} onClick=${() => setUniendo(true)}>Unificar…<//>
+            <${Boton} tipo="texto" tamano="chico" onClick=${() => setMarcadas(new Set())}>Quitar marcas<//>
+          </span>`
+        : null}
+    </div>
     <${Tabla}
       limite=${50}
       filas=${visibles}
       columnas=${[
-        { clave: "nombre", titulo: "Nombre" },
+        {
+          titulo: "Unir",
+          render: (p) => html`<input type="checkbox" checked=${marcadas.has(p.id)} onChange=${(e) => marcar(p.id, e.currentTarget.checked)} aria-label=${`Marcar para unir: ${p.nombre}`} />`,
+        },
+        {
+          titulo: "Nombre",
+          render: (p) => html`<span>${p.nombre}</span>${p.alias ? html`<small class="alias-persona" title="Otros nombres con los que aparece en vales anteriores">también: ${p.alias}</small>` : null}`,
+        },
         {
           titulo: "Puesto",
           render: (p) => html`<input class="entrada-tabla" value=${p.puesto ?? ""} onChange=${(e) => cambiar(p, { puesto: e.currentTarget.value })} />`,
@@ -137,6 +294,15 @@ function Personas() {
         },
       ]}
     />
+    ${uniendo
+      ? html`<${VentanaUnir}
+          personas=${seleccion}
+          alCerrar=${(hecho) => {
+            setUniendo(false);
+            if (hecho) setMarcadas(new Set());
+          }}
+        />`
+      : null}
   <//>`;
 }
 
@@ -164,6 +330,7 @@ export function PaginaAreas() {
         ]}
       />
     <//>
+    <${Repetidas} />
     <${Personas} />
   `;
 }

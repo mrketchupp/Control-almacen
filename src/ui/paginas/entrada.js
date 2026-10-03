@@ -136,6 +136,7 @@ export function PaginaEntrada() {
                 { clave: "codigo", titulo: "Código", numero: true },
                 { clave: "descripcion", titulo: "Descripción" },
                 { clave: "clave", titulo: "Clave" },
+                { titulo: "NP", render: (l) => (l.variante_id ? indices.variante(l.variante_id)?.np : null) || "—" },
                 { titulo: "Cantidad", numero: true, render: (l) => num(aNumero(l.cantidad)) },
                 { clave: "um", titulo: "UM" },
                 { titulo: "O.C.", render: (l) => l.oc || "S/OC" },

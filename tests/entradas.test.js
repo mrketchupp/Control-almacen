@@ -191,6 +191,41 @@ test("clave escrita: si no existe es variante nueva sin capturarla aparte; Entra
   assert.equal(vale.lineas[0].clave, "6400");
 });
 
+test("NP: se separa de la clave, se captura en su campo y otro NP es otra variante", () => {
+  const { estado, indices, renglones } = preparar();
+  assert.deepEqual(en.separarNp("6309-2Z NP: SKF123"), { dimension: "6309-2Z", np: "SKF123" });
+  assert.deepEqual(en.separarNp('BRIDA 6" N/P 45-A'), { dimension: 'BRIDA 6"', np: "45-A" });
+  assert.deepEqual(en.separarNp("6205 (P/N 778)"), { dimension: "6205", np: "778" });
+  assert.deepEqual(en.separarNp('1/2" NPT'), { dimension: '1/2" NPT', np: "" }); // rosca, no NP
+  assert.deepEqual(en.separarNp("SNAP RING"), { dimension: "SNAP RING", np: "" });
+
+  // 704 vive con dimensión 6" y NP FLEXITALIC.
+  const base = { ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), 704, { indices }), cantidad: "1" };
+  assert.deepEqual([base.clave, base.np], ['6"', "FLEXITALIC"]); // el NP del renglón se muestra en su campo
+  // Clave con el NP adentro: al salir del campo se separa y se elige ese renglón.
+  const escrita = en.conClaveEscrita(estado, { ...base, existencia_id: null, alta: false, clave: "", np: "" }, '6" NP: FLEXITALIC', { indices });
+  const resuelta = en.conClaveYNp(estado, escrita, { indices });
+  assert.deepEqual([resuelta.clave, resuelta.np, resuelta.alta], ['6"', "FLEXITALIC", false]);
+  assert.equal(en.destinoDe(estado, resuelta, indices).tipo, "renglon");
+  // Otro NP en el mismo renglón: variante nueva (misma dimensión) en el mismo contenedor.
+  const otroNp = en.conNpEscrito(estado, base, "GARLOCK", { indices });
+  assert.deepEqual([otroNp.alta, otroNp.dimension, otroNp.np], [true, '6"', "GARLOCK"]);
+  assert.equal(otroNp.ubicacion_id, indices.existencia(base.existencia_id).ubicacion_id);
+  // Volver a escribir el NP del renglón: sigue siendo ese renglón.
+  assert.equal(en.conClaveYNp(estado, en.conNpEscrito(estado, otroNp, "FLEXITALIC", { indices }), { indices }).existencia_id !== null, true);
+  // Clave nueva con NP adentro: variante nueva con los dos datos ya separados.
+  const nueva = en.conClaveYNp(estado, en.conClaveEscrita(estado, { ...base, existencia_id: null, alta: false, clave: "", np: "" }, "8 PULG NP: AB-9", { indices }), { indices });
+  assert.deepEqual([nueva.alta, nueva.clave, nueva.dimension, nueva.np], [true, "8 PULG", "8 PULG", "AB-9"]);
+  // Sin cambios, devuelve la misma línea.
+  assert.equal(en.conClaveYNp(estado, base, { indices }), base);
+  // Al confirmar, la variante nueva queda en el inventario con su NP.
+  const b = borrador(estado, [{ ...otroNp, cantidad: "2" }]);
+  const vale = en.confirmarEntrada(estado, b.id, { usuario: USUARIO });
+  const variante = estado.variantes.find((v) => v.id === vale.lineas[0].variante_id);
+  assert.deepEqual([variante.dimension, variante.np], ['6"', "GARLOCK"]);
+  assert.equal(renglones(704).length, 3);
+});
+
 test("corregir una entrada: motivo con los cambios, avisa si la existencia queda negativa y no deja renglones huérfanos", () => {
   const { estado, indices, renglones, ubicacion } = preparar();
   const [balero1] = renglones(701);

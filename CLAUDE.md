@@ -23,7 +23,8 @@ Pendiente:
 - ☐ Recorrido con los archivos reales del usuario (solo en local, nunca subirlos) como en rondas anteriores.
 - Ronda 5 de comentarios aplicada (ver `docs/08-plan.md`): Deshacer al descartar, clave/lote, entradas sin motivo, hoja de conteo, captura con Copilot, menú *Ajustes y más*, inicio bento.
 - Ronda 6 aplicada: reporte diario = libros al cierre del día (`servicios/corte.js`; se quitó el PNG), entradas rediseñadas (modo manual/asistida, barra fija, tarjetas, Solicita = LOTE, JSON tolerante), *Ajustes y más* en primer plano, personalización (tema, avisos, animaciones).
-- Ronda 7 aplicada: *Ajustes y más* más amplia (`.ventana.ventana-mas`, container query en la vista previa), bento de Etapa de perforación en el inicio (en lugar de Inventario), *Reporte diario* en el menú (sin fecha en el inicio) y descargas explícitas en el reporte. Falta que el usuario la revise.
+- Ronda 7 aplicada: *Ajustes y más* más amplia (`.ventana.ventana-mas`, container query en la vista previa), bento de Etapa de perforación en el inicio (en lugar de Inventario), *Reporte diario* en el menú (sin fecha en el inicio) y descargas explícitas en el reporte.
+- Ronda 8 aplicada: NP en entradas (`separarNp`, `conNpEscrito`, `conClaveYNp`), filtros de lo que requiere atención en la barra, Copilot con *Pegar* y transición suave, unificar personas repetidas (`servicios/personas.js`). Falta que el usuario la revise.
 - Futuro (no es F3): leer el vale de la base desde Excel o foto (RF-35); resumen de guardia.
 
 ## Reglas no negociables
@@ -64,6 +65,7 @@ Pendiente:
 - Las fotos del formato NOV (imágenes sobre la zona de partidas) son espacios para las fotos del vale, no se imprimen; las partidas caben arriba (4).
 - UI: no usar `<select>` ni `<datalist>`; usar `Lista`, `Combo` y `CampoSugerido` (`src/ui/componentes.js`).
 - Partidas de salida: CLAVE = dimensión del renglón tal cual (vacía → `SIN DIMENSIÓN`) y NP → LOTE (`claveDeRenglon`, `conLoteDeNp`). `claveParaVale` (dimensión + `NP:`) solo queda para lo anterior. **En entradas, LOTE = quien solicita** (así lo anota la base); la clave escrita que no existe es la dimensión de la variante nueva (`conClaveEscrita`), sin capturarla aparte.
+- Personas repetidas: se unifican con `unificarPersonas` (la que queda + `estado.alias` para los otros nombres). **Nunca se reescriben los nombres de los vales**; solo la lista, las plantillas de área y lo guardado por almacenista. Las ventanas (`Ventana`) se dibujan en un portal sobre `body` (dentro de *Ajustes y más* hay `container-type`, que encerraría un `position: fixed`).
 - Menú: las páginas con `grupo: "mas"` se abren en la vista *Ajustes y más* (`Ventana` en primer plano sobre la página de fondo; el hash es el de la sección y al cerrar vuelve al fondo); `soloConAviso` (Pendientes) solo aparece con insignia. Íconos propios en `src/ui/iconos.js` (SVG en línea, sin fuentes externas). Ventanas modales: `Ventana` en `ui/componentes.js`.
 - Captura con Copilot (`servicios/capturaIA.js`): la herramienta NO se conecta; solo da instrucciones para copiar y lee el JSON pegado con `jsonTolerante.js` (repara lo cortado o mal formado, sin `eval`) y nombres parecidos.
 - Reporte diario: `estadoAlCierre(estado, fecha)` (copia del estado al cierre del día) → `Almacen.exportar(tipo, …, { corte })`. *Ya lo subí* del reporte usa `registrarEnvio(…, { hastaFolio })`.
