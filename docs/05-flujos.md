@@ -19,7 +19,7 @@ flowchart TD
     K --> M[Se agrega a DIARIO<br/>y descuenta CONSUMO]
 ```
 
-- **Borradores:** se pueden tener varios abiertos en pestañas. No consumen folio y se guardan automáticamente (sobreviven a cerrar la pestaña).
+- **Borradores:** se pueden tener varios abiertos en pestañas. No consumen folio y se guardan automáticamente (sobreviven a cerrar la pestaña). Descartar uno es inmediato y el aviso ofrece **Deshacer**.
 - **Pantalla:** a la izquierda los datos del vale: primero lo que se captura (área, fecha; en transferencias origen y destino; personas, etapa) y al final, en "Se llenan solos", lo automático (quién entrega, de dónde sale, a dónde llega y las observaciones fijas). Al centro las **partidas** y, debajo, en su propia sección, las **fotos** (NOV). Las partidas van con las mismas columnas y en el mismo orden que el vale impreso (O.C., cantidad, código, descripción, clave almacén, presentación, lote). Lo que viene del inventario (contenedor, existencia) se muestra en **pastillas grises**, aparte de lo que se imprime.
 - **Pantalla de cada almacenista (Ajustes → Mi pantalla de vales):** el orden de los bloques del panel de datos se cambia arrastrándolos por sus puntitos (o con ↑ ↓) en una vista previa, y un botón pasa los datos al otro lado de las partidas. Se guarda por almacenista y se aplica según quién está en turno; lo descrito arriba es el acomodo de fábrica (*Restablecer como venía*).
 - **Vales internos** (todo menos NOV y transferencias): salen de `RIG 91 · ALMACEN` y llegan a `RIG 91 · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.
@@ -69,9 +69,18 @@ flowchart TD
 En la herramienta el vale de la base se **captura** (llega en papel, P-04); leerlo de un Excel o de una foto queda
 como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran con *Sin existencia* (no suman).
 
-**Devolución** (P-08): *Vales de entrada → Motivo: Devolución* → folio de salida → *Traer renglones*. Cada renglón
-regresa al renglón del inventario del que salió; se ajusta la cantidad a lo que regresó. Si la base aún no capturó el
-vale en AX, también se puede corregir el vale de salida original.
+El vale de entrada solo pide **de dónde viene** (la base o un equipo); el departamento siempre es ALMACEN y no hay
+"motivo" que elegir (comentario del usuario). Las partidas se pueden **capturar desde la foto o el PDF** del vale con el
+asistente de la cuenta de trabajo (ver abajo).
+
+**Material que regresa** (P-08): *↩ Copiar partidas de un vale de salida* → folio. Cada partida regresa al renglón del
+inventario del que salió; se ajusta la cantidad a lo que regresó. Si la base aún no capturó el vale en AX, también se
+puede corregir el vale de salida original.
+
+**Captura asistida (Copilot):** la herramienta da unas instrucciones con el formato JSON esperado; el usuario las pega
+en su asistente con la foto o el PDF y pega aquí la respuesta. Se llena el borrador (entrada) o la captura (conteo:
+por contenedor + ITEM de la hoja impresa, confirmando con el código); lo dudoso o no reconocido se reporta. La
+herramienta no se conecta a ningún servicio (`src/servicios/capturaIA.js`).
 
 ## 3. Corrección y devolución
 
@@ -79,8 +88,8 @@ vale en AX, también se puede corregir el vale de salida original.
 |---|---|
 | **Error de captura** en un vale emitido | *Historial → folio → Corregir*. El **motivo se llena solo** con lo que cambió (partidas agregadas, quitadas o modificadas, personas, etapa, fotos) y se puede completar con el porqué. El folio no cambia. La bitácora guarda el motivo, la lista de cambios y antes → después; la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias). |
 | **Vale que no debió emitirse** | No se cancela (todos los folios se usan): se corrige para que refleje lo que realmente salió. |
-| **Devolución de material** | Vale de entrada con motivo *Devolución* que referencia el folio de salida y regresa cada renglón a su contenedor. Si la base aún no lo captura en AX, también se puede corregir el vale original (P-08). |
-| **Vale ya enviado a la base y luego corregido** | Vuelve a aparecer en *Exportar y enviar → Por enviar a la base* con el cambio "Corregido", para avisar a la base. |
+| **Devolución de material** | Vale de entrada con *Copiar partidas de un vale de salida*: referencia el folio y regresa cada partida a su renglón. Si la base aún no lo captura en AX, también se puede corregir el vale original (P-08). |
+| **Vale ya subido al SharePoint y luego corregido** | Vuelve a aparecer en *Subir al SharePoint* (Inicio y *Exportar y enviar*) con el cambio "Corregido", para avisar a la base. |
 
 ## 4. Conteo físico
 
@@ -118,11 +127,15 @@ flowchart LR
 - **Diferencia explicada** = físico − AX + salidas en tránsito − entradas en tránsito. Si da 0, la diferencia se marca como "explicada por vales" y se listan los folios.
 - **Valuación:** costo unitario = Valor financiero / Disponible del renglón AX.
 
-## 6. Exportación y envío diario
+## 6. Reporte diario, exportación y SharePoint
+
+*Inicio → Crear reporte diario* (con fecha): los vales de salida de ese día como **imágenes PNG** (una por vale, en un
+.zip con la fecha; se dibujan en el navegador con el mismo HTML de impresión) o PDF, las entradas del día y el bloque
+*Subir al SharePoint* con el libro de vales y el botón **✓ Ya lo subí** (registra el envío).
 
 1. **Exportar → Vales:** genera `VALES DE SALIDA DLTA.xlsm` sobre la plantilla registrada, con `DIARIO` completo y actualizado.
 2. La herramienta valida el archivo, lo guarda en la carpeta de exportaciones y registra hasta qué folio se incluyó.
-3. El usuario lo envía por correo como hoy y pulsa **"Ya lo envié: marcar como enviado"**. La lista *Por enviar a la base* muestra los vales nuevos o corregidos desde el último envío (se lleva con un contador de cambios, no con la hora, para que no se escape ninguno).
+3. El usuario lo sube al SharePoint y pulsa **"✓ Ya lo subí"**. *Subir al SharePoint* muestra los vales nuevos o corregidos desde la última subida (se lleva con un contador de cambios, no con la hora, para que no se escape ninguno).
 4. **Exportar → Inventario:** genera el `.xlsx` con fecha en el nombre, cuando se necesite.
 
 ## 7. Cambio de guardia

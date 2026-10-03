@@ -21,7 +21,7 @@ Hecho (con pruebas unitarias y recorrido en Chromium con datos sintéticos, incl
 Pendiente:
 - ☐ Aceptación del usuario: registrar una entrada real y revisar el inventario exportado; hacer un conteo con la hoja impresa.
 - ☐ Recorrido con los archivos reales del usuario (solo en local, nunca subirlos) como en rondas anteriores.
-- ☐ P-08: confirmar con el usuario si las devoluciones se registran como entrada o corrigiendo el vale original (la herramienta permite ambas).
+- Ronda 5 de comentarios aplicada (ver `docs/08-plan.md`): Deshacer al descartar, clave/lote, entradas sin motivo, hoja de conteo, captura con Copilot, reporte diario (PNG), menú *Ajustes y más*, inicio bento. Falta que el usuario la revise.
 - Futuro (no es F3): leer el vale de la base desde Excel o foto (RF-35); resumen de guardia.
 
 ## Reglas no negociables
@@ -61,6 +61,9 @@ Pendiente:
 - NOV: la macro guardaba las firmas **por posición** (P = izquierda = químico, Q = derecha = almacenista). Los migrados quedan así (`firmasPorPosicion`/`conFirmasPorPapel` para mostrarlos); los nuevos se guardan por papel y el exportador los invierte con `almacenista_derecha`.
 - Las fotos del formato NOV (imágenes sobre la zona de partidas) son espacios para las fotos del vale, no se imprimen; las partidas caben arriba (4).
 - UI: no usar `<select>` ni `<datalist>`; usar `Lista`, `Combo` y `CampoSugerido` (`src/ui/componentes.js`).
+- Partidas: CLAVE = dimensión del renglón tal cual (vacía → `SIN DIMENSIÓN`) y NP → LOTE (`claveDeRenglon`, `conLoteDeNp`). `claveParaVale` (dimensión + `NP:`) solo queda para lo anterior.
+- Menú: las páginas con `grupo: "mas"` van en la ventana *Ajustes y más*; `soloConAviso` (Pendientes) solo aparece con insignia. Íconos propios en `src/ui/iconos.js` (SVG en línea, sin fuentes externas).
+- Captura con Copilot (`servicios/capturaIA.js`): la herramienta NO se conecta; solo da instrucciones para copiar y lee el JSON pegado. Las imágenes del reporte diario se dibujan en el navegador (`ui/imagen.js`, SVG foreignObject → canvas; todas las imágenes deben ser `data:`).
 - Entradas: folio interno propio (`E-0001`, consecutivo aparte de salidas); B del libro de entradas = folio de la base. Un renglón de entrada va a un renglón existente, a uno nuevo (variante existente en otro contenedor o variante nueva) o *sin existencia*.
 - Conteos: cada renglón descuenta desde **su** conteo (`existencia.conteo_id`); un conteo parcial solo toca lo capturado. El reacomodo deja ambos renglones "recién contados" (conteo `tipo: REACOMODO`, que no se lista como conteo físico).
 - El panel de datos del vale se arma por bloques (`bloques` en `EditorVale`) en el orden de `config.preferencias_vale[almacenista]` (`src/servicios/preferencias.js`). Un bloque nuevo se agrega en `BLOQUES_VALE` y en `bloques`; `normalizarOrden` lo inserta en su lugar para quien ya tenía preferencias.

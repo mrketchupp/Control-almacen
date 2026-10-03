@@ -4,47 +4,10 @@ import { leerArchivoSubido, soportaGuardarComo } from "../../almacen/archivos.js
 import { leerVales } from "../../importadores/vales.js";
 import { lineasPorUbicar } from "../../servicios/consultas.js";
 import { importarValesNuevos, revisarValesNuevos } from "../../servicios/sincronizar.js";
-import { registrarEnvio, ultimoEnvio, valesPorEnviar } from "../../servicios/vales.js";
-import { Aviso, Boton, ElegirArchivo, Tabla, Tarjeta, confirmar, useSesion } from "../componentes.js";
+import { valesPorEnviar } from "../../servicios/vales.js";
+import { Aviso, Boton, ElegirArchivo, Tabla, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
-
-const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
-
-function PorEnviar() {
-  const sesion = useSesion();
-  const estado = sesion.estado;
-  const pendientes = useMemo(() => valesPorEnviar(estado), [estado]);
-  const ultimo = ultimoEnvio(estado);
-  const marcar = () => {
-    if (!confirmar(`¿Ya enviaste a la base el archivo de vales con ${pendientes.length} cambio(s)? Se marcarán como enviados.`)) return;
-    return sesion.tarea("Guardando…", async () => {
-      await sesion.almacen.modificar((e) => registrarEnvio(e, sesion.usuario));
-      sesion.avisar("exito", "Envío registrado.");
-    });
-  };
-  return html`<${Tarjeta} titulo=${`Por enviar a la base (${pendientes.length})`}>
-    <p class="nota">
-      ${ultimo
-        ? `Último envío: ${fmtFechaHora(ultimo.fecha_hora)}${ultimo.usuario ? ` · ${ultimo.usuario}` : ""}.`
-        : "Aún no registras envíos desde la herramienta."}${" "}
-      Aquí aparecen los vales nuevos o corregidos desde entonces, para avisarle a la base qué cambió.
-    </p>
-    ${pendientes.length
-      ? html`<${Tabla}
-            filas=${pendientes.map((p) => ({ id: p.vale.id, folio: p.vale.folio, fecha: fmtFecha(p.vale.fecha), destino: p.vale.depto_destino ?? "", motivo: MOTIVOS[p.motivo] }))}
-            columnas=${[
-              { titulo: "Folio", numero: true, render: (f) => html`<a class="enlace-folio" href=${`#vale/${f.id}`}>${f.folio}</a>` },
-              { clave: "fecha", titulo: "Fecha" },
-              { clave: "destino", titulo: "Área" },
-              { clave: "motivo", titulo: "Cambio" },
-            ]}
-          />
-          <div class="acciones-linea">
-            <${Boton} onClick=${marcar}>✓ Ya lo envié: marcar como enviado<//>
-          </div>`
-      : html`<p class="ok">Nada pendiente de enviar.</p>`}
-  <//>`;
-}
+import { SubirSharePoint, exportarConDialogo } from "./sharepoint.js";
 
 function TraerDelExcel() {
   const sesion = useSesion();
@@ -91,22 +54,7 @@ export function PaginaExportar() {
   const estado = sesion.estado;
   const pendientes = useMemo(() => lineasPorUbicar(estado).length, [estado]);
   const [exportoVales, setExportoVales] = useState(false);
-  const exportar = async (tipo) => {
-    // Primero "Guardar como" (tiene que abrirse directo desde el clic); luego se genera el archivo.
-    let archivo;
-    try {
-      archivo = await sesion.elegirDestinoExportacion(tipo);
-    } catch (error) {
-      sesion.avisar("error", `No se pudo abrir la ventana para guardar: ${error.message}`);
-      return;
-    }
-    if (archivo === null) return; // canceló
-    await sesion.tarea("Generando Excel…", async () => {
-      const destino = await sesion.exportar(tipo, archivo);
-      sesion.avisar("exito", `Listo: ${destino}`);
-      if (tipo === "VALES") setExportoVales(true);
-    });
-  };
+  const exportar = (tipo) => exportarConDialogo(sesion, tipo, () => tipo === "VALES" && setExportoVales(true));
   const destino = sesion.carpetaLista ? `${sesion.carpeta.name}/exportaciones/${hoyIso()}/` : "tu carpeta de Descargas";
   const conDialogo = soportaGuardarComo();
   const historial = [...estado.exportaciones].reverse().slice(0, 20);
@@ -127,10 +75,10 @@ export function PaginaExportar() {
       : null}
     <div class="rejilla-2">
       <${Tarjeta} titulo="Vales de salida (.xlsm)">
-        <p>Reescribe solo la hoja <strong>DIARIO</strong> con el historial completo. Es el archivo que envías a la base.</p>
+        <p>Reescribe solo la hoja <strong>DIARIO</strong> con el historial completo. Es el archivo que subes al SharePoint para la base.</p>
         <${Boton} tipo="primario" onClick=${() => exportar("VALES")}>${conDialogo ? "Exportar vales…" : "Exportar vales"}<//>
         ${exportoVales && porEnviar
-          ? html`<p class="nota">Cuando lo envíes por correo, márcalo como enviado abajo.</p>`
+          ? html`<p class="nota">Cuando lo subas al SharePoint, márcalo abajo con "Ya lo subí".</p>`
           : null}
       <//>
       <${Tarjeta} titulo="Inventario (.xlsx)">
@@ -146,7 +94,7 @@ export function PaginaExportar() {
         ${entradas ? null : html`<p class="nota">Aún no hay entradas registradas.</p>`}
       <//>
     </div>
-    <${PorEnviar} />
+    <${SubirSharePoint} />
     <${Tarjeta} titulo="Exportaciones recientes">
       <${Tabla}
         filas=${historial}

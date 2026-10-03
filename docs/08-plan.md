@@ -93,6 +93,12 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ☐ El DIARIO exportado es aceptado por la base sin comentarios (prueba real de un envío).
 
 ## Fase 3 — Vales de entrada y conteos ✅ (entregada, en aceptación)
+
+**Ronda de comentarios (aplicada, ronda 5):** descartar un borrador ofrece *Deshacer*; la clave es la dimensión tal cual
+y el NP va en el LOTE; en entradas se dice "partida", sin motivo ni depto. origen (solo "viene de"); hoja de conteo con
+renglones altos y uniformes para escribir; captura desde foto/PDF con Copilot (copiar instrucciones y pegar el JSON) en
+entradas y conteo; reporte diario con imágenes PNG de los vales del día, PDF, libro de vales y *Subir al SharePoint* con
+botón de completado; menú corto con íconos y ventana *Ajustes y más*; inicio tipo bento con accesos grandes.
 Entregables:
 - **Vales de entrada** en pestañas (borradores que se guardan solos): folio de la base, de dónde viene, quién entrega;
   por renglón código → clave con el contenedor sugerido (el de más existencia, ★), "Entra a" para cambiarlo, variante

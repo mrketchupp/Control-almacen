@@ -18,12 +18,7 @@ import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
 import { crearRenglon, lugarCorto, renglonDe } from "./inventario.js";
-import { claveParaVale, disponibles, siguienteFolio } from "./vales.js";
-
-export const MOTIVOS_ENTRADA = {
-  BASE: "Material de la base",
-  DEVOLUCION: "Devolución de un vale de salida",
-};
+import { claveDeRenglon, conLoteDeNp, disponibles, loteDeRenglon, siguienteFolio } from "./vales.js";
 
 export class ErrorEntrada extends Error {
   constructor(mensaje, errores = []) {
@@ -87,7 +82,7 @@ export function nuevoBorradorEntrada(estado, { usuario = null, fecha = hoyIso() 
     devolucion_folio: null,
     fecha,
     origen: ultima?.origen ?? "",
-    depto_origen: ultima?.depto_origen ?? "",
+    depto_origen: DEPTO_ALMACEN,
     destino: ORIGEN_EQUIPO,
     depto_destino: DEPTO_ALMACEN,
     entrego_nombre: "",
@@ -125,7 +120,8 @@ export function destinosDeCodigo(estado, codigo, { indices = new Indices(estado)
       id: e.id,
       variante_id: v.id,
       ubicacion_id: u.id,
-      clave: claveParaVale(dimensionMostrada(e, v), npMostrado(e, v)),
+      clave: claveDeRenglon(dimensionMostrada(e, v)),
+      np: loteDeRenglon(npMostrado(e, v)),
       lugar: lugarCorto(u),
       hoja: u.hoja_excel.trim(),
       total: totales.get(e.id)?.total ?? CERO,
@@ -151,16 +147,19 @@ export function destinosDeCodigo(estado, codigo, { indices = new Indices(estado)
 export function conRenglonExistente(estado, linea, existenciaId, indices = new Indices(estado)) {
   const e = indices.existencia(existenciaId);
   const v = indices.variante(e.variante_id);
-  return {
-    ...linea,
-    ...SIN_DESTINO,
-    codigo: v.codigo,
-    descripcion: texto(linea.descripcion) || (indices.articulo(v.codigo)?.descripcion ?? ""),
-    existencia_id: e.id,
-    variante_id: v.id,
-    clave: claveParaVale(dimensionMostrada(e, v), npMostrado(e, v)),
-    um: umMostrada(e, v) || linea.um,
-  };
+  return conLoteDeNp(
+    {
+      ...linea,
+      ...SIN_DESTINO,
+      codigo: v.codigo,
+      descripcion: texto(linea.descripcion) || (indices.articulo(v.codigo)?.descripcion ?? ""),
+      existencia_id: e.id,
+      variante_id: v.id,
+      clave: claveDeRenglon(dimensionMostrada(e, v)),
+      um: umMostrada(e, v) || linea.um,
+    },
+    loteDeRenglon(npMostrado(e, v)),
+  );
 }
 
 /** Con el código elegido: su descripción y, si solo hay un renglón de ese código, ese destino. */
@@ -187,15 +186,18 @@ export function conOtroContenedor(estado, linea, ubicacionId, indices = new Indi
 
 /** Alta de variante (RF-33): código + dimensión + NP + UM, en un renglón nuevo del contenedor elegido. */
 export function conVarianteNueva(linea, { dimension = "", np = "", um = "", ubicacionId = null } = {}) {
-  return {
-    ...linea,
-    ...SIN_DESTINO,
-    ubicacion_id: ubicacionId,
-    dimension: texto(dimension).toUpperCase(),
-    np: texto(np).toUpperCase(),
-    um: unidad(um) || linea.um,
-    clave: claveParaVale(texto(dimension).toUpperCase(), texto(np).toUpperCase()),
-  };
+  return conLoteDeNp(
+    {
+      ...linea,
+      ...SIN_DESTINO,
+      ubicacion_id: ubicacionId,
+      dimension: texto(dimension).toUpperCase(),
+      np: texto(np).toUpperCase(),
+      um: unidad(um) || linea.um,
+      clave: claveDeRenglon(texto(dimension).toUpperCase()),
+    },
+    texto(np).toUpperCase(),
+  );
 }
 
 /** Renglón que no lleva existencia (diésel, gases): queda en el historial y no suma. */
@@ -306,37 +308,36 @@ export function validarEntrada(estado, datos, { excluirValeId = null } = {}) {
   const avisos = [];
   const error = (renglon, campo, mensaje) => errores.push({ renglon, campo, mensaje });
   if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(datos.fecha))) error(null, "fecha", "Falta la fecha.");
-  if (datos.motivo === "DEVOLUCION") {
-    if (!texto(datos.devolucion_folio)) error(null, "devolucion_folio", "Indica el folio del vale de salida que se devuelve.");
-    else if (!valeDeSalida(estado, datos.devolucion_folio)) error(null, "devolucion_folio", `No hay un vale de salida con el folio ${texto(datos.devolucion_folio)}.`);
-  } else if (!texto(datos.folio_externo)) {
-    error(null, "folio_externo", "Falta el folio del vale de la base.");
+  if (!texto(datos.folio_externo)) error(null, "folio_externo", "Falta el folio del vale que llega con el material.");
+  if (texto(datos.devolucion_folio) && !valeDeSalida(estado, datos.devolucion_folio)) {
+    error(null, "devolucion_folio", `No hay un vale de salida con el folio ${texto(datos.devolucion_folio)}.`);
   }
+  if (!texto(datos.origen)) error(null, "origen", "Falta de dónde viene el material.");
   const repetida = entradaConFolioBase(estado, datos.folio_externo, excluirValeId);
   if (repetida) {
-    const mensaje = `El folio ${texto(datos.folio_externo)} de la base ya se registró en la entrada ${folioEntrada(repetida.folio)} (${fmtFecha(repetida.fecha)}).`;
+    const mensaje = `El folio ${texto(datos.folio_externo)} ya se registró en la entrada ${folioEntrada(repetida.folio)} (${fmtFecha(repetida.fecha)}).`;
     avisos.push({ renglon: null, campo: "folio_externo", mensaje });
     if (!datos.folio_repetido) error(null, "folio_externo", `${mensaje} Si es otro vale con el mismo folio, márcalo para continuar.`);
   }
   if (!texto(datos.recibio_nombre)) error(null, "recibio_nombre", "Falta quién recibe: elige quién está en turno (arriba a la derecha).");
   const lineas = lineasEntradaCapturadas(datos.lineas);
-  if (!lineas.length) error(null, "lineas", "La entrada no tiene renglones.");
+  if (!lineas.length) error(null, "lineas", "La entrada no tiene partidas.");
   const indices = new Indices(estado);
   lineas.forEach((l, i) => {
     const n = i + 1;
-    if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(n, "codigo", `Renglón ${n}: falta el código.`);
-    if (!texto(l.descripcion)) error(n, "descripcion", `Renglón ${n}: falta la descripción.`);
+    if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(n, "codigo", `Partida ${n}: falta el código.`);
+    if (!texto(l.descripcion)) error(n, "descripcion", `Partida ${n}: falta la descripción.`);
     const cantidad = dec(l.cantidad);
-    if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Renglón ${n}: la cantidad debe ser mayor que 0.`);
-    if (!texto(l.um)) error(n, "um", `Renglón ${n}: falta la unidad (UM).`);
+    if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
+    if (!texto(l.um)) error(n, "um", `Partida ${n}: falta la unidad (UM).`);
     const destino = destinoDe(estado, l, indices);
-    if (destino.tipo === "pendiente") error(n, "destino", `Renglón ${n}: elige a qué renglón o contenedor entra.`);
-    if (destino.tipo === "invalido") error(n, "destino", `Renglón ${n}: el renglón o contenedor elegido ya no existe.`);
+    if (destino.tipo === "pendiente") error(n, "destino", `Partida ${n}: elige a qué renglón del inventario o contenedor entra.`);
+    if (destino.tipo === "invalido") error(n, "destino", `Partida ${n}: el renglón o contenedor elegido ya no existe.`);
   });
   if (excluirValeId !== null && !errores.length) {
     for (const fila of vistaPreviaEntrada(estado, datos, { excluirValeId })) {
       if (fila.queda && fila.queda.lt(0)) {
-        avisos.push({ renglon: fila.renglon, campo: "cantidad", mensaje: `Renglón ${fila.renglon}: la existencia quedaría en ${decTexto(fila.queda)} (ya salió parte de lo que entró).` });
+        avisos.push({ renglon: fila.renglon, campo: "cantidad", mensaje: `Partida ${fila.renglon}: la existencia quedaría en ${decTexto(fila.queda)} (ya salió parte de lo que entró).` });
       }
     }
   }
@@ -345,15 +346,17 @@ export function validarEntrada(estado, datos, { excluirValeId = null } = {}) {
 
 // ---------------------------------------------------------------- confirmar
 
+// El vale de entrada solo pide de dónde viene: el departamento siempre es el almacén. Si las
+// partidas se copiaron de un vale de salida (material que regresa), queda su folio como referencia.
 function encabezadoEntrada(datos) {
-  const devolucion = datos.motivo === "DEVOLUCION";
+  const devolucion = Boolean(texto(datos.devolucion_folio));
   return {
     motivo: devolucion ? "DEVOLUCION" : "BASE",
     folio_externo: textoONulo(datos.folio_externo),
     devolucion_folio: devolucion ? Number(texto(datos.devolucion_folio)) : null,
     fecha: texto(datos.fecha),
     origen: mayus(datos.origen),
-    depto_origen: mayus(datos.depto_origen),
+    depto_origen: DEPTO_ALMACEN,
     destino: mayus(datos.destino) ?? ORIGEN_EQUIPO,
     depto_destino: mayus(datos.depto_destino) ?? DEPTO_ALMACEN,
     entrego_nombre: nombrePersona(datos.entrego_nombre),
@@ -387,7 +390,7 @@ function lineaEntradaLimpia(estado, indices, l, renglon, id, origen) {
     cantidad: decTexto(dec(l.cantidad)),
     codigo: l.codigo,
     descripcion: texto(l.descripcion).toUpperCase(),
-    clave: existencia ? claveParaVale(dimensionMostrada(existencia, variante), npMostrado(existencia, variante)) : (textoONulo(l.clave) ?? "S/D"),
+    clave: existencia ? claveDeRenglon(dimensionMostrada(existencia, variante)) : (textoONulo(l.clave) ?? "S/D"),
     um: unidad(l.um) || null,
     lote: mayus(l.lote),
     variante_id: variante ? variante.id : null,
@@ -469,10 +472,8 @@ export function datosDeDevolucion(estado, folio) {
       return l.no_inventariado ? entradaSinExistencia(base) : entradaConArticulo(estado, base, l.codigo, { indices, descripcion: l.descripcion });
     });
   return {
-    motivo: "DEVOLUCION",
     devolucion_folio: vale.folio,
     origen: vale.destino ?? "",
-    depto_origen: vale.depto_destino ?? "",
     entrego_nombre: vale.recibio_nombre ?? "",
     entrego_puesto: vale.recibio_puesto ?? "",
     lineas: lineas.length ? lineas : [lineaEntradaVacia()],
@@ -511,10 +512,9 @@ export function datosParaCorregirEntrada(estado, valeId) {
 
 const ETIQUETAS = {
   fecha: "Fecha",
-  folio_externo: "Folio de la base",
-  devolucion_folio: "Folio devuelto",
-  origen: "Origen",
-  depto_origen: "Depto. origen",
+  folio_externo: "Folio del vale",
+  devolucion_folio: "Partidas copiadas del vale",
+  origen: "Viene de",
   destino: "Destino",
   depto_destino: "Depto. destino",
   entrego_nombre: "Entregó",
@@ -531,8 +531,7 @@ export function resumenCambiosEntrada(estado, vale, datos) {
   const cambios = [];
   const indices = new Indices(estado);
   const valor = (campo, v) => (campo === "fecha" ? (v ? fmtFecha(v) : "") : texto(v).toUpperCase());
-  const nuevo = encabezadoEntrada({ ...datos, motivo: datos.motivo ?? vale.motivo });
-  if ((vale.motivo ?? "BASE") !== nuevo.motivo) cambios.push(`Motivo: ${MOTIVOS_ENTRADA[vale.motivo ?? "BASE"]} → ${MOTIVOS_ENTRADA[nuevo.motivo]}`);
+  const nuevo = encabezadoEntrada(datos);
   for (const [campo, etiqueta] of Object.entries(ETIQUETAS)) {
     const a = valor(campo, vale[campo]);
     const b = valor(campo, nuevo[campo]);
@@ -548,7 +547,7 @@ export function resumenCambiosEntrada(estado, vale, datos) {
   lineasEntradaCapturadas(datos.lineas).forEach((l, i) => {
     const previa = Number.isInteger(l.id) ? previas.get(l.id) : null;
     if (!previa) {
-      cambios.push(`Se agregó el renglón ${i + 1}: ${describir(l)}, ${conUm(l)} → ${lugar(l)}`);
+      cambios.push(`Se agregó la partida ${i + 1}: ${describir(l)}, ${conUm(l)} → ${lugar(l)}`);
       return;
     }
     siguen.add(previa.id);
@@ -565,10 +564,10 @@ export function resumenCambiosEntrada(estado, vale, datos) {
     }
     if (texto(previa.oc).toUpperCase() !== texto(l.oc).toUpperCase()) detalle.push(`O.C. ${texto(previa.oc) || "S/OC"} → ${texto(l.oc) || "S/OC"}`);
     if (texto(previa.lote).toUpperCase() !== texto(l.lote).toUpperCase()) detalle.push(`lote ${texto(previa.lote) || "—"} → ${texto(l.lote) || "—"}`);
-    if (detalle.length) cambios.push(`Renglón ${i + 1} (${describir(previa)}): ${detalle.join("; ")}`);
+    if (detalle.length) cambios.push(`Partida ${i + 1} (${describir(previa)}): ${detalle.join("; ")}`);
   });
   vale.lineas.forEach((l) => {
-    if (!siguen.has(l.id)) cambios.push(`Se quitó el renglón ${l.renglon}: ${describir(l)}, ${conUm(l)}`);
+    if (!siguen.has(l.id)) cambios.push(`Se quitó la partida ${l.renglon}: ${describir(l)}, ${conUm(l)}`);
   });
   return cambios;
 }
@@ -591,7 +590,7 @@ export function corregirEntrada(estado, valeId, datos, motivo, usuario = null) {
   const antes = fotoEntrada(vale);
   const indices = new Indices(estado);
   asegurarArticulos(estado, indices, datos.lineas);
-  const encabezado = encabezadoEntrada({ ...datos, motivo: datos.motivo ?? vale.motivo });
+  const encabezado = encabezadoEntrada(datos);
   indices.persona(encabezado.entrego_nombre, { puesto: encabezado.entrego_puesto ?? undefined });
   const previas = new Map(vale.lineas.map((l) => [l.id, l]));
   Object.assign(vale, encabezado, { recibio_puesto: encabezado.recibio_puesto ?? vale.recibio_puesto, modificado_en: ahoraIso() });
@@ -646,7 +645,7 @@ export function filasEntradas(estado) {
         motivo: vale.motivo ?? "BASE",
         fecha: fmtFecha(vale.fecha),
         fecha_iso: vale.fecha || "",
-        origen: [vale.origen, vale.depto_origen].filter(Boolean).join(" · "),
+        origen: vale.origen || "",
         cantidad: dec(l.cantidad) ? Number(dec(l.cantidad).toFixed()) : null,
         um: l.um || "",
         codigo: l.codigo,

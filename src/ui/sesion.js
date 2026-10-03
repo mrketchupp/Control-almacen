@@ -19,6 +19,8 @@ import { infoDeNombre, respaldosABorrar } from "../almacen/respaldos.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
 import { documentoHojaConteo } from "../impresion/conteo.js";
 import { documentoImpresion } from "../impresion/vale.js";
+import { crearZip } from "../xlsx/zip.js";
+import { bytesADataUrl, hojaAPng } from "./imagen.js";
 import { CAPACIDAD_DEFECTO, plantillaArea } from "../servicios/vales.js";
 import { LibroLeido } from "../xlsx/leer.js";
 
@@ -62,11 +64,34 @@ export class Sesion {
     for (const oyente of this.oyentes) oyente(this.version);
   }
 
-  avisar(tipo, texto, duracion = tipo === "error" ? 0 : 6000) {
-    const aviso = { id: Date.now() + Math.random(), tipo, texto };
+  /** Aviso flotante. `accion` = { etiqueta, alHacer } agrega un botón (p. ej. "Deshacer"). */
+  avisar(tipo, texto, duracion = tipo === "error" ? 0 : 6000, accion = null) {
+    const aviso = { id: Date.now() + Math.random(), tipo, texto, accion };
     this.avisos = [...this.avisos, aviso].slice(-3);
     this._cambio();
     if (duracion) setTimeout(() => this.quitarAviso(aviso.id), duracion);
+  }
+
+  /**
+   * Devuelve un borrador descartado a su lista (botón "Deshacer") y pide a su página que lo abra.
+   * @param coleccion 'borradores' | 'borradores_entrada'
+   */
+  async restaurarBorrador(coleccion, copia, indice, pagina) {
+    await this.almacen.modificar((e) => {
+      if (e[coleccion].some((b) => b.id === copia.id)) return;
+      e[coleccion].splice(Math.max(0, Math.min(indice, e[coleccion].length)), 0, copia);
+    });
+    this.pestanaPorAbrir = { coleccion, id: copia.id };
+    if (location.hash.replace(/^#\/?/, "").split("/")[0] !== pagina) location.hash = `#${pagina}`;
+    window.dispatchEvent(new CustomEvent("borrador-restaurado", { detail: { coleccion } }));
+  }
+
+  /** La pestaña que una página debe abrir (tras "Deshacer"); se entrega una sola vez. */
+  tomarPestana(coleccion) {
+    if (this.pestanaPorAbrir?.coleccion !== coleccion) return null;
+    const id = this.pestanaPorAbrir.id;
+    this.pestanaPorAbrir = null;
+    return id;
   }
 
   quitarAviso(id) {
@@ -332,6 +357,43 @@ export class Sesion {
       paginas.push({ modelo: await this.formulario(await this.hojaParaVale(vale)), vale: this._paraImprimir(vale), fotos });
     }
     return documentoImpresion(paginas);
+  }
+
+  /**
+   * Cada vale como imagen PNG, tal como se imprime (para el reporte del día).
+   * @returns [[nombre, bytes]]
+   */
+  async imagenesVales(vales, { escala = 2 } = {}) {
+    const archivos = [];
+    const sinAcentos = (t) => String(t ?? "").normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^A-Za-z0-9 _.-]/g, "").trim();
+    for (const vale of vales) {
+      const modelo = await this.formulario(await this.hojaParaVale(vale));
+      const fotos = [];
+      for (const clave of vale.fotos ?? []) {
+        const foto = clave ? await this.almacen.leerFoto(clave) : null;
+        fotos.push(foto ? await bytesADataUrl(foto.datos, foto.mime || "image/jpeg") : null);
+      }
+      const documento = documentoImpresion([{ modelo, vale: this._paraImprimir(vale), fotos }]);
+      const area = sinAcentos(vale.depto_destino || vale.destino || "");
+      archivos.push([`Vale ${vale.folio}${area ? ` - ${area}` : ""}.png`, await hojaAPng(documento, modelo.pagina, escala)]);
+    }
+    return archivos;
+  }
+
+  /**
+   * "Guardar como" para un archivo nuevo (llamar directo desde el clic).
+   * @returns el archivo elegido; null si se canceló; undefined si el navegador no tiene la ventana
+   */
+  async elegirDestino(nombre, id = "control-almacen-imagenes") {
+    if (!soportaGuardarComo()) return undefined;
+    return elegirDondeGuardar(nombre, { startIn: this.carpetaLista ? this.carpeta : "documents", id });
+  }
+
+  /** Imágenes de los vales en un .zip, al archivo elegido (o a la carpeta / Descargas). @returns destino */
+  async guardarImagenesVales(vales, nombreZip, archivo = undefined) {
+    const datos = crearZip(await this.imagenesVales(vales), { comprimir: false });
+    if (archivo) return escribirEnArchivo(archivo, datos);
+    return this.guardarArchivo(`exportaciones/${hoyIso()}`, nombreZip, datos);
   }
 
   /** Abre el cuadro de impresión del navegador (desde ahí también se guarda en PDF). */

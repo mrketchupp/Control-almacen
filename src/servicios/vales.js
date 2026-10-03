@@ -47,9 +47,24 @@ function puestoDe(estado, nombre) {
   return estado.personas.find((p) => p.nombre === nombre)?.puesto ?? null;
 }
 
+export const SIN_DIMENSION = "SIN DIMENSIÓN";
+
 /**
- * CLAVE ALMACÉN con la que se escribe un renglón, como en el DIARIO: la dimensión,
- * "NP:…" si solo hay número de parte, o ambos ("3/8 NP:4900-10").
+ * CLAVE ALMACÉN de un renglón del inventario: su dimensión tal cual está escrita ("S/D",
+ * "SIN DIMENSION"…); si no tiene, SIN DIMENSIÓN. El NP no va aquí: va en el LOTE (loteDeRenglon).
+ */
+export function claveDeRenglon(dimension) {
+  return texto(dimension) || SIN_DIMENSION;
+}
+
+/** LOTE de un renglón del inventario: su NP tal cual (vacío si no tiene). */
+export function loteDeRenglon(np) {
+  return texto(np);
+}
+
+/**
+ * Forma anterior de la CLAVE (dimensión + "NP:…"), como venía en el DIARIO de las versiones
+ * anteriores. Se conserva para leer y comparar vales viejos.
  */
 export function claveParaVale(dimension, np) {
   const dim = texto(dimension);
@@ -91,7 +106,8 @@ export function lineaDesdeExistencia(estado, existenciaId, indices = new Indices
     descripcion: indices.articulo(variante.codigo)?.descripcion ?? "",
     existencia_id: existencia.id,
     variante_id: variante.id,
-    clave: claveParaVale(dimensionMostrada(existencia, variante), npMostrado(existencia, variante)),
+    clave: claveDeRenglon(dimensionMostrada(existencia, variante)),
+    lote: loteDeRenglon(npMostrado(existencia, variante)),
     um: umMostrada(existencia, variante) || "",
   };
 }
@@ -121,7 +137,8 @@ export function opcionesDeClave(estado, codigo, { indices = new Indices(estado),
       const u = indices.ubicacion(e.ubicacion_id);
       return {
         id: e.id,
-        clave: claveParaVale(dimensionMostrada(e, v), npMostrado(e, v)),
+        clave: claveDeRenglon(dimensionMostrada(e, v)),
+        np: loteDeRenglon(npMostrado(e, v)),
         lugar: `#${u.contenedor} ${u.clase === "INV" ? "Inv." : "Cons."}`,
         hoja: u.hoja_excel.trim(),
         total: aNumero(totales.get(e.id)?.total ?? CERO),
@@ -149,19 +166,32 @@ export function conArticulo(estado, linea, codigo, { indices = new Indices(estad
   return opciones.length === 1 ? conExistencia(estado, base, opciones[0].id, indices) : base;
 }
 
-/** El renglón saliendo de un renglón del inventario (fija clave, UM y contenedor). */
+/**
+ * El renglón saliendo de un renglón del inventario: fija clave (dimensión), UM, contenedor y, si
+ * el renglón tiene NP, el LOTE. Un lote que se había puesto solo desde otro NP se reemplaza.
+ */
 export function conExistencia(estado, linea, existenciaId, indices = new Indices(estado)) {
   const d = lineaDesdeExistencia(estado, existenciaId, indices);
-  return {
-    ...linea,
-    codigo: d.codigo,
-    descripcion: d.descripcion,
-    existencia_id: d.existencia_id,
-    variante_id: d.variante_id,
-    clave: d.clave,
-    um: d.um || linea.um,
-    no_inventariado: false,
-  };
+  return conLoteDeNp(
+    {
+      ...linea,
+      codigo: d.codigo,
+      descripcion: d.descripcion,
+      existencia_id: d.existencia_id,
+      variante_id: d.variante_id,
+      clave: d.clave,
+      um: d.um || linea.um,
+      no_inventariado: false,
+    },
+    d.lote,
+  );
+}
+
+/** Pone el NP como LOTE (y recuerda que se puso solo, para cambiarlo si cambia el renglón). */
+export function conLoteDeNp(linea, np) {
+  if (np) return { ...linea, lote: np, lote_np: np };
+  const automatico = linea.lote_np && texto(linea.lote) === linea.lote_np;
+  return { ...linea, lote: automatico ? "" : (linea.lote ?? ""), lote_np: null };
 }
 
 /** Renglón de un artículo del catálogo que no lleva existencia (diésel, gases, servicios). */

@@ -263,7 +263,7 @@ function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay,
     const q = normal(linea.clave);
     if (!q || (elegida && normal(elegida.clave) === q)) return opciones;
     const ps = palabras(q);
-    return opciones.filter((o) => ps.every((p) => normal(`${o.clave} ${o.lugar} ${o.hoja}`).includes(p)));
+    return opciones.filter((o) => ps.every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja}`).includes(p)));
   }, [opciones, linea.clave, elegida]);
 
   if (!Number.isInteger(linea.codigo)) {
@@ -306,6 +306,7 @@ function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay,
       opciones=${filtradas}
       clave=${(o) => o.id}
       render=${(o) => html`<span class="opcion-principal">${o.clave}</span>
+        ${o.np ? html`<${Pastilla} titulo="Número de parte: va en la columna LOTE">NP ${o.np}<//>` : null}
         <${Pastilla} tono="lugar" titulo=${o.hoja}>${o.lugar}<//>
         <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>`}
       alElegir=${(o) => alElegir(o, true)}
@@ -790,10 +791,21 @@ function paraEmitir(estado, datos, usuario) {
 export function PaginaValesSalida() {
   const sesion = useSesion();
   const estado = sesion.estado;
-  const [activo, setActivo] = useState(estado.borradores[0]?.id ?? null);
+  const [activo, setActivo] = useState(() => sesion.tomarPestana("borradores") ?? estado.borradores[0]?.id ?? null);
   const [datos, setDatos] = useState(null);
   const [errores, setErrores] = useState([]);
   const [emitidos, setEmitidos] = useState(null);
+  // "Deshacer" de un borrador descartado: se abre su pestaña.
+  useEffect(() => {
+    const abrir = () => {
+      const id = sesion.tomarPestana("borradores");
+      if (id === null) return;
+      setEmitidos(null);
+      setActivo(id);
+    };
+    window.addEventListener("borrador-restaurado", abrir);
+    return () => window.removeEventListener("borrador-restaurado", abrir);
+  }, []);
   const [previa, setPrevia] = useState(null);
   const [capacidad, setCapacidad] = useState(null);
   const pendiente = useRef(null);
@@ -854,15 +866,25 @@ export function PaginaValesSalida() {
     setEmitidos(null);
     setActivo(id);
   };
-  const descartar = () => {
-    if (lineasCapturadas(datos.lineas).length && !confirmar("¿Descartar este vale en borrador? No gasta folio.")) return;
-    return sesion.tarea("Descartando…", async () => {
+  // Se descarta al momento y el aviso ofrece "Deshacer" (recupera el borrador tal como estaba).
+  const descartar = () =>
+    sesion.tarea("Descartando…", async () => {
       clearTimeout(pendiente.current);
       pendiente.current = null;
-      await sesion.almacen.modificar((e) => descartarBorrador(e, datos.id));
+      porGuardar.current = null;
+      const copia = structuredClone(datos);
+      const indice = await sesion.almacen.modificar((e) => {
+        const i = e.borradores.findIndex((b) => b.id === datos.id);
+        descartarBorrador(e, datos.id);
+        return i;
+      });
       setActivo(sesion.estado.borradores[0]?.id ?? null);
+      const n = lineasCapturadas(copia.lineas).length;
+      sesion.avisar("info", `Borrador descartado${n ? ` (${n} ${n === 1 ? "partida" : "partidas"})` : ""}. No gastó folio.`, 15000, {
+        etiqueta: "↶ Deshacer",
+        alHacer: () => sesion.restaurarBorrador("borradores", copia, indice, "vales"),
+      });
     });
-  };
   const emitir = () =>
     sesion.tarea("Emitiendo…", async () => {
       const listo = paraEmitir(sesion.estado, datos, sesion.usuario);

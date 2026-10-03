@@ -21,6 +21,8 @@ import { folioEntrada } from "../../servicios/entradas.js";
 import { lugarCorto, ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { Aviso, Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { aplicarConteoIA } from "../../servicios/capturaIA.js";
+import { CapturaIA } from "./capturaIA.js";
 import { CeldaCodigo, ListaErrores, indiceArticulos } from "./vales.js";
 
 const signo = (d) => (d === null ? "" : d.gt(0) ? `+${num(aNumero(d))}` : num(aNumero(d)));
@@ -254,6 +256,20 @@ function Captura() {
         ${resumen.sobrantes ? html`<${Pastilla} tono="info">${resumen.sobrantes} encontrados<//>` : null}
       </div>
     <//>
+
+    <${CapturaIA}
+      tipo="conteo"
+      alCargar=${(respuesta) => {
+        const { datos: nuevo, reporte } = aplicarConteoIA(sesion.estado, datos, respuesta, { indices });
+        cambiar({ fecha: nuevo.fecha, capturas: nuevo.capturas, nuevos: nuevo.nuevos });
+        return [
+          `✓ ${reporte.capturados} renglones con lo contado${reporte.sobrantes ? ` y ${reporte.sobrantes} encontrados (abajo, en "Encontrado y no está en la lista")` : ""}.`,
+          ...reporte.dudosos.map((d) => `⚠ Dudoso según el asistente: ${d}`),
+          ...reporte.fueraDeAlcance.map((d) => `⚠ ${d}`),
+          ...reporte.noReconocidos.map((d) => `⚠ ${d}`),
+        ];
+      }}
+    />
 
     <div class="filtros">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión, NP…" />

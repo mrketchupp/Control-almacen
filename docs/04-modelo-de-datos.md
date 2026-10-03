@@ -203,9 +203,14 @@ para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada
 
 Los borradores llevan además `etapa_perforacion`. Entregó no se captura: al emitir es siempre el almacenista en turno.
 
+**Clave y lote de una partida** (comentario del usuario, ronda 5): al elegir un renglón del inventario, CLAVE ALMACÉN =
+su dimensión tal cual y LOTE = su NP (`claveDeRenglon`, `loteDeRenglon`, `conLoteDeNp` en `servicios/vales.js`). Un lote
+puesto así se reemplaza si cambia el renglón elegido; uno escrito a mano se respeta.
+
 **Vales de entrada** (`vale.tipo = ENTRADA`): `folio` es el consecutivo interno propio (se muestra `E-0001`),
-independiente del de salidas; `folio_externo` = folio del vale de la base; `motivo` = `BASE` o `DEVOLUCION` (con
-`devolucion_folio`, el folio de salida que se devuelve); origen/depto de donde viene, destino `RIG 91 · ALMACEN`,
+independiente del de salidas; `folio_externo` = folio del vale que llega (obligatorio); `origen` = de dónde viene;
+`depto_origen` siempre `ALMACEN`; `devolucion_folio` (opcional) = vale de salida del que se copiaron las partidas
+(`motivo` queda `DEVOLUCION` en ese caso y `BASE` en los demás, solo como referencia); destino `RIG 91 · ALMACEN`,
 entregó = quien trae el material y recibió = almacenista en turno. Cada renglón lleva su `existencia_id` (el renglón
 del inventario al que entra; si era una variante o un contenedor nuevos, se crean al confirmar) o `no_inventariado`.
 **`borradores_entrada`**: entradas en captura, con el mismo encabezado y renglones que además pueden traer

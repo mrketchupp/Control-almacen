@@ -1,10 +1,12 @@
-import { useMemo } from "preact/hooks";
-import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
+import { useMemo, useState } from "preact/hooks";
+import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { resumen } from "../../servicios/consultas.js";
 import { folioEntrada } from "../../servicios/entradas.js";
-import { siguienteFolio, valesPorEnviar } from "../../servicios/vales.js";
-import { Aviso, Boton, Dato, Tarjeta, num, useSesion } from "../componentes.js";
+import { siguienteFolio } from "../../servicios/vales.js";
+import { Boton, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { Icono } from "../iconos.js";
+import { SubirSharePoint } from "./sharepoint.js";
 import { leerDeCarpeta } from "../../almacen/archivos.js";
 import { CARPETA_RESPALDOS } from "../sesion.js";
 import { RespaldoReciente, restaurarConConfirmacion, useRespaldoReciente } from "./respaldos.js";
@@ -52,7 +54,6 @@ function Bienvenida() {
         </li>
       </ol>
     <//>
-    <${EstadoAlmacenamiento} />
   `;
 }
 
@@ -87,66 +88,128 @@ export function EstadoAlmacenamiento() {
   <//>`;
 }
 
+const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+function saludo(ahora = new Date()) {
+  const h = ahora.getHours();
+  return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches";
+}
+
+/** Un acceso grande del inicio (tarjeta completa clicable). */
+function Accion({ href, icono, titulo, detalle, tono = "", children = null }) {
+  return html`<div class=${`bento-celda bento-accion ${tono}`}>
+    <a class="accion-enlace" href=${href}>
+      <span class="accion-icono"><${Icono} nombre=${icono} tam=${26} /></span>
+      <strong>${titulo}</strong>
+      <small>${detalle}</small>
+    </a>
+    ${children}
+  </div>`;
+}
+
 export function PaginaInicio() {
   const sesion = useSesion();
   const estado = sesion.estado;
   const datos = useMemo(() => (estado && !sesion.almacen.vacio ? resumen(estado) : null), [estado]);
-  const porEnviar = useMemo(() => (datos ? valesPorEnviar(estado).length : 0), [estado]);
+  const [fechaReporte, setFechaReporte] = useState(hoyIso());
   if (!datos) return html`<${Bienvenida} />`;
+  const hoy = hoyIso();
+  const ahora = new Date();
+  const entradasHoy = estado.vales.filter((v) => v.tipo === "ENTRADA" && v.estado === "EMITIDO" && v.fecha === hoy).length;
+  const enCurso = estado.conteo_en_curso;
+  const contados = enCurso ? Object.keys(enCurso.capturas ?? {}).length : 0;
+  const alertas = [
+    !sesion.usuario && html`<a href="#inicio" onClick=${(e) => { e.preventDefault(); document.querySelector(".lista-usuario .lista-boton")?.click(); }}>Elige quién está en turno</a>`,
+    !sesion.respaldoDeHoy && (sesion.carpetaLista ? null : html`<a href="#respaldos">Sin respaldo de hoy</a>`),
+    datos.por_ubicar && html`<a href="#pendientes">${datos.por_ubicar} renglón(es) por ubicar</a>`,
+    datos.por_confirmar && html`<a href="#inventario">${datos.por_confirmar} artículo(s) por confirmar</a>`,
+  ].filter(Boolean);
   return html`
-    ${!sesion.usuario
-      ? html`<${Aviso} tipo="advertencia" titulo="¿Quién está en turno?">Elige tu nombre arriba a la derecha; queda registrado en cada acción.<//>`
-      : null}
-    ${!sesion.respaldoDeHoy
-      ? html`<${Aviso} tipo="advertencia" titulo="Sin respaldo de hoy">
-          ${sesion.carpetaLista
-            ? "Se creará uno automáticamente."
-            : html`Crea uno en <a href="#respaldos">Respaldos</a> (o elige una carpeta para que sea automático).`}
-        <//>`
-      : null}
-    ${datos.por_ubicar
-      ? html`<${Aviso} tipo="info" titulo=${`${datos.por_ubicar} renglón(es) por ubicar`}>
-          Hay vales posteriores al conteo que falta ligar a un renglón del inventario.${" "}
-          <a href="#pendientes">Resolver pendientes</a>
-        <//>`
-      : null}
-    <div class="acciones-linea acciones-inicio">
-      <a class="boton boton-primario boton-grande" href="#vales">＋ Nuevo vale · folio ${siguienteFolio(estado)}</a>
-      <a class="boton boton-secundario boton-grande" href="#entradas">＋ Entrada de material · ${folioEntrada(siguienteFolio(estado, "ENTRADA"))}</a>
-      ${datos.borradores ? html`<a class="boton boton-secundario" href="#vales">${datos.borradores} borrador(es) en captura</a>` : null}
-      ${datos.borradores_entrada ? html`<a class="boton boton-secundario" href="#entradas">${datos.borradores_entrada} entrada(s) en captura</a>` : null}
-      ${datos.conteo_en_curso ? html`<a class="boton boton-secundario" href="#conteo">Conteo físico en captura</a>` : null}
-      ${porEnviar ? html`<a class="boton boton-secundario" href="#exportar">${porEnviar} vale(s) por enviar a la base</a>` : null}
+    <div class="saludo">
+      <div>
+        <h2>${saludo(ahora)}${sesion.usuario ? `, ${sesion.usuario.split(" ")[0].charAt(0)}${sesion.usuario.split(" ")[0].slice(1).toLowerCase()}` : ""}</h2>
+        <p class="nota">${DIAS[ahora.getDay()]} ${ahora.getDate()} de ${MESES[ahora.getMonth()]} · ${datos.vales_hoy} ${datos.vales_hoy === 1 ? "vale" : "vales"} y ${entradasHoy} ${entradasHoy === 1 ? "entrada" : "entradas"} hoy</p>
+      </div>
+      ${alertas.length ? html`<div class="alertas-inicio">${alertas.map((a) => html`<span class="chip-alerta">⚠ ${a}</span>`)}</div>` : null}
     </div>
-    <div class="datos">
-      <${Dato} etiqueta="Siguiente folio" valor=${siguienteFolio(estado)} detalle=${datos.ultimo_folio ? `último: ${datos.ultimo_folio} · ${fmtFecha(datos.fecha_ultimo_vale)}` : ""} />
-      <${Dato} etiqueta="Vales de hoy" valor=${num(datos.vales_hoy)} detalle="emitidos en la herramienta" />
-      <${Dato} etiqueta="Por enviar a la base" valor=${num(porEnviar)} tono=${porEnviar ? "alerta" : "ok"} detalle=${porEnviar ? "exporta y marca como enviado" : "al día"} />
-      <${Dato} etiqueta="Por ubicar" valor=${num(datos.por_ubicar)} tono=${datos.por_ubicar ? "alerta" : "ok"} />
-      <${Dato} etiqueta="Renglones en 0 o menos" valor=${num(datos.agotados)} tono=${datos.agotados ? "alerta" : "ok"} detalle="ver en Inventario" />
-      <${Dato} etiqueta="Renglones de inventario" valor=${num(datos.existencias)} detalle=${`${datos.ubicaciones} hojas / contenedores`} />
-      <${Dato} etiqueta="Artículos en catálogo" valor=${num(datos.articulos)} detalle=${datos.por_confirmar ? `${datos.por_confirmar} por confirmar` : "todos confirmados"} />
-      <${Dato} etiqueta="Entradas" valor=${num(datos.entradas)} detalle=${datos.ultima_entrada ? `última: ${folioEntrada(datos.ultima_entrada)} · ${fmtFecha(datos.fecha_ultima_entrada)}` : "aún no hay"} />
-      <${Dato}
-        etiqueta="Último conteo"
-        valor=${fmtFecha(datos.conteo_fecha)}
-        detalle=${`${datos.conteo_alcance === "PARCIAL" ? "parcial · " : ""}${datos.conteos > 1 ? "cada renglón descuenta desde su conteo" : `descuenta desde el folio ${(datos.conteo_folio ?? 0) + 1}`}`}
+
+    <div class="bento bento-inicio">
+      <${Accion}
+        href="#vales"
+        icono="salida"
+        titulo="Crear un vale"
+        tono="accion-principal"
+        detalle=${datos.borradores ? `${datos.borradores} en borrador · siguiente folio ${siguienteFolio(estado)}` : `Siguiente folio ${siguienteFolio(estado)}`}
       />
+      <${Accion}
+        href="#entradas"
+        icono="entrada"
+        titulo="Agregar material recibido"
+        detalle=${datos.borradores_entrada ? `${datos.borradores_entrada} en borrador · ${folioEntrada(siguienteFolio(estado, "ENTRADA"))}` : `Siguiente: ${folioEntrada(siguienteFolio(estado, "ENTRADA"))}`}
+      />
+      <div class="bento-celda bento-accion">
+        <a class="accion-enlace" href=${`#reporte/${fechaReporte}`}>
+          <span class="accion-icono"><${Icono} nombre="reporte" tam=${26} /></span>
+          <strong>Crear reporte diario</strong>
+          <small>Imágenes de los vales del día y lo que falta subir</small>
+        </a>
+        <div class="accion-fecha">
+          <input type="date" value=${fechaReporte} max=${hoy} onChange=${(e) => setFechaReporte(e.currentTarget.value || hoy)} aria-label="Fecha del reporte" />
+          <a class="boton boton-secundario boton-chico" href=${`#reporte/${fechaReporte}`}>Abrir</a>
+        </div>
+      </div>
+      <${Accion}
+        href="#conteo"
+        icono="conteo"
+        titulo="Conteo físico"
+        tono=${enCurso ? "accion-en-curso" : ""}
+        detalle=${enCurso ? `En captura · ${contados} renglones capturados` : "Todo el inventario o algunos contenedores"}
+      />
+
+      <section class="bento-celda bento-doble">
+        <header class="bento-cabeza">
+          <span class="cabeza-icono"><${Icono} nombre="nube" /></span>
+          <h2>Subir al SharePoint</h2>
+        </header>
+        <${SubirSharePoint} compacto=${true} />
+      </section>
+
+      <section class="bento-celda">
+        <header class="bento-cabeza">
+          <span class="cabeza-icono"><${Icono} nombre="conteo" /></span>
+          <h2>Último conteo</h2>
+        </header>
+        <p class="dato-grande">${datos.conteo_fecha ? fmtFecha(datos.conteo_fecha) : "—"}</p>
+        <p class="nota">
+          ${datos.conteo_alcance === "PARCIAL" ? "Parcial. " : "Total. "}
+          ${datos.conteos > 1 ? "Cada renglón descuenta desde su propio conteo." : `Descuenta desde el folio ${(datos.conteo_folio ?? 0) + 1}.`}
+        </p>
+        <a class="enlace-flecha" href="#conteo">Ver conteos →</a>
+      </section>
+
+      <section class="bento-celda">
+        <header class="bento-cabeza">
+          <span class="cabeza-icono"><${Icono} nombre="inventario" /></span>
+          <h2>Inventario</h2>
+        </header>
+        <p class="dato-grande">${num(datos.existencias)} <small>renglones</small></p>
+        <p class="nota">${datos.agotados ? html`<a href="#inventario">${num(datos.agotados)} en 0 o menos</a>` : "Ninguno en 0."} · ${datos.ubicaciones} contenedores</p>
+        <a class="enlace-flecha" href="#inventario">Ver inventario →</a>
+      </section>
+
+      <section class="bento-celda bento-completa">
+        <header class="bento-cabeza">
+          <span class="cabeza-icono"><${Icono} nombre="ayuda" /></span>
+          <h2>Uso diario</h2>
+        </header>
+        <ol class="pasos pasos-columnas">
+          <li><strong>Elige quién está en turno</strong> (arriba a la derecha).</li>
+          <li><strong><a href="#vales">Haz los vales</a>:</strong> área, quién recibe y partidas (código → clave → cantidad). El folio se asigna solo; imprímelo para las firmas.</li>
+          <li><strong>Cuando llegue material</strong>, regístralo en <a href="#entradas">Vales de entrada</a> (puedes capturarlo desde la foto con Copilot).</li>
+          <li><strong>Al final del día</strong>, <a href=${`#reporte/${hoy}`}>crea el reporte diario</a>: descarga las imágenes, sube el libro al SharePoint y márcalo con "Ya lo subí".</li>
+        </ol>
+      </section>
     </div>
-    <${Tarjeta} titulo="Uso diario">
-      <ol class="pasos">
-        <li>Elige quién está en turno (arriba a la derecha).</li>
-        <li><a href="#vales">Haz los vales</a> en la herramienta: elige el área y quién recibe, agrega las partidas (código → clave → cantidad) y emite. El folio se asigna solo; imprime el vale para las firmas.</li>
-        <li>Resuelve los <a href="#pendientes">pendientes</a> si la insignia muestra un número.</li>
-        <li>Cuando llegue material, regístralo en <a href="#entradas">Vales de entrada</a>: se sugiere el contenedor donde ya está y ves cómo queda antes de confirmar.</li>
-        <li><a href="#exportar">Exporta</a> el libro de vales, envíalo a la base y márcalo como enviado.</li>
-      </ol>
-      ${Object.keys(datos.ultima_exportacion).length
-        ? html`<p class="nota">Últimas exportaciones: ${Object.entries(datos.ultima_exportacion)
-            .map(([t, f]) => `${t.toLowerCase()} ${fmtFechaHora(f)}`)
-            .join(" · ")}</p>`
-        : null}
-    <//>
-    <${EstadoAlmacenamiento} />
   `;
 }

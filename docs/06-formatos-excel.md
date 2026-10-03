@@ -91,9 +91,9 @@ En `sheet1.xml` se reemplazan:
 | J | Cantidad | Número |
 | K | Código | Número |
 | L | Descripción | Descripción |
-| M | CLAVE | clave (dimensión / NP) |
+| M | CLAVE | clave: la dimensión del renglón del inventario tal cual (`S/D`, `SIN DIMENSION`…; vacía → `SIN DIMENSIÓN`). Los vales de versiones anteriores conservan la que traían (dimensión + `NP:…`). |
 | N | U.M. | UM |
-| O | C.U | LOTE; `0` si está vacío (convención de la macro) |
+| O | C.U | LOTE (el **NP** del renglón del inventario se pone aquí al elegir la clave); `0` si está vacío (convención de la macro) |
 | P | Entrego/Recibio | Nombre de quien entregó |
 | Q | Entrego/Recibio | Nombre de quien recibió |
 | R | Autorizo | Nombre de quien autorizó; `0` si no aplica |

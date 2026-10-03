@@ -14,7 +14,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
 | P-07 | ¿Cómo debe aparecer un **vale cancelado** en el DIARIO? | **Resuelto por el usuario:** no se cancelan folios; todos se usan y un error se corrige. (Los cancelados de versiones anteriores siguen saliendo como renglón en 0.) |
-| P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. **F3 permite las dos**; falta que el usuario confirme cuál prefiere la base. |
+| P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. **F3 permite las dos.** El usuario aclaró que las entradas vienen de la base o de otro equipo; copiar partidas de un vale de salida queda como opción secundaria. |
 | P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | **Resuelto:** el usuario los comparó impresos y "lucen 98 % similares"; funcionan. |
 | P-10 | Tamaño de hoja e impresora | Carta, vertical, 1 vale por hoja |
 | P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. |

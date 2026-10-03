@@ -33,6 +33,8 @@ export const soportaGuardarComo = () => typeof window !== "undefined" && "showSa
  * Ventana "Guardar como" del explorador de archivos. Recuerda la última carpeta usada.
  * @returns el archivo elegido, o null si el usuario canceló
  */
+const DESCRIPCIONES = { ".xlsm": "Libro de Excel con macros", ".xlsx": "Libro de Excel", ".zip": "Carpeta comprimida (.zip)" };
+
 export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "control-almacen-exportar" } = {}) {
   const extension = nombre.slice(nombre.lastIndexOf(".")).toLowerCase();
   try {
@@ -40,7 +42,7 @@ export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "
       id,
       startIn,
       suggestedName: nombre,
-      types: [{ description: extension === ".xlsm" ? "Libro de Excel con macros" : "Libro de Excel", accept: { [TIPOS[extension]]: [extension] } }],
+      types: [{ description: DESCRIPCIONES[extension] ?? "Archivo", accept: { [TIPOS[extension] ?? "application/octet-stream"]: [extension] } }],
     });
   } catch (error) {
     if (error?.name === "AbortError") return null;

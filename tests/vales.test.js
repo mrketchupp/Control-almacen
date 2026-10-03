@@ -361,3 +361,23 @@ test("NOV migrado: al corregirlo se ve por papel y se guarda por posición", () 
   const guardado = estado.vales.find((x) => x.id === 997);
   assert.deepEqual([guardado.entrego_nombre, guardado.recibio_nombre], ["QUIMICO DOS", "ALMACENISTA UNO"]);
 });
+
+test("la clave es la dimensión tal cual (o SIN DIMENSIÓN) y el NP va en el LOTE", () => {
+  const { estado, indices } = preparar();
+  const renglon = (codigo) => estado.existencias.find((e) => indices.variante(e.variante_id).codigo === codigo);
+  const lampara = v.lineaDesdeExistencia(estado, renglon(710).id); // S/D con NP X00489
+  assert.deepEqual([lampara.clave, lampara.lote], ["S/D", "X00489"]);
+  const sinDim = v.lineaDesdeExistencia(estado, renglon(799).id);
+  assert.deepEqual([sinDim.clave, sinDim.lote], ["SIN DIMENSION", ""]);
+  assert.equal(v.claveDeRenglon(""), "SIN DIMENSIÓN");
+  assert.equal(v.claveDeRenglon(null), v.SIN_DIMENSION);
+  // Al cambiar a un renglón sin NP, el lote que se puso solo se quita; uno escrito a mano se respeta.
+  const conNp = v.conExistencia(estado, v.lineaVacia(), renglon(710).id, indices);
+  const cambiado = v.conExistencia(estado, conNp, renglon(708).id, indices);
+  assert.deepEqual([cambiado.clave, cambiado.lote], ["ISOFLEX", ""]);
+  const aMano = v.conExistencia(estado, { ...v.lineaVacia(), lote: "L-7" }, renglon(708).id, indices);
+  assert.equal(aMano.lote, "L-7");
+  // Las opciones de clave traen el NP para distinguir renglones con la misma dimensión.
+  const [opcion] = v.opcionesDeClave(estado, 704);
+  assert.deepEqual([opcion.clave, opcion.np], ['6"', "FLEXITALIC"]);
+});

@@ -5,7 +5,6 @@ import { calcularSaldos } from "../../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../../nucleo/fechas.js";
 import {
   ErrorEntrada,
-  MOTIVOS_ENTRADA,
   borradorEntrada,
   conOtroContenedor,
   conRenglonExistente,
@@ -29,6 +28,8 @@ import { preferenciasVale } from "../../servicios/preferencias.js";
 import { siguienteFolio } from "../../servicios/vales.js";
 import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { aplicarEntradaIA } from "../../servicios/capturaIA.js";
+import { CapturaIA } from "./capturaIA.js";
 import { Campo, CeldaCodigo, ListaErrores, indiceArticulos, listas, normal, palabras } from "./vales.js";
 
 const hay = (v) => v !== null && v !== undefined;
@@ -49,7 +50,7 @@ function CeldaDestino({ linea, opciones, alElegir, alNueva, alSinExistencia, alE
   const elegida = opciones.find((o) => o.id === linea.existencia_id) ?? null;
   const filtradas = useMemo(() => {
     const q = normal(linea.clave);
-    const base = !q || (elegida && normal(elegida.clave) === q) ? opciones : opciones.filter((o) => palabras(q).every((p) => normal(`${o.clave} ${o.lugar} ${o.hoja}`).includes(p)));
+    const base = !q || (elegida && normal(elegida.clave) === q) ? opciones : opciones.filter((o) => palabras(q).every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja}`).includes(p)));
     const texto = linea.clave && !elegida ? ` "${linea.clave.toUpperCase()}"` : "";
     return [
       ...base,
@@ -69,6 +70,7 @@ function CeldaDestino({ linea, opciones, alElegir, alNueva, alSinExistencia, alE
       o.especial
         ? html`<span class="opcion-especial">${o.etiqueta}</span>`
         : html`<span class="opcion-principal">${o.clave}</span>
+            ${o.np ? html`<${Pastilla} titulo="Número de parte: va en la columna LOTE">NP ${o.np}<//>` : null}
             <${Pastilla} tono="lugar" titulo=${o.hoja}>${o.lugar}<//>
             <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>
             ${o.sugerida && o.enVarios ? html`<${Pastilla} tono="info" titulo="Es el contenedor donde hay más de esta variante">★ sugerido<//>` : null}`}
@@ -169,14 +171,16 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
     return opcionesPorCodigo.get(codigo);
   };
   const previa = useMemo(() => vistaPreviaEntrada(estado, datos, { excluirValeId }), [estado, datos, excluirValeId]);
-  const repetida = datos.motivo !== "DEVOLUCION" ? entradaConFolioBase(estado, datos.folio_externo, excluirValeId) : null;
-  const devolucion = datos.motivo === "DEVOLUCION";
-  const traerDevolucion = () => {
+  const repetida = entradaConFolioBase(estado, datos.folio_externo, excluirValeId);
+  const [copiando, setCopiando] = useState(false);
+  // Material que regresa: copia las partidas de un vale de salida (cada una vuelve a su renglón).
+  const copiarDeSalida = () => {
     try {
       const traidos = datosDeDevolucion(estado, folioDevolucion);
-      if (lineasEntradaCapturadas(datos.lineas).length && !confirmar(`¿Cambiar los renglones de esta entrada por los del vale ${traidos.devolucion_folio}?`)) return;
-      cambiar(traidos);
-      sesion.avisar("exito", `Se trajeron los renglones del vale ${traidos.devolucion_folio}: ajusta las cantidades a lo que regresó.`);
+      if (lineasEntradaCapturadas(datos.lineas).length && !confirmar(`¿Cambiar las partidas de esta entrada por las del vale ${traidos.devolucion_folio}?`)) return;
+      cambiar({ ...traidos, origen: datos.origen || traidos.origen, entrego_nombre: datos.entrego_nombre || traidos.entrego_nombre });
+      setCopiando(false);
+      sesion.avisar("exito", `Se copiaron las partidas del vale ${traidos.devolucion_folio}: ajusta las cantidades a lo que regresó.`);
     } catch (error) {
       if (error instanceof ErrorEntrada) sesion.avisar("error", error.message);
       else throw error;
@@ -187,41 +191,9 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
   return html`<div class=${`editor-vale editor-entrada ${preferencias.lado}`}>
     <aside class="vale-datos" aria-label="Datos de la entrada">
       <div class="bloque-vale">
-        <div class="campo">
-          <span>Motivo</span>
-          <${Lista}
-            id="motivo-entrada"
-            valor=${datos.motivo ?? "BASE"}
-            alCambiar=${(motivo) => cambiar({ motivo })}
-            ariaLabel="Motivo de la entrada"
-            opciones=${Object.entries(MOTIVOS_ENTRADA).map(([valor, etiqueta]) => ({ valor, etiqueta }))}
-          />
-        </div>
-        ${devolucion
-          ? html`<${Campo} etiqueta="Folio del vale de salida que se devuelve" error=${errorEn("devolucion_folio")}>
-              <div class="acciones-linea sin-margen">
-                <input
-                  id="folio-devolucion"
-                  inputmode="numeric"
-                  value=${folioDevolucion}
-                  onInput=${(e) => {
-                    setFolioDevolucion(e.currentTarget.value);
-                    cambiar({ devolucion_folio: e.currentTarget.value.trim() || null });
-                  }}
-                  onKeyDown=${(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      traerDevolucion();
-                    }
-                  }}
-                  placeholder="Ej. 555"
-                />
-                <${Boton} tamano="chico" onClick=${traerDevolucion} disabled=${!folioDevolucion.trim()}>Traer renglones<//>
-              </div>
-            <//>`
-          : html`<${Campo} etiqueta="Folio del vale de la base" error=${errorEn("folio_externo")} ayuda="El número del vale en papel que llega con el material.">
-              <input id="folio-base" value=${datos.folio_externo ?? ""} onInput=${(e) => cambiar({ folio_externo: e.currentTarget.value, folio_repetido: false })} placeholder="Ej. 12345" />
-            <//>`}
+        <${Campo} etiqueta="Folio del vale" error=${errorEn("folio_externo")} ayuda="El número del vale en papel que llega con el material.">
+          <input id="folio-base" value=${datos.folio_externo ?? ""} onInput=${(e) => cambiar({ folio_externo: e.currentTarget.value, folio_repetido: false })} placeholder="Ej. 12345" />
+        <//>
         ${repetida
           ? html`<label class="casilla aviso-folio">
               <input type="checkbox" checked=${Boolean(datos.folio_repetido)} onChange=${(e) => cambiar({ folio_repetido: e.currentTarget.checked })} />
@@ -231,15 +203,14 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
               </span>
             </label>`
           : null}
+        <${Campo} etiqueta="Viene de" error=${errorEn("origen")} ayuda="La base o el equipo de donde llega el material.">
+          <${CampoSugerido} id="viene-de" valor=${datos.origen} alCambiar=${(origen) => cambiar({ origen })} sugerencias=${lugares} ariaLabel="Viene de" placeholder="Base o equipo" />
+        <//>
         <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
           <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
         <//>
       </div>
       <div class="bloque-vale">
-        <div class="rejilla-campos">
-          <${Campo} etiqueta="Viene de"><${CampoSugerido} valor=${datos.origen} alCambiar=${(origen) => cambiar({ origen })} sugerencias=${lugares} ariaLabel="Viene de" placeholder="Ej. BASE" /><//>
-          <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(depto_origen) => cambiar({ depto_origen })} sugerencias=${sugerencias.deptos} ariaLabel="Depto. origen" /><//>
-        </div>
         <${Campo} etiqueta="Entregó" ayuda="Quien trae el material (chofer, almacenista de la base…).">
           <${CampoSugerido} valor=${datos.entrego_nombre} alCambiar=${(entrego_nombre) => cambiar({ entrego_nombre })} sugerencias=${sugerencias.personas} ariaLabel="Entregó" />
         <//>
@@ -251,6 +222,9 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
         <div class="datos-automaticos">
           <span class="subtitulo-panel">Se llenan solos</span>
           <dl class=${`datos-fijos ${!datos.recibio_nombre && !sesion.usuario ? "datos-fijos-error" : ""}`}>
+            ${datos.devolucion_folio ? html`<dt>Copia de</dt><dd>vale de salida ${datos.devolucion_folio}</dd>` : null}
+            <dt>Depto.</dt>
+            <dd>ALMACEN</dd>
             <dt>Llega a</dt>
             <dd>${datos.destino || "RIG 91"} · ${datos.depto_destino || "ALMACEN"}</dd>
             <dt>Recibe</dt>
@@ -267,9 +241,9 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
     </aside>
 
     <div class="vale-principal">
-      <section class="vale-partidas" aria-label="Renglones de la entrada">
+      <section class="vale-partidas" aria-label="Partidas de la entrada">
         <header class="partidas-cabeza">
-          <h2>Renglones</h2>
+          <h2>Partidas</h2>
           <span class="contador-partidas">${lineasEntradaCapturadas(datos.lineas).length}</span>
           <span class="nota">Código → clave (se sugiere el contenedor donde ya está) → cantidad. Lo gris es información del inventario.</span>
         </header>
@@ -348,6 +322,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
                             onInput=${(e) => cambiarLinea(l.uid, { descripcion: e.currentTarget.value })}
                           />`
                         : html`<span class="descripcion">${l.descripcion || html`<span class="nota">—</span>`}</span>`}
+                      ${l.dudoso ? html`<${Pastilla} tono="alerta" titulo="El asistente no estaba seguro de esta partida: revísala con el vale">revisar<//>` : null}
                     </td>
                     <td>
                       <div class="celda-clave">
@@ -392,7 +367,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
                     </td>
                     <td><input class=${`entrada-um ${n && errorEn("um", n) ? "con-error" : ""}`} value=${l.um} onInput=${(e) => cambiarLinea(l.uid, { um: e.currentTarget.value })} aria-label="Presentación (UM)" /></td>
                     <td>
-                      <button type="button" class="boton-quitar" title="Quitar este renglón" onClick=${() => quitar(l.uid)}><span aria-hidden="true">✕</span> Quitar</button>
+                      <button type="button" class="boton-quitar" title="Quitar esta partida" onClick=${() => quitar(l.uid)}><span aria-hidden="true">✕</span> Quitar</button>
                     </td>
                   </tr>
                   ${alta
@@ -421,8 +396,28 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
           </table>
         </div>
         <div class="acciones-linea">
-          <${Boton} onClick=${() => agregarLinea()}>＋ Agregar renglón<//>
-          <span class="nota">Si el material ya está en varios contenedores, se sugiere el que tiene más (★). Puedes cambiarlo en "Entra a".</span>
+          <${Boton} onClick=${() => agregarLinea()}>＋ Agregar partida<//>
+          ${copiando
+            ? html`<span class="copiar-salida">
+                <input
+                  id="folio-devolucion"
+                  inputmode="numeric"
+                  value=${folioDevolucion}
+                  onInput=${(e) => setFolioDevolucion(e.currentTarget.value)}
+                  onKeyDown=${(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      copiarDeSalida();
+                    }
+                  }}
+                  placeholder="Folio de salida"
+                  aria-label="Folio del vale de salida"
+                />
+                <${Boton} tamano="chico" tipo="primario" onClick=${copiarDeSalida} disabled=${!folioDevolucion.trim()}>Copiar partidas<//>
+                <${Boton} tamano="chico" tipo="texto" onClick=${() => setCopiando(false)}>Cancelar<//>
+              </span>`
+            : html`<${Boton} tipo="texto" onClick=${() => setCopiando(true)} title="Material que regresa: cada partida vuelve al renglón del que salió">↩ Copiar partidas de un vale de salida<//>`}
+          <span class="nota">Si el material ya está en varios contenedores, se sugiere el que tiene más (★); puedes cambiarlo en "Entra a".</span>
         </div>
       </section>
 
@@ -467,7 +462,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
                 </tbody>
               </table>
             </div>`
-          : html`<p class="nota">Captura los renglones y aquí verás cuánto había, cuánto entra y cuánto queda en cada contenedor.</p>`}
+          : html`<p class="nota">Captura las partidas y aquí verás cuánto había, cuánto entra y cuánto queda en cada contenedor.</p>`}
       </section>
       ${pie ? html`<div class="vale-pie">${pie}</div>` : null}
     </div>
@@ -480,7 +475,7 @@ function ConfirmadaOk({ vale, alNueva }) {
   const renglones = vale.lineas.filter((l) => hay(l.existencia_id)).length;
   return html`<${Tarjeta} titulo=${`✓ Entrada ${folioEntrada(vale.folio)} registrada`} clase="tarjeta-exito">
     <p>
-      ${vale.folio_externo ? html`Vale de la base <strong>${vale.folio_externo}</strong>.${" "}` : null}Sumó al INGRESO de ${renglones}${" "}
+      ${vale.folio_externo ? html`Vale <strong>${vale.folio_externo}</strong>${vale.origen ? ` de ${vale.origen}` : ""}.${" "}` : null}Sumó al INGRESO de ${renglones}${" "}
       ${renglones === 1 ? "renglón" : "renglones"} del inventario. Queda en el historial de entradas.
     </p>
     <div class="acciones-linea">
@@ -493,10 +488,20 @@ function ConfirmadaOk({ vale, alNueva }) {
 export function PaginaValesEntrada() {
   const sesion = useSesion();
   const estado = sesion.estado;
-  const [activo, setActivo] = useState(estado.borradores_entrada[0]?.id ?? null);
+  const [activo, setActivo] = useState(() => sesion.tomarPestana("borradores_entrada") ?? estado.borradores_entrada[0]?.id ?? null);
   const [datos, setDatos] = useState(null);
   const [errores, setErrores] = useState([]);
   const [confirmada, setConfirmada] = useState(null);
+  useEffect(() => {
+    const abrir = () => {
+      const id = sesion.tomarPestana("borradores_entrada");
+      if (id === null) return;
+      setConfirmada(null);
+      setActivo(id);
+    };
+    window.addEventListener("borrador-restaurado", abrir);
+    return () => window.removeEventListener("borrador-restaurado", abrir);
+  }, []);
   const pendiente = useRef(null);
   const porGuardar = useRef(null);
 
@@ -541,15 +546,24 @@ export function PaginaValesEntrada() {
     setConfirmada(null);
     setActivo(id);
   };
-  const descartar = () => {
-    if (lineasEntradaCapturadas(datos.lineas).length && !confirmar("¿Descartar esta entrada en borrador? No gasta folio.")) return;
-    return sesion.tarea("Descartando…", async () => {
+  const descartar = () =>
+    sesion.tarea("Descartando…", async () => {
       clearTimeout(pendiente.current);
       pendiente.current = null;
-      await sesion.almacen.modificar((e) => descartarBorradorEntrada(e, datos.id));
+      porGuardar.current = null;
+      const copia = structuredClone(datos);
+      const indice = await sesion.almacen.modificar((e) => {
+        const i = e.borradores_entrada.findIndex((b) => b.id === datos.id);
+        descartarBorradorEntrada(e, datos.id);
+        return i;
+      });
       setActivo(sesion.estado.borradores_entrada[0]?.id ?? null);
+      const n = lineasEntradaCapturadas(copia.lineas).length;
+      sesion.avisar("info", `Entrada en borrador descartada${n ? ` (${n} ${n === 1 ? "partida" : "partidas"})` : ""}. No gastó folio.`, 15000, {
+        etiqueta: "↶ Deshacer",
+        alHacer: () => sesion.restaurarBorrador("borradores_entrada", copia, indice, "entradas"),
+      });
     });
-  };
   const confirmarEsta = () =>
     sesion.tarea("Registrando entrada…", async () => {
       const listo = { ...datos, recibio_nombre: sesion.usuario || datos.recibio_nombre };
@@ -558,7 +572,7 @@ export function PaginaValesEntrada() {
       if (faltan.length) return;
       const folio = folioEntrada(siguienteFolio(sesion.estado, "ENTRADA"));
       const n = lineasEntradaCapturadas(datos.lineas).length;
-      if (!confirmar(`¿Registrar la entrada ${folio} con ${n} ${n === 1 ? "renglón" : "renglones"}? Suma al inventario; después solo se puede corregir (con motivo).`)) return;
+      if (!confirmar(`¿Registrar la entrada ${folio} con ${n} ${n === 1 ? "partida" : "partidas"}? Suma al inventario; después solo se puede corregir (con motivo).`)) return;
       clearTimeout(pendiente.current);
       pendiente.current = null;
       try {
@@ -580,7 +594,7 @@ export function PaginaValesEntrada() {
 
   const borradores = estado.borradores_entrada;
   const folio = folioEntrada(siguienteFolio(estado, "ENTRADA"));
-  const nombreDe = (b) => (b.motivo === "DEVOLUCION" ? `Devolución${b.devolucion_folio ? ` ${b.devolucion_folio}` : ""}` : b.folio_externo ? `Base ${b.folio_externo}` : "Entrada nueva");
+  const nombreDe = (b) => (b.folio_externo ? `Vale ${b.folio_externo}` : b.origen ? `De ${b.origen}` : "Entrada nueva");
   return html`
     ${borradores.length
       ? html`<div class="pestanas" role="tablist" aria-label="Entradas en borrador">
@@ -590,7 +604,7 @@ export function PaginaValesEntrada() {
             const activa = b.id === activo && !confirmada;
             return html`<button type="button" role="tab" aria-selected=${activa} class=${`pestana ${activa ? "activa" : ""}`} onClick=${() => cambiarPestana(b.id)}>
               ${nombreDe(actual)}
-              <span class="pastilla-conteo" title=${`${n} ${n === 1 ? "renglón" : "renglones"}`}>${n}</span>
+              <span class="pastilla-conteo" title=${`${n} ${n === 1 ? "partida" : "partidas"}`}>${n}</span>
             </button>`;
           })}
           <button type="button" class="pestana nueva" onClick=${nueva}>＋ Nueva entrada</button>
@@ -604,6 +618,19 @@ export function PaginaValesEntrada() {
             <span>Borrador · se registrará como <strong class="folio-grande">${folio}</strong></span>
             <span class="nota">Se guarda solo · creado ${fmtFecha(datos.creado_en)}</span>
           </div>
+          <${CapturaIA}
+            key=${`ia-${datos.id}`}
+            tipo="entrada"
+            alCargar=${(respuesta) => {
+              const { datos: nuevo, reporte } = aplicarEntradaIA(sesion.estado, datos, respuesta);
+              cambiar(nuevo);
+              return [
+                `✓ ${reporte.partidas} ${reporte.partidas === 1 ? "partida cargada" : "partidas cargadas"}: ${reporte.conRenglon} a un renglón del inventario, ${reporte.nuevas} como variante nueva (elige su contenedor en "Entra a").`,
+                ...(reporte.sinCodigo.length ? [`⚠ Sin código legible: partida(s) ${reporte.sinCodigo.join(", ")}. Escríbelo a mano.`] : []),
+                ...(reporte.dudosas.length ? [`⚠ El asistente marcó como dudosas: partida(s) ${reporte.dudosas.join(", ")} (pastilla "revisar").`] : []),
+              ];
+            }}
+          />
           <${EditorEntrada}
             key=${datos.id}
             datos=${datos}
@@ -621,7 +648,7 @@ export function PaginaValesEntrada() {
     ${!confirmada && !datos && !borradores.length
       ? html`<${Tarjeta} clase="tarjeta-inicio-vales">
           <p>
-            Registra el material que llega de la base (o que se devuelve). Cada renglón entra a un renglón del inventario: si el
+            Registra el material que llega de la base o de otro equipo. Cada partida entra a un renglón del inventario: si el
             material ya está en un contenedor, se sugiere ese. Antes de registrar ves cuánto había, cuánto entra y cuánto queda.
           </p>
           <${Boton} tipo="primario" tamano="grande" onClick=${nueva}>＋ Nueva entrada · ${folio}<//>

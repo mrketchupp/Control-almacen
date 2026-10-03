@@ -210,7 +210,7 @@ test("una entrada de material nuevo queda en la hoja y contenedor correctos del 
   const indices = new Indices(estado);
   const c2cons = estado.ubicaciones.find((u) => u.hoja_excel.trim() === "CONTENEDOR #2 CONSUMIBLE");
   const b = en.nuevoBorradorEntrada(estado, { usuario: "ALMACENISTA UNO", fecha: "2026-10-02" });
-  b.folio_externo = "B-100";
+  Object.assign(b, { folio_externo: "B-100", origen: "BASE PRUEBA" });
   const linea = en.conVarianteNueva({ ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), 701, { indices }), cantidad: "4" }, { dimension: "6310-2RS", um: "PZA", ubicacionId: c2cons.id });
   const nuevoCodigo = { ...en.lineaEntradaVacia(), codigo: 950, descripcion: "CODIGO NUEVO DE PRUEBA", cantidad: "2" };
   b.lineas = [linea, en.conVarianteNueva(nuevoCodigo, { dimension: "X1", um: "PZA", ubicacionId: c2cons.id })];
@@ -261,7 +261,7 @@ test("entradas: VALES DE ENTRADA DLTA.xlsx con las columnas del DIARIO y el foli
   assert.ok(fila[0] instanceof FechaCelda);
   assert.equal(isoDesdeSerial(fila[0].serial), "2026-10-02");
   assert.deepEqual(fila.slice(1, 18).map((x) => (x === null ? null : String(x))), [
-    "12345", "XXXXX", "0", "BASE DOS BOCAS", "ALMACEN GENERAL", "RIG 91", "ALMACEN", "4500123", "3", "708", fila[11], "ISOFLEX", "PZA", "0", "CHOFER UNO", "ALMACENISTA UNO", "0",
+    "12345", "XXXXX", "0", "BASE DOS BOCAS", "ALMACEN", "RIG 91", "ALMACEN", "4500123", "3", "708", fila[11], "ISOFLEX", "PZA", "0", "CHOFER UNO", "ALMACENISTA UNO", "0",
   ]);
   assert.equal(fila[20], "E-0001");
   assert.equal(hoja.fila(3, 1, 21)[8], "S/OC");

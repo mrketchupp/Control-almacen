@@ -1,4 +1,5 @@
 import { Tarjeta } from "../componentes.js";
+import { EstadoAlmacenamiento } from "./inicio.js";
 import { html } from "../html.js";
 
 export function PaginaAyuda() {
@@ -36,9 +37,23 @@ export function PaginaAyuda() {
           Solo cambia los renglones que capturas: su CANTIDAD pasa a ser lo contado y CONSUMO / INGRESO vuelven a empezar. Los demás
           renglones siguen con su conteo anterior. Nada cambia hasta que pulsas <em>Aplicar conteo</em>.
         </dd>
+        <dt>¿Cómo capturo un vale de entrada o un conteo desde la foto?</dt>
+        <dd>
+          En <em>Vales de entrada</em> o en el conteo en captura, abre <em>✨ Capturar desde la foto o PDF</em>: copia las
+          instrucciones, pégalas en Copilot (cuenta de trabajo) junto con la foto o el PDF, y pega aquí el bloque de código que te
+          devuelva. Se llena el borrador y se marca lo dudoso para revisarlo. La herramienta no se conecta a nada: la foto la subes tú.
+        </dd>
+        <dt>¿Qué es el reporte diario?</dt>
+        <dd>
+          Desde <a href="#inicio">Inicio</a> → <em>Crear reporte diario</em> eliges un día y descargas los vales de salida de ese día
+          como imágenes (una por vale, en un .zip) o en PDF, bajas el libro de vales y lo marcas como subido al SharePoint.
+        </dd>
+        <dt>Descarté un borrador por error</dt>
+        <dd>En el aviso que aparece abajo a la derecha pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>
         <dt>¿Cómo paso material de un contenedor a otro?</dt>
         <dd>En <a href="#inventario">Inventario</a>, botón <em>Mover</em> del renglón. El total no cambia y queda en el historial de movimientos.</dd>
       </dl>
     <//>
+    <${EstadoAlmacenamiento} />
   `;
 }

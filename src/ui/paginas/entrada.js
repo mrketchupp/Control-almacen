@@ -4,7 +4,6 @@ import { Indices } from "../../nucleo/estado.js";
 import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
 import {
   ErrorEntrada,
-  MOTIVOS_ENTRADA,
   corregirEntrada,
   datosParaCorregirEntrada,
   folioEntrada,
@@ -100,12 +99,11 @@ export function PaginaEntrada() {
     return u ? html`<span title=${u.hoja_excel.trim()}>${lugarCorto(u)}</span>${e.origen === `ENTRADA ${folioEntrada(vale.folio)}` ? html` <small class="nota">renglón nuevo</small>` : null}` : "—";
   };
   const bitacora = bitacoraDeVale(estado, vale.id).reverse();
-  const motivo = vale.motivo ?? "BASE";
   return html`
     <div class="cabeza-vale">
       <div>
         <span class="folio-grande">Entrada ${folioEntrada(vale.folio)}</span>
-        <${Insignia} tono="ok">${motivo === "DEVOLUCION" ? "DEVOLUCIÓN" : "REGISTRADA"}<//>
+        <${Insignia} tono="ok">REGISTRADA<//>
         ${vale.modificado_en ? html`<${Insignia}>Corregida<//>` : null}
       </div>
       <div class="acciones-linea">
@@ -118,14 +116,19 @@ export function PaginaEntrada() {
       : html`
           <div class="datos datos-texto">
             <${Dato} etiqueta="Fecha" valor=${fmtFecha(vale.fecha)} />
-            <${Dato} etiqueta="Motivo" valor=${MOTIVOS_ENTRADA[motivo]} detalle=${motivo === "DEVOLUCION" ? html`<a href=${`#vale/${estado.vales.find((v) => v.tipo === "SALIDA" && v.folio === vale.devolucion_folio)?.id ?? ""}`}>del vale ${vale.devolucion_folio}</a>` : ""} />
-            <${Dato} etiqueta="Folio de la base" valor=${vale.folio_externo || "—"} />
-            <${Dato} etiqueta="Viene de" valor=${vale.origen || "—"} detalle=${vale.depto_origen ?? ""} />
+            <${Dato} etiqueta="Folio del vale" valor=${vale.folio_externo || "—"} />
+            <${Dato} etiqueta="Viene de" valor=${vale.origen || "—"} />
+            ${vale.devolucion_folio
+              ? html`<${Dato}
+                  etiqueta="Partidas copiadas de"
+                  valor=${html`<a href=${`#vale/${estado.vales.find((v) => v.tipo === "SALIDA" && v.folio === vale.devolucion_folio)?.id ?? ""}`}>vale de salida ${vale.devolucion_folio}</a>`}
+                />`
+              : null}
             <${Dato} etiqueta="Entregó" valor=${vale.entrego_nombre || "—"} detalle=${vale.entrego_puesto ?? ""} />
             <${Dato} etiqueta="Recibió" valor=${vale.recibio_nombre || "—"} detalle=${vale.recibio_puesto ?? ""} />
           </div>
           ${vale.observaciones ? html`<${Tarjeta} titulo="Observaciones"><p class="preformateado">${vale.observaciones}</p><//>` : null}
-          <${Tarjeta} titulo=${`Renglones (${vale.lineas.length})`}>
+          <${Tarjeta} titulo=${`Partidas (${vale.lineas.length})`}>
             <${Tabla}
               filas=${vale.lineas}
               columnas=${[

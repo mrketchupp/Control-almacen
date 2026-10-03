@@ -169,8 +169,8 @@ test("corregir una entrada: motivo con los cambios, avisa si la existencia queda
   assert.match(avisos[0].mensaje, /quedaría en -7/);
   const cambios = en.resumenCambiosEntrada(estado, vale, datos);
   assert.deepEqual(cambios, [
-    "Renglón 1 (701 BALEROS 6309-2Z/C3): cantidad 10 PZA → 1 PZA",
-    "Se quitó el renglón 2: 701 BALEROS 6311, 4 PZA",
+    "Partida 1 (701 BALEROS 6309-2Z/C3): cantidad 10 PZA → 1 PZA",
+    "Se quitó la partida 2: 701 BALEROS 6311, 4 PZA",
   ]);
   assert.throws(() => en.corregirEntrada(estado, vale.id, datos, "", USUARIO), /motivo/);
   en.corregirEntrada(estado, vale.id, datos, cambios.join("\n"), USUARIO);
@@ -193,14 +193,15 @@ test("devolución: los renglones regresan al renglón del que salieron", () => {
   const datos = en.datosDeDevolucion(estado, emitido.folio);
   assert.equal(datos.lineas[0].existencia_id, balero1.id);
   assert.equal(datos.origen, emitido.destino);
-  const b = borrador(estado, datos.lineas, { ...datos, folio_externo: "" });
+  const b = borrador(estado, datos.lineas, { ...datos, folio_externo: "D-1" });
   b.lineas[0].cantidad = "1";
   const vale = en.confirmarEntrada(estado, b.id, { usuario: USUARIO });
   assert.equal(vale.motivo, "DEVOLUCION");
   assert.equal(vale.devolucion_folio, emitido.folio);
   assert.equal(total(estado, balero1.id), "5");
-  const filas = en.filtrarEntradas(en.filasEntradas(estado), { folio: `Dev. ${emitido.folio}` });
+  const filas = en.filtrarEntradas(en.filasEntradas(estado), { folio: "D-1" });
   assert.equal(filas.length, 1);
+  assert.equal(estado.vales.at(-1).depto_origen, "ALMACEN");
   assert.throws(() => en.datosDeDevolucion(estado, 999), /No hay un vale de salida/);
 });
 

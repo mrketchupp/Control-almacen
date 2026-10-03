@@ -18,9 +18,10 @@ const CSS =
   ".conteo-cabeza h1{font-size:13pt;margin:0}.conteo-cabeza p{margin:2px 0 0;font-size:9pt}" +
   ".conteo-datos{text-align:right;font-size:9pt;line-height:1.5}" +
   ".conteo-tabla{width:100%;border-collapse:collapse;table-layout:fixed}" +
-  ".conteo-tabla th,.conteo-tabla td{border:1px solid #000;padding:3px 4px;vertical-align:top;overflow:hidden}" +
-  ".conteo-tabla th{background:#d9e1f2;font-size:8pt;text-align:left}" +
-  ".conteo-tabla td{height:17px}" +
+  ".conteo-tabla th,.conteo-tabla td{border:1px solid #000;padding:0 4px;overflow:hidden}" +
+  ".conteo-tabla th{background:#d9e1f2;font-size:8pt;text-align:left;height:0.24in}" +
+  // Todos los renglones del mismo alto y con espacio para escribir a mano; el texto largo va en una línea.
+  ".conteo-tabla td{height:0.34in;max-height:0.34in;vertical-align:middle;white-space:nowrap;text-overflow:ellipsis}" +
   ".conteo-tabla .n,.conteo-tabla .cod{text-align:right}" +
   ".conteo-tabla .contado{background:#fff}" +
   ".conteo-tabla thead{display:table-header-group}.conteo-tabla tr{break-inside:avoid;page-break-inside:avoid}" +
@@ -29,13 +30,13 @@ const CSS =
 
 const COLUMNAS = [
   ["ITEM", "4%", "n"],
-  ["CÓDIGO", "8%", "cod"],
-  ["DESCRIPCIÓN", "30%", ""],
-  ["DIMENSIÓN", "17%", ""],
-  ["NP", "11%", ""],
-  ["UM", "6%", ""],
-  ["CONTADO", "10%", "contado"],
-  ["OBSERVACIONES", "14%", ""],
+  ["CÓDIGO", "7%", "cod"],
+  ["DESCRIPCIÓN", "27%", ""],
+  ["DIMENSIÓN", "15%", ""],
+  ["NP", "10%", ""],
+  ["UM", "5%", ""],
+  ["CONTADO", "12%", "contado"],
+  ["OBSERVACIONES", "20%", ""],
 ];
 
 /**
@@ -60,7 +61,7 @@ export function documentoHojaConteo(estado, { ubicaciones, fecha = null, usuario
         "",
         "",
       ];
-      return `<tr>${celdas.map((c, k) => `<td class="${COLUMNAS[k][2]}">${escaparHtml(String(c))}</td>`).join("")}</tr>`;
+      return `<tr>${celdas.map((c, k) => `<td class="${COLUMNAS[k][2]}" title="${escaparHtml(String(c))}">${escaparHtml(String(c))}</td>`).join("")}</tr>`;
     });
     for (let i = 0; i < RENGLONES_EN_BLANCO; i++) filas.push(`<tr>${COLUMNAS.map(([, , clase]) => `<td class="${clase}"></td>`).join("")}</tr>`);
     const titulo = escaparHtml(u.hoja_excel.trim());
