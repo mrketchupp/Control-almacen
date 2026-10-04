@@ -18,10 +18,11 @@ import {
   olvidarPareja,
   quitarCorteAx,
   registrarCorteAx,
+  dimensionAx,
   valoresAx,
 } from "../../servicios/conciliacion.js";
 import { corregirDimensionNp } from "../../servicios/inventario.js";
-import { COLORES_ESTADO } from "../../exportadores/ajuste.js";
+import { COLORES_ESTADO, filasSolicitud } from "../../exportadores/ajuste.js";
 import { Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
@@ -33,7 +34,8 @@ const pesos = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN
 const dinero = (d) => (d === null || d === undefined ? "—" : pesos.format(aNumero(d)));
 const conSigno = (d) => (d && d.gt(0) ? `+${n(d)}` : n(d));
 const describir = (v) => (v ? `${v.dimension || "SIN DIMENSIÓN"}${v.np ? ` · NP ${v.np}` : ""}` : "—");
-const describirAx = (l) => `${l.tamano || "—"}${l.color ? ` · ${l.color}` : ""}`;
+// En AX la dimensión es Tamaño + Color.
+const describirAx = (l) => dimensionAx(l) || "—";
 const TONOS = { cuadra: "ok", explicada: "info", sobrante: "alerta", faltante: "error" };
 
 /** Pastilla del resultado: Cuadra / Explicada por vales / Sobran N / Faltan N. */
@@ -402,7 +404,7 @@ function VentanaAxSinFisico({ r, corte, alCerrar }) {
       columnas=${[
         { titulo: "Código", numero: true, render: (x) => x.codigo },
         { titulo: "Descripción", render: (x) => x.descripcion },
-        { titulo: "Tamaño · Color", render: (x) => html`<code class="dim-ax">${describirAx(x.linea)}</code>` },
+        { titulo: "Tamaño + Color", render: (x) => html`<code class="dim-ax">${describirAx(x.linea)}</code>` },
         { titulo: "AX", numero: true, render: (x) => `${n(x.ax)} ${x.linea.um}` },
         { titulo: "Valor", numero: true, render: (x) => dinero(x.valor) },
         {
@@ -566,6 +568,7 @@ export function PaginaConciliacion() {
   const contenedoresConDif = r.porContenedor.filter((c) => c.renglones.some((x) => x.por_confirmar || !x.en_ax || (x.resultado && x.resultado.estado !== "cuadra"))).length;
   const neto = resumen.valor_sobrante.plus(resumen.valor_faltante);
   const vistaPrevia = r.porConfirmar.slice(0, 4);
+  const filasAjuste = filasSolicitud(r, corte, { todos }).length;
 
   return html`
     <div class="barra-cortes">
@@ -586,6 +589,26 @@ export function PaginaConciliacion() {
     </div>
 
     <${Bento} clase="bento-concilia" etiqueta="Resumen de la conciliación">
+      <section class="bento-celda bento-doble bento-exportar-ajuste" aria-label="Solicitud de ajuste">
+        <header class="bento-cabeza">
+          <span class="cabeza-icono"><${Icono} nombre="descargar" tam=${18} /></span>
+          <h2>Solicitud de ajuste</h2>
+          <${Pastilla} tono=${filasAjuste ? "info" : "ok"}>${filasAjuste} ${filasAjuste === 1 ? "partida" : "partidas"}<//>
+        </header>
+        <div class="ajuste-cuerpo">
+          <div>
+            <p class="nota">El reporte de AX con <em>Existencia física</em>, <em>Folios que justifican</em> y el <em>Estado</em> de cada partida, con la fila coloreada:</p>
+            <ul class="leyenda-colores">
+              ${LEYENDA.map(([clave, texto]) => html`<li><span class="muestra-color" style=${`background: #${COLORES_ESTADO[clave]}`}></span>${texto}</li>`)}
+            </ul>
+          </div>
+          <div class="ajuste-acciones">
+            <label class="casilla"><input type="checkbox" checked=${todos} onChange=${(e) => setTodos(e.currentTarget.checked)} /> <span>Incluir también las que cuadran</span></label>
+            <${Boton} tipo="primario" onClick=${() => exportarConDialogo(sesion, "AJUSTE", null, { corteAx: corte.id, todos })}><${Icono} nombre="descargar" tam=${16} /> Descargar solicitud<//>
+          </div>
+        </div>
+        ${resumen.por_confirmar ? html`<p class="alerta">Hay ${resumen.por_confirmar} por confirmar: saldrán en gris. Confírmalas antes de enviarla.</p>` : null}
+      </section>
       ${r.porConfirmar.length
         ? html`<${Mosaico}
             clase="bento-doble"
@@ -619,19 +642,6 @@ export function PaginaConciliacion() {
       <${Mosaico} icono="inventario" titulo="Por artículo" dato=${conDiferencia} detalle=${`códigos con diferencia de ${r.porCodigo.length}`} onClick=${diferencias("articulo", "diferencias")} />
       <${Mosaico} icono="caja" titulo="Por contenedor" dato=${contenedoresConDif} detalle=${`contenedores con algo que revisar de ${r.porContenedor.length}`} onClick=${diferencias("contenedor", "diferencias")} />
       <${Mosaico} titulo="Valuada en $" dato=${dinero(neto)} detalle=${`Sobrante ${dinero(resumen.valor_sobrante)} · faltante ${dinero(resumen.valor_faltante)}`} onClick=${diferencias("valuada", "sin_explicar")} />
-      <section class="bento-celda bento-exportar-ajuste">
-        <header class="bento-cabeza">
-          <span class="cabeza-icono"><${Icono} nombre="descargar" tam=${18} /></span>
-          <h2>Solicitud de ajuste</h2>
-        </header>
-        <p class="nota">El reporte de AX con <em>Existencia física</em>, <em>Folios que justifican</em> y el <em>Estado</em> de cada partida, coloreada:</p>
-        <ul class="leyenda-colores">
-          ${LEYENDA.map(([clave, texto]) => html`<li><span class="muestra-color" style=${`background: #${COLORES_ESTADO[clave]}`}></span>${texto}</li>`)}
-        </ul>
-        <label class="casilla"><input type="checkbox" checked=${todos} onChange=${(e) => setTodos(e.currentTarget.checked)} /> <span>Incluir también las que cuadran</span></label>
-        <${Boton} tipo="primario" onClick=${() => exportarConDialogo(sesion, "AJUSTE", null, { corteAx: corte.id, todos })}><${Icono} nombre="descargar" tam=${16} /> Descargar<//>
-        ${resumen.por_confirmar ? html`<p class="alerta">Hay ${resumen.por_confirmar} por confirmar: saldrán en gris.</p>` : null}
-      </section>
     <//>
 
     ${abierta?.tipo === "confirmar" ? html`<${VentanaConfirmar} r=${r} corte=${corte} alCerrar=${cerrar} />` : null}

@@ -152,7 +152,7 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 - Renglones: solo los que tienen diferencia (físico ≠ Disponible, aunque la expliquen los vales). Opción de incluir todos.
 - Si varios renglones de AX son la misma variante, la existencia física va en el primero (los demás, 0). Los renglones aún
   sin confirmar salen con `Existencia física` vacía y `POR CONFIRMAR` en folios.
-- Los artículos físicos sin renglón en AX van al final: columnas AX llenas con código, nombre, UM, almacén y dimensión; `Disponible = 0`; valores en blanco.
+- Los artículos físicos sin renglón en AX van al final: columnas AX llenas con código, nombre, UM, almacén y la dimensión completa en `Tamaño` (`Color` vacío: AX no trae NP); `Disponible = 0`; valores en blanco.
 - **Nombre de archivo:** `SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`.
 
 ## F. Vale de la base en Excel (importación opcional, RF-35)

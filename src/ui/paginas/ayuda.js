@@ -1,6 +1,45 @@
-import { Tarjeta } from "../componentes.js";
+import { Boton, Tarjeta, useSesion } from "../componentes.js";
 import { EstadoAlmacenamiento } from "./inicio.js";
 import { html } from "../html.js";
+import { copiarTexto } from "./capturaIA.js";
+
+const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+const EDGE_SIN_X86 = "C:\\Program Files\\Microsoft\\Edge\\Application";
+
+/** Destino del acceso directo que abre la herramienta en su propia ventana (sin pestañas ni barra de direcciones). */
+export function destinoAplicacion(href = location.href) {
+  return `"${EDGE}" --app="${href.split("#")[0]}"`;
+}
+
+/** Cómo abrirla como aplicación: un acceso directo de Edge con --app. */
+function ComoAplicacion() {
+  const sesion = useSesion();
+  const destino = destinoAplicacion();
+  const copiar = async () => {
+    if (await copiarTexto(destino)) sesion.avisar("exito", "Copiado: pégalo como ubicación del acceso directo.");
+    else sesion.avisar("error", "No se pudo copiar: selecciónalo y cópialo a mano.");
+  };
+  return html`<${Tarjeta} titulo="Abrirla como aplicación (ventana sola)">
+    <p>
+      Edge puede abrir la herramienta en <strong>su propia ventana</strong>, sin pestañas ni barra de direcciones, con su ícono en la barra
+      de tareas. No se instala nada: es un acceso directo. Los datos son los mismos (mismo Edge, misma cuenta de Windows).
+    </p>
+    <ol class="pasos">
+      <li>En el escritorio: clic derecho → <em>Nuevo</em> → <em>Acceso directo</em>.</li>
+      <li>En "ubicación del elemento" pega esto (ya trae la ruta de este archivo):
+        <div class="destino-app">
+          <code>${destino}</code>
+          <${Boton} tamano="chico" onClick=${copiar}>Copiar<//>
+        </div>
+      </li>
+      <li><em>Siguiente</em> → nombre: <strong>Control de Almacén</strong> → <em>Finalizar</em>. Si quieres, clic derecho en el acceso → <em>Anclar a la barra de tareas</em>.</li>
+    </ol>
+    <p class="nota">
+      Si Edge no está en esa carpeta, busca <code>msedge.exe</code> en <code>${EDGE_SIN_X86}</code>. Si mueves o
+      renombras el HTML, vuelve a copiar el destino desde aquí. Usa un solo acceso a la vez: la herramienta no se abre en dos ventanas.
+    </p>
+  <//>`;
+}
 
 export function PaginaAyuda() {
   return html`
@@ -71,6 +110,7 @@ export function PaginaAyuda() {
         <dd><strong>Alt + N</strong> agrega una partida en los vales de salida y de entrada, debajo de la que estás escribiendo.</dd>
       </dl>
     <//>
+    <${ComoAplicacion} />
     <${EstadoAlmacenamiento} />
   `;
 }

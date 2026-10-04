@@ -809,19 +809,19 @@ export function PaginaValesEntrada() {
 
   const borradores = estado.borradores_entrada;
   const folio = folioEntrada(siguienteFolio(estado, "ENTRADA"));
-  const nombreDe = (b) => (b.folio_externo ? `Vale ${b.folio_externo}` : b.origen ? `De ${b.origen}` : "Entrada nueva");
+  const nombreDe = (b, i) => (b.folio_externo ? `Vale ${b.folio_externo}` : b.origen ? `De ${b.origen}` : borradores.length > 1 ? `Entrada ${i + 1}` : "Entrada nueva");
   const capturadas = datos ? lineasEntradaCapturadas(datos.lineas).length : 0;
   const modo = datos ? (datos.modo ?? (capturadas || texto(datos.folio_externo) ? "manual" : null)) : null;
 
   return html`
     ${borradores.length
       ? html`<div class="pestanas" role="tablist" aria-label="Entradas en borrador">
-          ${borradores.map((b) => {
+          ${borradores.map((b, i) => {
             const actual = b.id === datos?.id ? datos : b;
             const n = lineasEntradaCapturadas(actual.lineas).length;
             const activa = b.id === activo && !confirmada;
             return html`<button type="button" role="tab" aria-selected=${activa} class=${`pestana ${activa ? "activa" : ""}`} onClick=${() => cambiarPestana(b.id)}>
-              ${nombreDe(actual)}
+              ${nombreDe(actual, i)}
               <span class="pastilla-conteo" title=${`${n} ${n === 1 ? "partida" : "partidas"}`}>${n}</span>
             </button>`;
           })}

@@ -276,6 +276,6 @@ Así el total no cambia, CONSUMO / INGRESO siguen siendo solo vales y la CANTIDA
 | `*_clave` (estricta) | Texto general + quitar espacios, guiones y puntos. **Conserva `/` y `"`** para no confundir `1/2"` con `12`. Se usa para unicidad. |
 | Clave laxa | Solo `A-Z0-9`. Se usa **solo para sugerir** parejas, nunca para fusionar automáticamente. |
 | Truncado de AX | `Tamaño` de AX = primeros 10 caracteres. Si la dimensión física empieza con el Tamaño de AX, es candidata. |
-| Tamaño + Color | Para comparar con DIMENSION física se prueban `Tamaño`, `Tamaño + " " + Color` y `Color` dentro de NP. |
+| Tamaño + Color | Juntos son la DIMENSION (AX no trae NP). Para comparar se prueban `Tamaño + " " + Color`, `Tamaño` sin Color y, por tolerancia, `Color` anotado en NP. |
 | UM | Tabla de equivalencias: `PZA␠` / `pza` / `PZ A` → `PZA`, `CUB` → `CUBETA`, `LITROS` → `LTS`, `M` → `MTS`… |
 | Nombres | Tabla `persona_alias`, confirmada por el usuario en la migración |

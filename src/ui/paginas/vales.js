@@ -931,17 +931,18 @@ export function PaginaValesSalida() {
     });
 
   const borradores = estado.borradores;
-  const nombreDe = (b) => estado.plantillas_area.find((p) => p.id === b.plantilla_area_id)?.nombre ?? "Sin área";
+  // Sin área todavía: "Borrador 1", "Borrador 2"… (varios "Sin área" no se distinguían).
+  const nombreDe = (b, i) => estado.plantillas_area.find((p) => p.id === b.plantilla_area_id)?.nombre ?? `Borrador ${i + 1}`;
   const folio = siguienteFolio(estado);
   return html`
     ${borradores.length
       ? html`<div class="pestanas" role="tablist" aria-label="Vales en borrador">
-          ${borradores.map((b) => {
+          ${borradores.map((b, i) => {
             const actual = b.id === datos?.id ? datos : b;
             const n = lineasCapturadas(actual.lineas).length;
             const activa = b.id === activo && !emitidos;
             return html`<button type="button" role="tab" aria-selected=${activa} class=${`pestana ${activa ? "activa" : ""}`} onClick=${() => cambiarPestana(b.id)}>
-              ${nombreDe(actual)}
+              ${nombreDe(actual, i)}
               <span class="pastilla-conteo" title=${`${n} ${n === 1 ? "partida" : "partidas"}`}>${n}</span>
             </button>`;
           })}

@@ -41,6 +41,18 @@ con palomita verde → artefacto **`ControlAlmacen-html`**. También se entrega 
 **Importante:** los datos quedan ligados a la forma en que la abres. Si empiezas con el archivo (A) y luego usas la
 página publicada (B), esta aparecerá vacía: restaura tu último respaldo y listo. Usa siempre la misma forma.
 
+**Como aplicación (ventana sola, sin pestañas ni barra de direcciones):** Edge la abre así con un acceso directo; no se
+instala nada. En la herramienta, *Ajustes y más → Ayuda → Abrirla como aplicación* trae el destino listo para copiar
+con la ruta de tu archivo. A mano: escritorio → clic derecho → *Nuevo → Acceso directo* → ubicación:
+
+```
+"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --app="file:///C:/Users/<usuario>/OneDrive/ControlAlmacen/ControlAlmacen.html"
+```
+
+→ nombre *Control de Almacén* → *Finalizar* (y, si quieres, *Anclar a la barra de tareas*). Usa el mismo Edge y la
+misma cuenta de Windows, así los datos son los mismos que al abrirla con doble clic. La opción *Instalar este sitio como
+aplicación* de Edge no aparece con archivos locales; por eso se usa el acceso directo.
+
 **Diagnóstico opcional:** `herramientas/diagnostico-navegador.html` comprueba, sin conectarse a internet, que Edge puede
 leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 
@@ -123,8 +135,8 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 - **Conteo físico:** elige todo o algunos contenedores, imprime la hoja de conteo (sin cantidades), *Empezar a
   capturar*, anota lo contado y lo encontrado, y **Aplicar conteo**. Lo que no captures conserva su conteo anterior.
 - **Mover material de contenedor:** *Inventario* → botón *Mover* de la partida → cantidad y destino. El total no cambia.
-- **Corregir dimensión o NP:** *Inventario* → botón *Editar* de la partida. Sugiere cómo lo escribe AX (Tamaño y Color del
-  último corte) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
+- **Corregir dimensión o NP:** *Inventario* → botón *Editar* de la partida. Sugiere la dimensión como la escribe AX (Tamaño +
+  Color: juntos son la dimensión; AX no trae NP) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
   cantidades no cambian y el aviso trae *Deshacer*.
 - **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
 - **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.

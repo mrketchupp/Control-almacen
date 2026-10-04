@@ -7,7 +7,7 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
 - Fase 2 (vales de salida) **aceptada** (P-09 validado impreso, P-22 así está bien, P-23 lo corrige el usuario).
 - Fase 3 (entradas, conteos, reacomodos) **entregada**; el usuario dio luz verde para F4 tras las rondas 5–8 — ver "Avance de la Fase 3" abajo.
-- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Ronda 9 de comentarios aplicada (ver abajo).
+- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 y 10 de comentarios aplicadas (ver abajo).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 6` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`.
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
@@ -42,6 +42,12 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   vive en `corte.sin_pareja`; las `equivalencias_ax` viejas se proponen como `recordada`. UI en bento (masonry) con
   ventanas por sección; editor compartido `ui/paginas/clave.js` (`EditorClave`, `useCorreccion` con Deshacer), también
   en *Inventario → Editar*. Solicitud de ajuste con columna *Estado* y `COLORES_ESTADO`.
+- Ronda 10: **Tamaño + Color = dimensión** (AX no trae NP): `dimensionAx`, `valoresAx` (el NP se conserva salvo que fuera el
+  Color), sugerencias de AX solo para la dimensión; la solicitud de ajuste va primero en el bento (`filasSolicitud` cuenta
+  sus partidas). Revisión general: masonry con `grid-row: auto / span N` (un `span` en el inicio, como `.bento-ancha`,
+  encimaba las celdas), `.boton-quitar` compacto solo en tarjetas de entrada, tokens `--sobre-primario`/`--sobre-intenso`
+  para texto sobre fondos de color en tema oscuro, foco visible en todos los botones, pestañas "Borrador N", y *Ayuda →
+  Abrirla como aplicación* (acceso directo `msedge.exe --app="file:///…"`, `destinoAplicacion`).
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja.
 
 ## Reglas no negociables
@@ -87,7 +93,7 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Captura con Copilot (`servicios/capturaIA.js`): la herramienta NO se conecta; solo da instrucciones para copiar y lee el JSON pegado con `jsonTolerante.js` (repara lo cortado o mal formado, sin `eval`) y nombres parecidos.
 - Reporte diario: `estadoAlCierre(estado, fecha)` (copia del estado al cierre del día) → `Almacen.exportar(tipo, …, { corte })`. *Ya lo subí* del reporte usa `registrarEnvio(…, { hastaFolio })`.
 - Personalización por almacenista (`config.personalizacion`, `servicios/preferencias.js`) → `ui/tema.js` pone `data-tema`, `data-avisos` y `data-animaciones` en `<html>` (y lo recuerda en `localStorage` solo para el arranque). Colores siempre con variables CSS; el oscuro va en `:root[data-tema="oscuro"]` y en `prefers-color-scheme` si no eligió claro.
-- Conciliación AX: llave de AX = código + Tamaño + Color; AX corta el Tamaño a 10 caracteres y a veces pone el NP en Color. Solo se concilia `Modelo de Inventario = INV`. Diferencia sin explicar = físico − AX + salidas en tránsito − entradas en tránsito. Las **cantidades** no cambian; confirmar una pareja sí corrige la dimensión / NP de la variante (a como está en AX).
+- Conciliación AX: llave de AX = código + Tamaño + Color; **Tamaño + Color = la dimensión** (AX no trae NP; `dimensionAx`, `valoresAx`) y AX corta el Tamaño a 10 caracteres. Solo se concilia `Modelo de Inventario = INV`. Diferencia sin explicar = físico − AX + salidas en tránsito − entradas en tránsito. Las **cantidades** no cambian; confirmar una pareja sí corrige la dimensión / NP de la variante (a como está en AX).
 - Corregir dimensión / NP (`corregirDimensionNp`): de una partida (`existenciaId`, pasa a otra variante) o de toda la variante (`varianteId`, cambia de nombre o se junta con la igual: `activo: false`, `unida_a`). **Nunca se reescriben los vales**: la escritura anterior queda en `variante.claves_anteriores` y `clavesPropias` (`nucleo/catalogo.js`) la sigue reconociendo.
 - Textos de la interfaz: **"partida"/"partidas"**, nunca "renglón" (en el código los nombres internos siguen igual). Bentos con `Bento` (`ui/componentes.js`, acomodo masonry con `useMasonry`). Atajos con `useAtajo` (Alt + N = nueva partida) y `Teclas`.
 - Inventario exportado: la fecha del encabezado de página (`oddHeader`) se cambia por la del inventario (`fechaEnTexto`, respeta la forma escrita). Escribir con "Guardar como" reintenta, verifica el tamaño y, si falla, descarga (`escribirEnArchivo`, `explicarErrorEscritura`).

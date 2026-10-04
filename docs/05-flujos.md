@@ -150,11 +150,14 @@ flowchart LR
 
 - **Solo modelo INV:** se concilian las partidas de AX con *Modelo de Inventario* = `INV`; las de otros modelos (diésel,
   servicios…) no, y si un código solo viene con otro modelo, su físico tampoco se compara.
-- **Emparejamiento** (`servicios/conciliacion.js`): exacto tras normalizar: `Tamaño` = dimensión y `Color` vacío o = NP,
-  `Tamaño + Color` = dimensión (+ NP), o `Tamaño` de 10 caracteres con el que empieza la dimensión física (AX la corta);
-  las unidades se comparan equivalentes (`m` = `MTS`, `LITROS` = `LTS`…); aproximado con puntaje (se **sugiere**). Al
-  confirmar (*Corregir a como está en AX*, *Ajustar…* o *Otra…*) **se corrige la dimensión y el NP de la variante en el
-  inventario** (todas sus partidas; si ya había una igual, se juntan) y desde ahí empareja exacto: no hay memoria
+- **En AX la dimensión es `Tamaño + Color`** (dos columnas que juntas son la DIMENSION física); AX **no trae NP** y
+  corta el `Tamaño` a 10 caracteres.
+- **Emparejamiento** (`servicios/conciliacion.js`): exacto tras normalizar: dimensión = `Tamaño + Color` (o = `Tamaño`
+  cuando no hay Color; si el inventario anotó el Color en la columna NP, también empareja), o `Tamaño` de 10 caracteres
+  con el que empieza la dimensión física (y termina con el Color); las unidades se comparan equivalentes (`m` = `MTS`,
+  `LITROS` = `LTS`…); aproximado con puntaje (se **sugiere**). Al confirmar (*Corregir a como está en AX*, *Ajustar…* u
+  *Otra…*) **la dimensión de la variante pasa a `Tamaño + Color`** (todas sus partidas; si ya había una igual, se
+  juntan); el NP se conserva, salvo que fuera el mismo Color anotado como NP. Desde ahí empareja exacto: no hay memoria
   aparte. La escritura anterior queda en `claves_anteriores` para seguir reconociendo los vales viejos. *No está en el
   físico* se anota solo en ese corte. Un código de AX sin ninguna partida física va directo a "en AX y no en el físico".
   Cada corrección tiene *Deshacer* en el aviso y queda en la bitácora (`CORREGIR_CLAVE`).

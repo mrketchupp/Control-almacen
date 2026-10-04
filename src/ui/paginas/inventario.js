@@ -17,7 +17,7 @@ function CorregirClave({ fila, alTerminar }) {
       <${Pastilla} tono="lugar" titulo=${fila.hoja}>${lugarCorto({ contenedor: fila.contenedor, clase: fila.clase === "Inventariable" ? "INV" : "CONS" })}<//>
       <${Pastilla} tono=${fila.total > 0 ? "ok" : "alerta"}>hay ${num(fila.total)} ${fila.um}<//>
     </p>
-    <p class="nota">Las sugerencias dicen cómo lo escribe AX (Tamaño y Color del último corte) y cómo está en otras partidas.</p>
+    <p class="nota">Las sugerencias dicen cómo lo escribe AX (su dimensión es Tamaño + Color; AX no trae NP) y cómo está en otras partidas.</p>
     <${EditorClave}
       cual=${{ existenciaId: fila.id }}
       codigo=${fila.codigo}

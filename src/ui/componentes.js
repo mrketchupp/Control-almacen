@@ -164,8 +164,12 @@ export function useMasonry(ref) {
       const hueco = parseFloat(estilo.columnGap) || 0;
       for (const hijo of grid.children) {
         const alto = hijo.getBoundingClientRect().height;
-        const filas = `span ${Math.max(1, Math.ceil((alto + hueco) / fila))}`;
-        if (hijo.style.gridRowEnd !== filas) hijo.style.gridRowEnd = filas;
+        const filas = String(Math.max(1, Math.ceil((alto + hueco) / fila)));
+        // Inicio automático: un "span" en el inicio (p. ej. .bento-ancha) anularía el del final y se enciman.
+        if (hijo.dataset.filas !== filas) {
+          hijo.dataset.filas = filas;
+          hijo.style.gridRow = `auto / span ${filas}`;
+        }
       }
     };
     const pedir = () => {

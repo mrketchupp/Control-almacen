@@ -204,8 +204,8 @@ export function corregirDimensionNp(estado, cual, { dimension, np }, { usuario =
 }
 
 /**
- * Sugerencias para la dimensión y el NP de un código: cómo lo escribe AX (Tamaño y Color del
- * último corte) y las otras variantes del inventario.
+ * Sugerencias para la dimensión y el NP de un código: la dimensión como la escribe AX (Tamaño +
+ * Color de los cortes, el más reciente primero) y las otras variantes del inventario. AX no trae NP.
  * @returns {{ dimensiones: [{ valor, detalle }], nps: [{ valor, detalle }] }}
  */
 export function sugerenciasClave(estado, codigo) {
@@ -219,9 +219,8 @@ export function sugerenciasClave(estado, codigo) {
   for (const corte of cortes) {
     for (const l of corte.lineas) {
       if (l.codigo !== codigo) continue;
-      const cortado = texto(l.tamano).length === 10 ? " · AX guarda solo 10 caracteres" : "";
-      poner(dimensiones, l.tamano, `Tamaño en AX (${corte.fecha})${cortado}`);
-      poner(nps, l.color, `Color en AX (${corte.fecha})`);
+      const cortado = texto(l.tamano).length === 10 ? " · AX guarda solo 10 caracteres del Tamaño" : "";
+      poner(dimensiones, [texto(l.tamano), texto(l.color)].filter(Boolean).join(" "), `${texto(l.color) ? "Tamaño + Color" : "Tamaño"} en AX (${corte.fecha})${cortado}`);
     }
   }
   for (const v of estado.variantes) {

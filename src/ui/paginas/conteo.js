@@ -410,7 +410,7 @@ function HistorialConteos() {
         key=${c.id}
         resumen=${html`<strong>${fmtFecha(c.fecha)}</strong> · ${c.descripcion}
           ${c.inicial ? null : html` · ${c.renglones} partidas · <span class=${c.diferencias.length ? "alerta" : "ok"}>${c.diferencias.length} con diferencia</span>`}
-          <span class="nota"> · vigente en ${c.vigentes} renglones${c.usuario ? ` · ${c.usuario}` : ""}</span>`}
+          <span class="nota"> · vigente en ${c.vigentes} partidas${c.usuario ? ` · ${c.usuario}` : ""}</span>`}
       >
         <p class="nota">
           Corte: vales de salida hasta el folio ${c.corte_salida} y entradas hasta ${c.corte_entrada ? folioEntrada(c.corte_entrada) : "—"} ya estaban reflejados en lo contado.

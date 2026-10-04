@@ -160,6 +160,12 @@ verifica y, si no se puede escribir donde se eligió, descarga a *Descargas* con
 dimensión y NP desde *Inventario* (con sugerencias de AX), "partida" en lugar de "renglón" en la interfaz y bentos con
 acomodo masonry.
 
+**Ronda 10 (aplicada):** en AX **Tamaño + Color = la dimensión** (AX no trae NP): la corrección y las sugerencias ya no
+mandan el Color al NP; la **solicitud de ajuste** va primero y destacada (con cuántas partidas lleva); el reporte diario
+ya no encima sus secciones; el botón *Quitar* de los vales de salida se colorea completo; revisión general (contraste en
+tema oscuro, foco visible, menú en una línea, filtros del historial, pestañas "Borrador N"); y *Ayuda → Abrirla como
+aplicación* (acceso directo de Edge en ventana propia).
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

@@ -4,10 +4,10 @@
 //
 // 1. Se importa un corte (reporte de AX filtrado al almacén) y se guarda con su fecha. Solo se
 //    concilian los renglones con Modelo de Inventario "INV" (los demás no llevan existencia en AX).
-// 2. Cada renglón de AX (código + tamaño + color) se empareja con una variante del inventario:
-//    exacto tras normalizar (incluye el Tamaño que AX corta a 10 caracteres y el NP en Color) o
-//    aproximado con puntaje (se sugiere y el usuario confirma). Confirmar una pareja CORRIGE la
-//    dimensión y el NP del inventario a como los escribe AX: la siguiente vez ya empareja exacto.
+// 2. Cada renglón de AX (código + tamaño + color) se empareja con una variante del inventario. En AX
+//    la dimensión es Tamaño + Color (AX no trae NP; corta el Tamaño a 10 caracteres). Exacto tras
+//    normalizar o aproximado con puntaje (se sugiere y el usuario confirma). Confirmar una pareja
+//    CORRIGE la dimensión del inventario a Tamaño + Color: la siguiente vez ya empareja exacto.
 //    "No está en físico" se guarda solo en ese corte.
 // 3. Por variante: físico (TOTAL de todos sus renglones) − AX + salidas en tránsito − entradas en
 //    tránsito. Si da 0, la diferencia la explican los vales; si no, es sobrante o faltante.
@@ -224,13 +224,16 @@ function formasFisico(v) {
   };
 }
 
-/** Nivel 2: iguales tras normalizar (Tamaño = dimensión y Color vacío o = NP; o juntos; o Tamaño cortado a 10). */
+/**
+ * Iguales tras normalizar: la dimensión = Tamaño + Color (también si el inventario anotó el Color
+ * en NP), o el Tamaño cortado a 10 caracteres con el que empieza la dimensión (y termina con el Color).
+ */
 function esExacto(ax, f) {
   const colorOk = !ax.c || ax.c === f.n;
   if (ax.t === f.d && colorOk) return true;
   if (ax.c && (ax.tc === f.d || ax.tc === f.dn)) return true;
   // AX corta el Tamaño a 10 caracteres: la dimensión física debe empezar igual.
-  if (ax.crudo.length === 10 && f.crudo.length > 10 && f.crudo.startsWith(ax.crudo) && colorOk) return true;
+  if (ax.crudo.length === 10 && f.crudo.length > 10 && f.crudo.startsWith(ax.crudo) && (colorOk || f.d.endsWith(ax.c))) return true;
   return false;
 }
 
@@ -314,13 +317,19 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
   return pares;
 }
 
+/** En AX la dimensión es Tamaño + Color (AX no trae NP). */
+export const dimensionAx = (linea) => [texto(linea.tamano), texto(linea.color)].filter(Boolean).join(" ");
+
 /**
- * Dimensión y NP que propone AX para una variante: el Tamaño y, si viene, el Color (AX a veces
- * pone ahí el NP); si no, el NP que ya tenía. cortado: el Tamaño tiene 10 caracteres (AX corta lo demás).
+ * Dimensión y NP que propone AX para una variante: la dimensión = Tamaño + Color; el NP se queda
+ * como estaba (AX no lo trae), salvo que fuera el mismo Color anotado como NP. cortado: el Tamaño
+ * tiene 10 caracteres (AX corta lo demás).
  */
 export function valoresAx(linea, variante = null) {
   const tamano = texto(linea.tamano);
-  return { dimension: tamano, np: texto(linea.color) || texto(variante?.np), cortado: tamano.length === 10 };
+  const np = texto(variante?.np);
+  const colorEnNp = np && claveEstricta(np) === claveEstricta(linea.color);
+  return { dimension: dimensionAx(linea), np: colorEnNp ? "" : np, cortado: tamano.length === 10 };
 }
 
 /** ¿Con esa dimensión y NP el renglón de AX empareja exacto? */

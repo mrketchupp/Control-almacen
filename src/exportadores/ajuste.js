@@ -52,11 +52,11 @@ export function nombreSolicitud(fecha) {
 const codigoTexto = (codigo) => String(codigo).padStart(9, "0");
 
 /**
- * @param todos  también los renglones que cuadran
- * @returns {{ datos: Uint8Array, nombre, renglones, porConfirmar }}
+ * Filas de la solicitud a partir de una conciliación ya hecha (`conciliar`); la última columna es
+ * el estado (cuadra, explicada, sobrante, faltante, por_confirmar).
+ * @param todos  también las partidas que cuadran
  */
-export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
-  const c = conciliar(estado, corte);
+export function filasSolicitud(c, corte, { todos = false } = {}) {
   const porVariante = new Map(c.renglones.map((r) => [r.variante_id, r]));
   const conFisico = new Set();
   const filas = [];
@@ -112,7 +112,7 @@ export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
       r.variante.um ?? "",
       corte.almacen,
       r.variante.dimension ?? "",
-      r.variante.np ?? "",
+      "", // AX no trae NP: la dimensión completa va en Tamaño
       CERO,
       null,
       null,
@@ -121,7 +121,16 @@ export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
       r.estado,
     ]);
   }
+  return filas;
+}
 
+/**
+ * @param todos  también las partidas que cuadran
+ * @returns {{ datos: Uint8Array, nombre, renglones, porConfirmar }}
+ */
+export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
+  const c = conciliar(estado, corte);
+  const filas = filasSolicitud(c, corte, { todos });
   const libro = new LibroNuevo();
   const ws = libro.agregarHoja(HOJA_AJUSTE);
   ENCABEZADOS_AJUSTE.forEach((titulo, i) => ws.poner(1, i + 1, titulo, i >= 10 ? AGREGADO : ENCABEZADO));

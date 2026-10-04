@@ -8,6 +8,8 @@
   --primario: #1f4e8c;
   --primario-hover: #183f72;
   --primario-suave: #e6eef8;
+  --sobre-primario: #fff; /* texto sobre fondos del color principal */
+  --sobre-intenso: #fff; /* texto sobre fondos rojo, verde o ámbar */
   --ok: #1d7a46;
   --ok-suave: #e5f4ea;
   --alerta: #a15c00;
@@ -39,6 +41,9 @@
     --primario: #6ea3e8;
     --primario-hover: #8bb7f0;
     --primario-suave: #1d3150;
+    --sobre-primario: #0b1a2e;
+  --sobre-intenso: #12161c;
+    --sobre-intenso: #12161c;
     --ok: #5cc98a;
     --ok-suave: #173526;
     --alerta: #f0b35a;
@@ -63,6 +68,8 @@
   --primario: #6ea3e8;
   --primario-hover: #8bb7f0;
   --primario-suave: #1d3150;
+  --sobre-primario: #0b1a2e;
+  --sobre-intenso: #12161c;
   --ok: #5cc98a;
   --ok-suave: #173526;
   --alerta: #f0b35a;
@@ -159,7 +166,7 @@ h3 {
   height: 34px;
   border-radius: 8px;
   background: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
   font-size: 20px;
 }
 
@@ -216,7 +223,7 @@ h3 {
 
 .cuerpo {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
   min-height: calc(100vh - 57px);
 }
 
@@ -245,8 +252,8 @@ h3 {
 .nav-boton-mas {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 9px;
+  padding: 8px 10px;
   border-radius: 6px;
   color: var(--texto);
   text-decoration: none;
@@ -255,6 +262,9 @@ h3 {
 .nav-texto {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .navegacion .icono {
@@ -281,7 +291,7 @@ h3 {
   padding: 0 6px;
   border-radius: 999px;
   background: var(--alerta);
-  color: #fff;
+  color: var(--sobre-intenso);
   font-size: 0.75rem;
   font-weight: 700;
   text-align: center;
@@ -391,9 +401,13 @@ h3 {
   transform: scale(0.97);
 }
 
+/* Todo lo que se puede usar con teclado muestra dónde está el foco. */
 .boton:focus-visible,
+button:focus-visible,
 select:focus-visible,
 input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--primario);
   outline-offset: 2px;
@@ -402,7 +416,7 @@ a:focus-visible {
 .boton-primario {
   background: var(--primario);
   border-color: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
 }
 
 .boton-primario:hover {
@@ -412,7 +426,7 @@ a:focus-visible {
 .boton-peligro {
   background: var(--error);
   border-color: var(--error);
-  color: #fff;
+  color: var(--sobre-intenso);
 }
 
 .boton-chico {
@@ -640,7 +654,7 @@ a:focus-visible {
 
 .paso-listo .paso-numero {
   background: var(--ok);
-  color: #fff;
+  color: var(--sobre-intenso);
 }
 
 .paso-deshabilitado {
@@ -1619,7 +1633,7 @@ select.con-error {
 .boton-quitar:hover,
 .boton-quitar:focus-visible {
   background: var(--error);
-  color: #fff;
+  color: var(--sobre-intenso);
 }
 
 .solo-lector {
@@ -1677,8 +1691,9 @@ select.con-error {
   align-items: flex-end;
 }
 
+/* El buscador ocupa su propia línea y los filtros caben juntos debajo. */
 .filtros-historial .buscador {
-  flex: 1 1 260px;
+  flex: 1 1 100%;
 }
 
 .filtro {
@@ -2181,7 +2196,7 @@ select.con-error {
   padding: 5px 12px;
   border-radius: 6px;
   background: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
   font-size: 0.82rem;
   opacity: 0.75;
 }
@@ -2309,7 +2324,7 @@ select.con-error {
   margin: 2px 0 0;
 }
 
-.paso-numero {
+.paso-ia .paso-numero {
   flex: none;
   display: grid;
   place-items: center;
@@ -2317,7 +2332,7 @@ select.con-error {
   height: 28px;
   border-radius: 50%;
   background: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -2466,7 +2481,7 @@ select.con-error {
   height: 32px;
   border-radius: 8px;
   background: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
 }
 
 .menu-texto {
@@ -2772,12 +2787,12 @@ select.con-error {
 
 .accion-principal .accion-enlace,
 .accion-principal .accion-enlace small {
-  color: #fff;
+  color: var(--sobre-primario);
 }
 
 .accion-principal .accion-icono {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  background: color-mix(in srgb, var(--sobre-primario) 18%, transparent);
+  color: var(--sobre-primario);
 }
 
 .accion-en-curso {
@@ -2977,7 +2992,7 @@ select.con-error {
   padding: 8px 14px;
   border-radius: 8px;
   background: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
   font-weight: 600;
   transition: background var(--dur-corta) ease;
 }
@@ -3003,7 +3018,7 @@ select.con-error {
 
 .archivo-boton.descargado:hover .archivo-accion {
   background: var(--primario);
-  color: #fff;
+  color: var(--sobre-primario);
 }
 
 .archivo-listo {
@@ -3593,7 +3608,10 @@ body.con-ventana {
   color: var(--texto-suave);
 }
 
-.boton-quitar {
+/* En las tarjetas de entrada el botón es solo la ✕ (en los vales de salida dice "✕ Quitar"). */
+.partida-entrada .boton-quitar {
+  display: inline-grid;
+  place-items: center;
   width: 30px;
   height: 30px;
   padding: 0;
@@ -3988,7 +4006,7 @@ body.con-ventana .toast {
   height: 38px;
   border-radius: 50%;
   background: var(--ok);
-  color: #fff;
+  color: var(--sobre-intenso);
   font-size: 1.2rem;
   font-weight: 700;
   animation: rebote 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
@@ -4545,4 +4563,54 @@ button.mosaico:hover .mosaico-abrir {
   display: inline-flex;
   gap: 2px;
   white-space: nowrap;
+}
+
+/* La solicitud de ajuste es lo que se entrega: va primero y destacada. */
+.bento-exportar-ajuste {
+  border-color: color-mix(in srgb, var(--primario) 45%, var(--borde));
+  background: color-mix(in srgb, var(--primario-suave) 40%, var(--superficie));
+}
+
+.ajuste-cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 18px;
+}
+
+.ajuste-cuerpo .nota {
+  margin: 0 0 6px;
+}
+
+.ajuste-acciones {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .ajuste-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Ayuda → abrir como aplicación: el destino del acceso directo, listo para copiar. */
+.destino-app {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+
+.destino-app code {
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+  user-select: all;
 }

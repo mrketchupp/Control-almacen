@@ -5,7 +5,7 @@ import { useMemo, useState } from "preact/hooks";
 import { Indices, auditar } from "../../nucleo/estado.js";
 import { ErrorConciliacion, cuadraConAx } from "../../servicios/conciliacion.js";
 import { ErrorCorreccion, lugarCorto, previaCorreccion, sugerenciasClave } from "../../servicios/inventario.js";
-import { Boton, Combo, Pastilla, useSesion } from "../componentes.js";
+import { Boton, Combo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
@@ -105,11 +105,6 @@ export function EditorClave({ cual, codigo, actual, inicial = actual, linea = nu
       ${alCancelar ? html`<${Boton} tipo="texto" tamano="chico" onClick=${alCancelar}>Cancelar<//>` : null}
     </div>
   </div>`;
-}
-
-/** "AX: 6309-2Z/C3 · FLEXITALIC" en pastilla. */
-export function PastillaAx({ linea }) {
-  return html`<${Pastilla} tono="info" titulo="Como está en AX (Tamaño · Color)">AX: ${[texto(linea.tamano) || "—", texto(linea.color)].filter(Boolean).join(" · ")}<//>`;
 }
 
 /**

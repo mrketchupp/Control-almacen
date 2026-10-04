@@ -62,5 +62,9 @@ test("sugerencias de dimensión y NP: cómo lo escribe AX y las variantes del in
   const s = sugerenciasClave(estado, 707);
   assert.deepEqual(s.dimensiones.map((x) => x.valor), ["MARIPOSA 4", 'MARIPOSA 4"']);
   assert.match(s.dimensiones[0].detalle, /AX .*10 caracteres/);
-  assert.deepEqual(sugerenciasClave(estado, 704).nps.map((x) => x.valor), ["FLEXITALIC"]);
+  // Tamaño + Color = la dimensión en AX; el NP solo se sugiere del inventario (AX no lo trae).
+  const empaque = sugerenciasClave(estado, 704);
+  assert.deepEqual(empaque.dimensiones.map((x) => x.valor), ['6" FLEXITALIC', '6"']);
+  assert.match(empaque.dimensiones[0].detalle, /Tamaño \+ Color en AX/);
+  assert.deepEqual(empaque.nps.map((x) => [x.valor, x.detalle]), [["FLEXITALIC", "En el inventario"]]);
 });

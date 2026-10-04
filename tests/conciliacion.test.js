@@ -120,6 +120,22 @@ test("criterio F4: confirmar una pareja corrige el inventario a como lo escribe 
   assert.equal(c.emparejar(estado, segundo).find((p) => p.linea === linea).metodo, "exacto");
 });
 
+test("en AX la dimensión es Tamaño + Color (AX no trae NP)", () => {
+  const { estado, corte } = conCorte();
+  const empaque = corte.lineas.find((l) => l.codigo === 704);
+  const variante = estado.variantes.find((v) => v.codigo === 704);
+  // El inventario anotó el Color como NP: empareja, y al corregir la dimensión queda completa y el NP se vacía.
+  assert.equal(c.emparejar(estado, corte).find((p) => p.linea === empaque).metodo, "exacto");
+  assert.deepEqual(c.valoresAx(empaque, variante), { dimension: '6" FLEXITALIC', np: "", cortado: false });
+  assert.equal(c.dimensionAx(empaque), '6" FLEXITALIC');
+  assert.ok(c.cuadraConAx(empaque, { dimension: '6" FLEXITALIC', np: "" }));
+  // Tamaño cortado a 10 + Color: la dimensión completa empieza con el Tamaño y termina con el Color.
+  assert.ok(c.cuadraConAx({ tamano: "MARIPOSA 4", color: "ROJO" }, { dimension: 'MARIPOSA 4" ROJO', np: "" }));
+  assert.ok(!c.cuadraConAx({ tamano: "MARIPOSA 4", color: "ROJO" }, { dimension: 'MARIPOSA 4" AZUL', np: "" }));
+  // Un NP distinto del Color se conserva.
+  assert.equal(c.valoresAx({ tamano: "1/2", color: "ROJO" }, { np: "X-1" }).np, "X-1");
+});
+
 test("las parejas recordadas por la versión anterior se vuelven a proponer y, al confirmarlas, corrigen el inventario", () => {
   const { estado, corte } = conCorte();
   const linea = corte.lineas.find((l) => l.tamano === "P55I317");
