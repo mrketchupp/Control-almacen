@@ -26,7 +26,7 @@ function HistorialEntradas() {
       <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
       ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS_ENTRADAS)}>Quitar filtros (${activos})<//>` : null}
     </div>
-    <p class="conteo">${num(visibles.length)} renglones · ${num(folios)} entradas${activos ? " con los filtros elegidos" : ""}</p>
+    <p class="conteo">${num(visibles.length)} partidas · ${num(folios)} entradas${activos ? " con los filtros elegidos" : ""}</p>
     <${Tabla}
       limite=${200}
       filas=${visibles}
@@ -43,7 +43,7 @@ function HistorialEntradas() {
         { clave: "oc", titulo: "O.C." },
         { titulo: "Entró a", render: (f) => html`<span class="sin-corte" title=${f.hoja}>${f.lugar}</span>` },
       ]}
-      vacia=${filas.length ? "Ningún renglón coincide con los filtros." : "Aún no hay entradas. Se registran en Vales de entrada."}
+      vacia=${filas.length ? "Ninguna partida coincide con los filtros." : "Aún no hay entradas. Se registran en Vales de entrada."}
     />
   `;
 }
@@ -118,7 +118,7 @@ function HistorialSalidas() {
       <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
       ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS)}>Quitar filtros (${activos})<//>` : null}
     </div>
-    <p class="conteo">${num(visibles.length)} renglones · ${num(folios)} folios${activos ? " con los filtros elegidos" : ""}</p>
+    <p class="conteo">${num(visibles.length)} partidas · ${num(folios)} folios${activos ? " con los filtros elegidos" : ""}</p>
     <${Tabla}
       limite=${200}
       filas=${visibles}
@@ -135,7 +135,7 @@ function HistorialSalidas() {
         { clave: "oc", titulo: "O.C." },
         { titulo: "Notas", render: (f) => (f.notas ? html`<span class="nota-icono" title=${f.notas}>ⓘ</span>` : "") },
       ]}
-      vacia="Ningún renglón coincide con los filtros."
+      vacia="Ninguna partida coincide con los filtros."
     />
   `;
 }

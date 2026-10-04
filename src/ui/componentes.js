@@ -1,6 +1,6 @@
 import { createContext } from "preact";
 import { createPortal } from "preact/compat";
-import { useContext, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { html } from "./html.js";
 
 export const ContextoSesion = createContext(null);
@@ -79,7 +79,7 @@ export function Detalles({ resumen, children, abierto = false }) {
 /**
  * Tabla simple con encabezado fijo. columnas: [{ clave, titulo, numero, ancho, render }]
  */
-export function Tabla({ columnas, filas, vacia = "Sin renglones.", limite = null, claveFila = (f, i) => f.id ?? i }) {
+export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null, claveFila = (f, i) => f.id ?? i }) {
   const [mostrar, setMostrar] = useState(limite);
   // Vuelve al límite solo si cambia el contenido (no en cada redibujo).
   const firma = `${filas.length}:${filas.length ? claveFila(filas[0], 0) : ""}:${filas.length ? claveFila(filas[filas.length - 1], filas.length - 1) : ""}`;
@@ -146,6 +146,82 @@ export function useFiltroTexto(filas, texto, campos) {
       return palabras.every((p) => todo.includes(p));
     });
   }, [filas, texto]);
+}
+
+/**
+ * Acomodo tipo masonry para una cuadrícula bento: cada celda ocupa las filas (de 4 px) que mide su
+ * contenido, así las celdas bajas no dejan huecos. Se recalcula al cambiar el tamaño o las celdas.
+ */
+export function useMasonry(ref) {
+  useLayoutEffect(() => {
+    const grid = ref.current;
+    if (!grid || typeof ResizeObserver === "undefined") return undefined;
+    let cuadro = 0;
+    const acomodar = () => {
+      cuadro = 0;
+      const estilo = getComputedStyle(grid);
+      const fila = parseFloat(estilo.gridAutoRows) || 4;
+      const hueco = parseFloat(estilo.columnGap) || 0;
+      for (const hijo of grid.children) {
+        const alto = hijo.getBoundingClientRect().height;
+        const filas = `span ${Math.max(1, Math.ceil((alto + hueco) / fila))}`;
+        if (hijo.style.gridRowEnd !== filas) hijo.style.gridRowEnd = filas;
+      }
+    };
+    const pedir = () => {
+      if (!cuadro) cuadro = requestAnimationFrame(acomodar);
+    };
+    const ro = new ResizeObserver(pedir);
+    const observar = () => {
+      ro.disconnect();
+      ro.observe(grid);
+      for (const hijo of grid.children) ro.observe(hijo);
+      pedir();
+    };
+    acomodar();
+    observar();
+    const mo = new MutationObserver(observar);
+    mo.observe(grid, { childList: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      if (cuadro) cancelAnimationFrame(cuadro);
+    };
+  }, []);
+}
+
+/** Cuadrícula bento con acomodo masonry. */
+export function Bento({ clase = "", etiqueta, children }) {
+  const ref = useRef(null);
+  useMasonry(ref);
+  return html`<div ref=${ref} class=${`bento masonry ${clase}`} aria-label=${etiqueta}>${children}</div>`;
+}
+
+/**
+ * Atajo de teclado mientras el componente está en pantalla. `codigo` es la tecla física
+ * (`KeyN`), así funciona con cualquier distribución de teclado. Si hay una ventana encima de
+ * `raiz`, el atajo no hace nada.
+ */
+export function useAtajo({ alt = false, ctrl = false, codigo }, accion, raiz = null) {
+  const ultima = useRef(accion);
+  ultima.current = accion;
+  useEffect(() => {
+    const tecla = (e) => {
+      if (e.repeat || e.code !== codigo || e.altKey !== alt || (e.ctrlKey || e.metaKey) !== ctrl || e.shiftKey) return;
+      const ventanas = [...document.querySelectorAll(".ventana")];
+      if (ventanas.length && !ventanas.some((v) => raiz?.current && v.contains(raiz.current))) return;
+      if (raiz && !raiz.current) return;
+      e.preventDefault();
+      ultima.current(e);
+    };
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [alt, ctrl, codigo]);
+}
+
+/** <kbd>Alt</kbd>+<kbd>N</kbd> */
+export function Teclas({ teclas }) {
+  return html`<span class="teclas">${teclas.map((t, i) => html`${i ? "+" : ""}<kbd>${t}</kbd>`)}</span>`;
 }
 
 /**
@@ -272,7 +348,11 @@ export function Combo({
         setAbierto(false);
         alEnter?.(e);
       }
-    } else if (e.key === "Escape") setAbierto(false);
+    } else if (e.key === "Escape") {
+      // Escape cierra primero la lista; la ventana de encima, con el siguiente Escape.
+      if (abierto && total) e.stopPropagation();
+      setAbierto(false);
+    }
   };
   return html`<div class=${`combo ${clase}`}>
     <input
@@ -385,8 +465,10 @@ export function Lista({ id, valor, opciones, alCambiar, ariaLabel, placeholder =
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       if (opciones[marcado]) elegir(opciones[marcado]);
-    } else if (e.key === "Escape" || e.key === "Tab") setAbierta(false);
-    else if (e.key.length === 1) {
+    } else if (e.key === "Escape" || e.key === "Tab") {
+      if (e.key === "Escape") e.stopPropagation(); // solo cierra la lista, no la ventana de encima
+      setAbierta(false);
+    } else if (e.key.length === 1) {
       // Salta a la siguiente opción que empieza con esa letra.
       const letra = sinAcentos(e.key);
       const orden = [...opciones.keys()].map((i) => (marcado + 1 + i) % opciones.length);

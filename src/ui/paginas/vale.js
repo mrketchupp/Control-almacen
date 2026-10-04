@@ -157,7 +157,7 @@ export function PaginaVale() {
           </div>
           ${(vale.fotos ?? []).some(Boolean) ? html`<${FotosDelVale} fotos=${vale.fotos} />` : null}
           ${vale.observaciones ? html`<${Tarjeta} titulo="Observaciones"><p class="preformateado">${vale.observaciones}</p><//>` : null}
-          <${Tarjeta} titulo=${`Renglones (${vale.lineas.length})`}>
+          <${Tarjeta} titulo=${`Partidas (${vale.lineas.length})`}>
             <${Tabla}
               filas=${vale.lineas}
               columnas=${[

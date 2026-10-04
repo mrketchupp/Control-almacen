@@ -336,7 +336,7 @@ export function opcionesEntraA(estado, linea, { indices = new Indices(estado), s
       etiqueta: lugarCorto(ubicacion),
       hoja: ubicacion.hoja_excel.trim(),
       propio: Boolean(propio),
-      detalle: `${ubicacion.hoja_excel.trim()} · ${propio ? `ya tiene su renglón (hay ${decTexto(total)})` : "renglón nuevo al final de la hoja"}`,
+      detalle: `${ubicacion.hoja_excel.trim()} · ${propio ? `ya tiene su partida (hay ${decTexto(total)})` : "partida nueva al final de la hoja"}`,
     };
   });
 }
@@ -472,8 +472,8 @@ export function validarEntrada(estado, datos, { excluirValeId = null } = {}) {
     if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
     if (!texto(l.um)) error(n, "um", `Partida ${n}: falta la unidad (UM).`);
     const destino = destinoDe(estado, l, indices);
-    if (destino.tipo === "pendiente") error(n, "destino", `Partida ${n}: elige a qué renglón del inventario o contenedor entra.`);
-    if (destino.tipo === "invalido") error(n, "destino", `Partida ${n}: el renglón o contenedor elegido ya no existe.`);
+    if (destino.tipo === "pendiente") error(n, "destino", `Partida ${n}: elige a qué partida del inventario o contenedor entra.`);
+    if (destino.tipo === "invalido") error(n, "destino", `Partida ${n}: la partida o contenedor elegido ya no existe.`);
   });
   if (excluirValeId !== null && !errores.length) {
     for (const fila of vistaPreviaEntrada(estado, datos, { excluirValeId })) {
@@ -681,7 +681,7 @@ export function resumenCambiosEntrada(estado, vale, datos) {
   const lugar = (l) => {
     const d = destinoDe(estado, l, indices);
     if (d.tipo === "sin_existencia") return "sin existencia";
-    return d.ubicacion ? `${lugarCorto(d.ubicacion)}${d.tipo === "nuevo" ? " (renglón nuevo)" : ""}` : "—";
+    return d.ubicacion ? `${lugarCorto(d.ubicacion)}${d.tipo === "nuevo" ? " (partida nueva)" : ""}` : "—";
   };
   const previas = new Map(vale.lineas.map((l) => [l.id, l]));
   const siguen = new Set();

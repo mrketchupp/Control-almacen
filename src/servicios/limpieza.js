@@ -85,7 +85,7 @@ export function limpiarDiario(renglones, catalogo, respuestas = respuestasVacias
 
   for (let renglon of renglones) {
     if (respuestas.eliminar.has(renglon.fila)) {
-      omitidos.push([renglon.fila, "Eliminado según la revisión (duplicado o renglón inválido)"]);
+      omitidos.push([renglon.fila, "Eliminado según la revisión (duplicado o partida inválida)"]);
       continue;
     }
     if (respuestas.correcciones.has(renglon.fila)) {
@@ -99,11 +99,11 @@ export function limpiarDiario(renglones, catalogo, respuestas = respuestasVacias
       }
     }
     if (esPerdido(renglon)) {
-      omitidos.push([renglon.fila, "Renglón perdido: sin folio ni código (#REF!)"]);
+      omitidos.push([renglon.fila, "Partida perdida: sin folio ni código (#REF!)"]);
       continue;
     }
     if (renglon.folio === null) {
-      omitidos.push([renglon.fila, "Renglón sin folio"]);
+      omitidos.push([renglon.fila, "Partida sin folio"]);
       continue;
     }
     if (!grupos.has(renglon.folio)) grupos.set(renglon.folio, []);

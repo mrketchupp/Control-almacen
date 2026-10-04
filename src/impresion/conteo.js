@@ -67,7 +67,7 @@ export function documentoHojaConteo(estado, { ubicaciones, fecha = null, usuario
     const titulo = escaparHtml(u.hoja_excel.trim());
     return (
       `<section class="conteo-hoja"><div class="conteo-cabeza"><div><h1>Hoja de conteo · ${titulo}</h1>` +
-      `<p>${renglones.length} renglones. Anota lo que cuentes; lo que no esté en la lista va en los renglones en blanco.</p></div>` +
+      `<p>${renglones.length} partidas. Anota lo que cuentes; lo que no esté en la lista va en las partidas en blanco.</p></div>` +
       `<div class="conteo-datos">Fecha: ${fecha ? escaparHtml(fmtFecha(fecha)) : "____________"}<br>Contó: ${usuario ? escaparHtml(usuario) : "______________________"}</div></div>` +
       `<table class="conteo-tabla">${cabezaTabla}<tbody>${filas.join("")}</tbody></table>` +
       `<div class="conteo-firmas"><div>Contó (nombre y firma)</div><div>Revisó (nombre y firma)</div></div></section>`

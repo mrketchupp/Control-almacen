@@ -203,7 +203,7 @@ function useEnlaces(actual) {
   const borradoresEntrada = sesion.estado?.borradores_entrada?.length ?? 0;
   const enlaces = Object.entries(PAGINAS).filter(([, p]) => !p.oculta && (vacia ? !p.requiereDatos : !p.soloVacia));
   const insignia = { pendientes, exportar: porEnviar, vales: borradores, entradas: borradoresEntrada, conteo: sesion.estado?.conteo_en_curso ? "•" : 0 };
-  const titulos = { vales: "Borradores en captura", entradas: "Entradas en captura", conteo: "Conteo en captura", exportar: "Vales por subir al SharePoint", pendientes: "Renglones por ubicar" };
+  const titulos = { vales: "Borradores en captura", entradas: "Entradas en captura", conteo: "Conteo en captura", exportar: "Vales por subir al SharePoint", pendientes: "Partidas por ubicar" };
   const principales = enlaces.filter(([clave, p]) => p.grupo !== "mas" && (!p.soloConAviso || insignia[clave] || clave === actual));
   const mas = enlaces.filter(([, p]) => p.grupo === "mas");
   return { principales, mas, insignia, titulos };

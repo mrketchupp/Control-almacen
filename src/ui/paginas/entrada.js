@@ -96,7 +96,7 @@ export function PaginaEntrada() {
     if (l.existencia_id === null || l.existencia_id === undefined) return l.no_inventariado ? "Sin existencia" : "—";
     const e = indices.existencia(l.existencia_id);
     const u = e && indices.ubicacion(e.ubicacion_id);
-    return u ? html`<span title=${u.hoja_excel.trim()}>${lugarCorto(u)}</span>${e.origen === `ENTRADA ${folioEntrada(vale.folio)}` ? html` <small class="nota">renglón nuevo</small>` : null}` : "—";
+    return u ? html`<span title=${u.hoja_excel.trim()}>${lugarCorto(u)}</span>${e.origen === `ENTRADA ${folioEntrada(vale.folio)}` ? html` <small class="nota">partida nueva</small>` : null}` : "—";
   };
   const bitacora = bitacoraDeVale(estado, vale.id).reverse();
   return html`

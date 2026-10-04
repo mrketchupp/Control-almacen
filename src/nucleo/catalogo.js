@@ -29,6 +29,21 @@ export function esErrorDeDedo(texto, referencia) {
   return palabras.every((p) => palabrasRef.some((r) => ratio(p, r) >= 0.8));
 }
 
+/**
+ * Claves con las que se reconoce una variante: su dimensión y NP, y las que tuvo antes de
+ * corregirlas (los vales viejos las siguen escribiendo así).
+ */
+export function clavesPropias(v) {
+  const propias = new Set([v.dimension_clave, v.np_clave]);
+  for (const c of clavesDeBusqueda([v.dimension, v.np].filter(Boolean).join(" "))) propias.add(c);
+  for (const anterior of v.claves_anteriores ?? []) {
+    for (const c of clavesDeBusqueda(anterior)) propias.add(c);
+    for (const parte of anterior.split(" · ")) propias.add(claveEstricta(parte));
+  }
+  propias.delete("");
+  return propias;
+}
+
 export function hayInterseccion(a, b) {
   for (const x of a) if (b.has(x)) return true;
   return false;

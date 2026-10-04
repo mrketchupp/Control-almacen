@@ -411,7 +411,18 @@ export class Sesion {
   async exportar(tipo, archivo = undefined, opciones = {}) {
     let destino;
     if (archivo) {
-      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { ...opciones, guardar: (_, datos) => escribirEnArchivo(archivo, datos) }));
+      // Si no se puede escribir en el archivo elegido, el Excel no se pierde: se descarga.
+      const guardar = async (nombre, datos) => {
+        try {
+          return await escribirEnArchivo(archivo, datos);
+        } catch (error) {
+          console.warn(error);
+          descargar(nombre, datos);
+          this.avisar("advertencia", `No se pudo guardar donde elegiste: ${error.message}. Se descargó en Descargas.`);
+          return `Descargas/${nombre}`;
+        }
+      };
+      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { ...opciones, guardar }));
       if (!this.exportoConDialogo) {
         this.exportoConDialogo = true;
         await this.backend.guardarAjuste("exporto_con_dialogo", true);

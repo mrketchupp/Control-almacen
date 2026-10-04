@@ -29,7 +29,7 @@ const verdadero = (v) => v === true || /^(true|s[ií]|1|yes|verdadero)$/i.test(t
 
 const REGLAS = [
   "Responde ÚNICAMENTE con un bloque de código ```json con el formato de abajo, sin texto antes ni después.",
-  "No inventes datos. Si algo no se lee bien, déjalo como \"\" y pon \"dudoso\": true en ese renglón.",
+  "No inventes datos. Si algo no se lee bien, déjalo como \"\" y pon \"dudoso\": true en esa partida.",
   "Las cantidades van como número (usa punto decimal). Los códigos, tal como están escritos (con sus ceros).",
   "Las fechas en formato AAAA-MM-DD.",
   "Copia los textos en MAYÚSCULAS, tal como aparecen (dimensión, NP, unidad).",
@@ -40,8 +40,8 @@ export const INSTRUCCIONES = {
   entrada: {
     titulo: "Vale de entrada (material recibido)",
     texto: [
-      "Te adjunto la foto o el PDF de un vale de material de almacén (formato de vale con renglones).",
-      "Extrae el encabezado y TODOS los renglones con datos (ignora los renglones vacíos).",
+      "Te adjunto la foto o el PDF de un vale de material de almacén (formato de vale con partidas).",
+      "Extrae el encabezado y TODAS las partidas con datos (ignora las partidas vacías).",
       "En la columna LOTE viene el nombre y apellido de quien solicita el material: cópialo en \"lote\" (vacío si no hay).",
       ...REGLAS,
       "Formato:",
@@ -68,7 +68,7 @@ export const INSTRUCCIONES = {
     texto: [
       "Te adjunto la foto o el PDF de una o varias hojas de conteo físico de almacén.",
       "Cada hoja dice arriba su contenedor (por ejemplo \"CONTENEDOR #1 INVENTARIABLE\") y tiene las columnas ITEM, CÓDIGO, DESCRIPCIÓN, DIMENSIÓN, NP, UM, CONTADO y OBSERVACIONES.",
-      "Extrae SOLO los renglones donde se escribió algo en CONTADO (incluye los renglones en blanco del final que se llenaron a mano).",
+      "Extrae SOLO las partidas donde se escribió algo en CONTADO (incluye las partidas en blanco del final que se llenaron a mano).",
       ...REGLAS,
       "Formato:",
       "```json",
@@ -335,11 +335,11 @@ export function aplicarConteoIA(estado, conteo, respuesta, { indices = new Indic
     const ubicacion = ubicacionPorNombre(estado, hoja.contenedor) ?? (hojas.length === 1 ? unaSola : null);
     const renglones = Array.isArray(hoja.renglones) ? hoja.renglones : [];
     if (!ubicacion) {
-      reporte.noReconocidos.push(`Hoja "${texto(hoja.contenedor) || "sin contenedor"}" (${renglones.length} renglones): no reconocí el contenedor`);
+      reporte.noReconocidos.push(`Hoja "${texto(hoja.contenedor) || "sin contenedor"}" (${renglones.length} partidas): no reconocí el contenedor`);
       continue;
     }
     if (!datos.ubicaciones.includes(ubicacion.id)) {
-      reporte.fueraDeAlcance.push(`${ubicacion.hoja_excel.trim()} no está en este conteo (${renglones.length} renglones)`);
+      reporte.fueraDeAlcance.push(`${ubicacion.hoja_excel.trim()} no está en este conteo (${renglones.length} partidas)`);
       continue;
     }
     const lista = estado.existencias.filter((e) => e.ubicacion_id === ubicacion.id && e.activo !== false).sort((a, b) => a.orden - b.orden);

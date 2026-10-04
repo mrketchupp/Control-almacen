@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { exportarEntradas } from "../src/exportadores/entradas.js";
-import { exportarInventario } from "../src/exportadores/inventario.js";
+import { exportarInventario, fechaEnTexto } from "../src/exportadores/inventario.js";
 import { exportarVales } from "../src/exportadores/vales.js";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
 import { Indices } from "../src/nucleo/estado.js";
@@ -126,6 +126,19 @@ test("inventario: partes intactas y recálculo al abrir", () => {
   assert.ok(!partes.has("xl/calcChain.xml"));
   assert.ok(!new TextDecoder().decode(partes.get("[Content_Types].xml")).includes("calcChain"));
   assert.match(new TextDecoder().decode(partes.get("xl/workbook.xml")), /fullCalcOnLoad="1"/);
+});
+
+test("inventario: la fecha del encabezado de página es la del inventario", () => {
+  const { estado } = cargaSintetica();
+  const encabezado = (datos) => /<oddHeader>([\s\S]*?)<\/oddHeader>/.exec(new TextDecoder().decode(descomprimirZip(datos).get("xl/worksheets/sheet1.xml")))[1];
+  const original = bytesInventario();
+  assert.match(encabezado(original), /LUNES 28 SEPTIEMBRE DE {2}2026/);
+  const exportado = encabezado(exportarInventario(estado, original, { fecha: "2026-10-04" }).datos);
+  assert.match(exportado, /&amp;RDOMINGO 4 OCTUBRE DE {2}2026/);
+  assert.match(exportado, /POZO PRUEBA 7/); // el título no cambia
+  assert.equal(encabezado(exportarInventario(estado, original).datos), encabezado(original));
+  assert.equal(fechaEnTexto("&RDOMINGO 19 DE ABRIL 2026", "2026-09-30"), "&RMIÉRCOLES 30 DE SEPTIEMBRE 2026");
+  assert.equal(fechaEnTexto("Fecha: 5/9/2026, 28 de septiembre de 2026", "2026-10-01"), "Fecha: 01/10/2026, 1 de octubre de 2026");
 });
 
 test("inventario: datos, fórmulas, totales y notas", () => {

@@ -30,12 +30,12 @@ export function PaginaAyuda() {
         <dt>¿A qué contenedor entra el material de un vale de entrada?</dt>
         <dd>
           Si ya está en un contenedor, se sugiere ese (si está en varios, el que tiene más, con ★). Si es una dimensión nueva, eliges el
-          contenedor y se agrega un renglón al final de esa hoja. Antes de registrar ves cuánto había, cuánto entra y cuánto queda.
+          contenedor y se agrega una partida al final de esa hoja. Antes de registrar ves cuánto había, cuánto entra y cuánto queda.
         </dd>
         <dt>¿Qué hace un conteo parcial?</dt>
         <dd>
-          Solo cambia los renglones que capturas: su CANTIDAD pasa a ser lo contado y CONSUMO / INGRESO vuelven a empezar. Los demás
-          renglones siguen con su conteo anterior. Nada cambia hasta que pulsas <em>Aplicar conteo</em>.
+          Solo cambia las partidas que capturas: su CANTIDAD pasa a ser lo contado y CONSUMO / INGRESO vuelven a empezar. Las demás
+          partidas siguen con su conteo anterior. Nada cambia hasta que pulsas <em>Aplicar conteo</em>.
         </dd>
         <dt>¿Cómo capturo un vale de entrada o un conteo desde la foto?</dt>
         <dd>
@@ -52,15 +52,23 @@ export function PaginaAyuda() {
         </dd>
         <dt>¿Cómo concilio contra AX?</dt>
         <dd>
-          En <a href="#conciliacion">Conciliación AX</a> importa el reporte de inventario de AX que manda la base. Confirma las parejas
-          que se escriben distinto (se recuerdan para el siguiente corte) y revisa las diferencias: las que explican los vales
-          posteriores al corte salen con sus folios; las demás, como sobrantes o faltantes con su valor. Descarga la solicitud de
-          ajuste para enviarla. No cambia el inventario.
+          En <a href="#conciliacion">Conciliación AX</a> importa el reporte de inventario de AX que manda la base (se comparan las
+          partidas con modelo INV). Cada mosaico abre su sección en una ventana. En <em>Por confirmar</em>, al confirmar se corrige la
+          dimensión / NP de tu inventario a como lo escribe AX (con <em>Deshacer</em>); la siguiente vez empareja solo. Las diferencias
+          que explican los vales posteriores al corte salen con sus folios; las demás, como sobrantes o faltantes con su valor.
+          Descarga la solicitud de ajuste (cada fila coloreada según su estado). Las cantidades no cambian.
         </dd>
         <dt>Descarté un borrador por error</dt>
         <dd>En el aviso que aparece abajo a la derecha pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>
         <dt>¿Cómo paso material de un contenedor a otro?</dt>
-        <dd>En <a href="#inventario">Inventario</a>, botón <em>Mover</em> del renglón. El total no cambia y queda en el historial de movimientos.</dd>
+        <dd>En <a href="#inventario">Inventario</a>, botón <em>Mover</em> de la partida. El total no cambia y queda en el historial de movimientos.</dd>
+        <dt>¿Cómo corrijo la dimensión o el NP de una partida?</dt>
+        <dd>
+          En <a href="#inventario">Inventario</a>, botón <em>Editar</em>: sugiere cómo lo escribe AX y cómo está en otras partidas. Puedes
+          aplicarlo a esa partida o a todas las de su variante; las cantidades y los vales anteriores no cambian.
+        </dd>
+        <dt>¿Hay atajos de teclado?</dt>
+        <dd><strong>Alt + N</strong> agrega una partida en los vales de salida y de entrada, debajo de la que estás escribiendo.</dd>
       </dl>
     <//>
     <${EstadoAlmacenamiento} />

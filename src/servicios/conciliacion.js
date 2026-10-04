@@ -2,23 +2,25 @@
 // estado de cuenta, el inventario físico es la chequera y los vales posteriores al corte son los
 // "cheques en tránsito". Ver docs/05-flujos.md §5.
 //
-// 1. Se importa un corte (reporte de AX filtrado al almacén) y se guarda con su fecha.
+// 1. Se importa un corte (reporte de AX filtrado al almacén) y se guarda con su fecha. Solo se
+//    concilian los renglones con Modelo de Inventario "INV" (los demás no llevan existencia en AX).
 // 2. Cada renglón de AX (código + tamaño + color) se empareja con una variante del inventario:
-//    nivel 1, equivalencias ya confirmadas (memoria); nivel 2, exacto tras normalizar (incluye el
-//    Tamaño que AX corta a 10 caracteres y el NP en Color); nivel 3, aproximado con puntaje (se
-//    sugiere y el usuario confirma). Lo confirmado se recuerda para los siguientes cortes.
+//    exacto tras normalizar (incluye el Tamaño que AX corta a 10 caracteres y el NP en Color) o
+//    aproximado con puntaje (se sugiere y el usuario confirma). Confirmar una pareja CORRIGE la
+//    dimensión y el NP del inventario a como los escribe AX: la siguiente vez ya empareja exacto.
+//    "No está en físico" se guarda solo en ese corte.
 // 3. Por variante: físico (TOTAL de todos sus renglones) − AX + salidas en tránsito − entradas en
 //    tránsito. Si da 0, la diferencia la explican los vales; si no, es sobrante o faltante.
-// Nada de esto cambia el inventario: solo compara y, al final, se exporta la solicitud de ajuste.
+// Las cantidades del inventario no se tocan: solo se compara y se exporta la solicitud de ajuste.
 
 import { CERO, dec, decTexto, sumar } from "../nucleo/decimal.js";
 import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
-import { ahoraIso } from "../nucleo/fechas.js";
-import { claveEstricta, claveLaxa, compactar, unidad } from "../nucleo/normalizar.js";
+import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
+import { claveEstricta, claveLaxa, compactar, mayusculas, unidad } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
-import { lugarCorto } from "./inventario.js";
+import { ErrorCorreccion, corregirDimensionNp, lugarCorto } from "./inventario.js";
 import { candidatosExactos, indiceExistencias } from "./primeraCarga.js";
 
 export class ErrorConciliacion extends Error {}
@@ -26,7 +28,7 @@ export class ErrorConciliacion extends Error {}
 const hay = (v) => v !== null && v !== undefined;
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
-/** Llave de un renglón de AX para la memoria de equivalencias. */
+/** Llave de un renglón de AX (las equivalencias guardadas antes de la Ronda 9 la usan). */
 export const claveAx = (r) => `${r.codigo}|${claveEstricta(r.tamano)}|${claveEstricta(r.color)}`;
 
 // Unidades que AX y el inventario escriben distinto (solo para comparar).
@@ -59,7 +61,7 @@ export function corteConHuella(estado, huella) {
  */
 export function registrarCorteAx(estado, { fecha, almacen, archivo = null, huella = null, folioSalida = null, renglones }, usuario = null) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(fecha))) throw new ErrorConciliacion("Falta la fecha del corte de AX.");
-  if (!renglones?.length) throw new ErrorConciliacion(`El reporte no trae renglones del almacén ${almacen}.`);
+  if (!renglones?.length) throw new ErrorConciliacion(`El reporte no trae partidas del almacén ${almacen}.`);
   const folio = hay(folioSalida) && texto(folioSalida) !== "" ? Number(folioSalida) : null;
   if (folio !== null && (!Number.isInteger(folio) || folio < 0)) throw new ErrorConciliacion("El folio de corte debe ser un número entero.");
   estado.cortes_ax ??= [];
@@ -81,6 +83,19 @@ export function registrarCorteAx(estado, { fecha, almacen, archivo = null, huell
 
 export function corteAx(estado, id) {
   return (estado.cortes_ax ?? []).find((c) => c.id === id) ?? null;
+}
+
+const esInv = (l) => mayusculas(l.modelo) === "INV";
+
+/** Renglones del corte que se concilian: Modelo de Inventario = INV (si el reporte no trae la columna, todos). */
+export function lineasInv(corte) {
+  return corte.lineas.some((l) => texto(l.modelo)) ? corte.lineas.filter(esInv) : corte.lineas;
+}
+
+/** Códigos que en el corte solo vienen con otro modelo (no INV): su físico tampoco se compara. */
+export function codigosNoInv(corte) {
+  const inv = new Set(lineasInv(corte).map((l) => l.codigo));
+  return new Set(corte.lineas.filter((l) => !inv.has(l.codigo)).map((l) => l.codigo));
 }
 
 /** Cambia el folio de corte (hasta qué vale de salida ya está en AX). */
@@ -231,34 +246,37 @@ function parecido(ax, f) {
 export const PUNTAJE_SUGERENCIA = 0.5;
 export const PUNTAJE_SEGURO = 0.85;
 
+/** Físico que se compara con el corte: sin los códigos que en AX no son INV. */
+function fisicoComparable(estado, corte, indices, fisico = null) {
+  const todo = fisico ?? fisicoPorVariante(estado, { indices });
+  const fuera = codigosNoInv(corte);
+  if (!fuera.size) return todo;
+  return new Map([...todo].filter(([, r]) => !fuera.has(r.variante.codigo)));
+}
+
 /**
- * Empareja cada renglón del corte con una variante del inventario.
+ * Empareja cada renglón INV del corte con una variante del inventario.
  * @returns [{ linea, variante_id, metodo, puntaje, confirmado, candidatos: [{ variante_id, puntaje }] }]
- *   metodo: 'equivalencia' | 'exacto' (confirmados), 'aproximado' | 'unico' | 'sin_sugerencia'
- *   (por confirmar), 'sin_pareja' (confirmado que no está en físico) o 'sin_fisico' (el código no
- *   tiene ningún renglón en el inventario).
+ *   metodo: 'exacto' (confirmado), 'aproximado' | 'unico' | 'recordada' | 'sin_sugerencia' (por
+ *   confirmar), 'sin_pareja' (se decidió que no está en físico) o 'sin_fisico' (el código no tiene
+ *   ningún renglón en el inventario).
  */
 export function emparejar(estado, corte, { indices = new Indices(estado), fisico = null } = {}) {
-  const porVariante = fisico ?? fisicoPorVariante(estado, { indices });
+  const porVariante = fisicoComparable(estado, corte, indices, fisico);
   const porCodigo = new Map();
   for (const r of porVariante.values()) {
     if (!porCodigo.has(r.variante.codigo)) porCodigo.set(r.variante.codigo, []);
     porCodigo.get(r.variante.codigo).push(r);
   }
   const equivalencias = estado.equivalencias_ax ?? {};
-  const pares = corte.lineas.map((linea) => ({ linea, variante_id: null, metodo: null, puntaje: null, confirmado: false, candidatos: [] }));
+  const sinPareja = new Set(corte.sin_pareja ?? []);
+  const pares = lineasInv(corte).map((linea) => ({ linea, variante_id: null, metodo: null, puntaje: null, confirmado: false, candidatos: [] }));
   const tomadas = new Set();
-  // Nivel 1: lo que el usuario ya confirmó (en este corte o en uno anterior).
+  // Lo que se decidió en este corte: "no está en físico" (y lo que decían las versiones anteriores).
   for (const p of pares) {
-    const eq = equivalencias[claveAx(p.linea)];
-    if (!eq) continue;
-    if (eq.variante_id === null) Object.assign(p, { metodo: "sin_pareja", confirmado: true });
-    else if (indices.variante(eq.variante_id)) {
-      Object.assign(p, { variante_id: eq.variante_id, metodo: "equivalencia", puntaje: 1, confirmado: true });
-      tomadas.add(eq.variante_id);
-    }
+    if (sinPareja.has(p.linea.id) || equivalencias[claveAx(p.linea)]?.variante_id === null) Object.assign(p, { metodo: "sin_pareja", confirmado: true });
   }
-  // Nivel 2: exacto tras normalizar.
+  // Exacto tras normalizar.
   for (const p of pares.filter((x) => !x.metodo)) {
     const ax = formasAx(p.linea);
     const exactos = (porCodigo.get(p.linea.codigo) ?? []).filter((r) => esExacto(ax, formasFisico(r.variante)));
@@ -268,7 +286,7 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
     Object.assign(p, { variante_id: elegido.variante.id, metodo: "exacto", puntaje: 1, confirmado: true });
     tomadas.add(elegido.variante.id);
   }
-  // Nivel 3: aproximado (sugerencia que el usuario confirma).
+  // Aproximado (sugerencia que el usuario confirma corrigiendo el inventario).
   const pendientes = pares.filter((x) => !x.metodo);
   for (const p of pendientes) {
     const delCodigo = porCodigo.get(p.linea.codigo) ?? [];
@@ -282,6 +300,12 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
     p.candidatos = delCodigo
       .map((r) => ({ variante_id: r.variante.id, puntaje: Math.round(parecido(ax, formasFisico(r.variante)) * (tomadas.has(r.variante.id) ? 0.8 : 1) * 100) / 100 }))
       .sort((a, b) => b.puntaje - a.puntaje);
+    // Una pareja confirmada con una versión anterior (sin corregir el inventario) se vuelve a proponer.
+    const recordada = equivalencias[claveAx(p.linea)]?.variante_id;
+    if (recordada && delCodigo.some((r) => r.variante.id === recordada)) {
+      Object.assign(p, { variante_id: recordada, metodo: "recordada", puntaje: 1 });
+      continue;
+    }
     const unico = libres.length === 1 && pendientes.filter((q) => q.linea.codigo === p.linea.codigo).length === 1;
     const mejor = unico ? p.candidatos.find((c) => c.variante_id === libres[0].variante.id) : p.candidatos[0];
     if (mejor && (unico || mejor.puntaje >= PUNTAJE_SUGERENCIA)) Object.assign(p, { variante_id: mejor.variante_id, metodo: unico ? "unico" : "aproximado", puntaje: mejor.puntaje });
@@ -290,29 +314,85 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
   return pares;
 }
 
-/** Recuerda la pareja de un renglón de AX (variante o null = "no está en físico"). */
-export function confirmarPareja(estado, linea, varianteId, usuario = null) {
-  estado.equivalencias_ax ??= {};
-  const clave = claveAx(linea);
-  const antes = estado.equivalencias_ax[clave] ?? null;
-  estado.equivalencias_ax[clave] = {
-    variante_id: varianteId ?? null,
-    codigo: linea.codigo,
-    tamano: linea.tamano,
-    color: linea.color,
-    confirmado_por: usuario,
-    fecha: ahoraIso(),
-  };
-  auditar(estado, { usuario, entidad: "equivalencia_ax", entidadId: null, accion: antes ? "CAMBIAR" : "CONFIRMAR", antes, despues: { clave, variante_id: varianteId ?? null } });
+/**
+ * Dimensión y NP que propone AX para una variante: el Tamaño y, si viene, el Color (AX a veces
+ * pone ahí el NP); si no, el NP que ya tenía. cortado: el Tamaño tiene 10 caracteres (AX corta lo demás).
+ */
+export function valoresAx(linea, variante = null) {
+  const tamano = texto(linea.tamano);
+  return { dimension: tamano, np: texto(linea.color) || texto(variante?.np), cortado: tamano.length === 10 };
 }
 
-/** Olvida lo confirmado para ese renglón (vuelve a emparejarse solo). */
-export function olvidarPareja(estado, linea, usuario = null) {
-  const clave = claveAx(linea);
-  const antes = estado.equivalencias_ax?.[clave];
-  if (!antes) return;
-  delete estado.equivalencias_ax[clave];
-  auditar(estado, { usuario, entidad: "equivalencia_ax", entidadId: null, accion: "OLVIDAR", antes });
+/** ¿Con esa dimensión y NP el renglón de AX empareja exacto? */
+export function cuadraConAx(linea, { dimension, np, um = "" }) {
+  return esExacto(formasAx(linea), formasFisico({ dimension, np, um }));
+}
+
+function lineaDelCorte(estado, corteId, lineaId) {
+  const corte = corteAx(estado, corteId);
+  if (!corte) throw new ErrorConciliacion("El corte ya no existe.");
+  const linea = corte.lineas.find((l) => l.id === lineaId);
+  if (!linea) throw new ErrorConciliacion("Esa partida de AX ya no existe.");
+  return { corte, linea };
+}
+
+/**
+ * Confirma la pareja de un renglón de AX. Con una variante, CORRIGE su dimensión y NP en el
+ * inventario (todos sus renglones) a como los escribe AX, o a lo que el usuario ajustó; con
+ * varianteId null, anota en el corte que ese renglón no está en físico.
+ * @returns el resultado de corregirDimensionNp, o { sinPareja: true }
+ */
+export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimension = null, np = null }, usuario = null) {
+  const { corte, linea } = lineaDelCorte(estado, corteId, lineaId);
+  if (estado.equivalencias_ax?.[claveAx(linea)]) delete estado.equivalencias_ax[claveAx(linea)];
+  if (varianteId === null || varianteId === undefined) {
+    corte.sin_pareja = [...new Set([...(corte.sin_pareja ?? []), lineaId])];
+    auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "SIN_PAREJA", despues: { linea: lineaId, codigo: linea.codigo, tamano: linea.tamano, color: linea.color } });
+    return { sinPareja: true };
+  }
+  corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
+  const variante = new Indices(estado).variante(varianteId);
+  if (!variante) throw new ErrorConciliacion("Esa variante ya no existe.");
+  const propuesta = valoresAx(linea, variante);
+  const valores = { dimension: dimension ?? propuesta.dimension, np: np ?? propuesta.np };
+  try {
+    return corregirDimensionNp(estado, { varianteId }, valores, { usuario, motivo: `Conciliación con AX del ${fmtFecha(corte.fecha)}` });
+  } catch (error) {
+    if (error instanceof ErrorCorreccion) throw new ErrorConciliacion(error.message);
+    throw error;
+  }
+}
+
+/**
+ * Confirma de una vez las sugerencias seguras (puntaje ≥ PUNTAJE_SEGURO), cada variante una sola
+ * vez. @returns cuántas se corrigieron
+ */
+export function confirmarSeguras(estado, corteId, usuario = null) {
+  const corte = corteAx(estado, corteId);
+  if (!corte) throw new ErrorConciliacion("El corte ya no existe.");
+  const usadas = new Set();
+  let hechas = 0;
+  for (const p of emparejar(estado, corte)) {
+    if (p.confirmado || p.variante_id === null || p.puntaje < PUNTAJE_SEGURO || usadas.has(p.variante_id)) continue;
+    usadas.add(p.variante_id);
+    try {
+      confirmarPareja(estado, { corteId, lineaId: p.linea.id, varianteId: p.variante_id }, usuario);
+      hechas += 1;
+    } catch (error) {
+      if (!(error instanceof ErrorConciliacion)) throw error;
+    }
+  }
+  return hechas;
+}
+
+/** Deshace "no está en físico" (y lo que recordaban las versiones anteriores) para ese renglón. */
+export function olvidarPareja(estado, { corteId, lineaId }, usuario = null) {
+  const { corte, linea } = lineaDelCorte(estado, corteId, lineaId);
+  const antes = { sin_pareja: (corte.sin_pareja ?? []).includes(lineaId), equivalencia: estado.equivalencias_ax?.[claveAx(linea)] ?? null };
+  if (!antes.sin_pareja && !antes.equivalencia) return;
+  corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
+  if (antes.equivalencia) delete estado.equivalencias_ax[claveAx(linea)];
+  auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "OLVIDAR", antes: { linea: lineaId, ...antes } });
 }
 
 // ---------------------------------------------------------------- comparación
@@ -349,7 +429,8 @@ const descripcionDe = (estado, codigo, porDefecto = "") => estado.articulos?.[co
  */
 export function conciliar(estado, corte) {
   const indices = new Indices(estado);
-  const fisico = fisicoPorVariante(estado, { indices });
+  const fisico = fisicoComparable(estado, corte, indices);
+  const lineasCorte = lineasInv(corte);
   const pares = emparejar(estado, corte, { indices, fisico });
   const transito = transitoDesde(estado, corte, { indices });
 
@@ -410,10 +491,10 @@ export function conciliar(estado, corte) {
   const porConfirmar = pares.filter((p) => !p.confirmado);
 
   // Por artículo (código): no depende del emparejamiento.
-  const codigos = new Set([...corte.lineas.map((l) => l.codigo), ...[...fisico.values()].filter((r) => !r.total.eq(0)).map((r) => r.variante.codigo)]);
+  const codigos = new Set([...lineasCorte.map((l) => l.codigo), ...[...fisico.values()].filter((r) => !r.total.eq(0)).map((r) => r.variante.codigo)]);
   const porCodigo = [...codigos]
     .map((codigo) => {
-      const lineas = corte.lineas.filter((l) => l.codigo === codigo);
+      const lineas = lineasCorte.filter((l) => l.codigo === codigo);
       const variantes = [...fisico.values()].filter((r) => r.variante.codigo === codigo);
       const pista = transito.porUbicar.get(codigo);
       return {
@@ -464,6 +545,7 @@ export function conciliar(estado, corte) {
   const confirmados = pares.filter((p) => p.confirmado).length;
   const resumen = {
     lineas_ax: pares.length,
+    no_inv: corte.lineas.length - lineasCorte.length,
     confirmados,
     emparejados: pares.filter((p) => p.confirmado && p.variante_id !== null).length,
     por_confirmar: porConfirmar.length,

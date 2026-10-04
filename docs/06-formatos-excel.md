@@ -53,6 +53,10 @@ Reglas de la hoja:
 - **Notas de celda:** se mueven a la fila actual de su existencia (`ref` en `commentsN.xml` y `x:Row` en `vmlDrawingN.vml`).
 - **Contenido fuera de la tabla:** se reporta y se descarta. En la muestra solo hay una celda suelta ("Ñ").
 
+- **Encabezado de página:** la fecha escrita en el encabezado de impresión (`oddHeader`, p. ej. `&RLUNES 28 SEPTIEMBRE
+  DE  2026`) se cambia por la del inventario (hoy, o el día del reporte diario) con la misma forma de escribirla
+  (día de la semana, "DE", mayúsculas). Si el encabezado no trae fecha, no se toca.
+
 **Nombre de archivo:** `INVENTARIO DE REFACCIONAMIENTO DLTA DE ALMACEN DDMMAA.xlsx`.
 
 ---
@@ -130,6 +134,8 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 
 - Se busca la fila de encabezados que contenga `Código de Artículo` (normalmente la fila 1). Las columnas se leen por nombre.
 - Se filtra `Almacén = RIG91-IX25` (configurable). Si el archivo ya viene filtrado, no pasa nada.
+- Solo se concilian las partidas con `Modelo de Inventario = INV` (si el reporte no trae esa columna, todas); la vista
+  previa dice cuántas de otros modelos se omiten.
 - `Código` → entero. `Tamaño`, `Color`, `Unidad de Medida` → texto sin espacios sobrantes.
 - La fecha de corte se toma del nombre del archivo (`DDMMAA`, `DD-MM-AA`, `DD.MM.AAAA`…; gana la última fecha válida) y el usuario la confirma.
 - Los textos (nombre, UM, Tamaño, Color) se guardan **tal como vienen** para repetirlos en la solicitud de ajuste; se normalizan solo al comparar. `Código` conserva también su texto con ceros (`000000670`).
@@ -140,6 +146,9 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 - Hoja con el mismo nombre y las **mismas 10 columnas** del reporte AX (A–J, mismos encabezados y formatos), más:
   - **K = Existencia física:** `TOTAL` sumado de todas las ubicaciones de la variante.
   - **L = Folios que justifican:** folios de vales en tránsito relacionados, separados por coma. Por ejemplo `545, 551 (S) · E-0003 (E)`.
+  - **M = Estado:** *Cuadra*, *Explicada por vales*, *Sobrante*, *Faltante* o *Por confirmar*.
+- **Color de la fila según el estado:** verde `C6EFCE` (cuadra), azul `DDEBF7` (explicada por vales), amarillo
+  `FFEB9C` (sobrante), rojo `FFC7CE` (faltante), gris `E7E6E6` (por confirmar).
 - Renglones: solo los que tienen diferencia (físico ≠ Disponible, aunque la expliquen los vales). Opción de incluir todos.
 - Si varios renglones de AX son la misma variante, la existencia física va en el primero (los demás, 0). Los renglones aún
   sin confirmar salen con `Existencia física` vacía y `POR CONFIRMAR` en folios.

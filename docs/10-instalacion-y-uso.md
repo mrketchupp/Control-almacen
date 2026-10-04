@@ -9,7 +9,7 @@
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
-| **Conciliación AX** | Importar el reporte de inventario de AX, confirmar las parejas que se escriben distinto (se recuerdan), ver diferencias por renglón, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** |
+| **Conciliación AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
@@ -100,7 +100,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
    - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
+5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
 ### Entradas, conteos y movimientos
@@ -122,7 +122,11 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
   partidas*; cada partida vuelve al renglón del que salió y ajustas las cantidades.
 - **Conteo físico:** elige todo o algunos contenedores, imprime la hoja de conteo (sin cantidades), *Empezar a
   capturar*, anota lo contado y lo encontrado, y **Aplicar conteo**. Lo que no captures conserva su conteo anterior.
-- **Mover material de contenedor:** *Inventario* → botón *Mover* del renglón → cantidad y destino. El total no cambia.
+- **Mover material de contenedor:** *Inventario* → botón *Mover* de la partida → cantidad y destino. El total no cambia.
+- **Corregir dimensión o NP:** *Inventario* → botón *Editar* de la partida. Sugiere cómo lo escribe AX (Tamaño y Color del
+  último corte) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
+  cantidades no cambian y el aviso trae *Deshacer*.
+- **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
 - **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.
 
 ### Conciliación contra AX
@@ -130,15 +134,20 @@ Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera
 cheques en tránsito.
 1. *Conciliación AX* → **Importar reporte de AX** → elige el `DELTA RIG 91 <fecha>.xlsx` (completo o filtrado). Revisa el
    almacén y la fecha del corte (sale del nombre). Si sabes hasta qué folio capturó la base, escríbelo. **Importar corte**.
-2. **Por confirmar:** los renglones que AX escribe distinto (errores de dedo, dimensiones cortadas…). *Es esta* si la
-   sugerencia es correcta, *Otra…* para elegir, o *No está en el físico*. Se recuerda para los siguientes cortes; con
-   *Confirmar las seguras* van todas las de puntaje alto de una vez.
-3. **Diferencias:** cada renglón dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o si
-   *Sobran* / *Faltan* sin explicar. Cambia de vista (por artículo, por contenedor para ir a revisar, valuada en pesos) y
-   filtra. *Cambiar* corrige una pareja.
-4. **Solicitud de ajuste → Descargar:** el reporte de AX con *Existencia física* y *Folios que justifican* (solo lo que
-   tiene diferencia, o todo si marcas la casilla).
-Nada de esto cambia el inventario: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
+   Solo se comparan las partidas con *Modelo de Inventario* **INV**.
+2. La pantalla es un **bento**: cada mosaico (Por confirmar, Faltantes, Sobrantes, Explicadas, Cuadran, En AX y no en el
+   físico, Por artículo, Por contenedor, Valuada…) muestra su número y al pulsarlo se abre en una ventana con buscador.
+3. **Por confirmar:** las partidas que AX escribe distinto (errores de dedo, dimensiones cortadas…). *Corregir a como
+   está en AX* **cambia la dimensión / NP de tu inventario** a como lo escribe AX (todas sus partidas; las cantidades no
+   cambian); *Ajustar…* para escribirla tú (si AX cortó el Tamaño a 10 caracteres, escríbela completa), *Otra…* para
+   elegir otra variante o *No está en el físico* (solo para ese corte). La próxima vez empareja sola. El aviso trae
+   *Deshacer*; con *Corregir las seguras* van todas las de puntaje alto de una vez.
+4. **Diferencias:** cada partida dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o
+   si *Sobran* / *Faltan* sin explicar. En la ventana cambias de vista (por artículo, por contenedor para ir a revisar,
+   valuada en pesos) y de filtro sin cerrarla.
+5. **Solicitud de ajuste → Descargar:** el reporte de AX con *Existencia física*, *Folios que justifican* y *Estado*,
+   con cada fila coloreada (verde cuadra, azul explicada, amarillo sobrante, rojo faltante, gris por confirmar).
+Las cantidades del inventario no cambian: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
 
 ### Áreas y personas
 - **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).

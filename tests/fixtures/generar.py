@@ -78,6 +78,9 @@ HOJAS_INV = {
 }
 NOTAS_INV = {("CONTENEDOR #1 INVENTARIABLE", "D4"): "Revisar dimensión en físico"}
 PIE_DE_HOJA = {"CONTENEDOR #2 CONSUMIBLE": "TEXTO FUERA DE LA TABLA"}
+# Encabezado de página como el del inventario real: título al centro y la fecha escrita a la derecha.
+TITULO_INV = "INVENTARIO DE REFACCIONAMIENTO ALMACEN RIG 91 POZO PRUEBA 7"
+FECHA_ENCABEZADO_INV = "LUNES 28 SEPTIEMBRE DE  2026"
 
 ENCABEZADOS_DIARIO = [
     "FECHA",
@@ -492,6 +495,11 @@ def generar_inventario(ruta: Path) -> Path:
         ws.print_area = f"A1:J{totales}"
         if hoja in PIE_DE_HOJA:
             ws.cell(totales + 2, 1, PIE_DE_HOJA[hoja])
+        ws.oddHeader.center.text = f"\n{TITULO_INV}\n&A"
+        ws.oddHeader.center.font = "-,Negrita"
+        ws.oddHeader.center.size = 16
+        ws.oddHeader.right.text = f"{FECHA_ENCABEZADO_INV}\n"
+        ws.oddFooter.center.text = "ALMACENISTA: FULANO DE TAL"
         for (h, celda), texto in NOTAS_INV.items():
             if h == hoja:
                 ws[celda].comment = Comment(f"AUTOR:\n{texto}", "AUTOR")
@@ -853,6 +861,8 @@ RENGLONES_AX = [
     (703, "1/2 X 2", "", "PZA", 10, 4.75, ALMACEN_AX),
     (709, "CABLE 3/4", "", "m", 50, 18.0, ALMACEN_AX),
     (701, "6309-2Z/C3", "", "PZA", 99, 350.0, "RIG48-XX10"),
+    # Otro modelo de inventario (no INV, como el diésel): no se concilia.
+    (136, "", "", "LT", 500, 20.0, ALMACEN_AX, "NO INV"),
 ]
 NOMBRE_AX = "DELTA RIG 91 SINTETICO 050926.xlsx"
 
@@ -862,9 +872,9 @@ def generar_ax(ruta: Path) -> Path:
     ws = wb.active
     ws.title = HOJA_AX
     ws.append(ENCABEZADOS_AX)
-    for codigo, tamano, color, um, disponible, costo, almacen in RENGLONES_AX:
+    for codigo, tamano, color, um, disponible, costo, almacen, *modelo in RENGLONES_AX:
         valor = round(disponible * costo, 2)
-        ws.append([f"{codigo:09d}", CATALOGO.get(codigo, "ARTICULO"), "INV", um, almacen, tamano, color, disponible, valor, valor])
+        ws.append([f"{codigo:09d}", CATALOGO.get(codigo, "ARTICULO"), modelo[0] if modelo else "INV", um, almacen, tamano, color, disponible, valor, valor])
     for fila in range(2, ws.max_row + 1):
         ws.cell(fila, 8).number_format = "#,##0.00"
         ws.cell(fila, 9).number_format = "#,##0.00"

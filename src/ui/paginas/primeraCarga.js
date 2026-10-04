@@ -45,16 +45,16 @@ export function ReporteCarga({ reporte }) {
   const hojas = reporte.hojas.map((h) => ({ ...h, id: h.hoja, ok: h.total_archivo.eq(h.total_calculado) }));
   return html`
     ${reporte.cuadra
-      ? html`<${Aviso} tipo="exito" titulo="El inventario calculado coincide con tu archivo">Renglón por renglón, hoja por hoja.<//>`
+      ? html`<${Aviso} tipo="exito" titulo="El inventario calculado coincide con tu archivo">Partida por partida, hoja por hoja.<//>`
       : html`<${Aviso} tipo="advertencia" titulo="Hay diferencias contra tu archivo">
           Es normal si tu Excel aún no descontaba los vales posteriores al conteo. Revisa la tabla de diferencias: cada
-          renglón dice qué consumo tenía el archivo y cuál calcula la herramienta a partir de los vales.
+          partida dice qué consumo tenía el archivo y cuál calcula la herramienta a partir de los vales.
         <//>`}
     <div class="datos">
-      <${Dato} etiqueta="Renglones de inventario" valor=${num(reporte.existencias)} detalle=${`${reporte.variantes} variantes`} />
+      <${Dato} etiqueta="Partidas de inventario" valor=${num(reporte.existencias)} detalle=${`${reporte.variantes} variantes`} />
       <${Dato} etiqueta="Artículos" valor=${num(reporte.articulos)} detalle=${`${reporte.articulos_por_confirmar.length} por confirmar`} />
-      <${Dato} etiqueta="Vales migrados" valor=${num(reporte.vales)} detalle=${`${reporte.lineas_migradas} de ${reporte.renglones_diario} renglones del DIARIO`} />
-      <${Dato} etiqueta="Ubicados solos" valor=${num(reporte.lineas_ubicadas)} detalle="renglones posteriores al conteo" />
+      <${Dato} etiqueta="Vales migrados" valor=${num(reporte.vales)} detalle=${`${reporte.lineas_migradas} de ${reporte.renglones_diario} partidas del DIARIO`} />
+      <${Dato} etiqueta="Ubicados solos" valor=${num(reporte.lineas_ubicadas)} detalle="partidas posteriores al conteo" />
       <${Dato} etiqueta="Por ubicar" valor=${num(reporte.por_ubicar.length)} tono=${reporte.por_ubicar.length ? "alerta" : "ok"} detalle="se resuelven después en Pendientes" />
       <${Dato} etiqueta="Personas / áreas" valor=${`${reporte.personas} / ${reporte.plantillas_area}`} />
     </div>
@@ -66,7 +66,7 @@ export function ReporteCarga({ reporte }) {
       filas=${hojas}
       columnas=${[
         { clave: "hoja", titulo: "Hoja" },
-        { clave: "renglones", titulo: "Renglones", numero: true },
+        { clave: "renglones", titulo: "Partidas", numero: true },
         { titulo: "Cantidad (archivo)", numero: true, render: (h) => n(h.cantidad_archivo) },
         { titulo: "Total (archivo)", numero: true, render: (h) => n(h.total_archivo) },
         { titulo: "Total (calculado)", numero: true, render: (h) => n(h.total_calculado) },
@@ -74,7 +74,7 @@ export function ReporteCarga({ reporte }) {
       ]}
     />
     ${reporte.diferencias.length
-      ? html`<h3>Diferencias por renglón (${reporte.diferencias.length})</h3>
+      ? html`<h3>Diferencias por partida (${reporte.diferencias.length})</h3>
           <${Tabla}
             filas=${reporte.diferencias.map((d, i) => ({ ...d, id: i }))}
             columnas=${[
@@ -88,13 +88,13 @@ export function ReporteCarga({ reporte }) {
           />`
       : null}
     ${reporte.por_ubicar.length
-      ? html`<h3>Renglones por ubicar (${reporte.por_ubicar.length})</h3>
-          <p class="nota">Vales posteriores al conteo cuyo renglón de inventario no se pudo decidir solo. Se resuelven en <em>Pendientes</em>.</p>
+      ? html`<h3>Partidas por ubicar (${reporte.por_ubicar.length})</h3>
+          <p class="nota">Vales posteriores al conteo cuya partida de inventario no se pudo decidir sola. Se resuelven en <em>Pendientes</em>.</p>
           <${Tabla}
             filas=${reporte.por_ubicar.map((p, i) => ({ ...p, id: i }))}
             columnas=${[
               { clave: "folio", titulo: "Folio", numero: true },
-              { clave: "renglon", titulo: "Renglón", numero: true },
+              { clave: "renglon", titulo: "Partida", numero: true },
               { clave: "codigo", titulo: "Código", numero: true },
               { clave: "descripcion", titulo: "Descripción" },
               { clave: "clave", titulo: "Clave" },
@@ -103,7 +103,7 @@ export function ReporteCarga({ reporte }) {
             ]}
           />`
       : null}
-    <${Detalles} resumen=${`Renglones omitidos del DIARIO (${reporte.omitidos.length})`}>
+    <${Detalles} resumen=${`Partidas omitidas del DIARIO (${reporte.omitidos.length})`}>
       <${Tabla}
         filas=${reporte.omitidos.map(([fila, motivo]) => ({ id: fila, fila, motivo }))}
         columnas=${[
@@ -254,7 +254,7 @@ export function PaginaPrimeraCarga() {
             ? html`<p class="archivo">${inventario.nombre}</p>
                 <ul class="lista-simple">
                   ${inventario.libro.hojas.map(
-                    (h) => html`<li>${h.nombre.trim()}: ${h.renglones.length} renglones ${h.filas_vacias.length ? html`<span class="nota">(${h.filas_vacias.length} vacíos omitidos)</span>` : null}</li>`,
+                    (h) => html`<li>${h.nombre.trim()}: ${h.renglones.length} partidas ${h.filas_vacias.length ? html`<span class="nota">(${h.filas_vacias.length} vacías omitidas)</span>` : null}</li>`,
                   )}
                   <li>Catálogo ARTICULOS_MX: ${num(inventario.libro.catalogo.size)} códigos</li>
                 </ul>`
@@ -266,7 +266,7 @@ export function PaginaPrimeraCarga() {
           ${vales
             ? html`<p class="archivo">${vales.nombre}</p>
                 <ul class="lista-simple">
-                  <li>DIARIO: ${num(resumen.renglones)} renglones, folios ${resumen.folioMin}–${resumen.folioMax}</li>
+                  <li>DIARIO: ${num(resumen.renglones)} partidas, folios ${resumen.folioMin}–${resumen.folioMax}</li>
                   <li>Fechas: ${fmtFecha(resumen.desde)} a ${fmtFecha(resumen.hasta)}</li>
                   <li>Formularios de área: ${resumen.formularios} · catálogo: ${num(resumen.catalogo)} códigos</li>
                 </ul>`
@@ -277,7 +277,7 @@ export function PaginaPrimeraCarga() {
 
     <${Paso} numero="2" titulo="Lista de revisión (opcional, recomendada)" listo=${Boolean(revision)} deshabilitado=${!(inventario && vales)}>
       <p>
-        Genera un Excel con los renglones dudosos del DIARIO (#REF!, duplicados, códigos fuera de catálogo, nombres
+        Genera un Excel con las partidas dudosas del DIARIO (#REF!, duplicados, códigos fuera de catálogo, nombres
         escritos distinto…). Contéstalo con tus PDF escaneados y súbelo aquí. Si no lo contestas, se aplican solo las
         limpiezas automáticas.
       </p>
@@ -288,7 +288,7 @@ export function PaginaPrimeraCarga() {
       </div>
       ${revision
         ? html`<${Aviso} tipo="exito" titulo=${`Respuestas leídas de ${revision.nombre}`}>
-            ${r.correcciones.size} renglones corregidos · ${r.eliminar.size} por eliminar · ${r.codigos.size} códigos ·
+            ${r.correcciones.size} partidas corregidas · ${r.eliminar.size} por eliminar · ${r.codigos.size} códigos ·
             ${r.alias.size} nombres unificados · ${r.normalizaciones.size} valores normalizados
             ${r.advertencias.length ? html`<ul>${r.advertencias.map((a) => html`<li>${a}</li>`)}</ul>` : null}
           <//>`

@@ -29,7 +29,7 @@ import {
   siguienteFolio,
   validarVale,
 } from "../../servicios/vales.js";
-import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 // ---------------------------------------------------------------- utilidades
@@ -328,6 +328,13 @@ function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay,
  * @param alCambiar recibe los datos actualizados
  * @param entrego   {nombre, puesto} fijo (corrección); si no, el almacenista en turno
  */
+/** uid de la partida donde está el foco (dentro de `raiz`), o null. */
+export function partidaConFoco(raiz, lineas) {
+  const fila = document.activeElement?.closest?.("[data-partida]");
+  if (!fila || !raiz.current?.contains(fila)) return null;
+  return lineas.find((l) => String(l.uid) === fila.dataset.partida)?.uid ?? null;
+}
+
 export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
@@ -386,6 +393,9 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     } else agregarLinea(uid);
   };
   const quitar = (uid) => cambiar({ lineas: datos.lineas.filter((l) => l.uid !== uid) });
+  // Alt+N: partida nueva debajo de la que tiene el foco (o al final).
+  const raiz = useRef(null);
+  useAtajo({ alt: true, codigo: "KeyN" }, () => agregarLinea(partidaConFoco(raiz, datos.lineas)), raiz);
 
   // Existencia disponible (antes de este vale) y lo que pide este vale por renglón del inventario.
   const ids = [...new Set(datos.lineas.map((l) => l.existencia_id).filter((x) => x !== null && x !== undefined))];
@@ -545,7 +555,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   };
 
   return html`
-    <div class=${`editor-vale ${preferencias.lado}`}>
+    <div ref=${raiz} class=${`editor-vale ${preferencias.lado}`}>
       <aside class="vale-datos" aria-label="Datos del vale">
         ${preferencias.orden.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
       </aside>
@@ -592,7 +602,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                 const pedido = conExist ? (pedidos.get(l.existencia_id) ?? null) : null;
                 const excede = conExist && disponible !== null && pedido?.gt(disponible);
                 const conocido = Number.isInteger(l.codigo) && Boolean(estado.articulos[l.codigo]);
-                return html`<tr key=${l.uid} class=${n && errores.some((e) => e.renglon === n) ? "fila-error" : ""}>
+                return html`<tr key=${l.uid} data-partida=${l.uid} class=${n && errores.some((e) => e.renglon === n) ? "fila-error" : ""}>
                     <td class="numero">${n ?? ""}</td>
                     <td><input class="entrada-oc" placeholder="S/OC" value=${l.oc} onInput=${(e) => cambiarLinea(l.uid, { oc: e.currentTarget.value })} aria-label="O.C." /></td>
                     <td>
@@ -690,8 +700,8 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           </table>
         </div>
         <div class="acciones-linea">
-          <${Boton} onClick=${() => agregarLinea()}>＋ Agregar partida<//>
-          <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida.</span>
+          <${Boton} onClick=${() => agregarLinea()} title="Agregar partida (Alt + N)">＋ Agregar partida <${Teclas} teclas=${["Alt", "N"]} /><//>
+          <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida. Alt + N agrega una partida desde cualquier campo.</span>
         </div>
       </section>
       ${espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null}

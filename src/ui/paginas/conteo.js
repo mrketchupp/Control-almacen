@@ -50,7 +50,7 @@ function NuevoConteo() {
     });
   return html`<${Tarjeta} titulo="Nuevo conteo físico">
     <p class="nota">
-      Cuenta todo el inventario o solo algunos contenedores. Al aplicarlo, en cada renglón contado la CANTIDAD pasa a ser lo contado y
+      Cuenta todo el inventario o solo algunos contenedores. Al aplicarlo, en cada partida contada la CANTIDAD pasa a ser lo contado y
       CONSUMO / INGRESO vuelven a empezar; los que no cuentes conservan su conteo anterior.
     </p>
     <div class="opciones-radio">
@@ -68,7 +68,7 @@ function NuevoConteo() {
           ${ubicaciones.map(
             (u) => html`<label class="casilla">
               <input type="checkbox" checked=${elegidas.includes(u.id)} onChange=${() => alternar(u.id)} />
-              <span>${u.hoja_excel.trim()} <small class="nota">${renglones.get(u.id) ?? 0} renglones</small></span>
+              <span>${u.hoja_excel.trim()} <small class="nota">${renglones.get(u.id) ?? 0} partidas</small></span>
             </label>`,
           )}
         </div>`
@@ -131,7 +131,7 @@ function Sobrante({ s, n, ubicaciones, articulos, estado, alCambiar, alQuitar, e
                   }}
                   ariaLabel="Variante"
                   opciones=${[
-                    ...variantes.map((v) => ({ valor: v.id, etiqueta: [v.dimension, v.np ? `NP ${v.np}` : ""].filter(Boolean).join(" · ") || "S/D", detalle: v.lugares.join(", ") || "sin renglón" })),
+                    ...variantes.map((v) => ({ valor: v.id, etiqueta: [v.dimension, v.np ? `NP ${v.np}` : ""].filter(Boolean).join(" · ") || "S/D", detalle: v.lugares.join(", ") || "sin partida" })),
                     { valor: "", etiqueta: "＋ Otra dimensión (variante nueva)" },
                   ]}
                 />`
@@ -217,18 +217,18 @@ function Captura() {
       setErrores(faltan);
       if (faltan.length) return;
       const r = resumenConteo(sesion.estado, datos);
-      const aviso = r.faltan ? `\n${r.faltan} renglones sin capturar conservan su conteo anterior.` : "";
-      if (!confirmar(`¿Aplicar el conteo? ${r.contados} renglones toman lo contado (${r.con_diferencia} con diferencia)${r.sobrantes ? ` y se agregan ${r.sobrantes} encontrados` : ""}.${aviso}`)) return;
+      const aviso = r.faltan ? `\n${r.faltan} partidas sin capturar conservan su conteo anterior.` : "";
+      if (!confirmar(`¿Aplicar el conteo? ${r.contados} partidas toman lo contado (${r.con_diferencia} con diferencia)${r.sobrantes ? ` y se agregan ${r.sobrantes} encontrados` : ""}.${aviso}`)) return;
       try {
         const conteo = await sesion.almacen.modificar((e) => aplicarConteo(e, { usuario: sesion.usuario, corteAlAplicar }));
-        sesion.avisar("exito", `Conteo aplicado: ${conteo.lineas.length} renglones actualizados.`);
+        sesion.avisar("exito", `Conteo aplicado: ${conteo.lineas.length} partidas actualizadas.`);
       } catch (error) {
         if (error instanceof ErrorConteo) setErrores(error.errores);
         else throw error;
       }
     });
   const descartar = () => {
-    if (resumen.contados && !confirmar(`¿Descartar el conteo? Se pierde lo capturado (${resumen.contados} renglones). El inventario no cambia.`)) return;
+    if (resumen.contados && !confirmar(`¿Descartar el conteo? Se pierde lo capturado (${resumen.contados} partidas). El inventario no cambia.`)) return;
     return sesion.tarea("Descartando…", async () => {
       clearTimeout(pendiente.current);
       pendiente.current = null;
@@ -263,7 +263,7 @@ function Captura() {
         const { datos: nuevo, reporte } = aplicarConteoIA(sesion.estado, datos, respuesta, { indices });
         cambiar({ fecha: nuevo.fecha, capturas: nuevo.capturas, nuevos: nuevo.nuevos });
         return [
-          `✓ ${reporte.capturados} renglones con lo contado${reporte.sobrantes ? ` y ${reporte.sobrantes} encontrados (abajo, en "Encontrado y no está en la lista")` : ""}.`,
+          `✓ ${reporte.capturados} partidas con lo contado${reporte.sobrantes ? ` y ${reporte.sobrantes} encontrados (abajo, en "Encontrado y no está en la lista")` : ""}.`,
           ...reporte.dudosos.map((d) => `⚠ Dudoso según el asistente: ${d}`),
           ...reporte.fueraDeAlcance.map((d) => `⚠ ${d}`),
           ...reporte.noReconocidos.map((d) => `⚠ ${d}`),
@@ -288,7 +288,7 @@ function Captura() {
         alCambiar=${setVista}
         ariaLabel="Vista"
         opciones=${[
-          { valor: "todos", etiqueta: "Todos los renglones" },
+          { valor: "todos", etiqueta: "Todas las partidas" },
           { valor: "faltan", etiqueta: "Sin capturar" },
           { valor: "diferencia", etiqueta: "Con diferencia" },
         ]}
@@ -348,7 +348,7 @@ function Captura() {
     </div>
 
     <${Tarjeta} titulo="Encontrado y no está en la lista">
-      <p class="nota">Material que apareció en el contenedor y no tiene renglón. Se agrega al final de la hoja de ese contenedor con lo contado.</p>
+      <p class="nota">Material que apareció en el contenedor y no tiene partida. Se agrega al final de la hoja de ese contenedor con lo contado.</p>
       ${datos.nuevos.length
         ? html`<div class="tabla-contenedor tabla-partidas">
             <table class="tabla">
@@ -373,13 +373,13 @@ function Captura() {
             </table>
           </div>`
         : null}
-      <${Boton} onClick=${() => cambiar({ nuevos: [...datos.nuevos, nuevoSobrante(ubicaciones.length === 1 ? ubicaciones[0].id : null)] })}>＋ Agregar renglón encontrado<//>
+      <${Boton} onClick=${() => cambiar({ nuevos: [...datos.nuevos, nuevoSobrante(ubicaciones.length === 1 ? ubicaciones[0].id : null)] })}>＋ Agregar partida encontrada<//>
     <//>
 
     ${durante.length
       ? html`<${Aviso} tipo="advertencia" titulo="Se emitieron vales mientras se contaba">
           <p>
-            ${durante.map((d) => `${d.tipo === "ENTRADA" ? folioEntrada(d.folio) : `Folio ${d.folio}`} (${d.renglones} ${d.renglones === 1 ? "renglón contado" : "renglones contados"})`).join(" · ")}.
+            ${durante.map((d) => `${d.tipo === "ENTRADA" ? folioEntrada(d.folio) : `Folio ${d.folio}`} (${d.renglones} ${d.renglones === 1 ? "partida contada" : "partidas contadas"})`).join(" · ")}.
             ¿El material ya había salido o entrado cuando se contó?
           </p>
           <div class="opciones-radio">
@@ -391,7 +391,7 @@ function Captura() {
 
     <${ListaErrores} errores=${errores} />
     <div class="acciones-linea pie-editor">
-      <span class="nota">${resumen.faltan ? `${resumen.faltan} renglones sin capturar conservarán su conteo anterior.` : "Todos los renglones están capturados."}</span>
+      <span class="nota">${resumen.faltan ? `${resumen.faltan} partidas sin capturar conservarán su conteo anterior.` : "Todas las partidas están capturadas."}</span>
       <span class="espaciador"></span>
       <${Boton} tipo="primario" tamano="grande" disabled=${!resumen.contados && !resumen.sobrantes} onClick=${aplicar}>Aplicar conteo<//>
     </div>
@@ -409,7 +409,7 @@ function HistorialConteos() {
       (c) => html`<${Detalles}
         key=${c.id}
         resumen=${html`<strong>${fmtFecha(c.fecha)}</strong> · ${c.descripcion}
-          ${c.inicial ? null : html` · ${c.renglones} renglones · <span class=${c.diferencias.length ? "alerta" : "ok"}>${c.diferencias.length} con diferencia</span>`}
+          ${c.inicial ? null : html` · ${c.renglones} partidas · <span class=${c.diferencias.length ? "alerta" : "ok"}>${c.diferencias.length} con diferencia</span>`}
           <span class="nota"> · vigente en ${c.vigentes} renglones${c.usuario ? ` · ${c.usuario}` : ""}</span>`}
       >
         <p class="nota">

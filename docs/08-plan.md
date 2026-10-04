@@ -151,6 +151,15 @@ Entregables:
 - Vistas por artículo, por contenedor y valuadas, con vales en tránsito.
 - Exportación de la solicitud de ajuste (AX + Existencia física + Folios).
 
+**Ronda 9 (aplicada):** solo se concilia el modelo **INV**; *Por confirmar* **corrige la dimensión / NP del
+inventario** a como está en AX (con *Deshacer*), sin memoria aparte; la página es un **bento (masonry)** cuyos mosaicos
+abren cada sección en una ventana en primer plano con buscador; la solicitud de ajuste lleva columna *Estado* y la fila
+coloreada. Además: fecha del encabezado de página del inventario = día del reporte, descarga más robusta (reintenta,
+verifica y, si no se puede escribir donde se eligió, descarga a *Descargas* con el motivo), ▶ del reporte llega a hoy,
+**Alt + N** agrega una partida en vales de salida y de entrada, el botón *Copilot* se oculta durante la guía, editar
+dimensión y NP desde *Inventario* (con sugerencias de AX), "partida" en lugar de "renglón" en la interfaz y bentos con
+acomodo masonry.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;
@@ -158,7 +167,7 @@ vistas por renglón de AX, por artículo, por contenedor y valuada con filtros; 
 `SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`. Estado formato 6 (`cortes_ax`, `equivalencias_ax`).
 
 Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
-- ✔ Con el corte sintético, 92 % queda emparejado solo; tras una sesión de confirmación, 100 %, y el segundo corte reutiliza las equivalencias sin preguntar (prueba automática).
+- ✔ Con el corte sintético, 92 % queda emparejado solo; tras una sesión de confirmación (que corrige el inventario), 100 %, y el segundo corte empareja exacto sin preguntar (prueba automática).
 - ✔ Cada diferencia muestra los folios que la explican (salidas y entradas en tránsito), o queda como sobrante / faltante sin explicar con su valor (prueba automática y en pantalla).
 - ☐ Con el corte real (`DELTA RIG 91 <fecha>.xlsx`): al menos 95 % emparejado tras una sesión de confirmación.
 - ☐ Revisar con la base que la solicitud de ajuste se entienda igual que el reporte de AX.

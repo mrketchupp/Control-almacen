@@ -24,7 +24,7 @@ const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 export function reacomodar(estado, { desdeId, ubicacionId, cantidad, motivo = "", usuario = null, fecha = hoyIso() }) {
   const indices = new Indices(estado);
   const desde = indices.existencia(desdeId);
-  if (!desde || desde.activo === false) throw new ErrorReacomodo("El renglón de origen ya no existe.");
+  if (!desde || desde.activo === false) throw new ErrorReacomodo("La partida de origen ya no existe.");
   const destino = indices.ubicacion(ubicacionId);
   if (!destino) throw new ErrorReacomodo("Elige el contenedor de destino.");
   if (destino.id === desde.ubicacion_id) throw new ErrorReacomodo("El material ya está en ese contenedor: elige otro.");
@@ -32,7 +32,7 @@ export function reacomodar(estado, { desdeId, ubicacionId, cantidad, motivo = ""
   if (n === null || n.lte(0)) throw new ErrorReacomodo("La cantidad a mover debe ser mayor que 0.");
   const saldos = calcularSaldos(estado);
   const total = saldos.get(desde.id).total;
-  if (n.gt(total)) throw new ErrorReacomodo(`Solo hay ${decTexto(total)} en ese renglón; no se puede mover ${decTexto(n)}.`);
+  if (n.gt(total)) throw new ErrorReacomodo(`Solo hay ${decTexto(total)} en esa partida; no se puede mover ${decTexto(n)}.`);
   const antes = describirRenglon(estado, desde.id, { indices, saldos });
   let hacia = renglonDe(estado, desde.variante_id, destino.id);
   const nuevo = !hacia;

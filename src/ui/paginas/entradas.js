@@ -29,12 +29,12 @@ import {
 } from "../../servicios/entradas.js";
 import { variantesParecidas } from "../../servicios/inventario.js";
 import { siguienteFolio } from "../../servicios/vales.js";
-import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Ventana, confirmar, num, useSesion } from "../componentes.js";
+import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, Ventana, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { hayAnimaciones } from "../tema.js";
 import { PasosCopilot } from "./capturaIA.js";
-import { CeldaCodigo, indiceArticulos, listas, normal, palabras } from "./vales.js";
+import { CeldaCodigo, indiceArticulos, listas, normal, palabras, partidaConFoco } from "./vales.js";
 
 const hay = (v) => v !== null && v !== undefined;
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
@@ -77,7 +77,7 @@ function SelectorEntraA({ linea, opciones, indices, faltaClave, error, alCambiar
       valor: o.valor,
       etiqueta: o.etiqueta,
       render: () => html`<span class="opcion-principal">${o.etiqueta}</span>
-        ${o.propio ? html`<${Pastilla} tono="ok">ya tiene su renglón<//>` : html`<${Pastilla}>renglón nuevo<//>`}
+        ${o.propio ? html`<${Pastilla} tono="ok">ya tiene su partida<//>` : html`<${Pastilla}>partida nueva<//>`}
         <span class="res-detalle">${o.detalle}</span>`,
     })),
     {
@@ -109,13 +109,13 @@ function Indicador({ fila, linea }) {
   const um = texto(linea.um);
   if (fila.tipo === "renglon") {
     const negativo = fila.queda && fila.queda.lt(0);
-    return html`<span class=${`indicador ${negativo ? "indicador-alerta" : "indicador-ok"}`} title="Existencia de ese renglón antes y después de esta entrada">
+    return html`<span class=${`indicador ${negativo ? "indicador-alerta" : "indicador-ok"}`} title="Existencia de esa partida antes y después de esta entrada">
       hay ${num(aNumero(fila.habia))} <span aria-hidden="true">→</span> <strong>${fila.queda ? num(aNumero(fila.queda)) : "—"}</strong> ${um}
     </span>`;
   }
   if (fila.tipo === "nuevo") {
     return html`<span class="indicador indicador-info" title="Se agrega al final de esa hoja del inventario">
-      renglón nuevo <span aria-hidden="true">→</span> <strong>${fila.queda ? num(aNumero(fila.queda)) : "0"}</strong> ${um}
+      partida nueva <span aria-hidden="true">→</span> <strong>${fila.queda ? num(aNumero(fila.queda)) : "0"}</strong> ${um}
     </span>`;
   }
   if (fila.tipo === "sin_existencia") return html`<span class="indicador">no suma al inventario</span>`;
@@ -133,7 +133,7 @@ function Parecidas({ estado, indices, linea, alUsar }) {
   return html`<div class="partida-sugerencia">
     <span>${parecidas[0].igual ? "Esa clave ya existe:" : "¿Es la misma que"}</span>
     ${parecidas.map(
-      (p) => html`<button type="button" class="chip-sugerencia" onClick=${() => alUsar(p.variante)} title="Usar ese renglón del inventario">
+      (p) => html`<button type="button" class="chip-sugerencia" onClick=${() => alUsar(p.variante)} title="Usar esa partida del inventario">
         ${[p.variante.dimension, p.variante.np ? `NP ${p.variante.np}` : ""].filter(Boolean).join(" · ") || "SIN DIMENSIÓN"} ${p.variante.um}
         <small>${p.lugares.join(", ")}</small>
       </button>`,
@@ -209,6 +209,9 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
     else agregarLinea(uid);
   };
   const quitar = (uid) => cambiar({ lineas: datos.lineas.filter((l) => l.uid !== uid) });
+  // Alt+N: partida nueva debajo de la que tiene el foco (o al final). Con un filtro puesto no se agrega.
+  const raiz = useRef(null);
+  useAtajo({ alt: true, codigo: "KeyN" }, () => !filtro && agregarLinea(partidaConFoco(raiz, datos.lineas)), raiz);
   const opcionesPorCodigo = useMemo(() => new Map(), [estado]);
   const opcionesDe = (codigo) => {
     if (!opcionesPorCodigo.has(codigo)) opcionesPorCodigo.set(codigo, destinosDeCodigo(estado, codigo, { indices, saldos }));
@@ -234,7 +237,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
 
   let indiceVisible = 0;
 
-  return html`<div class=${`editor-entrada ${entrando ? "entrando" : ""}`}>
+  return html`<div ref=${raiz} class=${`editor-entrada ${entrando ? "entrando" : ""}`}>
     <section class="entrada-encabezado" aria-label="Datos del vale">
       <div class="encabezado-campos">
         <label class=${`campo ${errorEn("folio_externo") ? "con-error" : ""}`}>
@@ -323,6 +326,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
           return html`<li
             key=${l.uid}
             id=${`partida-${l.uid}`}
+            data-partida=${l.uid}
             style=${`--i: ${orden}`}
             class=${`partida-entrada ${blanco ? "partida-vacia" : ""} ${conError ? "con-error" : ""} ${l.dudoso ? "dudosa" : ""} ${recientes?.has(l.uid) ? "reciente" : ""} ${resuelta ? "resuelta" : ""}`}
           >
@@ -464,7 +468,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
         })}
       </ol>
       <div class="acciones-linea" hidden=${Boolean(filtro)}>
-        <${Boton} onClick=${() => agregarLinea()}>＋ Agregar partida<//>
+        <${Boton} onClick=${() => agregarLinea()} title="Agregar partida (Alt + N)">＋ Agregar partida <${Teclas} teclas=${["Alt", "N"]} /><//>
         ${copiando
           ? html`<span class="copiar-salida">
               <input
@@ -484,7 +488,7 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
               <${Boton} tamano="chico" tipo="primario" onClick=${copiarDeSalida} disabled=${!folioDevolucion.trim()}>Copiar partidas<//>
               <${Boton} tamano="chico" tipo="texto" onClick=${() => setCopiando(false)}>Cancelar<//>
             </span>`
-          : html`<${Boton} tipo="texto" onClick=${() => setCopiando(true)} title="Material que regresa: cada partida vuelve al renglón del que salió">↩ Copiar partidas de un vale de salida<//>`}
+          : html`<${Boton} tipo="texto" onClick=${() => setCopiando(true)} title="Material que regresa: cada partida vuelve a la partida de la que salió">↩ Copiar partidas de un vale de salida<//>`}
       </div>
     </section>
     ${pie ? html`<div class="vale-pie">${pie}</div>` : null}
@@ -537,7 +541,7 @@ function ConfirmadaOk({ vale, alNueva }) {
   return html`<${Tarjeta} titulo=${`✓ Entrada ${folioEntrada(vale.folio)} registrada`} clase="tarjeta-exito">
     <p>
       ${vale.folio_externo ? html`Vale <strong>${vale.folio_externo}</strong>${vale.origen ? ` de ${vale.origen}` : ""}.${" "}` : null}Sumó al INGRESO de ${renglones}${" "}
-      ${renglones === 1 ? "renglón" : "renglones"} del inventario. Queda en el historial de entradas.
+      ${renglones === 1 ? "partida" : "partidas"} del inventario. Queda en el historial de entradas.
     </p>
     <div class="acciones-linea">
       <a class="boton boton-secundario" href=${`#entrada/${vale.id}`}>Ver entrada ${folioEntrada(vale.folio)}</a>
@@ -605,7 +609,7 @@ function BarraEntrada({ folio, datos, validacion, atencion, filtro, alFiltrar, v
         ${!faltan && lineas.length ? html`<span class="chip-estado chip-ok">✓ lista para registrar</span>` : null}
       </div>
       <div class="barra-entrada-acciones">
-        <${Boton} tipo="texto" onClick=${alCopilot} title="Leer el vale desde una foto o PDF con Copilot"><${Icono} nombre="chispa" tam=${16} /> Copilot<//>
+        ${alCopilot ? html`<${Boton} tipo="texto" onClick=${alCopilot} title="Leer el vale desde una foto o PDF con Copilot"><${Icono} nombre="chispa" tam=${16} /> Copilot<//>` : null}
         <${Boton} tipo="peligro-texto" onClick=${alDescartar}>Descartar<//>
         <${Boton} tipo="primario" disabled=${!lineas.length} onClick=${alRegistrar}>Registrar entrada<//>
       </div>
@@ -784,7 +788,7 @@ export function PaginaValesEntrada() {
       setTimeout(aplicar, guiada ? 1100 : 380);
     } else aplicar();
     const lineas = [
-      `✓ ${reporte.partidas} ${reporte.partidas === 1 ? "partida cargada" : "partidas cargadas"}: ${reporte.conRenglon} a su renglón del inventario${reporte.nuevas ? `, ${reporte.nuevas} con clave nueva (revisa su contenedor en "Entra a")` : ""}.`,
+      `✓ ${reporte.partidas} ${reporte.partidas === 1 ? "partida cargada" : "partidas cargadas"}: ${reporte.conRenglon} a su partida del inventario${reporte.nuevas ? `, ${reporte.nuevas} con clave nueva (revisa su contenedor en "Entra a")` : ""}.`,
       ...(reporte.sinCodigo.length ? [`⚠ Sin código legible: partida(s) ${reporte.sinCodigo.join(", ")}. Escríbelo a mano.`] : []),
       ...(reporte.sinClave.length ? [`⚠ Sin clave legible: partida(s) ${reporte.sinClave.join(", ")}. Elígela de la lista.`] : []),
       ...(reporte.dudosas.length ? [`⚠ Copilot marcó como dudosas las partidas ${reporte.dudosas.join(", ")} (en amarillo).`] : []),
@@ -848,7 +852,7 @@ export function PaginaValesEntrada() {
             setVerErrores=${setVerErrores}
             alDescartar=${descartar}
             alRegistrar=${registrar}
-            alCopilot=${() => setVentanaIA(true)}
+            alCopilot=${modo === "asistida" && !capturadas ? null : () => setVentanaIA(true)}
           />
           ${modo === "asistida" && !capturadas
             ? html`<section class=${`captura-asistida ${transicion === "guia" ? "saliendo" : ""}`}>
@@ -891,7 +895,7 @@ export function PaginaValesEntrada() {
       ? html`<${Tarjeta} clase="tarjeta-inicio-vales">
           <p>
             Registra el material que llega de la base o de otro equipo, a mano o desde la foto del vale con Copilot. Cada partida
-            entra a un renglón del inventario: si el material ya está en un contenedor, se sugiere ese, y ves cuánto había y cuánto
+            entra a una partida del inventario: si el material ya está en un contenedor, se sugiere ese, y ves cuánto había y cuánto
             queda antes de registrar.
           </p>
           <${Boton} tipo="primario" tamano="grande" onClick=${nueva}>＋ Nueva entrada · ${folio}<//>

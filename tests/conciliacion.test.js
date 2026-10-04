@@ -6,20 +6,28 @@ import { exportarSolicitudAjuste, nombreSolicitud } from "../src/exportadores/aj
 import { ErrorReporteAx, delAlmacen, fechaDeNombre, leerReporteAx } from "../src/importadores/ax.js";
 import * as c from "../src/servicios/conciliacion.js";
 import * as en from "../src/servicios/entradas.js";
+import { candidatosExactos, indiceExistencias } from "../src/servicios/primeraCarga.js";
+import { Indices } from "../src/nucleo/estado.js";
+import { descomprimirZip } from "../src/xlsx/zip.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import { NOMBRE_AX, bytesAx, bytesInventario, cargaSintetica } from "./ayuda.js";
 
 const USUARIO = "ALMACENISTA UNO";
 
-function conCorte({ fecha = null, folioSalida = null } = {}) {
+function conCorte({ fecha = null, folioSalida = null, extra = [] } = {}) {
   const { estado } = cargaSintetica();
   const reporte = leerReporteAx(bytesAx(), NOMBRE_AX);
   const corte = c.registrarCorteAx(
     estado,
-    { fecha: fecha ?? reporte.fechaSugerida, almacen: "RIG91-IX25", archivo: NOMBRE_AX, huella: "abc", folioSalida, renglones: delAlmacen(reporte.renglones, "RIG91-IX25") },
+    { fecha: fecha ?? reporte.fechaSugerida, almacen: "RIG91-IX25", archivo: NOMBRE_AX, huella: "abc", folioSalida, renglones: [...delAlmacen(reporte.renglones, "RIG91-IX25"), ...extra] },
     USUARIO,
   );
   return { estado, corte };
+}
+
+/** Confirma todas las sugerencias como lo haría el usuario con "Es esta". */
+function confirmarTodo(estado, corte) {
+  for (const p of c.conciliar(estado, corte).porConfirmar) c.confirmarPareja(estado, { corteId: corte.id, lineaId: p.linea.id, varianteId: p.variante_id }, USUARIO);
 }
 
 const renglonDe = (r, codigo, dimension) => r.renglones.find((x) => x.codigo === codigo && x.variante.dimension === dimension);
@@ -29,11 +37,12 @@ test("importar el reporte de AX: columnas por nombre, almacenes, fecha del nombr
   assert.equal(reporte.hoja, "rptInventSumDateTransForDimensi");
   assert.equal(reporte.fechaSugerida, "2026-09-05");
   assert.deepEqual(reporte.almacenes, [
-    { nombre: "RIG91-IX25", renglones: 13 },
+    { nombre: "RIG91-IX25", renglones: 14 },
     { nombre: "RIG48-XX10", renglones: 1 },
   ]);
   const propios = delAlmacen(reporte.renglones, "rig91-ix25");
-  assert.equal(propios.length, 13);
+  assert.equal(propios.length, 14);
+  assert.equal(propios.find((r) => r.codigo === 136).modelo, "NO INV");
   const [primero] = propios;
   assert.deepEqual([primero.codigo, primero.codigo_texto, primero.tamano, primero.disponible, primero.valor_financiero], [701, "000000701", "6309-2Z/C3", "9", "3150"]);
   assert.equal(propios.find((r) => r.codigo === 705).um, "m"); // tal cual (se normaliza al comparar)
@@ -60,33 +69,67 @@ test("emparejamiento: exacto (Tamaño cortado a 10, NP en Color, 1/2\" ≠ 12, m
   assert.equal(variante(dedo).dimension, "P551317");
   assert.ok(dedo.puntaje >= c.PUNTAJE_SEGURO);
   assert.deepEqual([par(703, "1/2 X 2").metodo, par(709, "CABLE 3/4").metodo], ["sin_fisico", "sin_fisico"]);
+  // El diésel (modelo NO INV) no se concilia.
+  assert.equal(pares.some((p) => p.linea.codigo === 136), false);
 });
 
-test("criterio F4: ≥ 95% emparejado tras una sesión de confirmación y el segundo corte reutiliza las equivalencias", () => {
+test("solo se concilia el modelo INV: los códigos de otro modelo tampoco cuentan del lado físico", () => {
+  const { estado, corte } = conCorte();
+  assert.deepEqual(c.conciliar(estado, corte).fisicoSinAx.map((x) => x.codigo), [799]);
+  // Si AX trae el 799 como servicio (no INV), su renglón físico deja de compararse.
+  const otro = conCorte({ extra: [{ fila: 99, codigo: 799, codigo_texto: "000000799", nombre: "SERVICIO", modelo: "SERV", um: "PZA", almacen: "RIG91-IX25", tamano: "", color: "", disponible: "3", valor_financiero: "30", valor_inventario: "30" }] });
+  const r = c.conciliar(otro.estado, otro.corte);
+  assert.deepEqual(r.fisicoSinAx, []);
+  assert.equal(r.porCodigo.some((x) => x.codigo === 799 || x.codigo === 136), false);
+  assert.equal(r.resumen.no_inv, 2);
+  assert.equal(c.lineasInv(otro.corte).length, 13);
+  // Un reporte sin la columna de modelo se concilia completo.
+  assert.equal(c.lineasInv({ lineas: [{ codigo: 1, modelo: "" }, { codigo: 2, modelo: "" }] }).length, 2);
+});
+
+test("criterio F4: confirmar una pareja corrige el inventario a como lo escribe AX (sin memoria aparte)", () => {
   const { estado, corte } = conCorte();
   const antes = c.conciliar(estado, corte).resumen;
   assert.ok(antes.porcentaje < 100);
-  // Sesión: se confirman las sugerencias.
-  for (const p of c.conciliar(estado, corte).porConfirmar) c.confirmarPareja(estado, p.linea, p.variante_id, USUARIO);
+  const dedo = c.conciliar(estado, corte).porConfirmar.find((p) => p.linea.tamano === "P55I317");
+  const variante = estado.variantes.find((v) => v.id === dedo.variante_id);
+  assert.deepEqual(c.valoresAx(dedo.linea, variante), { dimension: "P55I317", np: "", cortado: false });
+  // Sesión: se confirman las sugerencias → se corrige la dimensión de la variante.
+  confirmarTodo(estado, corte);
+  assert.equal(variante.dimension, "P55I317");
+  assert.deepEqual(variante.claves_anteriores, ["P551317"]);
+  assert.deepEqual(estado.equivalencias_ax, {});
   const despues = c.conciliar(estado, corte).resumen;
   assert.ok(despues.porcentaje >= 95, `emparejado: ${despues.porcentaje}%`);
   assert.equal(despues.por_confirmar, 0);
-  // Siguiente corte (otra fecha): el error de dedo ya sale por la memoria, sin preguntar.
+  assert.equal(c.emparejar(estado, corte).find((p) => p.linea.tamano === "P55I317").metodo, "exacto");
+  assert.ok(estado.auditoria.some((a) => a.accion === "CORREGIR_CLAVE" && a.despues.clave === "P55I317"));
+  // Los vales viejos que escribían "P551317" siguen encontrando su renglón.
+  const indices = new Indices(estado);
+  assert.equal(candidatosExactos(indiceExistencias(estado, indices), indices, 702, "P551317").length, 1);
+  // Siguiente corte (otra fecha): empareja exacto, sin preguntar.
   const reporte = leerReporteAx(bytesAx(), NOMBRE_AX);
   const segundo = c.registrarCorteAx(estado, { fecha: "2026-09-19", almacen: "RIG91-IX25", renglones: delAlmacen(reporte.renglones, "RIG91-IX25") }, USUARIO);
-  const pares = c.emparejar(estado, segundo);
-  assert.equal(pares.find((p) => p.linea.tamano === "P55I317").metodo, "equivalencia");
   assert.equal(c.conciliar(estado, segundo).resumen.por_confirmar, 0);
-  // "No está en físico" también se recuerda; olvidar la deja otra vez a elección.
+  // "No está en físico" se anota solo en ese corte; olvidar la deja otra vez a elección.
   const linea = segundo.lineas.find((l) => l.tamano === "P557500");
-  c.confirmarPareja(estado, linea, null, USUARIO);
+  c.confirmarPareja(estado, { corteId: segundo.id, lineaId: linea.id, varianteId: null }, USUARIO);
   assert.equal(c.emparejar(estado, segundo).find((p) => p.linea === linea).metodo, "sin_pareja");
-  c.olvidarPareja(estado, linea, USUARIO);
+  assert.equal(c.emparejar(estado, corte).find((p) => p.linea.tamano === "P557500").metodo, "exacto");
+  c.olvidarPareja(estado, { corteId: segundo.id, lineaId: linea.id }, USUARIO);
   assert.equal(c.emparejar(estado, segundo).find((p) => p.linea === linea).metodo, "exacto");
-  // Quitar un corte no borra lo aprendido.
-  c.quitarCorteAx(estado, segundo.id, USUARIO);
-  assert.equal(estado.cortes_ax.length, 1);
-  assert.ok(Object.keys(estado.equivalencias_ax).length > 0);
+});
+
+test("las parejas recordadas por la versión anterior se vuelven a proponer y, al confirmarlas, corrigen el inventario", () => {
+  const { estado, corte } = conCorte();
+  const linea = corte.lineas.find((l) => l.tamano === "P55I317");
+  const variante = estado.variantes.find((v) => v.codigo === 702 && v.dimension === "P551317");
+  estado.equivalencias_ax[c.claveAx(linea)] = { variante_id: variante.id, codigo: 702, tamano: linea.tamano, color: "" };
+  const par = c.emparejar(estado, corte).find((p) => p.linea === linea);
+  assert.deepEqual([par.metodo, par.confirmado, par.variante_id], ["recordada", false, variante.id]);
+  c.confirmarPareja(estado, { corteId: corte.id, lineaId: linea.id, varianteId: variante.id, dimension: "P55I317", np: "" }, USUARIO);
+  assert.equal(variante.dimension, "P55I317");
+  assert.deepEqual(estado.equivalencias_ax, {});
 });
 
 test("cada diferencia muestra los folios que la explican o queda como sobrante / faltante (con su valor)", () => {
@@ -122,19 +165,19 @@ test("cada diferencia muestra los folios que la explican o queda como sobrante /
   assert.deepEqual([conEntrada.estado, conEntrada.entradas.toFixed(), conEntrada.folios], ["explicada", "2", ["E-0001 (E)"]]);
 });
 
-test("solicitud de ajuste: las columnas del reporte AX + existencia física + folios; lo físico sin AX al final", () => {
+test("solicitud de ajuste: las columnas del reporte AX + existencia física + folios + estado con color; lo físico sin AX al final", () => {
   const { estado, corte } = conCorte();
-  for (const p of c.conciliar(estado, corte).porConfirmar) c.confirmarPareja(estado, p.linea, p.variante_id, USUARIO);
+  confirmarTodo(estado, corte);
   const { datos, nombre, renglones } = exportarSolicitudAjuste(estado, corte);
   assert.equal(nombre, "SOLICITUD DE AJUSTE RIG 91 050926.xlsx");
   assert.equal(nombreSolicitud("2026-09-27"), "SOLICITUD DE AJUSTE RIG 91 270926.xlsx");
   const hoja = new LibroLeido(datos).hoja("rptInventSumDateTransForDimensi");
-  assert.deepEqual(hoja.fila(1, 1, 12), [
+  assert.deepEqual(hoja.fila(1, 1, 13), [
     "Código de Artículo", "Nombre del Artículo", "Modelo de Inventario", "Unidad de Medida", "Almacén", "Tamaño", "Color",
-    "Disponible", "Valor Financiero", "Valor de Inventario", "Existencia física", "Folios que justifican",
+    "Disponible", "Valor Financiero", "Valor de Inventario", "Existencia física", "Folios que justifican", "Estado",
   ]);
   const filas = [];
-  for (let f = 2; f <= hoja.maxFila; f++) filas.push(hoja.fila(f, 1, 12));
+  for (let f = 2; f <= hoja.maxFila; f++) filas.push(hoja.fila(f, 1, 13));
   assert.equal(filas.length, renglones);
   const fila = (tamano) => filas.find((x) => x[5] === tamano);
   assert.equal(fila('1/2"')[0], "000000705"); // código como texto, con sus ceros
@@ -144,8 +187,15 @@ test("solicitud de ajuste: las columnas del reporte AX + existencia física + fo
   assert.equal(String(fila("CABLE 3/4")[10]), "0"); // en AX, no en físico
   const ultima = filas.at(-1); // físico sin AX
   assert.deepEqual([ultima[0], ultima[5], String(ultima[7]), String(ultima[10])], ["000000799", "SIN DIMENSION", "0", "1"]);
-  // Con todos, también los que cuadran.
-  assert.ok(exportarSolicitudAjuste(estado, corte, { todos: true }).renglones > renglones);
+  // Estado en texto y la fila con su color (verde, azul, amarillo, rojo).
+  assert.deepEqual([fila('1/2"')[12], fila('6"')[12], fila("CABLE 3/4")[12], ultima[12]], ["Explicada por vales", "Sobrante", "Faltante", "Sobrante"]);
+  assert.equal(filas.some((x) => x[0] === "000000136"), false); // diésel: no es INV
+  const estilos = new TextDecoder().decode(descomprimirZip(datos).get("xl/styles.xml"));
+  for (const color of ["DDEBF7", "FFEB9C", "FFC7CE"]) assert.match(estilos, new RegExp(`rgb="FF${color}"`));
+  // Con todos, también los que cuadran (en verde).
+  const todos = exportarSolicitudAjuste(estado, corte, { todos: true });
+  assert.ok(todos.renglones > renglones);
+  assert.match(new TextDecoder().decode(descomprimirZip(todos.datos).get("xl/styles.xml")), /rgb="FFC6EFCE"/);
 });
 
 test("primer corte: los vales migrados entre la fecha de AX y el conteo cuentan como tránsito", () => {

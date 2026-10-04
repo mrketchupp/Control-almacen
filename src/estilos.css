@@ -4266,3 +4266,283 @@ code.dim-ax {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ------------------------------------------------ atajos de teclado (Ronda 9) */
+.teclas {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  font-size: 0.72em;
+  color: var(--texto-suave);
+  font-weight: 500;
+}
+.teclas kbd {
+  font-family: var(--mono);
+  font-size: 1em;
+  padding: 0 5px;
+  border: 1px solid var(--borde);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--superficie-2);
+  line-height: 1.5;
+}
+@media (hover: none) {
+  .teclas {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------ bento masonry (Ronda 9) */
+/* Filas de 4 px: cada celda ocupa las que mide (useMasonry); el hueco vertical lo pone el cálculo. */
+.bento.masonry {
+  grid-auto-rows: 4px;
+  row-gap: 0;
+  align-items: start;
+}
+
+.bento.masonry > * {
+  align-self: start;
+}
+
+/* ------------------------------------------------ conciliación en bento (Ronda 9) */
+.bento-concilia {
+  margin-bottom: 14px;
+}
+
+/* Mosaico: toda la celda es un botón que abre su sección en una ventana. */
+button.mosaico {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.mosaico:hover {
+  border-color: color-mix(in srgb, var(--primario) 35%, var(--borde));
+  background: color-mix(in srgb, var(--primario-suave) 45%, var(--superficie));
+  transform: translateY(-1px);
+}
+
+button.mosaico:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.mosaico-titulo {
+  flex: 1;
+  font-weight: 650;
+}
+
+.mosaico-abrir {
+  font-size: 0.8rem;
+  color: var(--primario);
+  opacity: 0.7;
+  transition: opacity var(--dur-corta) ease, transform var(--dur-corta) ease;
+}
+
+button.mosaico:hover .mosaico-abrir {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.mosaico .nota {
+  display: block;
+}
+
+.mosaico-ok .dato-grande {
+  color: var(--ok);
+}
+
+.mosaico-info .dato-grande {
+  color: var(--primario);
+}
+
+.mosaico-alerta .dato-grande {
+  color: var(--alerta);
+}
+
+.mosaico-error .dato-grande {
+  color: var(--error);
+}
+
+.mosaico-atencion {
+  border-color: color-mix(in srgb, var(--alerta) 45%, var(--borde));
+  background: color-mix(in srgb, var(--alerta-suave) 60%, var(--superficie));
+}
+
+.mosaico-atencion .dato-grande {
+  color: var(--alerta);
+}
+
+.mosaico-lista {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 0.88rem;
+}
+
+.mosaico-item {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mosaico .medidor {
+  display: block;
+}
+
+.leyenda-colores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.leyenda-colores li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.muestra-color {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+/* Ventana de una sección de la conciliación: amplia, con su buscador arriba. */
+.ventana.ventana-concilia {
+  width: min(1320px, 100%);
+  height: min(92vh, 1000px);
+  max-height: none;
+}
+
+.ventana-concilia .controles-concilia {
+  position: sticky;
+  top: -16px;
+  z-index: 2;
+  align-items: center;
+  margin: 0 -18px 12px;
+  padding: 12px 18px;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+}
+
+.ventana-concilia .ventana-cuerpo > .controles-concilia:first-child {
+  margin-top: -16px;
+}
+
+.ventana-concilia .buscador {
+  min-width: min(320px, 100%);
+}
+
+.lista-confirmar > li.item-confirmar {
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) auto;
+}
+
+.item-editor {
+  grid-column: 1 / -1;
+}
+
+.quedara {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.quedara code,
+.clave-nueva {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+/* Editor de dimensión y NP (conciliación e inventario). */
+.editor-clave {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--primario) 40%, var(--borde));
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.clave-antes-despues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.campos-clave {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 14px;
+}
+
+.avisos-clave {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+}
+
+.avisos-clave .info {
+  color: var(--primario);
+}
+
+.avisos-clave .alerta {
+  color: var(--alerta);
+}
+
+.lista-sin-ax {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-sin-ax > li {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+}
+
+.fila-sin-ax {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.fila-sin-ax .descripcion-corta {
+  flex: 1;
+  min-width: 160px;
+}
+
+@media (max-width: 900px) {
+  .lista-confirmar > li.item-confirmar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Accesos del inicio parejos aunque su texto mida distinto. */
+.bento.masonry .bento-accion {
+  min-height: 172px;
+}
+
+.acciones-fila {
+  display: inline-flex;
+  gap: 2px;
+  white-space: nowrap;
+}

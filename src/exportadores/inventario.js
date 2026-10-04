@@ -1,8 +1,8 @@
 // Exporta INVENTARIO DE REFACCIONAMIENTO…xlsx sobre la plantilla del usuario.
 //
 // Por cada hoja de contenedor se reescriben los renglones de la tabla, la fila de
-// totales, el rango de la tabla, las áreas de impresión/filtro y las notas.
-// Ver docs/06-formatos-excel.md, sección A.
+// totales, el rango de la tabla, las áreas de impresión/filtro, las notas y la fecha
+// del encabezado de página. Ver docs/06-formatos-excel.md, sección A.
 
 import { CERO, dec } from "../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
@@ -18,9 +18,10 @@ const COLUMNAS = "ABCDEFGHIJ".split("");
 
 /**
  * @param plantilla  bytes del inventario del usuario
+ * @param fecha  AAAA-MM-DD que se escribe en el encabezado de página (el día del inventario)
  * @returns {{ datos: Uint8Array, renglones, hojas, partesModificadas, advertencias }}
  */
-export function exportarInventario(estado, plantilla) {
+export function exportarInventario(estado, plantilla, { fecha = null } = {}) {
   const paquete = new PaqueteOOXML(plantilla);
   const hojas = paquete.hojas();
   const indiceHoja = new Map(hojas.map(([nombre], i) => [nombre, i]));
@@ -39,7 +40,7 @@ export function exportarInventario(estado, plantilla) {
     const existencias = estado.existencias
       .filter((e) => e.ubicacion_id === ubicacion.id && e.activo !== false)
       .sort((a, b) => a.orden - b.orden);
-    const ultima = exportarHoja(paquete, partes.get(ubicacion.hoja_excel), existencias, indices, saldos, advertencias);
+    const ultima = exportarHoja(paquete, partes.get(ubicacion.hoja_excel), existencias, indices, saldos, advertencias, fecha);
     libro = ajustarNombres(libro, indiceHoja.get(ubicacion.hoja_excel), ultima);
     totalRenglones += existencias.length;
   }
@@ -58,7 +59,7 @@ export function exportarInventario(estado, plantilla) {
 
 // --------------------------------------------------------------------- hoja
 
-function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias) {
+function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias, fecha) {
   const hoja = new HojaXML(paquete.texto(parte));
   const parteTabla = paquete.relacionDeTipo(parte, TIPOS.tabla);
   if (!parteTabla) throw new ErrorPlantilla(`La hoja ${parte} no tiene tabla de Excel`);
@@ -135,7 +136,7 @@ function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias
     nuevas,
   );
   hoja.ajustarDimension(Math.max(ultima, ...debajo.map((n) => n + delta)));
-  paquete.escribir(parte, hoja.toString());
+  paquete.escribir(parte, fecha ? conFechaEnEncabezado(hoja.toString(), fecha) : hoja.toString());
 
   tabla = cambiarEtiqueta(tabla, "table", (e) => ponerAtributo(e, "ref", `${inicio}:${columnaFin}${ultima}`));
   const inicioFiltro = tabla.search(/<autoFilter\b/);
@@ -162,6 +163,41 @@ function ajustarNombres(libro, indice, ultima) {
     if (nombre === "_xlnm._FilterDatabase") return cambiarUltimaFila(texto, Math.max(ultima - 1, 2));
     return null;
   });
+}
+
+// ------------------------------------------------------- encabezado de página
+
+const DIAS = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
+const MESES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+// "LUNES 28 SEPTIEMBRE DE  2026", "DOMINGO 19 DE ABRIL 2026", "28 de septiembre de 2026"…
+const FECHA_LARGA = new RegExp(
+  `(LUNES|MARTES|MI[EÉ]RCOLES|JUEVES|VIERNES|S[AÁ]BADO|DOMINGO)?(\\s*,?\\s*)(\\d{1,2})(\\s+DE)?(\\s+)(${MESES.join("|")})(\\s+DE)?(\\s+)(\\d{4})`,
+  "gi",
+);
+const FECHA_CORTA = /(?<!\d)\d{1,2}\/\d{1,2}\/\d{4}(?!\d)/g;
+
+/** Como venía escrito: MAYÚSCULAS, minúsculas o Inicial. */
+function comoEn(muestra, texto) {
+  if (muestra === muestra.toUpperCase()) return texto.toUpperCase();
+  if (muestra === muestra.toLowerCase()) return texto.toLowerCase();
+  return texto.charAt(0) + texto.slice(1).toLowerCase();
+}
+
+/** Texto del encabezado con la fecha cambiada por `iso`, respetando cómo estaba escrita. */
+export function fechaEnTexto(texto, iso) {
+  const [anio, mes, dia] = iso.split("-").map(Number);
+  const semana = DIAS[new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay()];
+  return texto
+    .replace(FECHA_LARGA, (_, nombreDia, sep, d, de1, esp, nombreMes, de2, esp2) => {
+      const conDia = nombreDia ? comoEn(nombreDia, semana) : "";
+      return `${conDia}${sep}${d.startsWith("0") ? String(dia).padStart(2, "0") : dia}${de1 ?? ""}${esp}${comoEn(nombreMes, MESES[mes - 1])}${de2 ?? ""}${esp2}${anio}`;
+    })
+    .replace(FECHA_CORTA, () => `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${anio}`);
+}
+
+/** La fecha del encabezado de página (`oddHeader`, `evenHeader`, `firstHeader`); si no tiene fecha, no cambia. */
+export function conFechaEnEncabezado(xml, iso) {
+  return xml.replace(/(<(oddHeader|evenHeader|firstHeader)\b[^>]*>)([\s\S]*?)(<\/\2>)/g, (_, apertura, __, contenido, cierre) => apertura + fechaEnTexto(contenido, iso) + cierre);
 }
 
 // -------------------------------------------------------------------- notas

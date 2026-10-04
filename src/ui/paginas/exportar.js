@@ -23,7 +23,7 @@ function TraerDelExcel() {
       setVista(null);
       sesion.avisar(
         "exito",
-        `Se agregaron ${reporte.vales} vale(s): ${reporte.folios.join(", ") || "ninguno"}.${reporte.por_ubicar.length ? ` ${reporte.por_ubicar.length} renglón(es) quedaron en Pendientes.` : ""}`,
+        `Se agregaron ${reporte.vales} vale(s): ${reporte.folios.join(", ") || "ninguno"}.${reporte.por_ubicar.length ? ` ${reporte.por_ubicar.length} partida(s) quedaron en Pendientes.` : ""}`,
       );
     });
   return html`<${Tarjeta} titulo="Traer vales hechos en el Excel">
@@ -38,7 +38,7 @@ function TraerDelExcel() {
       ? vista.folios.length
         ? html`<${Aviso} tipo="info" titulo=${`${vista.folios.length} vale(s) nuevo(s) en ${vista.nombre}`}>
             Folios ${vista.folios.join(", ")} (la herramienta llega hasta el ${vista.desde}).
-            ${vista.resultado.omitidos.length ? html`<br />Se omitirán ${vista.resultado.omitidos.length} renglón(es) sin folio o dañados.` : null}
+            ${vista.resultado.omitidos.length ? html`<br />Se omitirán ${vista.resultado.omitidos.length} partida(s) sin folio o dañadas.` : null}
             <div class="acciones-linea">
               <${Boton} tipo="primario" onClick=${importar}>Agregar estos vales<//>
               <${Boton} onClick=${() => setVista(null)}>Cancelar<//>
@@ -69,8 +69,8 @@ export function PaginaExportar() {
         : html`Se guardan en <code>${destino}</code>.`}
     </p>
     ${pendientes
-      ? html`<${Aviso} tipo="advertencia" titulo=${`${pendientes} renglón(es) por ubicar`}>
-          El inventario exportado no descontará esos renglones hasta que los ubiques en <a href="#pendientes">Pendientes</a>.
+      ? html`<${Aviso} tipo="advertencia" titulo=${`${pendientes} partida(s) por ubicar`}>
+          El inventario exportado no descontará esas partidas hasta que las ubiques en <a href="#pendientes">Pendientes</a>.
         <//>`
       : null}
     <div class="rejilla-2">

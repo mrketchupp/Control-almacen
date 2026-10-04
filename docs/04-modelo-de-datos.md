@@ -51,7 +51,8 @@ erDiagram
 | np | texto | Número de parte (columna NP) |
 | um | texto | Unidad normalizada |
 | dimension_clave, np_clave | texto | Normalización estricta (ver reglas abajo) |
-| activo | bool | |
+| claves_anteriores | lista de texto | Cómo se escribía antes de corregir su dimensión / NP (Ronda 9): los vales viejos se siguen reconociendo |
+| activo, unida_a | bool, FK | Al corregirla igual que otra variante, sus partidas pasan a esa y queda inactiva con `unida_a` |
 | | | `UNIQUE(codigo, dimension_clave, np_clave)` |
 
 **`ubicacion`**
@@ -189,10 +190,14 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 En el estado (formato 6, F4): `estado.cortes_ax = [{ id, fecha, almacen, archivo, huella, folio_salida, importado_en,
 importado_por, lineas: [{ id, fila, codigo, codigo_texto, nombre, modelo, um, almacen, tamano, color, disponible,
 valor_financiero, valor_inventario }] }]` (textos tal como vienen del reporte; cantidades y valores como texto decimal)
-y `estado.equivalencias_ax = { "código|tamaño|color" (claves estrictas): { variante_id | null, codigo, tamano, color,
-confirmado_por, fecha } }` (`null` = "no está en el físico"). La pareja de cada renglón **no se guarda**: se calcula
-cada vez (`servicios/conciliacion.js`, `emparejar`) con las equivalencias primero, así el inventario puede cambiar sin
-dejar parejas viejas. `config.almacen_ax` = almacén que se filtra (por defecto `RIG91-IX25`).
+y `corte.sin_pareja = [línea…]` (las partidas de AX que el usuario marcó "no está en el físico", **solo en ese corte**).
+Desde la Ronda 9 **confirmar una pareja corrige el inventario** (`corregirDimensionNp`: la dimensión y el NP de la
+variante pasan a como los escribe AX) en vez de recordar una equivalencia; `estado.equivalencias_ax` (formato 6) solo
+conserva lo que se confirmó con la versión anterior: esas parejas se vuelven a proponer ("confirmada antes") y, al
+confirmarlas, se corrige el inventario y se borran. La pareja de cada partida **no se guarda**: se calcula cada vez
+(`servicios/conciliacion.js`, `emparejar`). Solo se concilian las partidas con **Modelo de Inventario = INV**
+(`lineasInv`); los códigos que en AX solo vienen con otro modelo tampoco se comparan del lado físico.
+`config.almacen_ax` = almacén que se filtra (por defecto `RIG91-IX25`).
 
 ### Operación
 

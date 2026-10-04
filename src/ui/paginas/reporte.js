@@ -3,7 +3,7 @@ import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { describirCorte } from "../../servicios/corte.js";
 import { fechasConVales, reporteDelDia } from "../../servicios/reporte.js";
 import { valesPorEnviar } from "../../servicios/vales.js";
-import { Boton, Pastilla, Tabla, useSesion } from "../componentes.js";
+import { Bento, Boton, Pastilla, Tabla, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { BotonSubido, exportarConDialogo } from "./sharepoint.js";
@@ -55,7 +55,9 @@ export function PaginaReporte() {
   const fechas = useMemo(() => fechasConVales(estado), [estado.vales]);
   const pendientesTotales = useMemo(() => valesPorEnviar(estado).length, [estado]);
   const anterior = fechas.find((f) => f < fecha);
-  const siguiente = [...fechas].reverse().find((f) => f > fecha);
+  // Después del último día con vales, ▶ lleva a hoy (aunque hoy todavía no haya vales).
+  const siguiente = [...fechas].reverse().find((f) => f > fecha && f <= hoy) ?? (fecha < hoy ? hoy : null);
+  const tituloSiguiente = siguiente === hoy && !fechas.includes(hoy) ? "Hoy" : "Día siguiente con vales";
   const { corte } = reporte;
   const nombreVales = sesion.almacen.nombreExportacion("VALES", fecha);
   const nombreInventario = sesion.almacen.nombreExportacion("INVENTARIO", fecha);
@@ -63,12 +65,12 @@ export function PaginaReporte() {
 
   return html`
     <div class="barra-fecha">
-      <${Boton} tipo="texto" disabled=${!anterior} onClick=${() => setFecha(anterior)} title="Día anterior con vales">◀<//>
+      <${Boton} tipo="texto" disabled=${!anterior} onClick=${() => setFecha(anterior)} title="Día anterior con vales" aria-label="Día anterior con vales">◀<//>
       <label class="fecha-grande">
         <span class="nota">Día del reporte</span>
         <input type="date" value=${fecha} max=${hoy} onChange=${(e) => setFecha(e.currentTarget.value)} aria-label="Fecha del reporte" />
       </label>
-      <${Boton} tipo="texto" disabled=${!siguiente} onClick=${() => setFecha(siguiente)} title="Día siguiente con vales">▶<//>
+      <${Boton} tipo="texto" disabled=${!siguiente} onClick=${() => setFecha(siguiente)} title=${tituloSiguiente} aria-label=${tituloSiguiente}>▶<//>
       <span class="nota">${diaSemana(fecha)} ${fmtFecha(fecha)}${fecha === hoy ? " · hoy" : ""}</span>
       ${fecha !== hoy ? html`<${Boton} tipo="texto" onClick=${() => setFecha(hoy)}>Hoy<//>` : null}
     </div>
@@ -86,7 +88,7 @@ export function PaginaReporte() {
       </div>
     </div>
 
-    <div class="bento bento-reporte">
+    <${Bento} clase="bento-reporte" etiqueta="Reporte del día">
       <section class="bento-celda bento-ancha">
         <header class="bento-cabeza">
           <span class="cabeza-icono"><${Icono} nombre="descargar" /></span>
@@ -163,6 +165,6 @@ export function PaginaReporte() {
             </ul>`
           : html`<p class="nota">Sin entradas este día.</p>`}
       </section>
-    </div>
+    <//>
   `;
 }

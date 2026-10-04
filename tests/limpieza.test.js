@@ -10,7 +10,7 @@ test("agrupa por folio y detecta faltantes", () => {
   const resultado = limpiar();
   assert.deepEqual(resultado.vales.map((v) => v.folio), [1, 2, 3, 4, 5, 6, 7, 9]);
   assert.deepEqual(resultado.folios_faltantes, [8]);
-  assert.deepEqual(resultado.omitidos, [[8, "Renglón perdido: sin folio ni código (#REF!)"]]);
+  assert.deepEqual(resultado.omitidos, [[8, "Partida perdida: sin folio ni código (#REF!)"]]);
 });
 
 test("sin revisión no elimina duplicados", () => {

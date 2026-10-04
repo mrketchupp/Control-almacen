@@ -412,7 +412,7 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
   if (historial) {
     // Vale anterior al conteo: solo es historial (no descuenta), se corrige con lo mínimo.
     lineasCapturadas(datos.lineas).forEach((l, i) => {
-      if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(i + 1, "codigo", `Renglón ${i + 1}: falta el código.`);
+      if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(i + 1, "codigo", `Partida ${i + 1}: falta el código.`);
     });
     return { errores, avisos };
   }
@@ -431,16 +431,16 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
   const pedidos = new Map();
   lineas.forEach((l, i) => {
     const n = i + 1;
-    if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(n, "codigo", `Renglón ${n}: falta el código.`);
-    if (!texto(l.descripcion)) error(n, "descripcion", `Renglón ${n}: falta la descripción.`);
+    if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(n, "codigo", `Partida ${n}: falta el código.`);
+    if (!texto(l.descripcion)) error(n, "descripcion", `Partida ${n}: falta la descripción.`);
     const cantidad = dec(l.cantidad);
-    if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Renglón ${n}: la cantidad debe ser mayor que 0.`);
-    if (!texto(l.um)) error(n, "um", `Renglón ${n}: falta la unidad (UM).`);
+    if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
+    if (!texto(l.um)) error(n, "um", `Partida ${n}: falta la unidad (UM).`);
     if (l.existencia_id !== null && l.existencia_id !== undefined) {
-      if (!indices.existencia(l.existencia_id)) error(n, "existencia_id", `Renglón ${n}: el renglón de inventario ya no existe.`);
+      if (!indices.existencia(l.existencia_id)) error(n, "existencia_id", `Partida ${n}: la partida de inventario ya no existe.`);
       else if (cantidad !== null) pedidos.set(l.existencia_id, (pedidos.get(l.existencia_id) ?? CERO).plus(cantidad));
     } else if (!l.no_inventariado) {
-      error(n, "existencia_id", `Renglón ${n}: elige la clave de la lista (o "Otra clave" si no sale del inventario).`);
+      error(n, "existencia_id", `Partida ${n}: elige la clave de la lista (o "Otra clave" si no sale del inventario).`);
     }
   });
   if (pedidos.size) {
@@ -452,7 +452,7 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
       if (pedido.gt(hay)) {
         avisos.push({ renglon: i + 1, disponible: hay, pedido });
         if (!texto(l.justificacion)) {
-          error(i + 1, "justificacion", `Renglón ${i + 1}: la existencia es ${decTexto(hay)} y pides ${decTexto(pedido)}; escribe una justificación.`);
+          error(i + 1, "justificacion", `Partida ${i + 1}: la existencia es ${decTexto(hay)} y pides ${decTexto(pedido)}; escribe una justificación.`);
         }
       }
     });
@@ -542,8 +542,8 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
   for (let i = 0; i < datos.lineas.length; i += capacidad) grupos.push(datos.lineas.slice(i, i + capacidad));
   if (grupos.length > 1 && !dividir) {
     throw new ErrorVale(
-      `El vale tiene ${datos.lineas.length} renglones y el formato impreso admite ${capacidad}. Se puede dividir en ${grupos.length} folios consecutivos.`,
-      [{ renglon: null, campo: "lineas", mensaje: "Demasiados renglones para un solo formato." }],
+      `El vale tiene ${datos.lineas.length} partidas y el formato impreso admite ${capacidad}. Se puede dividir en ${grupos.length} folios consecutivos.`,
+      [{ renglon: null, campo: "lineas", mensaje: "Demasiadas partidas para un solo formato." }],
     );
   }
   const encabezado = encabezadoLimpio(datos);

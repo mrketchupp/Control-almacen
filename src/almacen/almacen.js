@@ -237,7 +237,7 @@ export class Almacen {
       nombre = resultado.nombre;
     } else {
       const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
-      resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla);
+      resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla, { fecha: corte ?? hoy });
       nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, corte ?? hoy);
     }
     const huella = await sha256(resultado.datos);

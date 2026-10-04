@@ -11,7 +11,11 @@ const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado"
  * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS' | 'AJUSTE'. opciones: { corte }
  * (AAAA-MM-DD, el libro al cierre de ese día) o { corteAx, todos } (solicitud de ajuste).
  */
+const enCurso = new Set();
+
 export async function exportarConDialogo(sesion, tipo, alTerminar = null, opciones = {}) {
+  const clave = `${tipo}|${opciones.corte ?? ""}|${opciones.corteAx ?? ""}`;
+  if (enCurso.has(clave)) return; // doble clic: ya se está generando
   let archivo;
   try {
     archivo = await sesion.elegirDestinoExportacion(tipo, opciones);
@@ -20,11 +24,16 @@ export async function exportarConDialogo(sesion, tipo, alTerminar = null, opcion
     return;
   }
   if (archivo === null) return; // canceló
-  await sesion.tarea("Generando Excel…", async () => {
-    const destino = await sesion.exportar(tipo, archivo, opciones);
-    sesion.avisar("exito", `Listo: ${destino}`);
-    alTerminar?.(destino);
-  });
+  enCurso.add(clave);
+  try {
+    await sesion.tarea("Generando Excel…", async () => {
+      const destino = await sesion.exportar(tipo, archivo, opciones);
+      sesion.avisar("exito", `Listo: ${destino}`);
+      alTerminar?.(destino);
+    });
+  } finally {
+    enCurso.delete(clave);
+  }
 }
 
 /**

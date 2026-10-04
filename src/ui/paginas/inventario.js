@@ -1,10 +1,38 @@
 import { useMemo, useState } from "preact/hooks";
 import { hoyIso } from "../../nucleo/fechas.js";
 import { filasInventario } from "../../servicios/consultas.js";
-import { lugarCorto, renglonDe, ubicacionesOrdenadas } from "../../servicios/inventario.js";
+import { corregirDimensionNp, lugarCorto, renglonDe, ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { ErrorReacomodo, historialReacomodos, reacomodar } from "../../servicios/reacomodos.js";
-import { Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { EditorClave, useCorreccion } from "./clave.js";
+
+/** Corregir la dimensión y el NP de una partida del inventario (o de todas las de su variante), con sugerencias de AX. */
+function CorregirClave({ fila, alTerminar }) {
+  const sesion = useSesion();
+  const corregir = useCorreccion();
+  return html`<${Ventana} titulo="Corregir dimensión y NP" alCerrar=${alTerminar}>
+    <p>
+      <strong>${fila.codigo}</strong> ${fila.descripcion}
+      <${Pastilla} tono="lugar" titulo=${fila.hoja}>${lugarCorto({ contenedor: fila.contenedor, clase: fila.clase === "Inventariable" ? "INV" : "CONS" })}<//>
+      <${Pastilla} tono=${fila.total > 0 ? "ok" : "alerta"}>hay ${num(fila.total)} ${fila.um}<//>
+    </p>
+    <p class="nota">Las sugerencias dicen cómo lo escribe AX (Tamaño y Color del último corte) y cómo está en otras partidas.</p>
+    <${EditorClave}
+      cual=${{ existenciaId: fila.id }}
+      codigo=${fila.codigo}
+      actual=${{ dimension: fila.dimension, np: fila.np, um: fila.um }}
+      conMotivo=${true}
+      textoAplicar="Guardar"
+      alAplicar=${({ dimension, np, motivo, cual }) =>
+        corregir(
+          (e) => corregirDimensionNp(e, cual, { dimension, np }, { usuario: sesion.usuario, motivo }),
+          (r) => `Listo: ${fila.codigo} quedó como ${r.despues}${r.renglones > 1 ? ` en ${r.renglones} partidas` : ""}${r.unida ? " (se juntó con la variante igual)" : ""}.`,
+        ).then((r) => r && alTerminar())}
+      alCancelar=${alTerminar}
+    />
+  <//>`;
+}
 
 /** Mover material de un renglón a otro contenedor sin cambiar el total (RF-42). */
 function MoverRenglon({ fila, alTerminar }) {
@@ -18,7 +46,7 @@ function MoverRenglon({ fila, alTerminar }) {
   const [error, setError] = useState(null);
   const opciones = ubicacionesOrdenadas(estado)
     .filter((u) => u.id !== fila.ubicacion_id)
-    .map((u) => ({ valor: String(u.id), etiqueta: u.hoja_excel.trim(), detalle: renglonDe(estado, existencia.variante_id, u.id) ? "ya tiene su renglón" : "renglón nuevo" }));
+    .map((u) => ({ valor: String(u.id), etiqueta: u.hoja_excel.trim(), detalle: renglonDe(estado, existencia.variante_id, u.id) ? "ya tiene su partida" : "partida nueva" }));
   const mover = () =>
     sesion.tarea("Moviendo…", async () => {
       try {
@@ -46,8 +74,8 @@ function MoverRenglon({ fila, alTerminar }) {
       <label class="filtro filtro-ancho"><span>Motivo (opcional)</span><input value=${motivo} onInput=${(e) => setMotivo(e.currentTarget.value)} placeholder="Ej. se reacomodó el contenedor 2" /></label>
     </div>
     <p class="nota">
-      El total no cambia: los dos renglones quedan como recién contados (CANTIDAD = lo que queda en cada uno). Si el material no tiene
-      renglón en ese contenedor, se agrega al final de su hoja.
+      El total no cambia: las dos partidas quedan como recién contadas (CANTIDAD = lo que queda en cada una). Si el material no tiene
+      partida en ese contenedor, se agrega al final de su hoja.
     </p>
     ${error ? html`<p class="alerta">${error}</p>` : null}
     <div class="acciones-linea">
@@ -71,7 +99,7 @@ function Reacomodos() {
         { clave: "descripcion", titulo: "Descripción" },
         { clave: "clave", titulo: "Clave" },
         { titulo: "Cantidad", numero: true, render: (r) => `${num(r.cantidad_numero)} ${r.um}` },
-        { titulo: "De → a", render: (r) => html`<span class="sin-corte">${r.desde_hoja} → ${r.hacia_hoja}</span>${r.renglon_nuevo ? html` <${Pastilla} tono="info">renglón nuevo<//>` : null}` },
+        { titulo: "De → a", render: (r) => html`<span class="sin-corte">${r.desde_hoja} → ${r.hacia_hoja}</span>${r.renglon_nuevo ? html` <${Pastilla} tono="info">partida nueva<//>` : null}` },
         { titulo: "Quién / motivo", render: (r) => [r.usuario, r.motivo].filter(Boolean).join(" · ") },
       ]}
     />
@@ -85,6 +113,7 @@ export function PaginaInventario() {
   const [hoja, setHoja] = useState("");
   const [vista, setVista] = useState("todos");
   const [moviendo, setMoviendo] = useState(null);
+  const [corrigiendo, setCorrigiendo] = useState(null);
   const hojas = useMemo(() => [...new Set(filas.map((f) => f.hoja))], [filas]);
   const porTexto = useFiltroTexto(filas, texto, ["codigo", "descripcion", "dimension", "np", "nota"]);
   const visibles = porTexto.filter((f) => {
@@ -96,8 +125,10 @@ export function PaginaInventario() {
     return true;
   });
   const fila = moviendo ? filas.find((f) => f.id === moviendo) : null;
+  const aCorregir = corrigiendo ? filas.find((f) => f.id === corrigiendo) : null;
   return html`
     ${fila ? html`<${MoverRenglon} key=${fila.id} fila=${fila} alTerminar=${() => setMoviendo(null)} />` : null}
+    ${aCorregir ? html`<${CorregirClave} key=${aCorregir.id} fila=${aCorregir} alTerminar=${() => setCorrigiendo(null)} />` : null}
     <div class="filtros">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión, NP…" />
       <${Lista}
@@ -113,7 +144,7 @@ export function PaginaInventario() {
         alCambiar=${setVista}
         ariaLabel="Vista"
         opciones=${[
-          { valor: "todos", etiqueta: "Todos los renglones" },
+          { valor: "todos", etiqueta: "Todas las partidas" },
           { valor: "movimiento", etiqueta: "Con consumo o ingreso" },
           { valor: "agotado", etiqueta: "Existencia 0 o negativa" },
           { valor: "notas", etiqueta: "Con nota" },
@@ -145,13 +176,16 @@ export function PaginaInventario() {
         },
         {
           titulo: "",
-          render: (f) => html`<button type="button" class="boton boton-texto boton-mover" title="Mover a otro contenedor" onClick=${() => {
-            setMoviendo(f.id);
-            window.scrollTo(0, 0);
-          }}>Mover</button>`,
+          render: (f) => html`<span class="acciones-fila">
+            <button type="button" class="boton boton-texto boton-mover" title="Corregir la dimensión o el NP" onClick=${() => setCorrigiendo(f.id)}>Editar</button>
+            <button type="button" class="boton boton-texto boton-mover" title="Mover a otro contenedor" onClick=${() => {
+              setMoviendo(f.id);
+              window.scrollTo(0, 0);
+            }}>Mover</button>
+          </span>`,
         },
       ]}
-      vacia="Ningún renglón coincide con el filtro."
+      vacia="Ninguna partida coincide con el filtro."
     />
     <${Reacomodos} />
   `;

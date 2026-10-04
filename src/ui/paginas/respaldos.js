@@ -33,7 +33,7 @@ export function restaurarConConfirmacion(sesion, datos, origen, alTerminar = asy
   let resumen = "";
   try {
     const { manifiesto } = leerRespaldo(datos);
-    resumen = `\n\nContiene: ${manifiesto.vales ?? "?"} vales y ${manifiesto.existencias ?? "?"} renglones de inventario (${fmtFechaHora(manifiesto.fecha_hora || "")}).`;
+    resumen = `\n\nContiene: ${manifiesto.vales ?? "?"} vales y ${manifiesto.existencias ?? "?"} partidas de inventario (${fmtFechaHora(manifiesto.fecha_hora || "")}).`;
   } catch (error) {
     sesion.avisar("error", error.message);
     return undefined;

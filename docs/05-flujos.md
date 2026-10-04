@@ -138,30 +138,37 @@ dos renglones quedan como recién contados y el movimiento queda en *Movimientos
 
 ```mermaid
 flowchart LR
-    A[Importar reporte AX<br/>completo o filtrado] --> B[Filtrar almacén RIG91-IX25]
-    B --> C[Emparejar renglones]
-    C --> C1[Nivel 1: equivalencias ya confirmadas]
-    C1 --> C2[Nivel 2: exacto tras normalizar]
-    C2 --> C3[Nivel 3: aproximado con puntaje]
-    C3 --> D[Usuario confirma o corrige<br/>se guarda la equivalencia]
+    A[Importar reporte AX<br/>completo o filtrado] --> B[Filtrar almacén RIG91-IX25<br/>y modelo INV]
+    B --> C[Emparejar partidas]
+    C --> C2[Exacto tras normalizar]
+    C2 --> C3[Aproximado con puntaje]
+    C3 --> D[Usuario confirma:<br/>se corrige la dimensión / NP<br/>del inventario a como está en AX]
     D --> E[Vistas por artículo,<br/>por contenedor y valuada en pesos]
     E --> F[Vales en tránsito<br/>explican diferencias]
     F --> G[Exportar solicitud de ajuste]
 ```
 
-- **Emparejamiento** (`servicios/conciliacion.js`): nivel 1, equivalencias confirmadas (también "no está en el
-  físico"); nivel 2, exacto tras normalizar: `Tamaño` = dimensión y `Color` vacío o = NP, `Tamaño + Color` = dimensión
-  (+ NP), o `Tamaño` de 10 caracteres con el que empieza la dimensión física (AX la corta); las unidades se comparan
-  equivalentes (`m` = `MTS`, `LITROS` = `LTS`…); nivel 3, aproximado con puntaje (se **sugiere**; el usuario confirma con
-  *Es esta*, elige otra o *No está en el físico*). Lo confirmado se recuerda para los siguientes cortes. Un código de
-  AX sin ningún renglón físico va directo a "en AX y no en el físico".
+- **Solo modelo INV:** se concilian las partidas de AX con *Modelo de Inventario* = `INV`; las de otros modelos (diésel,
+  servicios…) no, y si un código solo viene con otro modelo, su físico tampoco se compara.
+- **Emparejamiento** (`servicios/conciliacion.js`): exacto tras normalizar: `Tamaño` = dimensión y `Color` vacío o = NP,
+  `Tamaño + Color` = dimensión (+ NP), o `Tamaño` de 10 caracteres con el que empieza la dimensión física (AX la corta);
+  las unidades se comparan equivalentes (`m` = `MTS`, `LITROS` = `LTS`…); aproximado con puntaje (se **sugiere**). Al
+  confirmar (*Corregir a como está en AX*, *Ajustar…* o *Otra…*) **se corrige la dimensión y el NP de la variante en el
+  inventario** (todas sus partidas; si ya había una igual, se juntan) y desde ahí empareja exacto: no hay memoria
+  aparte. La escritura anterior queda en `claves_anteriores` para seguir reconociendo los vales viejos. *No está en el
+  físico* se anota solo en ese corte. Un código de AX sin ninguna partida física va directo a "en AX y no en el físico".
+  Cada corrección tiene *Deshacer* en el aviso y queda en la bitácora (`CORREGIR_CLAVE`).
 - **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante.
 - **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
 - **Diferencia explicada** = físico − AX + salidas en tránsito − entradas en tránsito. Si da 0, la diferencia se marca como "explicada por vales" y se listan los folios; si no, queda como **sobrante** o **faltante** sin explicar.
 - **Valuación:** costo unitario = Valor financiero / Disponible del renglón AX; valor = lo sin explicar × costo.
-- **Vistas:** por renglón de AX, por artículo (código, sin depender del emparejamiento), por contenedor y valuada; filtros
-  *con diferencia, sin explicar, sobrantes, faltantes, explicadas*. Aparte, las listas "en AX y no en el físico" y "en el
-  físico y no en AX" (RF-55).
+- **Pantalla en bento (masonry):** cada sección es un mosaico con su número (por confirmar, emparejadas, faltantes,
+  sobrantes, explicadas, cuadran, en AX y no en el físico, en el físico y no en AX, por artículo, por contenedor,
+  valuada, solicitud de ajuste); al pulsarlo se abre en una **ventana en primer plano** con buscador, para no bajar por
+  una sola página larga.
+- **Vistas:** por partida de AX, por artículo (código, sin depender del emparejamiento), por contenedor y valuada; filtros
+  *con diferencia, sin explicar, sobrantes, faltantes, explicadas, cuadran*. Aparte, las listas "en AX y no en el físico"
+  y "en el físico y no en AX" (RF-55; en esta última se puede corregir la dimensión / NP).
 
 ## 6. Reporte diario, exportación y SharePoint
 

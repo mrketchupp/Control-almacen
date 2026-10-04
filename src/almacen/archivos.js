@@ -50,11 +50,59 @@ export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "
   }
 }
 
+export class ErrorEscritura extends Error {}
+
+/** Explica en palabras del usuario por qué el navegador no pudo escribir el archivo. */
+export function explicarErrorEscritura(error, nombre) {
+  switch (error?.name) {
+    case "NoModificationAllowedError":
+    case "InvalidModificationError":
+      return `«${nombre}» está abierto en Excel u otro programa`;
+    case "InvalidStateError":
+      return `«${nombre}» cambió mientras se guardaba (¿OneDrive lo estaba sincronizando?)`;
+    case "NotAllowedError":
+    case "SecurityError":
+      return `el navegador no dio permiso para escribir «${nombre}»`;
+    case "QuotaExceededError":
+      return "no hay espacio en el disco";
+    case "NotFoundError":
+      return `la carpeta de «${nombre}» ya no existe`;
+    default:
+      return error?.message || String(error);
+  }
+}
+
+const ESPERAS_ESCRITURA = [0, 500, 1500];
+const sinReintento = (error) => ["NotAllowedError", "SecurityError", "QuotaExceededError"].includes(error?.name);
+
+/**
+ * Escribe en el archivo elegido con "Guardar como". Reintenta (OneDrive o un antivirus pueden tener el
+ * archivo un instante) y comprueba que quedó completo. @throws ErrorEscritura con la causa explicada
+ */
 export async function escribirEnArchivo(archivo, datos) {
-  const escritor = await archivo.createWritable();
-  await escritor.write(datos);
-  await escritor.close();
-  return archivo.name;
+  let ultimo = null;
+  for (const espera of ESPERAS_ESCRITURA) {
+    if (espera) await new Promise((r) => setTimeout(r, espera));
+    try {
+      const escritor = await archivo.createWritable();
+      try {
+        await escritor.write(datos);
+        await escritor.close();
+      } catch (error) {
+        await escritor.abort().catch(() => {});
+        throw error;
+      }
+      if (typeof archivo.getFile === "function") {
+        const escrito = await archivo.getFile();
+        if (escrito.size !== datos.length) throw new ErrorEscritura(`«${archivo.name}» quedó incompleto`);
+      }
+      return archivo.name;
+    } catch (error) {
+      ultimo = error;
+      if (sinReintento(error)) break;
+    }
+  }
+  throw new ErrorEscritura(explicarErrorEscritura(ultimo, archivo.name), { cause: ultimo });
 }
 
 export async function elegirCarpeta() {

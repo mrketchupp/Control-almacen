@@ -4,7 +4,7 @@ import { fijarAjuste } from "../../servicios/catalogos.js";
 import { resumen } from "../../servicios/consultas.js";
 import { folioEntrada } from "../../servicios/entradas.js";
 import { siguienteFolio } from "../../servicios/vales.js";
-import { Boton, Tarjeta, useSesion } from "../componentes.js";
+import { Bento, Boton, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { SubirSharePoint } from "./sharepoint.js";
@@ -174,7 +174,7 @@ export function PaginaInicio() {
   const alertas = [
     !sesion.usuario && html`<a href="#inicio" onClick=${(e) => { e.preventDefault(); document.querySelector(".lista-usuario .lista-boton")?.click(); }}>Elige quién está en turno</a>`,
     !sesion.respaldoDeHoy && (sesion.carpetaLista ? null : html`<a href="#respaldos">Sin respaldo de hoy</a>`),
-    datos.por_ubicar && html`<a href="#pendientes">${datos.por_ubicar} renglón(es) por ubicar</a>`,
+    datos.por_ubicar && html`<a href="#pendientes">${datos.por_ubicar} partida(s) por ubicar</a>`,
     datos.por_confirmar && html`<a href="#inventario">${datos.por_confirmar} artículo(s) por confirmar</a>`,
   ].filter(Boolean);
   return html`
@@ -186,7 +186,7 @@ export function PaginaInicio() {
       ${alertas.length ? html`<div class="alertas-inicio">${alertas.map((a) => html`<span class="chip-alerta">⚠ ${a}</span>`)}</div>` : null}
     </div>
 
-    <div class="bento bento-inicio">
+    <${Bento} clase="bento-inicio" etiqueta="Inicio">
       <${Accion}
         href="#vales"
         icono="salida"
@@ -206,7 +206,7 @@ export function PaginaInicio() {
         icono="conteo"
         titulo="Conteo físico"
         tono=${enCurso ? "accion-en-curso" : ""}
-        detalle=${enCurso ? `En captura · ${contados} renglones capturados` : "Todo el inventario o algunos contenedores"}
+        detalle=${enCurso ? `En captura · ${contados} partidas capturadas` : "Todo el inventario o algunos contenedores"}
       />
 
       <section class="bento-celda bento-doble">
@@ -225,7 +225,7 @@ export function PaginaInicio() {
         <p class="dato-grande">${datos.conteo_fecha ? fmtFecha(datos.conteo_fecha) : "—"}</p>
         <p class="nota">
           ${datos.conteo_alcance === "PARCIAL" ? "Parcial. " : "Total. "}
-          ${datos.conteos > 1 ? "Cada renglón descuenta desde su propio conteo." : `Descuenta desde el folio ${(datos.conteo_folio ?? 0) + 1}.`}
+          ${datos.conteos > 1 ? "Cada partida descuenta desde su propio conteo." : `Descuenta desde el folio ${(datos.conteo_folio ?? 0) + 1}.`}
         </p>
         <a class="enlace-flecha" href="#conteo">Ver conteos →</a>
       </section>
@@ -244,6 +244,6 @@ export function PaginaInicio() {
           <li><strong>Al final del día</strong>, <a href=${`#reporte/${hoy}`}>crea el reporte diario</a>: descarga el libro de vales y el inventario de ese día, súbelos al SharePoint y márcalo con "Ya lo subí".</li>
         </ol>
       </section>
-    </div>
+    <//>
   `;
 }

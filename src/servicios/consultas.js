@@ -1,6 +1,6 @@
 // Consultas y acciones pequeñas que usa la interfaz (sin lógica de pantalla).
 
-import { clavesDeBusqueda, hayInterseccion } from "../nucleo/catalogo.js";
+import { clavesDeBusqueda, clavesPropias, hayInterseccion } from "../nucleo/catalogo.js";
 import { aNumero } from "../nucleo/decimal.js";
 import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
@@ -164,8 +164,7 @@ export function candidatosPara(estado, codigo, clave, { indices = new Indices(es
   const datos = existencias.map((e) => {
     const variante = indices.variante(e.variante_id);
     const ubicacion = indices.ubicacion(e.ubicacion_id);
-    const propias = new Set([variante.dimension_clave, variante.np_clave]);
-    propias.delete("");
+    const propias = clavesPropias(variante);
     const dimension = dimensionMostrada(e, variante);
     const np = npMostrado(e, variante);
     const texto = claveLaxa(`${dimension || ""}${np || ""}`);
@@ -204,7 +203,7 @@ export function ubicarLinea(estado, lineaId, existenciaId, usuario) {
     linea = vale.lineas.find((l) => l.id === lineaId);
     if (linea) break;
   }
-  if (!linea) throw new Error(`No existe el renglón ${lineaId}`);
+  if (!linea) throw new Error(`No existe la partida ${lineaId}`);
   const antes = { existencia_id: linea.existencia_id, no_inventariado: linea.no_inventariado };
   if (existenciaId === null) {
     linea.no_inventariado = true;
@@ -212,7 +211,7 @@ export function ubicarLinea(estado, lineaId, existenciaId, usuario) {
     linea.variante_id = null;
   } else {
     const existencia = estado.existencias.find((e) => e.id === existenciaId);
-    if (!existencia) throw new Error(`No existe el renglón de inventario ${existenciaId}`);
+    if (!existencia) throw new Error(`No existe la partida de inventario ${existenciaId}`);
     linea.existencia_id = existencia.id;
     linea.variante_id = existencia.variante_id;
     linea.no_inventariado = false;

@@ -348,7 +348,7 @@ function localizarCampos(modelo) {
 
   // ---- renglones
   const encabezado = etiquetas.find((x) => x.e === "CANTIDAD" && etiquetas.some((y) => y.r === x.r && y.e.startsWith("CODIGO")));
-  if (!encabezado) throw new ErrorFormulario(`La hoja '${modelo.hoja}' no tiene el encabezado de renglones (CANTIDAD, CODIGO…).`);
+  if (!encabezado) throw new ErrorFormulario(`La hoja '${modelo.hoja}' no tiene el encabezado de partidas (CANTIDAD, CODIGO…).`);
   const columnasLinea = {};
   for (const x of etiquetas.filter((y) => y.r === encabezado.r)) {
     if (/^O\.? ?C\.?$/.test(x.e)) columnasLinea.oc = x.c;

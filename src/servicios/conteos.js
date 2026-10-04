@@ -162,14 +162,14 @@ export function validarConteo(estado, datos = estado.conteo_en_curso) {
   const sobrantes = (datos.nuevos ?? []).filter((s) => Number.isInteger(s.codigo) || texto(s.cantidad));
   sobrantes.forEach((s, i) => {
     const n = i + 1;
-    if (!Number.isInteger(s.codigo)) error(s.uid, "codigo", `Renglón encontrado ${n}: falta el código.`);
-    if (!datos.ubicaciones.includes(s.ubicacion_id)) error(s.uid, "ubicacion", `Renglón encontrado ${n}: elige el contenedor donde está.`);
+    if (!Number.isInteger(s.codigo)) error(s.uid, "codigo", `Partida encontrada ${n}: falta el código.`);
+    if (!datos.ubicaciones.includes(s.ubicacion_id)) error(s.uid, "ubicacion", `Partida encontrada ${n}: elige el contenedor donde está.`);
     const c = dec(s.cantidad);
-    if (c === null || c.lte(0)) error(s.uid, "cantidad", `Renglón encontrado ${n}: la cantidad debe ser mayor que 0.`);
-    if (!unidad(s.um)) error(s.uid, "um", `Renglón encontrado ${n}: falta la unidad (UM).`);
+    if (c === null || c.lte(0)) error(s.uid, "cantidad", `Partida encontrada ${n}: la cantidad debe ser mayor que 0.`);
+    if (!unidad(s.um)) error(s.uid, "um", `Partida encontrada ${n}: falta la unidad (UM).`);
   });
   const contados = Object.keys(datos.capturas ?? {}).filter((id) => dentro.has(Number(id))).length;
-  if (!contados && !sobrantes.length) error(null, "capturas", "No se ha capturado ningún renglón.");
+  if (!contados && !sobrantes.length) error(null, "capturas", "No se ha capturado ninguna partida.");
   return errores;
 }
 

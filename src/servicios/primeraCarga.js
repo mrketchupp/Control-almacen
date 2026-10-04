@@ -4,7 +4,7 @@
 // desde los archivos del usuario, en su propio equipo. Ver docs/07-migracion.md.
 
 import { esInterna, etapaDe, normalizarArea } from "../nucleo/areas.js";
-import { hayInterseccion, clavesDeBusqueda } from "../nucleo/catalogo.js";
+import { hayInterseccion, clavesDeBusqueda, clavesPropias } from "../nucleo/catalogo.js";
 import { CERO, decTexto } from "../nucleo/decimal.js";
 import {
   ALMACEN_AX_DEFECTO,
@@ -346,13 +346,7 @@ export function candidatosExactos(indice, indices, codigo, clave) {
   const existencias = indice.get(codigo) || [];
   const claves = clavesDeBusqueda(clave);
   if (!claves.size) return existencias.length === 1 ? existencias : [];
-  return existencias.filter((e) => {
-    const v = indices.variante(e.variante_id);
-    const propias = new Set([v.dimension_clave, v.np_clave]);
-    for (const c of clavesDeBusqueda([v.dimension, v.np].filter(Boolean).join(" "))) propias.add(c);
-    propias.delete("");
-    return hayInterseccion(claves, propias);
-  });
+  return existencias.filter((e) => hayInterseccion(claves, clavesPropias(indices.variante(e.variante_id))));
 }
 
 // ---------------------------------------------------------------- verificación
