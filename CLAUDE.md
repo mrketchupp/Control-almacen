@@ -48,6 +48,10 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   encimaba las celdas), `.boton-quitar` compacto solo en tarjetas de entrada, tokens `--sobre-primario`/`--sobre-intenso`
   para texto sobre fondos de color en tema oscuro, foco visible en todos los botones, pestañas "Borrador N", y *Ayuda →
   Abrirla como aplicación* (acceso directo `msedge.exe --app="file:///…"`, `destinoAplicacion`).
+- Ronda 11: **una variante solo es pareja de una partida de AX**. En *Por confirmar* los candidatos y *Otra…* solo traen
+  variantes libres (ni exactas ni confirmadas con otra partida; `par.ocupadas` cuenta las ocultas); cada libre se sugiere a
+  una sola partida (reparto por mayor puntaje). `confirmarPareja` rechaza una variante ya emparejada o una corrección que
+  la juntaría con una emparejada (`previaCorreccion(...).otra`).
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja.
 
 ## Reglas no negociables

@@ -4459,8 +4459,14 @@ button.mosaico:hover .mosaico-abrir {
   min-width: min(320px, 100%);
 }
 
+/* Columnas iguales en todas las partidas (la de acciones con ancho fijo), para leerlas alineadas. */
 .lista-confirmar > li.item-confirmar {
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1.2fr) minmax(0, 400px);
+}
+
+.item-confirmar .acciones-pareja {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .item-editor {

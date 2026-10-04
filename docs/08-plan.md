@@ -166,6 +166,10 @@ ya no encima sus secciones; el botón *Quitar* de los vales de salida se colorea
 tema oscuro, foco visible, menú en una línea, filtros del historial, pestañas "Borrador N"); y *Ayuda → Abrirla como
 aplicación* (acceso directo de Edge en ventana propia).
 
+**Ronda 11 (aplicada):** en *Por confirmar*, las partidas del inventario que ya son pareja de otra partida de AX no se
+sugieren ni aparecen en *Otra…* (antes se podía asignar la misma a varias); se avisa cuántas se ocultan y, si no queda
+ninguna libre, se propone *No está en el físico*.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

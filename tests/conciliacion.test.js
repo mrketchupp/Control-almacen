@@ -120,6 +120,52 @@ test("criterio F4: confirmar una pareja corrige el inventario a como lo escribe 
   assert.equal(c.emparejar(estado, segundo).find((p) => p.linea === linea).metodo, "exacto");
 });
 
+const lineaAx = (codigo, tamano, disponible = "1") => ({ fila: 90, codigo, codigo_texto: String(codigo).padStart(9, "0"), nombre: "ARTICULO", modelo: "INV", um: "PZA", almacen: "RIG91-IX25", tamano, color: "", disponible, valor_financiero: "10", valor_inventario: "10" });
+
+test("una partida del inventario solo es pareja de una partida de AX (no se ofrece si ya tiene pareja)", () => {
+  // Como ACP6034 / ACP6044: dos partidas de AX parecidas del mismo código y una sola en el físico libre.
+  const { estado, corte } = conCorte({ extra: [lineaAx(702, "P55I318")] });
+  const v = (dimension) => estado.variantes.find((x) => x.codigo === 702 && x.dimension === dimension);
+  const libre = v("P551317");
+  const exacta = v("P557500"); // pareja exacta de la partida de AX "P557500"
+  const par = (tamano) => c.emparejar(estado, corte).find((p) => p.linea.tamano === tamano);
+  // Nunca se ofrece la que ya es pareja exacta, y la libre se sugiere a una sola partida (la más parecida).
+  for (const tamano of ["P55I317", "P55I318"]) assert.ok(!par(tamano).candidatos.some((x) => x.variante_id === exacta.id));
+  assert.deepEqual([par("P55I317").metodo, par("P55I317").variante_id], ["aproximado", libre.id]);
+  assert.deepEqual([par("P55I318").metodo, par("P55I318").variante_id], ["sin_sugerencia", null]);
+  // Se confirma la primera: la variante pasa a P55I317 y ya no se ofrece para la segunda.
+  c.confirmarPareja(estado, { corteId: corte.id, lineaId: par("P55I317").linea.id, varianteId: libre.id }, USUARIO);
+  assert.equal(libre.dimension, "P55I317");
+  const segunda = par("P55I318");
+  assert.deepEqual([segunda.metodo, segunda.candidatos, segunda.ocupadas], ["sin_sugerencia", [], 2]);
+  assert.throws(
+    () => c.confirmarPareja(estado, { corteId: corte.id, lineaId: segunda.linea.id, varianteId: libre.id }, USUARIO),
+    (e) => e instanceof c.ErrorConciliacion && /ya es la pareja de 702 P55I317/.test(e.message),
+  );
+  assert.equal(libre.dimension, "P55I317"); // no se tocó
+  // "No está en el físico" sí se puede.
+  c.confirmarPareja(estado, { corteId: corte.id, lineaId: segunda.linea.id, varianteId: null }, USUARIO);
+  assert.equal(par("P55I318").metodo, "sin_pareja");
+});
+
+test("al ajustar, no se puede juntar con una variante que ya es pareja de otra partida de AX", () => {
+  const { estado, corte } = conCorte({ extra: [lineaAx(701, "6309-2Z/C4")] });
+  // Variante libre del 701 con otra escritura (se sugiere para "6309-2Z/C4").
+  const indices = new Indices(estado);
+  const suelta = indices.obtenerOCrearVariante(701, "6309 2Z C4", null, "PZA");
+  indices.agregarExistencia({ variante_id: suelta.id, ubicacion_id: estado.ubicaciones[0].id, orden: 99, cantidad_conteo: "1", conteo_id: null });
+  const linea = corte.lineas.find((l) => l.tamano === "6309-2Z/C4");
+  assert.equal(c.emparejar(estado, corte).find((p) => p.linea === linea).variante_id, suelta.id);
+  // Escribirle la dimensión de la que ya es pareja exacta de "6309-2Z/C3" las juntaría: no se permite.
+  assert.throws(
+    () => c.confirmarPareja(estado, { corteId: corte.id, lineaId: linea.id, varianteId: suelta.id, dimension: "6309-2Z/C3", np: "" }, USUARIO),
+    (e) => e instanceof c.ErrorConciliacion && /ya es la pareja de 701 6309-2Z\/C3/.test(e.message),
+  );
+  // A como está en AX, sí.
+  c.confirmarPareja(estado, { corteId: corte.id, lineaId: linea.id, varianteId: suelta.id }, USUARIO);
+  assert.equal(suelta.dimension, "6309-2Z/C4");
+});
+
 test("en AX la dimensión es Tamaño + Color (AX no trae NP)", () => {
   const { estado, corte } = conCorte();
   const empaque = corte.lineas.find((l) => l.codigo === 704);

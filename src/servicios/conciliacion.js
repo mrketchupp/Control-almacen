@@ -20,7 +20,7 @@ import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, compactar, mayusculas, unidad } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
-import { ErrorCorreccion, corregirDimensionNp, lugarCorto } from "./inventario.js";
+import { ErrorCorreccion, corregirDimensionNp, lugarCorto, previaCorreccion } from "./inventario.js";
 import { candidatosExactos, indiceExistencias } from "./primeraCarga.js";
 
 export class ErrorConciliacion extends Error {}
@@ -259,7 +259,9 @@ function fisicoComparable(estado, corte, indices, fisico = null) {
 
 /**
  * Empareja cada renglón INV del corte con una variante del inventario.
- * @returns [{ linea, variante_id, metodo, puntaje, confirmado, candidatos: [{ variante_id, puntaje }] }]
+ * @returns [{ linea, variante_id, metodo, puntaje, confirmado, candidatos: [{ variante_id, puntaje }], ocupadas }]
+ *   candidatos: solo variantes libres (ninguna que ya sea pareja de otra partida de AX);
+ *   ocupadas: cuántas variantes del código ya tienen su pareja (no se ofrecen).
  *   metodo: 'exacto' (confirmado), 'aproximado' | 'unico' | 'recordada' | 'sin_sugerencia' (por
  *   confirmar), 'sin_pareja' (se decidió que no está en físico) o 'sin_fisico' (el código no tiene
  *   ningún renglón en el inventario).
@@ -289,8 +291,13 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
     Object.assign(p, { variante_id: elegido.variante.id, metodo: "exacto", puntaje: 1, confirmado: true });
     tomadas.add(elegido.variante.id);
   }
-  // Aproximado (sugerencia que el usuario confirma corrigiendo el inventario).
+  // Aproximado (sugerencia que el usuario confirma corrigiendo el inventario). Solo con variantes
+  // LIBRES: una que ya es la pareja de otra partida de AX (exacta o confirmada) no se ofrece, porque
+  // al corregirla se rompería esa pareja. Cada variante libre se sugiere a una sola partida de AX:
+  // a la que más se le parece.
   const pendientes = pares.filter((x) => !x.metodo);
+  const sugeridas = new Set();
+  const propuestas = [];
   for (const p of pendientes) {
     const delCodigo = porCodigo.get(p.linea.codigo) ?? [];
     if (!delCodigo.length) {
@@ -300,20 +307,27 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
     }
     const ax = formasAx(p.linea);
     const libres = delCodigo.filter((r) => !tomadas.has(r.variante.id));
-    p.candidatos = delCodigo
-      .map((r) => ({ variante_id: r.variante.id, puntaje: Math.round(parecido(ax, formasFisico(r.variante)) * (tomadas.has(r.variante.id) ? 0.8 : 1) * 100) / 100 }))
+    p.ocupadas = delCodigo.length - libres.length;
+    p.candidatos = libres
+      .map((r) => ({ variante_id: r.variante.id, puntaje: Math.round(parecido(ax, formasFisico(r.variante)) * 100) / 100 }))
       .sort((a, b) => b.puntaje - a.puntaje);
     // Una pareja confirmada con una versión anterior (sin corregir el inventario) se vuelve a proponer.
     const recordada = equivalencias[claveAx(p.linea)]?.variante_id;
-    if (recordada && delCodigo.some((r) => r.variante.id === recordada)) {
+    if (recordada && libres.some((r) => r.variante.id === recordada) && !sugeridas.has(recordada)) {
       Object.assign(p, { variante_id: recordada, metodo: "recordada", puntaje: 1 });
+      sugeridas.add(recordada);
       continue;
     }
     const unico = libres.length === 1 && pendientes.filter((q) => q.linea.codigo === p.linea.codigo).length === 1;
-    const mejor = unico ? p.candidatos.find((c) => c.variante_id === libres[0].variante.id) : p.candidatos[0];
-    if (mejor && (unico || mejor.puntaje >= PUNTAJE_SUGERENCIA)) Object.assign(p, { variante_id: mejor.variante_id, metodo: unico ? "unico" : "aproximado", puntaje: mejor.puntaje });
-    else p.metodo = "sin_sugerencia";
+    for (const c of p.candidatos) if (unico || c.puntaje >= PUNTAJE_SUGERENCIA) propuestas.push({ p, c, unico });
   }
+  propuestas.sort((a, b) => b.c.puntaje - a.c.puntaje);
+  for (const { p, c, unico } of propuestas) {
+    if (p.metodo || sugeridas.has(c.variante_id)) continue;
+    Object.assign(p, { variante_id: c.variante_id, metodo: unico ? "unico" : "aproximado", puntaje: c.puntaje });
+    sugeridas.add(c.variante_id);
+  }
+  for (const p of pendientes) if (!p.metodo) p.metodo = "sin_sugerencia";
   return pares;
 }
 
@@ -359,11 +373,21 @@ export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimensio
     auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "SIN_PAREJA", despues: { linea: lineaId, codigo: linea.codigo, tamano: linea.tamano, color: linea.color } });
     return { sinPareja: true };
   }
-  corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
   const variante = new Indices(estado).variante(varianteId);
   if (!variante) throw new ErrorConciliacion("Esa variante ya no existe.");
   const propuesta = valoresAx(linea, variante);
   const valores = { dimension: dimension ?? propuesta.dimension, np: np ?? propuesta.np };
+  // Una partida del inventario solo puede ser pareja de una partida de AX: ni la elegida ni aquella
+  // con la que se juntaría al corregirla pueden ser ya la pareja de otra.
+  const otras = emparejar(estado, corte).filter((q) => q.linea.id !== lineaId && q.confirmado && q.variante_id !== null);
+  const destino = previaCorreccion(estado, { varianteId }, valores).otra;
+  const ocupada = otras.find((q) => q.variante_id === varianteId || q.variante_id === destino?.id);
+  if (ocupada) {
+    throw new ErrorConciliacion(
+      `Esa partida del inventario ya es la pareja de ${ocupada.linea.codigo} ${dimensionAx(ocupada.linea) || "SIN DIMENSIÓN"} en AX. Si esta no tiene otra, márcala como "No está en el físico".`,
+    );
+  }
+  corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
   try {
     return corregirDimensionNp(estado, { varianteId }, valores, { usuario, motivo: `Conciliación con AX del ${fmtFecha(corte.fecha)}` });
   } catch (error) {

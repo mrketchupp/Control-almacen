@@ -55,21 +55,30 @@ function Transito({ r }) {
   </span>`;
 }
 
-/** Elegir otra pareja para un renglón de AX: variantes del mismo código o "no está en físico". */
-function ElegirPareja({ par, fisico, alElegir, etiqueta = "Otra…" }) {
-  const candidatos = [...fisico.values()]
-    .filter((r) => r.variante.codigo === par.linea.codigo)
-    .map((r) => ({ r, puntaje: par.candidatos.find((c) => c.variante_id === r.variante.id)?.puntaje ?? null }))
+/**
+ * Elegir otra pareja para una partida de AX: solo variantes del mismo código que aún no son pareja de
+ * otra partida de AX (las sugeridas para otra se marcan), o "no está en físico".
+ */
+function ElegirPareja({ par, r, alElegir, etiqueta = "Otra…" }) {
+  const ocupadas = new Set(r.pares.filter((q) => q.confirmado && q.variante_id !== null).map((q) => q.variante_id));
+  const sugeridaPara = new Map(r.pares.filter((q) => !q.confirmado && q.variante_id !== null && q !== par).map((q) => [q.variante_id, q.linea]));
+  const candidatos = [...r.fisico.values()]
+    .filter((x) => x.variante.codigo === par.linea.codigo && !ocupadas.has(x.variante.id))
+    .map((x) => ({ x, puntaje: par.candidatos.find((c) => c.variante_id === x.variante.id)?.puntaje ?? null }))
     .sort((a, b) => (b.puntaje ?? 0) - (a.puntaje ?? 0));
   const opciones = [
-    ...candidatos.map(({ r, puntaje }) => ({
-      valor: r.variante.id,
-      etiqueta: describir(r.variante),
-      render: () => html`<span class="opcion-principal">${describir(r.variante)}</span>
-        <${Pastilla}>${r.variante.um || "—"}<//>
-        <${Pastilla} tono=${r.total.gt(0) ? "ok" : "alerta"}>hay ${n(r.total)}<//>
-        ${puntaje !== null ? html`<${Pastilla} tono="info">${Math.round(puntaje * 100)}%<//>` : null}`,
-    })),
+    ...candidatos.map(({ x, puntaje }) => {
+      const otra = sugeridaPara.get(x.variante.id);
+      return {
+        valor: x.variante.id,
+        etiqueta: describir(x.variante),
+        render: () => html`<span class="opcion-principal">${describir(x.variante)}</span>
+          <${Pastilla}>${x.variante.um || "—"}<//>
+          <${Pastilla} tono=${x.total.gt(0) ? "ok" : "alerta"}>hay ${n(x.total)}<//>
+          ${puntaje !== null ? html`<${Pastilla} tono="info">${Math.round(puntaje * 100)}%<//>` : null}
+          ${otra ? html`<span class="res-detalle">Sugerida para ${otra.codigo} ${describirAx(otra)}</span>` : null}`,
+      };
+    }),
     { valor: "no", etiqueta: "No está en el físico", render: () => html`<span class="opcion-principal">No está en el físico</span><span class="res-detalle">Solo para este corte</span>` },
   ];
   return html`<${Lista}
@@ -329,12 +338,17 @@ function ItemConfirmar({ p, r, corte }) {
               ? html`<${Pastilla} tono="info" titulo="Se confirmó antes sin corregir el inventario">confirmada antes<//>`
               : html`<${Pastilla} tono=${p.puntaje >= PUNTAJE_SEGURO ? "ok" : "alerta"} titulo="Qué tanto se parecen">${Math.round(p.puntaje * 100)}%<//>`}
             <span class="quedara">Quedará <code>${escrituraClave(propuesta.dimension, propuesta.np)}</code></span>`
-        : html`<span class="nota">Sin sugerencia: elige cuál es o "No está en el físico".</span>`}
+        : p.candidatos.length
+          ? html`<span class="nota">Sin sugerencia: elige cuál es o "No está en el físico".</span>`
+          : html`<span class="nota">Todas las partidas del inventario de este código ya son pareja de otra partida de AX. Si no hay otra, márcala como "No está en el físico".</span>`}
+      ${p.ocupadas && p.candidatos.length
+        ? html`<span class="quedara">${p.ocupadas === 1 ? "1 partida del inventario ya es pareja de otra partida de AX y no se ofrece" : `${p.ocupadas} partidas del inventario ya son pareja de otras partidas de AX y no se ofrecen`}.</span>`
+        : null}
     </div>
     <div class="acciones-pareja">
       ${sugerida ? html`<${Boton} tipo="primario" tamano="chico" onClick=${() => aplicar(p.variante_id)}>✓ Corregir a como está en AX<//>` : null}
       ${sugerida && editando === null ? html`<${Boton} tipo="texto" tamano="chico" onClick=${() => setEditando(p.variante_id)}>Ajustar…<//>` : null}
-      <${ElegirPareja} par=${p} fisico=${r.fisico} alElegir=${(varianteId) => (varianteId === null ? aplicar(null) : setEditando(varianteId))} />
+      <${ElegirPareja} par=${p} r=${r} alElegir=${(varianteId) => (varianteId === null ? aplicar(null) : setEditando(varianteId))} />
     </div>
     ${elegida
       ? html`<div class="item-editor">

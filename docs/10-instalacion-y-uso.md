@@ -152,7 +152,8 @@ cheques en tránsito.
 3. **Por confirmar:** las partidas que AX escribe distinto (errores de dedo, dimensiones cortadas…). *Corregir a como
    está en AX* **cambia la dimensión / NP de tu inventario** a como lo escribe AX (todas sus partidas; las cantidades no
    cambian); *Ajustar…* para escribirla tú (si AX cortó el Tamaño a 10 caracteres, escríbela completa), *Otra…* para
-   elegir otra variante o *No está en el físico* (solo para ese corte). La próxima vez empareja sola. El aviso trae
+   elegir otra variante o *No está en el físico* (solo para ese corte). Solo se ofrecen las partidas del inventario
+   que aún no son pareja de otra partida de AX: una misma no puede asignarse a dos. La próxima vez empareja sola. El aviso trae
    *Deshacer*; con *Corregir las seguras* van todas las de puntaje alto de una vez.
 4. **Diferencias:** cada partida dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o
    si *Sobran* / *Faltan* sin explicar. En la ventana cambias de vista (por artículo, por contenedor para ir a revisar,
