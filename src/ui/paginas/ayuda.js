@@ -97,14 +97,20 @@ export function PaginaAyuda() {
           que explican los vales posteriores al corte salen con sus folios; las demás, como sobrantes o faltantes con su valor.
           Descarga la solicitud de ajuste (cada fila coloreada según su estado). Las cantidades no cambian.
         </dd>
+        <dt>¿Dónde veo todo el reporte de AX?</dt>
+        <dd>
+          En <a href="#conciliacion">Conciliación AX</a>, mosaico <em>Todo el reporte de AX</em>: cada partida del kardex con su resultado,
+          también las <em>por confirmar</em> (con <em>Confirmar…</em>) y las que no están en el físico. Busca por código, descripción o
+          dimensión y filtra sin cerrar la ventana.
+        </dd>
         <dt>¿Cómo sé qué vales ya descontó la base en AX?</dt>
         <dd>
           Importa el archivo de vales que lleva la base (el que trae <em>INV/NINV</em>, <em>TR</em> e <em>IN</em>) en
           <a href="#conciliacion">Conciliación AX</a> → <em>Importar vales de la base</em>. Con folio IN / TR la partida ya está en AX
-          (la <em>CANTIDAD</em> de la base es lo aplicado; vacía = todo); INV sin folio sigue pendiente y cuenta como tránsito aunque el
-          vale sea anterior al corte; NO INV y CONPROV no se descuentan en AX. Si la base y AX son de días distintos, se avisa qué se ve
-          mal. En el <a href="#historial">Historial</a> sale la columna <em>AX</em> y el filtro <em>Revisar</em> (pendientes, ya en AX,
-          avisos de la base).
+          (la <em>CANTIDAD</em> de la base es lo aplicado; vacía = todo); lo que <strong>no tiene IN / TR</strong> cuenta como tránsito
+          aunque el vale sea anterior al corte; NO INV y CONPROV no se descuentan en AX. La fecha del archivo de la base no importa (uno
+          nuevo reemplaza al anterior); la que importa es la del reporte de AX. En el <a href="#historial">Historial</a> sale la columna
+          <em>AX</em> y el filtro <em>Revisar</em> (sin IN / TR, ya en AX, avisos de la base).
         </dd>
         <dt>Un vale tiene partidas repetidas</dt>
         <dd>

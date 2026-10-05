@@ -4393,6 +4393,18 @@ button.mosaico:hover .mosaico-abrir {
   color: var(--alerta);
 }
 
+/* Vista general de la conciliación (Ronda 13): todo el reporte de AX. */
+.conteo-vista {
+  margin: 0 0 8px;
+}
+
+.resultado-confirmar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Archivo de vales de la base (Ronda 12). */
 .mosaico-base-vacio {
   align-items: flex-start;
@@ -4402,50 +4414,25 @@ button.mosaico:hover .mosaico-abrir {
   margin: 0;
 }
 
-.ax-fechas {
-  display: block;
-  padding: 6px 10px;
-  border-left: 3px solid var(--alerta);
-  border-radius: 6px;
-  background: var(--alerta-suave);
-  color: var(--texto);
-  font-size: 0.82rem;
+/* En una columna angosta del bento, el botón de importar se acomoda en dos líneas en vez de salirse. */
+.mosaico-base-vacio .boton {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
 }
 
-.archivos-base {
-  display: grid;
-  gap: 8px;
+.archivo-base {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
   margin-top: 16px;
   padding-top: 12px;
   border-top: 1px solid var(--borde);
 }
 
-.archivos-base h3 {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.archivos-base ul {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.archivos-base li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.archivos-base .nota {
-  margin: 0;
-}
-
-.archivos-base > :last-child {
-  justify-self: start;
+.archivo-base > .nota {
+  flex: 1 1 320px;
 }
 
 .ax-estado {

@@ -157,23 +157,25 @@ cheques en tránsito.
    *Deshacer*; con *Corregir las seguras* van todas las de puntaje alto de una vez.
 4. **Diferencias:** cada partida dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o
    si *Sobran* / *Faltan* sin explicar. En la ventana cambias de vista (por artículo, por contenedor para ir a revisar,
-   valuada en pesos) y de filtro sin cerrarla.
+   valuada en pesos) y de filtro sin cerrarla. **Todo el reporte de AX** abre el kardex completo (también lo *por
+   confirmar*, con *Confirmar…*, y lo que no está en el físico) para buscar cualquier código o descripción.
 5. **Solicitud de ajuste → Descargar:** el reporte de AX con *Existencia física*, *Folios que justifican* y *Estado*,
    con cada fila coloreada (verde cuadra, azul explicada, amarillo sobrante, rojo faltante, gris por confirmar).
 Las cantidades del inventario no cambian: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
 
 **Vales en la base (qué ya está en AX).** Siguiendo con el banco: el archivo de vales que lleva la base es como la
 lista de cheques que el banco ya cobró. *Importar vales de la base* → elige el `VALES DE SALIDA DELTA RIG91.xlsm` que
-te manda la base y confirma de qué día es (sale del nombre o de cuándo lo guardó Excel). Desde ahí:
+te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; uno nuevo reemplaza al anterior). Desde ahí:
 - Las partidas con folio **IN / TR** ya están en AX (la *CANTIDAD* de la base es lo aplicado; vacía = todo).
-- Las **INV sin folio** siguen pendientes: cuentan como tránsito en la conciliación aunque el vale sea anterior al corte
-  (folio `6 (S, pend. AX)`); si la base aplicó solo una parte, cuenta lo que falta.
+- Las que **no tienen IN / TR** (INV sin folio, sin revisar, que la base no tiene o posteriores a su archivo) cuentan como
+  tránsito en la conciliación aunque el vale sea anterior al corte (folio `6 (S, sin IN/TR)`); si la base aplicó solo
+  una parte, cuenta lo que falta.
 - **NO INV, CONPROV, SIN EXISTENCIA** no se descuentan en AX: no justifican diferencias.
-- El mosaico *Vales en la base* muestra cuántas siguen pendientes y abre los **avisos de diferencias** (la base anotó
-  otra clave u otra cantidad, una partida que el vale no tiene o le falta una del vale). Si la base y AX son de días
-  distintos, avisa qué se ve mal; lo ideal es pedir los dos del mismo día. Puedes guardar varios: cada corte usa el de
-  fecha más cercana.
-- En el **Historial** aparece la columna *AX* y el filtro **Revisar** (pendientes en AX, ya en AX, no se descuentan, con
+- La fecha que importa es la del **reporte de AX**: lo posterior siempre está en tránsito. Pide el archivo de la base con
+  todos los vales hasta esa fecha; si le faltan vales que ya aplicó, cuentan como sin IN / TR.
+- El mosaico *Vales en la base* muestra cuántas partidas no tienen IN / TR y abre los **avisos de diferencias** (la base
+  anotó otra clave u otra cantidad, una partida que el vale no tiene o le falta una del vale).
+- En el **Historial** aparece la columna *AX* y el filtro **Revisar** (sin IN / TR, ya en AX, no se descuentan, con
   aviso, **duplicadas en el vale**). En el detalle de un vale, la columna *AX (base)*.
 - **Partidas duplicadas:** si el formulario de Excel guardó un vale dos veces, sus partidas repetidas se marcan
   *duplicada de la N*; *Quitar duplicadas…* abre la corrección sin ellas y con el motivo escrito.

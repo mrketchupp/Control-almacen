@@ -21,7 +21,7 @@ import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, compactar, mayusculas, unidad } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
 import { ErrorCorreccion, corregirDimensionNp, lugarCorto, previaCorreccion } from "./inventario.js";
-import { estadoAxDeVales, seguimientoParaCorte } from "./seguimiento.js";
+import { estadoAxDeVales, sinAplicar } from "./seguimiento.js";
 import { candidatosExactos, indiceExistencias } from "./primeraCarga.js";
 
 export class ErrorConciliacion extends Error {}
@@ -152,10 +152,12 @@ const folioDeVale = (v, marca = null) => (v.tipo === "ENTRADA" ? `${folioEntrada
 
 /**
  * Vales en tránsito (RF-53) por variante y por código: lo que salió o entró y AX aún no refleja, con
- * sus folios. Una salida está en tránsito si es posterior al corte (por folio o fecha) o, con el
- * archivo de la base (Ronda 12), si la base todavía no la aplica en AX (INV sin IN/TR, o lo que falta
- * de una aplicación parcial; folio "9 (S, pend. AX)"). Lo que la base marca NO INV / CONPROV no se
- * descuenta en AX y no justifica diferencias: queda como pista (noSeDescuentan).
+ * sus folios. Lo que es posterior al corte (por folio o fecha) siempre está en tránsito: el reporte de
+ * AX es una foto de ese día. Con el archivo de la base (Rondas 12 y 13), una salida anterior al corte
+ * también lo está si no tiene folio IN / TR (INV sin folio, sin revisar, que la base no tiene o
+ * posterior a su archivo; de una aplicación parcial, lo que falta): folio "9 (S, sin IN/TR)". Lo que la
+ * base marca NO INV / CONPROV no se descuenta en AX y no justifica diferencias: queda como pista
+ * (noSeDescuentan). Una partida duplicada que la base no tiene es un error del vale: no cuenta.
  *
  * Una partida sin renglón del inventario (vales migrados o por ubicar) se busca por código y clave:
  *  - si el vale es anterior al conteo de ese renglón, la cantidad contada ya la refleja, así que
@@ -163,7 +165,7 @@ const folioDeVale = (v, marca = null) => (v.tipo === "ENTRADA" ? `${folioEntrada
  *  - si es posterior (está en Pendientes, por ubicar), aún no mueve la existencia: no cuenta y se
  *    muestra como pista.
  */
-export function transitoDesde(estado, corte, { indices = new Indices(estado), ax = estadoAxDeVales(estado, seguimientoParaCorte(estado, corte)) } = {}) {
+export function transitoDesde(estado, corte, { indices = new Indices(estado), ax = estadoAxDeVales(estado) } = {}) {
   const porVariante = new Map();
   const porCodigo = new Map();
   const porUbicar = new Map();
@@ -200,8 +202,10 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
       let cantidad = null;
       let marca = null;
       if (porFecha) cantidad = total;
-      else if (info?.estado === "pendiente") [cantidad, marca] = [total, "pend. AX"];
-      else if (info?.estado === "parcial") [cantidad, marca] = [info.pendiente, `${decTexto(info.pendiente)} pend. AX`];
+      else if (sinAplicar(info)) {
+        cantidad = info.pendiente;
+        marca = info.estado === "parcial" ? `${decTexto(info.pendiente)} sin IN/TR` : "sin IN/TR";
+      }
       if (!cantidad || cantidad.eq(0)) continue;
       let existencia = hay(l.existencia_id) ? indices.existencia(l.existencia_id) : null;
       if (!existencia) {
@@ -452,7 +456,7 @@ export function olvidarPareja(estado, { corteId, lineaId }, usuario = null) {
 
 // ---------------------------------------------------------------- comparación
 
-const ESTADOS = { cuadra: "Cuadra", explicada: "Explicada por vales", sobrante: "Sobrante", faltante: "Faltante" };
+const ESTADOS = { cuadra: "Cuadra", explicada: "Explicada por vales", sobrante: "Sobrante", faltante: "Faltante", por_confirmar: "Por confirmar" };
 export const etiquetaEstado = (e) => ESTADOS[e] ?? e;
 
 function comparar({ ax, valorAx, fisico, transito }) {
@@ -476,18 +480,25 @@ function comparar({ ax, valorAx, fisico, transito }) {
   };
 }
 
+const claveGeneral = (x) => {
+  const linea = x.lineas?.[0] ?? x.linea;
+  return linea ? dimensionAx(linea) : (x.variante?.dimension ?? "");
+};
+
 const descripcionDe = (estado, codigo, porDefecto = "") => estado.articulos?.[codigo]?.descripcion ?? porDefecto;
 
 /**
  * Concilia un corte contra el inventario de hoy (RF-52 a RF-55).
- * @returns {{ corte, pares, renglones, porCodigo, porContenedor, axSinFisico, fisicoSinAx, porConfirmar, resumen }}
+ * @returns {{ corte, pares, renglones, porCodigo, porContenedor, axSinFisico, fisicoSinAx, porConfirmar, general, resumen }}
+ *   general = todas las partidas INV del reporte (emparejadas, por confirmar —estado "por_confirmar"— y sin
+ *   físico) más lo que solo está en el físico: la vista "Todos".
  */
 export function conciliar(estado, corte) {
   const indices = new Indices(estado);
   const fisico = fisicoComparable(estado, corte, indices);
   const lineasCorte = lineasInv(corte);
   const pares = emparejar(estado, corte, { indices, fisico });
-  const ax = estadoAxDeVales(estado, seguimientoParaCorte(estado, corte));
+  const ax = estadoAxDeVales(estado);
   const transito = transitoDesde(estado, corte, { indices, ax });
 
   // Por variante (renglón de AX ↔ variante del inventario).
@@ -545,6 +556,29 @@ export function conciliar(estado, corte) {
     }));
 
   const porConfirmar = pares.filter((p) => !p.confirmado);
+  // Las partidas de AX por confirmar también se ven en la vista general (con su sugerencia, sin resultado aún).
+  const porConfirmarFilas = porConfirmar.map((p) => {
+    const sugerida = hay(p.variante_id) ? fisico.get(p.variante_id) : null;
+    return {
+      linea: p.linea,
+      lineas: [p.linea],
+      codigo: p.linea.codigo,
+      descripcion: descripcionDe(estado, p.linea.codigo, p.linea.nombre),
+      variante: sugerida?.variante ?? null,
+      sugerida: Boolean(sugerida),
+      lugares: (sugerida?.renglones ?? []).map((x) => ({ lugar: lugarCorto(x.ubicacion), hoja: x.ubicacion.hoja_excel.trim(), total: x.total })),
+      ax: dec(p.linea.disponible) ?? CERO,
+      fisico: null,
+      salidas: CERO,
+      entradas: CERO,
+      folios: [],
+      diferencia: null,
+      sin_explicar: null,
+      estado: "por_confirmar",
+      costo: null,
+      valor: null,
+    };
+  });
 
   // Por artículo (código): no depende del emparejamiento.
   const codigos = new Set([...lineasCorte.map((l) => l.codigo), ...[...fisico.values()].filter((r) => !r.total.eq(0)).map((r) => r.variante.codigo)]);
@@ -560,6 +594,7 @@ export function conciliar(estado, corte) {
         variantes: variantes.length,
         por_ubicar: pista ? pista.folios : [],
         no_inv: transito.noSeDescuentan.get(codigo) ?? [],
+        por_confirmar: porConfirmar.filter((p) => p.linea.codigo === codigo).length,
         ...comparar({
           ax: sumar(...lineas.map((l) => dec(l.disponible) ?? CERO)),
           valorAx: sumar(...lineas.map((l) => dec(l.valor_financiero) ?? CERO)),
@@ -616,7 +651,11 @@ export function conciliar(estado, corte) {
     valor_sobrante: valorDe(1),
     valor_faltante: valorDe(-1),
   };
-  return { corte, pares, renglones, porCodigo, porContenedor, axSinFisico, fisicoSinAx, porConfirmar, transito, fisico, resumen, ax };
+  // Vista general: TODO el reporte de AX (emparejadas, por confirmar y sin físico) y lo que solo está en el físico.
+  const general = [...renglones, ...porConfirmarFilas, ...axSinFisico, ...fisicoSinAx].sort(
+    (a, b) => a.codigo - b.codigo || claveGeneral(a).localeCompare(claveGeneral(b)),
+  );
+  return { corte, pares, renglones, porCodigo, porContenedor, axSinFisico, fisicoSinAx, porConfirmar, general, transito, fisico, resumen, ax };
 }
 
 /** Texto de los folios en tránsito para la solicitud de ajuste: "9 (S), E-0003 (E)". */

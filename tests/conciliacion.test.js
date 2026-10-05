@@ -272,3 +272,20 @@ test("primer corte: los vales migrados entre la fecha de AX y el conteo cuentan 
   // Contado 100; AX 100 menos los 2 del vale 9 debía dar 98: sobran 2, y el folio 9 aparece.
   assert.deepEqual([manguera.salidas.toFixed(), manguera.folios, manguera.estado, manguera.sin_explicar.toFixed()], ["2", ["9 (S)"], "sobrante", "2"]);
 });
+
+test("vista general («Todos»): cada partida INV del reporte sale una vez (también por confirmar y sin físico) y los conteos cuadran", () => {
+  const { estado, corte } = conCorte();
+  const r = c.conciliar(estado, corte);
+  const idsAx = r.general.flatMap((x) => (x.lineas ?? (x.linea ? [x.linea] : [])).map((l) => l.id));
+  assert.deepEqual([...idsAx].sort((a, b) => a - b), c.lineasInv(corte).map((l) => l.id).sort((a, b) => a - b));
+  assert.equal(new Set(idsAx).size, idsAx.length);
+  const porConfirmar = r.general.filter((x) => x.estado === "por_confirmar");
+  assert.equal(porConfirmar.length, r.porConfirmar.length);
+  assert.ok(porConfirmar.length > 0 && porConfirmar.every((x) => x.fisico === null && x.linea));
+  // Lo que solo está en el físico también, y cada mosaico cuenta lo mismo que su filtro.
+  assert.equal(r.general.filter((x) => !x.linea && !x.lineas).length, r.fisicoSinAx.length);
+  for (const [estadoFila, cuenta] of [["faltante", "faltantes"], ["sobrante", "sobrantes"], ["cuadra", "cuadran"], ["explicada", "explicadas"]]) {
+    assert.equal(r.general.filter((x) => x.estado === estadoFila).length, r.resumen[cuenta], estadoFila);
+  }
+  assert.ok(r.general.every((x, i) => i === 0 || r.general[i - 1].codigo <= x.codigo), "ordenado por código");
+});

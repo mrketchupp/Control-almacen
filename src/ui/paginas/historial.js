@@ -1,7 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
 import { filasHistorial, filtrarHistorial } from "../../servicios/consultas.js";
 import { filasEntradas, filtrarEntradas } from "../../servicios/entradas.js";
-import { estadoAxDeVales, etiquetaAx } from "../../servicios/seguimiento.js";
+import { estadoAxDeVales, etiquetaAx, sinAplicar } from "../../servicios/seguimiento.js";
 import { duplicadasEnVales } from "../../servicios/vales.js";
 import { Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
@@ -12,7 +12,7 @@ const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "",
 // Filtro "Revisar": partidas duplicadas en su vale y el estado en AX según el archivo de la base.
 const REVISAR = {
   duplicadas: { etiqueta: "Duplicadas en el vale", pasa: (f) => f.duplicada },
-  pend_ax: { etiqueta: "Pendientes en AX", pasa: (f) => f.ax && (f.ax.estado === "pendiente" || f.ax.estado === "parcial"), base: true },
+  pend_ax: { etiqueta: "Sin IN / TR (aún no en AX)", pasa: (f) => sinAplicar(f.ax), base: true },
   en_ax: { etiqueta: "Ya en AX (IN / TR)", pasa: (f) => f.ax && (f.ax.estado === "aplicada" || f.ax.estado === "parcial"), base: true },
   no_inv: { etiqueta: "No se descuentan (NO INV…)", pasa: (f) => f.ax?.estado === "no_inv", base: true },
   avisos: { etiqueta: "Con aviso de la base", pasa: (f) => f.ax?.avisos?.length > 0, base: true },

@@ -8,7 +8,6 @@ import { ahoraIso } from "../nucleo/fechas.js";
 import * as n from "../nucleo/normalizar.js";
 import { LibroLeido } from "../xlsx/leer.js";
 import { TIPOS } from "../xlsx/rutas.js";
-import { fechaDeNombre } from "./ax.js";
 
 export class ErrorArchivoBase extends Error {}
 
@@ -64,11 +63,11 @@ function ubicarTabla(libro) {
 
 /**
  * @returns {{ hoja, partidas: [{ fila, fecha, folio, codigo, clave, cantidad, entrada, inv, mov, aplicada,
- *   tr, in, comentario }], ultimoFolio, fechaSugerida, guardado, ignoradas }}
+ *   tr, in, comentario }], ultimoFolio, guardado, ignoradas }}
  *   Los textos de la base (INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN) se guardan como vienen.
- *   fechaSugerida: la del nombre del archivo o, si no trae, el día en que Excel lo guardó (guardado).
+ *   guardado: cuándo lo guardó Excel (solo informativo: la fecha del archivo no cambia nada).
  */
-export function leerArchivoBase(datos, nombreArchivo = "vales de la base.xlsm") {
+export function leerArchivoBase(datos) {
   const libro = datos instanceof LibroLeido ? datos : new LibroLeido(datos);
   const tabla = ubicarTabla(libro);
   if (!tabla) throw new ErrorArchivoBase('No encontré las columnas "No. folio" e "INV/NINV". ¿Es el archivo de vales que lleva la base?');
@@ -105,6 +104,5 @@ export function leerArchivoBase(datos, nombreArchivo = "vales de la base.xlsm") 
     });
     if (ultimoFolio === null || folio > ultimoFolio) ultimoFolio = folio;
   }
-  const guardado = guardadoEl(libro);
-  return { hoja: ws.nombre, partidas, ultimoFolio, fechaSugerida: fechaDeNombre(nombreArchivo) ?? guardado?.slice(0, 10) ?? null, guardado, ignoradas };
+  return { hoja: ws.nombre, partidas, ultimoFolio, guardado: guardadoEl(libro), ignoradas };
 }

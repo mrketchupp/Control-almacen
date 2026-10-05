@@ -183,8 +183,9 @@ columnas para llevar qué ya descontó en AX. Solo se lee (`src/importadores/bas
     está en AX. `PENDIENTE` = pendiente.
   - **`COMENTARIOS`:** se muestra en el título de la pastilla.
 - `ultimoFolio` = el folio más alto del archivo: las partidas de vales hasta ese folio que no están en el archivo se
-  avisan ("no está en el archivo de la base").
-- Fecha sugerida: la del nombre (`DDMMAA`…) o, si no trae, la de `docProps/core.xml` (`dcterms:modified`, en hora local:
-  cuándo lo guardó Excel). El usuario la confirma.
+  avisan ("no está en el archivo de la base"); las de vales posteriores aún no están en la base. Ambas cuentan como sin
+  IN / TR.
+- La fecha del archivo no se pide ni cambia nada (Ronda 13): solo se muestra cuándo lo guardó Excel
+  (`docProps/core.xml`, `dcterms:modified`, en hora local). Importar otro reemplaza al anterior.
 - Fixture: `VALES DE SALIDA BASE SINTETICO 050926.xlsx` (`generar_base` en `tests/fixtures/generar.py`, casos en
   `SEGUIMIENTO_BASE`).

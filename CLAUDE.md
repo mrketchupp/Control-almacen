@@ -54,14 +54,20 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   la juntaría con una emparejada (`previaCorreccion(...).otra`).
 - Ronda 12: **archivo de vales de la base** (su copia del DIARIO con INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN,
   COMENTARIOS): `importadores/base.js` (`leerArchivoBase`, columnas por nombre, fecha del nombre o de `docProps/core.xml`),
-  `servicios/seguimiento.js` (`registrarSeguimiento` uno por día y máx. 12, `seguimientoVigente`, `seguimientoParaCorte`,
-  `clasificar`, `estadoAxDeVales` → estado AX por partida y avisos), `transitoDesde` cuenta lo pendiente en la base (marca
-  `pend. AX`) y deja NO INV como pista (`no_inv`). UI `ui/paginas/base.js` (`ImportarBase`, `MosaicoBase`, `VentanaBase`,
-  `PastillaAx`, `avisoFechas`); historial (columna AX, filtro *Revisar*) y detalle del vale (columna *AX (base)*).
+  `servicios/seguimiento.js` (`registrarSeguimiento`, `seguimientoVigente`, `clasificar`, `estadoAxDeVales` → estado AX
+  por partida y avisos, `sinAplicar`), `transitoDesde` cuenta lo que no tiene IN/TR (marca `sin IN/TR`) y deja NO INV como
+  pista (`no_inv`). UI `ui/paginas/base.js` (`ImportarBase`, `MosaicoBase`, `VentanaBase`, `PastillaAx`); historial
+  (columna AX, filtro *Revisar*) y detalle del vale (columna *AX (base)*).
   **Partidas duplicadas** en un vale (`partidasDuplicadas`, `duplicadasEnVales` en `servicios/vales.js`): marca, filtro y
   *Quitar duplicadas…* (`Correccion` con `quitar`). Fixture `generar_base` / `SEGUIMIENTO_BASE`; pruebas `tests/seguimiento.test.js`.
+- Ronda 13: **la fecha del archivo de la base no importa** (se guarda solo el último; `guardado` es informativo): sin
+  folio IN/TR = puede justificar (`SIN_FOLIO_AX`: pendiente, parcial, sin_revisar, sin_registro y `posterior` = vale
+  después del último folio del archivo); la duplicada que la base no tiene no cuenta. La fecha que importa es la del
+  reporte de AX. Vista **Todos** = kardex completo: `conciliar(...).general` (emparejadas + por confirmar con estado
+  `por_confirmar` + sin físico + solo en el físico), filtro *Por confirmar*, mosaico *Todo el reporte de AX*, casilla
+  *Incluir lo que solo está en el físico*, *Confirmar…* abre `VentanaConfirmar` con `textoInicial`.
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja;
-☐ que el usuario importe el archivo de la base del mismo día que el reporte de AX.
+☐ que el usuario importe un archivo de la base con todos los vales hasta la fecha del reporte de AX.
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
@@ -108,10 +114,11 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Personalización por almacenista (`config.personalizacion`, `servicios/preferencias.js`) → `ui/tema.js` pone `data-tema`, `data-avisos` y `data-animaciones` en `<html>` (y lo recuerda en `localStorage` solo para el arranque). Colores siempre con variables CSS; el oscuro va en `:root[data-tema="oscuro"]` y en `prefers-color-scheme` si no eligió claro.
 - Conciliación AX: llave de AX = código + Tamaño + Color; **Tamaño + Color = la dimensión** (AX no trae NP; `dimensionAx`, `valoresAx`) y AX corta el Tamaño a 10 caracteres. Solo se concilia `Modelo de Inventario = INV`. Diferencia sin explicar = físico − AX + salidas en tránsito − entradas en tránsito. Las **cantidades** no cambian; confirmar una pareja sí corrige la dimensión / NP de la variante (a como está en AX).
 - Archivo de vales de la base: con folio **IN / TR** la partida ya está en AX (CANTIDAD de la base = lo aplicado; vacía =
-  todo; texto como `REGRESAR` = todo con aviso); **INV sin folio** = pendiente → tránsito aunque el vale sea anterior al
-  corte; **NO INV / CONPROV / SIN EXISTENCIA** = no se descuenta en AX (no justifica diferencias); vacío = sin revisar.
-  La base y AX **llegan en fechas distintas**: se usa el archivo de fecha más cercana al corte y se avisa qué se ve mal.
-  Se empareja por folio + código (luego clave y cantidad). El archivo se lee, nunca se escribe.
+  todo; texto como `REGRESAR` = todo con aviso); **sin folio IN / TR** (INV sin folio, sin revisar, que la base no tiene o
+  posterior a su archivo) → tránsito aunque el vale sea anterior al corte; **NO INV / CONPROV / SIN EXISTENCIA** = no se
+  descuenta en AX (no justifica diferencias). **La fecha del archivo de la base no importa** (decisión del usuario, Ronda
+  13); la del reporte de AX sí: lo posterior siempre está en tránsito. Se empareja por folio + código (luego clave y
+  cantidad). El archivo se lee, nunca se escribe.
 - Partidas duplicadas: mismo código + clave + cantidad dentro de un vale (el formulario de Excel guardaba el vale dos
   veces). Se quitan con una corrección (motivo escrito), nunca se borran a escondidas.
 - Corregir dimensión / NP (`corregirDimensionNp`): de una partida (`existenciaId`, pasa a otra variante) o de toda la variante (`varianteId`, cambia de nombre o se junta con la igual: `activo: false`, `unida_a`). **Nunca se reescriben los vales**: la escritura anterior queda en `variante.claves_anteriores` y `clavesPropias` (`nucleo/catalogo.js`) la sigue reconociendo.

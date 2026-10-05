@@ -174,10 +174,16 @@ ninguna libre, se propone *No está en el físico*.
 aplicada, TR, IN y COMENTARIOS) se importa en *Conciliación AX*: cada partida de los vales sabe si ya está en AX (folio
 IN / TR), si está pendiente (INV sin folio, o lo que falta de una aplicación parcial) o si no se descuenta (NO INV,
 CONPROV). Lo pendiente cuenta como tránsito aunque el vale sea anterior al corte; NO INV no justifica diferencias. Avisos
-de diferencias entre la base y los vales; aviso cuando la base y AX son de días distintos (se usa el archivo de fecha más
-cercana; se guardan varios). Columna *AX* y filtro *Revisar* en el historial y en el detalle del vale. **Partidas
+de diferencias entre la base y los vales; aviso cuando la base y AX son de días distintos (se usaba el archivo de fecha más
+cercana; la Ronda 13 lo simplificó). Columna *AX* y filtro *Revisar* en el historial y en el detalle del vale. **Partidas
 duplicadas** dentro de un vale (el formulario de Excel guardaba el vale dos veces): se marcan, se filtran y se quitan
 con una corrección con el motivo escrito. Estado formato 7 (`seguimientos_base`).
+
+**Ronda 13 (aplicada):** la **fecha del archivo de la base ya no importa** (no se pide; se guarda solo el último): lo
+que no tiene folio IN / TR justifica faltantes aunque el vale sea anterior al corte (también lo sin revisar, lo que la
+base no tiene y los vales posteriores a su archivo); la fecha que importa es la del reporte de AX. **Vista *Todos* =
+kardex completo** (antes faltaban las partidas por confirmar y las que no están en el físico): mosaico *Todo el reporte
+de AX*, filtro *Por confirmar* con *Confirmar…* y casilla para incluir lo que solo está en el físico.
 
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
@@ -193,7 +199,9 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ✔ Con el archivo de la base sintético, cada partida queda aplicada / parcial / pendiente / NO INV / sin revisar como
   dice la base, lo pendiente explica diferencias como tránsito y las duplicadas se quitan con una corrección (pruebas
   automáticas y en pantalla).
-- ☐ Importar el archivo de la base del mismo día que el reporte de AX y revisar los avisos de diferencias y las duplicadas.
+- ✔ La vista *Todos* trae cada partida INV del reporte de AX (también por confirmar y sin físico) y cada mosaico cuenta
+  lo mismo que su filtro (prueba automática y en pantalla).
+- ☐ Importar un archivo de la base con todos los vales hasta la fecha del reporte de AX y revisar los avisos y las duplicadas.
 
 ## Fase 5 — Piloto en paralelo y cierre
 - Durante **una guardia completa (~14 días)** se trabaja con la herramienta y se siguen enviando los Excel exportados. La base no debe notar diferencia.

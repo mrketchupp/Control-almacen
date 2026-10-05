@@ -1,14 +1,15 @@
 // Seguimiento de la base (Ronda 12): el encargado de la base copia el DIARIO de salidas y anota, por
 // partida, si se descuenta en AX (INV/NINV), cómo (TIPO DE MOV: consumo o transferencia), cuánto
 // (CANTIDAD) y el folio que dio AX (IN… para consumo, TRS… para transferencia). Con ese archivo se
-// sabe qué partidas ya están en AX y cuáles siguen pendientes, sin depender solo de la fecha del corte.
+// sabe qué partidas ya están en AX y cuáles no, sin depender solo de la fecha del corte.
 //
-// Reglas (acordadas con el usuario):
+// Reglas (acordadas con el usuario, Ronda 13): lo único que importa es si la partida tiene folio de AX.
 //  - Con folio IN/TRS la partida ya está en AX. CANTIDAD es lo aplicado; vacía = todo. Si es menor
-//    que la del vale, lo que falta sigue pendiente.
-//  - INV sin folio de AX (o "PENDIENTE"): pendiente; puede justificar diferencias en la conciliación.
+//    que la del vale, lo que falta sigue sin aplicar.
+//  - Sin folio IN/TRS (INV sin folio, "PENDIENTE", sin revisar, o que la base ni la tiene): AX aún no la
+//    descuenta; puede justificar faltantes en la conciliación.
 //  - NO INV, CONPROV, SIN EXISTENCIA: no se descuentan en AX; no justifican diferencias.
-//  - Sin INV/NINV: la base aún no la revisa.
+// La fecha del archivo no importa (solo la del reporte de AX): se usa el último archivo importado.
 // Las filas se emparejan con las partidas por folio y código (luego clave y cantidad); lo que no
 // cuadra (clave o cantidad distinta, partidas de más o de menos) se avisa.
 
@@ -24,73 +25,57 @@ export class ErrorSeguimiento extends Error {}
 export const ESTADOS_AX = {
   aplicada: "Aplicada en AX",
   parcial: "Aplicada en parte",
-  pendiente: "Pendiente en AX",
+  pendiente: "INV sin IN / TR",
   no_inv: "No se descuenta en AX",
-  sin_revisar: "Sin revisar por la base",
+  sin_revisar: "Sin revisar por la base (sin IN / TR)",
   sin_registro: "No está en el archivo de la base",
+  posterior: "Posterior al último folio del archivo de la base",
 };
+
+/** Estados sin folio de AX: lo que no se ha aplicado puede justificar faltantes. */
+export const SIN_FOLIO_AX = new Set(["pendiente", "parcial", "sin_revisar", "sin_registro", "posterior"]);
+
+/** ¿La partida aún no está (toda) en AX? Las duplicadas que la base no tiene no cuentan: son un error del vale. */
+export const sinAplicar = (info) => Boolean(info && SIN_FOLIO_AX.has(info.estado) && !info.duplicada && info.pendiente?.gt(0));
 
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 const mayus = (v) => sinAcentos(texto(v)).toUpperCase().replace(/\s+/g, " ");
 
 // ---------------------------------------------------------------- archivos importados
 
-/** Archivos de la base que se guardan (cada uno trae todo el DIARIO; los más viejos ya no hacen falta). */
-export const MAXIMO_SEGUIMIENTOS = 12;
-
-const porFecha = (a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.id - b.id);
-
 /**
- * Guarda un archivo de la base (fecha = a qué día corresponde lo que dice la base). Si ya había uno del
- * mismo día, lo reemplaza; se guardan los últimos MAXIMO_SEGUIMIENTOS días.
+ * Guarda el archivo de la base y reemplaza al anterior: su fecha no importa, solo qué partidas tienen folio
+ * de AX. `guardado` = cuándo lo guardó Excel (informativo).
  */
-export function registrarSeguimiento(estado, { fecha, archivo = null, huella = null, partidas, ultimoFolio = null }, usuario = null) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(fecha))) throw new ErrorSeguimiento("Falta la fecha del archivo de la base.");
+export function registrarSeguimiento(estado, { archivo = null, huella = null, guardado = null, partidas, ultimoFolio = null }, usuario = null) {
   if (!partidas?.length) throw new ErrorSeguimiento("El archivo no trae partidas de vales.");
-  estado.seguimientos_base ??= [];
+  const anteriores = estado.seguimientos_base ?? [];
   const seguimiento = {
     id: siguienteId(estado, "seguimiento_base"),
-    fecha,
     archivo,
     huella,
+    guardado,
     importado_en: ahoraIso(),
     importado_por: usuario,
     ultimo_folio: ultimoFolio ?? Math.max(...partidas.map((p) => p.folio)),
     partidas,
   };
-  const reemplazados = estado.seguimientos_base.filter((x) => x.fecha === fecha);
-  const lista = [...estado.seguimientos_base.filter((x) => x.fecha !== fecha), seguimiento].sort(porFecha);
-  const viejos = lista.slice(0, Math.max(0, lista.length - MAXIMO_SEGUIMIENTOS));
-  estado.seguimientos_base = lista.slice(viejos.length);
+  estado.seguimientos_base = [seguimiento];
   auditar(estado, {
     usuario,
     entidad: "seguimiento_base",
     entidadId: seguimiento.id,
     accion: "IMPORTAR",
-    antes: reemplazados.length || viejos.length ? { quitados: [...reemplazados, ...viejos].map((x) => ({ fecha: x.fecha, archivo: x.archivo })) } : null,
-    despues: { fecha, archivo, partidas: partidas.length },
+    antes: anteriores.length ? { reemplaza: anteriores.map((x) => ({ archivo: x.archivo, importado_en: x.importado_en })) } : null,
+    despues: { archivo, guardado, partidas: partidas.length },
   });
   return seguimiento;
 }
 
-/** El archivo de la base más reciente (por su fecha): es el que se muestra en el historial y en los vales. */
+/** El archivo de la base que se usa: el último importado. */
 export function seguimientoVigente(estado) {
-  const lista = [...(estado.seguimientos_base ?? [])].sort(porFecha);
-  return lista.length ? lista[lista.length - 1] : null;
-}
-
-const dias = (a, b) => Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86400000;
-
-/**
- * El archivo de la base para conciliar un corte de AX: el de la fecha más cercana a la del reporte (con
- * fechas distintas, lo que la base aplicó entre una y otra no se ve bien). Empate: el anterior al corte.
- */
-export function seguimientoParaCorte(estado, corte) {
   const lista = estado.seguimientos_base ?? [];
-  if (!corte?.fecha) return seguimientoVigente(estado);
-  const orden = (s) => [dias(s.fecha, corte.fecha), s.fecha > corte.fecha ? 1 : 0, -s.id];
-  const comparar = (a, b) => orden(a).reduce((r, x, i) => r || x - orden(b)[i], 0);
-  return [...lista].sort(comparar)[0] ?? null;
+  return lista.length ? lista[lista.length - 1] : null;
 }
 
 export function seguimientoConHuella(estado, huella) {
@@ -151,7 +136,7 @@ export function clasificar(fila) {
   if (NO_SE_DESCUENTA.test(inv)) return { estado: "no_inv", folios, mov, aplicada: null, pendiente: CERO, avisos };
   if (inv === "INV") return { estado: "pendiente", folios, mov, aplicada: null, pendiente: total, avisos };
   if (inv) avisos.push(`INV/NINV dice "${texto(fila.inv)}".`);
-  return { estado: "sin_revisar", folios, mov, aplicada: null, pendiente: CERO, avisos };
+  return { estado: "sin_revisar", folios, mov, aplicada: null, pendiente: total, avisos };
 }
 
 // ---------------------------------------------------------------- filas ↔ partidas de los vales
@@ -167,9 +152,10 @@ const describir = (codigo, clave, cantidad) => `${codigo}${texto(clave) ? ` ${te
 /**
  * Estado en AX de cada partida de los vales de salida según el archivo de la base.
  * @returns {null | { seguimiento, porLinea: Map<lineaId, info>, avisos: [{ folio, codigo, vale_id, texto }],
- *   resumen: { aplicada, parcial, pendiente, no_inv, sin_revisar, sin_registro, avisos } }}
- *   info = clasificar(fila) + { fila } (o { estado: "sin_registro" } si la base no la tiene).
- *   Las partidas de vales posteriores al último folio del archivo no tienen info (la base aún no los ve).
+ *   resumen: { aplicada, parcial, pendiente, no_inv, sin_revisar, sin_registro, posterior, sin_aplicar, avisos } }}
+ *   info = clasificar(fila) + { fila }; { estado: "sin_registro" } si la base no la tiene (duplicada: si repite
+ *   otra partida del vale) y { estado: "posterior" } si el vale es posterior al último folio del archivo.
+ *   pendiente = lo que aún no está en AX. sin_aplicar = partidas que pueden justificar faltantes.
  */
 export function estadoAxDeVales(estado, seguimiento = seguimientoVigente(estado)) {
   if (!seguimiento) return null;
@@ -216,29 +202,37 @@ export function estadoAxDeVales(estado, seguimiento = seguimientoVigente(estado)
       }
     }
     for (const fila of filas) aviso(folio, fila.codigo, partidas[0]?.vale, `La base tiene ${describir(fila.codigo, fila.clave, fila.cantidad)}, que no está en el vale.`);
-    if (folio <= seguimiento.ultimo_folio) {
-      for (const p of pendientes) {
-        if (p.vale.estado !== "EMITIDO" || !Number.isInteger(p.linea.codigo)) continue;
-        // Lo más común: la partida está dos veces en el vale (el formulario lo guardó dos veces).
-        const repite = partidasDuplicadas(p.vale).get(p.linea.id);
-        const textoAviso = `${describir(p.linea.codigo, p.linea.clave, p.linea.cantidad)} no está en el archivo de la base${repite ? ` (está duplicada: repite la partida ${repite})` : ""}.`;
-        porLinea.set(p.linea.id, { estado: "sin_registro", folios: [], mov: "", aplicada: null, pendiente: CERO, avisos: [textoAviso], duplicada: Boolean(repite) });
-        aviso(folio, p.linea.codigo, p.vale, textoAviso);
+    for (const p of pendientes) {
+      if (p.vale.estado !== "EMITIDO" || !Number.isInteger(p.linea.codigo)) continue;
+      const total = dec(p.linea.cantidad) ?? CERO;
+      if (folio > seguimiento.ultimo_folio) {
+        // La base aún no tiene el vale: tampoco tiene folio de AX.
+        if (!p.linea.no_inventariado) porLinea.set(p.linea.id, { estado: "posterior", folios: [], mov: "", aplicada: null, pendiente: total, avisos: [] });
+        continue;
       }
+      // Lo más común: la partida está dos veces en el vale (el formulario lo guardó dos veces).
+      const repite = partidasDuplicadas(p.vale).get(p.linea.id);
+      const textoAviso = `${describir(p.linea.codigo, p.linea.clave, p.linea.cantidad)} no está en el archivo de la base${repite ? ` (está duplicada: repite la partida ${repite})` : ""}.`;
+      porLinea.set(p.linea.id, { estado: "sin_registro", folios: [], mov: "", aplicada: null, pendiente: total, avisos: [textoAviso], duplicada: Boolean(repite) });
+      aviso(folio, p.linea.codigo, p.vale, textoAviso);
     }
   }
-  const resumen = { aplicada: 0, parcial: 0, pendiente: 0, no_inv: 0, sin_revisar: 0, sin_registro: 0, avisos: avisos.length };
-  for (const info of porLinea.values()) resumen[info.estado] += 1;
+  const resumen = { aplicada: 0, parcial: 0, pendiente: 0, no_inv: 0, sin_revisar: 0, sin_registro: 0, posterior: 0, sin_aplicar: 0, avisos: avisos.length };
+  for (const info of porLinea.values()) {
+    resumen[info.estado] += 1;
+    if (sinAplicar(info)) resumen.sin_aplicar += 1;
+  }
   return { seguimiento, porLinea, avisos, resumen };
 }
 
-/** Texto corto del estado en AX de una partida: "IN00000182", "TRS000000287", "Pendiente", "12 de 36 · IN…". */
+/** Texto corto del estado en AX de una partida: "IN00000182", "TRS000000287", "INV sin IN / TR", "1 de 3 en AX · IN…". */
 export function etiquetaAx(info) {
   if (!info) return "";
   if (info.estado === "aplicada") return info.folios.join(", ");
   if (info.estado === "parcial") return `${decTexto(info.aplicada)} de ${decTexto(info.aplicada.plus(info.pendiente))} en AX · ${info.folios.join(", ")}`;
-  if (info.estado === "pendiente") return "Pendiente en AX";
+  if (info.estado === "pendiente") return "INV sin IN / TR";
   if (info.estado === "no_inv") return texto(info.fila?.inv) || "NO INV";
   if (info.estado === "sin_revisar") return "Sin revisar";
+  if (info.estado === "posterior") return "Aún no está en la base";
   return "No está en la base";
 }

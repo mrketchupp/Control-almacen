@@ -199,14 +199,12 @@ confirmarlas, se corrige el inventario y se borran. La pareja de cada partida **
 (`lineasInv`); los códigos que en AX solo vienen con otro modelo tampoco se comparan del lado físico.
 `config.almacen_ax` = almacén que se filtra (por defecto `RIG91-IX25`).
 
-**Archivo de vales de la base (formato 7, Ronda 12):** `estado.seguimientos_base = [{ id, fecha, archivo, huella,
-importado_en, importado_por, ultimo_folio, partidas: [{ fila, fecha, folio, codigo, clave, cantidad, entrada, inv, mov,
-aplicada, tr, in, comentario }] }]`. `fecha` = a qué día corresponde lo que dice la base (del nombre del archivo o, si no
-trae, del día en que Excel lo guardó; el usuario la confirma). Los textos de la base (INV/NINV, TIPO DE MOV, CANTIDAD
-aplicada, TR, IN) se guardan como vienen. Uno por día (el del mismo día se reemplaza) y los últimos 12
-(`MAXIMO_SEGUIMIENTOS`). El estado en AX de cada partida **no se guarda**: se calcula (`estadoAxDeVales`). Cada corte de
-AX se concilia con el archivo de fecha más cercana (`seguimientoParaCorte`; empate: el anterior); el historial y el
-detalle del vale usan el más reciente (`seguimientoVigente`).
+**Archivo de vales de la base (formato 7, Rondas 12 y 13):** `estado.seguimientos_base = [{ id, archivo, huella,
+guardado, importado_en, importado_por, ultimo_folio, partidas: [{ fila, fecha, folio, codigo, clave, cantidad, entrada,
+inv, mov, aplicada, tr, in, comentario }] }]`. **Solo se guarda uno** (el último importado; importar otro lo reemplaza)
+y su fecha no importa: `guardado` (cuándo lo guardó Excel, de `docProps/core.xml`) es informativo. Los importados con
+la Ronda 12 pueden traer `fecha`; se ignora. Los textos de la base (INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN)
+se guardan como vienen. El estado en AX de cada partida **no se guarda**: se calcula (`estadoAxDeVales`).
 
 ### Operación
 

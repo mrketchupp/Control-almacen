@@ -37,7 +37,7 @@ const conSigno = (d) => (d && d.gt(0) ? `+${n(d)}` : n(d));
 const describir = (v) => (v ? `${v.dimension || "SIN DIMENSIÓN"}${v.np ? ` · NP ${v.np}` : ""}` : "—");
 // En AX la dimensión es Tamaño + Color.
 const describirAx = (l) => dimensionAx(l) || "—";
-const TONOS = { cuadra: "ok", explicada: "info", sobrante: "alerta", faltante: "error" };
+const TONOS = { cuadra: "ok", explicada: "info", sobrante: "alerta", faltante: "error", por_confirmar: "info" };
 
 /** Pastilla del resultado: Cuadra / Explicada por vales / Sobran N / Faltan N. */
 function Resultado({ r }) {
@@ -143,50 +143,106 @@ function VentanaImportar({ previa, alCerrar, alImportar }) {
 // ---------------------------------------------------------------- vistas
 
 const VISTAS = { renglon: "Por partida de AX", articulo: "Por artículo", contenedor: "Por contenedor", valuada: "Valuada en $" };
-const FILTROS = { todos: "Todos", diferencias: "Con diferencia", sin_explicar: "Sin explicar", sobrante: "Sobrantes", faltante: "Faltantes", explicada: "Explicadas", cuadra: "Cuadran" };
+const FILTROS = {
+  todos: "Todos",
+  diferencias: "Con diferencia",
+  sin_explicar: "Sin explicar",
+  sobrante: "Sobrantes",
+  faltante: "Faltantes",
+  explicada: "Explicadas",
+  cuadra: "Cuadran",
+  por_confirmar: "Por confirmar",
+};
 const pasa = (filtro) => (r) =>
   !r
     ? filtro === "todos"
     : filtro === "todos"
       ? true
       : filtro === "diferencias"
-        ? r.estado !== "cuadra"
+        ? r.estado !== "cuadra" && r.estado !== "por_confirmar"
         : filtro === "sin_explicar"
           ? r.estado === "sobrante" || r.estado === "faltante"
-          : r.estado === filtro;
+          : filtro === "por_confirmar"
+            ? r.estado === "por_confirmar" || r.por_confirmar > 0
+            : r.estado === filtro;
 
-/** Texto en el que busca el buscador de cada ventana. */
-const buscable = (x) => ({
-  ...x,
-  _buscar: [x.codigo, x.descripcion, x.variante ? describir(x.variante) : "", ...(x.lineas ?? (x.linea ? [x.linea] : [])).map(describirAx), x.dimension, x.np].filter(Boolean).join(" "),
-});
+/** Texto en el que busca el buscador de cada ventana (también el nombre y el código con ceros de AX). */
+const buscable = (x) => {
+  const lineas = x.lineas ?? (x.linea ? [x.linea] : []);
+  return {
+    ...x,
+    _buscar: [x.codigo, x.descripcion, x.variante ? describir(x.variante) : "", ...lineas.flatMap((l) => [describirAx(l), l.nombre, l.codigo_texto]), x.dimension, x.np]
+      .filter(Boolean)
+      .join(" "),
+  };
+};
 
-function VistaRenglon({ r, filtro, texto }) {
+/** Lo que dice el físico de una fila de la vista general. */
+function EnFisico({ x }) {
+  const lugares = x.lugares?.length ? html`<span class="lugares">${x.lugares.map((l) => html`<${Pastilla} tono="lugar" titulo=${l.hoja}>${l.lugar}: ${n(l.total)}<//>`)}</span>` : null;
+  if (x.estado === "por_confirmar") {
+    return x.variante
+      ? html`<span title="Sugerida: confírmala en Por confirmar">¿${describir(x.variante)}?</span>${lugares}`
+      : html`<span class="nota">sin sugerencia</span>`;
+  }
+  if (!x.variante) return html`<span class="nota">no está en el físico</span>`;
+  return html`<span>${describir(x.variante)}</span>${lugares}`;
+}
+
+/** Vista general: todo el reporte de AX (y lo que solo está en el físico) con su resultado. */
+function VistaRenglon({ r, filtro, texto, conFisico, alConfirmar }) {
   const filas = useFiltroTexto(
-    r.renglones.filter(pasa(filtro)).map(buscable),
+    r.general.filter((x) => (conFisico || x.linea || x.lineas) && pasa(filtro)(x)).map(buscable),
     texto,
     ["_buscar"],
-  ).sort((a, b) => a.codigo - b.codigo || describir(a.variante).localeCompare(describir(b.variante)));
-  return html`<${Tabla}
-    limite=${200}
-    filas=${filas.map((x) => ({ ...x, id: x.variante_id }))}
-    vacia="Nada con este filtro."
-    columnas=${[
-      { titulo: "Código", numero: true, render: (x) => x.codigo },
-      { titulo: "Descripción", render: (x) => html`<span class="descripcion-corta" title=${x.descripcion}>${x.descripcion}</span>` },
-      { titulo: "En AX", render: (x) => html`${x.lineas.map((l) => html`<code class="dim-ax">${describirAx(l)}</code>`)}` },
-      {
-        titulo: "En físico",
-        render: (x) => html`<span>${describir(x.variante)}</span>
-          <span class="lugares">${x.lugares.map((l) => html`<${Pastilla} tono="lugar" titulo=${l.hoja}>${l.lugar}: ${n(l.total)}<//>`)}</span>`,
-      },
-      { titulo: "AX", numero: true, render: (x) => n(x.ax) },
-      { titulo: "Físico", numero: true, render: (x) => n(x.fisico) },
-      { titulo: "Tránsito", render: (x) => html`<${Transito} r=${x} />` },
-      { titulo: "Dif.", numero: true, render: (x) => conSigno(x.diferencia) },
-      { titulo: "Resultado", render: (x) => html`<${Resultado} r=${x} />` },
-    ]}
-  />`;
+  );
+  // Con la casilla apagada, avisa si la búsqueda encuentra algo que solo está en el físico.
+  const ocultas = useFiltroTexto(
+    conFisico || !texto.trim() ? [] : r.general.filter((x) => !x.linea && !x.lineas && pasa(filtro)(x)).map(buscable),
+    texto,
+    ["_buscar"],
+  );
+  return html`${filtro === "todos"
+      ? html`<p class="nota conteo-vista">
+          ${`Todo el reporte de AX: ${r.resumen.lineas_ax} partidas INV (${r.resumen.emparejados} emparejadas, ${r.porConfirmar.length} por confirmar, ${r.axSinFisico.length} sin físico)${conFisico ? ` y ${r.fisicoSinAx.length} que solo están en el físico` : ""}.`}
+        </p>`
+      : null}
+    <${Tabla}
+      limite=${500}
+      filas=${filas.map((x) => ({ ...x, id: x.linea ? `l${x.linea.id}` : `v${x.variante_id}` }))}
+      vacia=${texto.trim() ? "Nada con esa búsqueda en este filtro. Prueba con «Todos»." : "Nada con este filtro."}
+      columnas=${[
+        { titulo: "Código", numero: true, render: (x) => x.codigo },
+        { titulo: "Descripción", render: (x) => html`<span class="descripcion-corta" title=${x.descripcion}>${x.descripcion}</span>` },
+        {
+          titulo: "En AX",
+          render: (x) =>
+            x.lineas?.length
+              ? html`${x.lineas.map((l) => html`<code class="dim-ax">${describirAx(l)}</code>`)}`
+              : x.linea
+                ? html`<code class="dim-ax">${describirAx(x.linea)}</code>`
+                : html`<span class="nota">no está en AX</span>`,
+        },
+        { titulo: "En físico", render: (x) => html`<${EnFisico} x=${x} />` },
+        { titulo: "AX", numero: true, render: (x) => n(x.ax) },
+        { titulo: "Físico", numero: true, render: (x) => n(x.fisico) },
+        { titulo: "Tránsito", render: (x) => html`<${Transito} r=${x} />` },
+        { titulo: "Dif.", numero: true, render: (x) => conSigno(x.diferencia) },
+        {
+          titulo: "Resultado",
+          render: (x) =>
+            x.estado === "por_confirmar"
+              ? html`<span class="resultado-confirmar">
+                  <${Pastilla} tono="info">Por confirmar<//>
+                  <button type="button" class="enlace-boton" onClick=${() => alConfirmar(x)}>Confirmar…</button>
+                </span>`
+              : html`<${Resultado} r=${x} />`,
+        },
+      ]}
+    />
+    ${ocultas.length
+      ? html`<p class="nota">${ocultas.length === 1 ? "1 más" : `${ocultas.length} más`} con esa búsqueda que solo están en el físico: marca «Incluir lo que solo está en el físico».</p>`
+      : null}`;
 }
 
 function VistaArticulo({ r, filtro, texto }) {
@@ -207,7 +263,8 @@ function VistaArticulo({ r, filtro, texto }) {
         titulo: "Resultado",
         render: (x) => html`<${Resultado} r=${x} />
           ${x.por_ubicar.length ? html`<${Pastilla} tono="alerta" titulo="Partidas en tránsito sin partida del inventario (Pendientes)">por ubicar: ${x.por_ubicar.join(", ")}<//>` : null}
-          ${x.no_inv.length ? html`<${Pastilla} titulo="La base las marcó NO INV / CONPROV: no se descuentan en AX ni justifican la diferencia">NO INV en la base: ${x.no_inv.join(", ")}<//>` : null}`,
+          ${x.no_inv.length ? html`<${Pastilla} titulo="La base las marcó NO INV / CONPROV: no se descuentan en AX ni justifican la diferencia">NO INV en la base: ${x.no_inv.join(", ")}<//>` : null}
+          ${x.por_confirmar ? html`<${Pastilla} tono="info" titulo="Partidas de AX de este código que falta confirmar">${x.por_confirmar} por confirmar<//>` : null}`,
       },
     ]}
   />`;
@@ -215,7 +272,7 @@ function VistaArticulo({ r, filtro, texto }) {
 
 function VistaContenedor({ r, filtro, texto }) {
   const contenedores = r.porContenedor
-    .map((c) => ({ ...c, renglones: c.renglones.filter((x) => pasa(filtro)(x.resultado)) }))
+    .map((c) => ({ ...c, renglones: c.renglones.filter((x) => (filtro === "por_confirmar" ? x.por_confirmar : pasa(filtro)(x.resultado))) }))
     .filter((c) => c.renglones.length);
   const palabras = texto.trim();
   if (!contenedores.length) return html`<p class="nota">Nada con este filtro.</p>`;
@@ -280,16 +337,24 @@ function VistaValuada({ r, filtro, texto }) {
 }
 
 /** Ventana de diferencias: vista y filtro se cambian sin cerrarla; con buscador. */
-function VentanaDiferencias({ r, corte, inicial, alCerrar }) {
+function VentanaDiferencias({ r, corte, inicial, alCerrar, alConfirmar }) {
   const [vista, setVista] = useState(inicial.vista ?? "renglon");
   const [filtro, setFiltro] = useState(inicial.filtro ?? "diferencias");
   const [texto, setTexto] = useState("");
-  const props = { r, filtro, texto };
-  return html`<${Ventana} titulo="Diferencias contra AX" clase="ventana-concilia" alCerrar=${alCerrar}>
+  // Lo que solo está en el físico (no está en AX) también se ve, salvo al abrir "Todo el reporte de AX".
+  const [conFisico, setConFisico] = useState(inicial.conFisico ?? true);
+  const props = { r, filtro, texto, conFisico, alConfirmar };
+  return html`<${Ventana} titulo=${vista === "renglon" && filtro === "todos" ? "Reporte de AX completo" : "Diferencias contra AX"} clase="ventana-concilia" alCerrar=${alCerrar}>
     <div class="controles-concilia">
       <${Segmentos} etiqueta="Ver" valor=${vista} opciones=${VISTAS} alCambiar=${setVista} />
       <${Segmentos} etiqueta="Mostrar" valor=${filtro} opciones=${FILTROS} alCambiar=${setFiltro} />
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión, NP…" />
+      ${vista === "renglon" && r.fisicoSinAx.length
+        ? html`<label class="casilla">
+            <input type="checkbox" checked=${conFisico} onChange=${(e) => setConFisico(e.currentTarget.checked)} />
+            <span>Incluir lo que solo está en el físico (${r.fisicoSinAx.length})</span>
+          </label>`
+        : null}
     </div>
     ${vista === "renglon"
       ? html`<${VistaRenglon} ...${props} />`
@@ -299,7 +364,7 @@ function VentanaDiferencias({ r, corte, inicial, alCerrar }) {
           ? html`<${VistaContenedor} ...${props} />`
           : html`<${VistaValuada} ...${props} />`}
     <p class="nota">
-      Diferencia = físico − AX. Se explica con los vales posteriores al corte${corte.folio_salida ? ` (salidas después del folio ${corte.folio_salida})` : ` (después del ${fmtFecha(corte.fecha)})`}${r.ax ? " y con las salidas que la base aún no aplica en AX («pend. AX»)" : ""}:
+      Diferencia = físico − AX. Se explica con los vales posteriores al corte${corte.folio_salida ? ` (salidas después del folio ${corte.folio_salida})` : ` (después del ${fmtFecha(corte.fecha)})`}${r.ax ? " y con las salidas anteriores que en el archivo de la base no tienen folio IN / TR («sin IN/TR»)" : ""}:
       físico − AX + salidas − entradas = 0.
     </p>
   <//>`;
@@ -370,10 +435,10 @@ function ItemConfirmar({ p, r, corte }) {
   </li>`;
 }
 
-function VentanaConfirmar({ r, corte, alCerrar }) {
+function VentanaConfirmar({ r, corte, alCerrar, textoInicial = "" }) {
   const sesion = useSesion();
   const corregir = useCorreccion();
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(textoInicial);
   const seguras = new Set(r.porConfirmar.filter((p) => p.variante_id !== null && p.puntaje >= PUNTAJE_SEGURO).map((p) => p.variante_id)).size;
   const items = useFiltroTexto(
     r.porConfirmar.map((p) => ({ p, _buscar: `${p.linea.codigo} ${p.linea.nombre} ${describirAx(p.linea)} ${p.variante_id !== null ? describir(r.fisico.get(p.variante_id)?.variante) : ""}` })),
@@ -579,7 +644,7 @@ export function PaginaConciliacion() {
 
   const { resumen } = r;
   const cerrar = () => setAbierta(null);
-  const diferencias = (vista, filtro) => () => setAbierta({ tipo: "diferencias", vista, filtro });
+  const diferencias = (vista, filtro, conFisico = true) => () => setAbierta({ tipo: "diferencias", vista, filtro, conFisico });
   const conDiferencia = r.porCodigo.filter((x) => x.estado !== "cuadra").length;
   const contenedoresConDif = r.porContenedor.filter((c) => c.renglones.some((x) => x.por_confirmar || !x.en_ax || (x.resultado && x.resultado.estado !== "cuadra"))).length;
   const neto = resumen.valor_sobrante.plus(resumen.valor_faltante);
@@ -647,8 +712,15 @@ export function PaginaConciliacion() {
             </span>
           <//>`
         : null}
-      <${MosaicoBase} r=${r} corte=${corte} alAbrir=${() => setAbierta({ tipo: "base" })} />
-      <${Mosaico} titulo="Emparejadas" dato=${`${resumen.porcentaje}%`} detalle=${`${resumen.confirmados} de ${resumen.lineas_ax} partidas INV de AX${resumen.no_inv ? ` · ${resumen.no_inv} de otros modelos no se concilian` : ""}`} onClick=${diferencias("renglon", "todos")}>
+      <${Mosaico}
+        icono="inventario"
+        titulo="Todo el reporte de AX"
+        dato=${resumen.lineas_ax}
+        detalle="Cada partida INV del kardex con su resultado (emparejadas, por confirmar y sin físico), con buscador y filtros."
+        onClick=${diferencias("renglon", "todos", false)}
+      />
+      <${MosaicoBase} r=${r} alAbrir=${() => setAbierta({ tipo: "base" })} />
+      <${Mosaico} titulo="Emparejadas" dato=${`${resumen.porcentaje}%`} detalle=${`${resumen.confirmados} de ${resumen.lineas_ax} partidas INV de AX${resumen.no_inv ? ` · ${resumen.no_inv} de otros modelos no se concilian` : ""}`} onClick=${diferencias("renglon", "todos", false)}>
         <span class="medidor" role="img" aria-label=${`${resumen.porcentaje}% emparejado`}><span style=${`width: ${resumen.porcentaje}%`}></span></span>
       <//>
       <${Mosaico} tono="error" titulo="Faltantes" dato=${resumen.faltantes} detalle=${`Sin explicar · ${dinero(resumen.valor_faltante.abs())}`} onClick=${diferencias("renglon", "faltante")} />
@@ -662,8 +734,16 @@ export function PaginaConciliacion() {
       <${Mosaico} titulo="Valuada en $" dato=${dinero(neto)} detalle=${`Sobrante ${dinero(resumen.valor_sobrante)} · faltante ${dinero(resumen.valor_faltante)}`} onClick=${diferencias("valuada", "sin_explicar")} />
     <//>
 
-    ${abierta?.tipo === "confirmar" ? html`<${VentanaConfirmar} r=${r} corte=${corte} alCerrar=${cerrar} />` : null}
-    ${abierta?.tipo === "diferencias" ? html`<${VentanaDiferencias} r=${r} corte=${corte} inicial=${abierta} alCerrar=${cerrar} />` : null}
+    ${abierta?.tipo === "confirmar" ? html`<${VentanaConfirmar} r=${r} corte=${corte} textoInicial=${abierta.texto ?? ""} alCerrar=${cerrar} />` : null}
+    ${abierta?.tipo === "diferencias"
+      ? html`<${VentanaDiferencias}
+          r=${r}
+          corte=${corte}
+          inicial=${abierta}
+          alCerrar=${cerrar}
+          alConfirmar=${(x) => setAbierta({ tipo: "confirmar", texto: `${x.codigo} ${describirAx(x.linea)}` })}
+        />`
+      : null}
     ${abierta?.tipo === "ax" ? html`<${VentanaAxSinFisico} r=${r} corte=${corte} alCerrar=${cerrar} />` : null}
     ${abierta?.tipo === "fisico" ? html`<${VentanaFisicoSinAx} r=${r} alCerrar=${cerrar} />` : null}
     ${abierta?.tipo === "base" && r.ax ? html`<${VentanaBase} r=${r} alCerrar=${cerrar} />` : null}
