@@ -1,10 +1,22 @@
 import { useMemo, useState } from "preact/hooks";
 import { filasHistorial, filtrarHistorial } from "../../servicios/consultas.js";
 import { filasEntradas, filtrarEntradas } from "../../servicios/entradas.js";
-import { Boton, Buscador, CampoSugerido, Lista, Tabla, num, useSesion } from "../componentes.js";
+import { estadoAxDeVales, etiquetaAx } from "../../servicios/seguimiento.js";
+import { duplicadasEnVales } from "../../servicios/vales.js";
+import { Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { PastillaAx } from "./base.js";
 
-const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "" };
+const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "", revisar: "" };
+
+// Filtro "Revisar": partidas duplicadas en su vale y el estado en AX según el archivo de la base.
+const REVISAR = {
+  duplicadas: { etiqueta: "Duplicadas en el vale", pasa: (f) => f.duplicada },
+  pend_ax: { etiqueta: "Pendientes en AX", pasa: (f) => f.ax && (f.ax.estado === "pendiente" || f.ax.estado === "parcial"), base: true },
+  en_ax: { etiqueta: "Ya en AX (IN / TR)", pasa: (f) => f.ax && (f.ax.estado === "aplicada" || f.ax.estado === "parcial"), base: true },
+  no_inv: { etiqueta: "No se descuentan (NO INV…)", pasa: (f) => f.ax?.estado === "no_inv", base: true },
+  avisos: { etiqueta: "Con aviso de la base", pasa: (f) => f.ax?.avisos?.length > 0, base: true },
+};
 
 const SIN_FILTROS_ENTRADAS = { texto: "", folio: "", codigo: "", oc: "", desde: "", hasta: "" };
 
@@ -67,16 +79,29 @@ export function PaginaHistorial() {
 
 function HistorialSalidas() {
   const sesion = useSesion();
-  const filas = useMemo(() => filasHistorial(sesion.estado), [sesion.estado]);
+  const ax = useMemo(() => estadoAxDeVales(sesion.estado), [sesion.estado]);
+  const filas = useMemo(() => {
+    const duplicadas = duplicadasEnVales(sesion.estado);
+    return filasHistorial(sesion.estado).map((f) => {
+      const info = ax?.porLinea.get(f.id) ?? null;
+      return { ...f, ax: info, ax_texto: info ? etiquetaAx(info) : "", duplicada: duplicadas.get(f.id) ?? null };
+    });
+  }, [sesion.estado, ax]);
   const [filtros, setFiltros] = useState(SIN_FILTROS);
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
   const fijar = (clave) => (valor) => setFiltros({ ...filtros, [clave]: valor });
   const deptos = useMemo(() => [...new Set(filas.map((f) => f.depto).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
   const personas = useMemo(() => [...new Set(filas.map((f) => f.recibio).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
   const visibles = useMemo(
-    () => filtrarHistorial(filas, filtros).map((f) => (f.estado === "CANCELADO" ? { ...f, _clase: "fila-cancelada" } : f)),
+    () =>
+      filtrarHistorial(filas, filtros)
+        .filter((f) => !filtros.revisar || REVISAR[filtros.revisar].pasa(f))
+        .map((f) => (f.estado === "CANCELADO" ? { ...f, _clase: "fila-cancelada" } : f.duplicada ? { ...f, _clase: "fila-duplicada" } : f)),
     [filas, filtros],
   );
+  const opcionesRevisar = Object.entries(REVISAR)
+    .filter(([, r]) => !r.base || ax)
+    .map(([valor, r]) => ({ valor, etiqueta: r.etiqueta, detalle: `${filas.filter(r.pasa).length}` }));
   const activos = Object.entries(filtros).filter(([, v]) => v).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
   return html`
@@ -116,9 +141,16 @@ function HistorialSalidas() {
         : null}
       <label class="filtro"><span>Desde</span><input type="date" value=${filtros.desde} onChange=${poner("desde")} /></label>
       <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
+      <div class="filtro">
+        <span>Revisar</span>
+        <${Lista} valor=${filtros.revisar} alCambiar=${fijar("revisar")} ariaLabel="Revisar" opciones=${[{ valor: "", etiqueta: "Todas" }, ...opcionesRevisar]} />
+      </div>
       ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS)}>Quitar filtros (${activos})<//>` : null}
     </div>
-    <p class="conteo">${num(visibles.length)} partidas · ${num(folios)} folios${activos ? " con los filtros elegidos" : ""}</p>
+    <p class="conteo">
+      ${num(visibles.length)} partidas · ${num(folios)} folios${activos ? " con los filtros elegidos" : ""}
+      ${filtros.revisar === "duplicadas" && visibles.length ? html` · <span class="nota">abre cada vale y usa <em>Quitar duplicadas</em> para corregirlo (queda en la bitácora)</span>` : null}
+    </p>
     <${Tabla}
       limite=${200}
       filas=${visibles}
@@ -133,7 +165,11 @@ function HistorialSalidas() {
         { clave: "descripcion", titulo: "Descripción" },
         { clave: "clave", titulo: "Clave" },
         { clave: "oc", titulo: "O.C." },
-        { titulo: "Notas", render: (f) => (f.notas ? html`<span class="nota-icono" title=${f.notas}>ⓘ</span>` : "") },
+        ...(ax ? [{ titulo: "AX", render: (f) => (f.estado === "CANCELADO" ? "" : html`<${PastillaAx} info=${f.ax} />`) }] : []),
+        {
+          titulo: "Notas",
+          render: (f) => html`${f.duplicada ? html`<${Pastilla} tono="alerta" titulo=${`Mismo código, clave y cantidad que la partida ${f.duplicada} del vale`}>duplicada<//> ` : ""}${f.notas ? html`<span class="nota-icono" title=${f.notas}>ⓘ</span>` : ""}`,
+        },
       ]}
       vacia="Ninguna partida coincide con los filtros."
     />

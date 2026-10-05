@@ -15,7 +15,8 @@ internet. Tiene cuatro objetivos:
 
 **Fase 4 — Conciliación contra AX (entregada, en aceptación).** Importar el reporte de inventario de AX, emparejar sus
 renglones con el inventario (con memoria de equivalencias), ver las diferencias por renglón, artículo, contenedor y en
-pesos con los vales en tránsito que las explican, y exportar la solicitud de ajuste. Fases 1 (primera carga y exportación
+pesos con los vales en tránsito que las explican (incluido lo que el archivo de vales de la base marca como pendiente en
+AX), y exportar la solicitud de ajuste. Fases 1 (primera carga y exportación
 idéntica) y 2 (vales de salida) aceptadas; fase 3 (entradas, conteos y movimientos) entregada.
 Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).

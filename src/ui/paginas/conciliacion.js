@@ -26,6 +26,7 @@ import { COLORES_ESTADO, filasSolicitud } from "../../exportadores/ajuste.js";
 import { Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
+import { ImportarBase, MosaicoBase, VentanaBase } from "./base.js";
 import { EditorClave, escrituraClave, useCorreccion } from "./clave.js";
 import { exportarConDialogo } from "./sharepoint.js";
 
@@ -205,7 +206,8 @@ function VistaArticulo({ r, filtro, texto }) {
       {
         titulo: "Resultado",
         render: (x) => html`<${Resultado} r=${x} />
-          ${x.por_ubicar.length ? html`<${Pastilla} tono="alerta" titulo="Partidas en tránsito sin partida del inventario (Pendientes)">por ubicar: ${x.por_ubicar.join(", ")}<//>` : null}`,
+          ${x.por_ubicar.length ? html`<${Pastilla} tono="alerta" titulo="Partidas en tránsito sin partida del inventario (Pendientes)">por ubicar: ${x.por_ubicar.join(", ")}<//>` : null}
+          ${x.no_inv.length ? html`<${Pastilla} titulo="La base las marcó NO INV / CONPROV: no se descuentan en AX ni justifican la diferencia">NO INV en la base: ${x.no_inv.join(", ")}<//>` : null}`,
       },
     ]}
   />`;
@@ -297,7 +299,7 @@ function VentanaDiferencias({ r, corte, inicial, alCerrar }) {
           ? html`<${VistaContenedor} ...${props} />`
           : html`<${VistaValuada} ...${props} />`}
     <p class="nota">
-      Diferencia = físico − AX. Se explica con los vales posteriores al corte${corte.folio_salida ? ` (salidas después del folio ${corte.folio_salida})` : ` (después del ${fmtFecha(corte.fecha)})`}:
+      Diferencia = físico − AX. Se explica con los vales posteriores al corte${corte.folio_salida ? ` (salidas después del folio ${corte.folio_salida})` : ` (después del ${fmtFecha(corte.fecha)})`}${r.ax ? " y con las salidas que la base aún no aplica en AX («pend. AX»)" : ""}:
       físico − AX + salidas − entradas = 0.
     </p>
   <//>`;
@@ -598,6 +600,7 @@ export function PaginaConciliacion() {
         <input inputmode="numeric" value=${corte.folio_salida ?? ""} placeholder="por fecha" onChange=${(e) => cambiarFolio(e.currentTarget.value)} />
       </label>
       <span class="espaciador"></span>
+      <${ImportarBase} />
       ${botonImportar}
       <${Boton} tipo="peligro-texto" tamano="chico" onClick=${quitar}>Quitar corte<//>
     </div>
@@ -644,6 +647,7 @@ export function PaginaConciliacion() {
             </span>
           <//>`
         : null}
+      <${MosaicoBase} r=${r} corte=${corte} alAbrir=${() => setAbierta({ tipo: "base" })} />
       <${Mosaico} titulo="Emparejadas" dato=${`${resumen.porcentaje}%`} detalle=${`${resumen.confirmados} de ${resumen.lineas_ax} partidas INV de AX${resumen.no_inv ? ` · ${resumen.no_inv} de otros modelos no se concilian` : ""}`} onClick=${diferencias("renglon", "todos")}>
         <span class="medidor" role="img" aria-label=${`${resumen.porcentaje}% emparejado`}><span style=${`width: ${resumen.porcentaje}%`}></span></span>
       <//>
@@ -662,6 +666,7 @@ export function PaginaConciliacion() {
     ${abierta?.tipo === "diferencias" ? html`<${VentanaDiferencias} r=${r} corte=${corte} inicial=${abierta} alCerrar=${cerrar} />` : null}
     ${abierta?.tipo === "ax" ? html`<${VentanaAxSinFisico} r=${r} corte=${corte} alCerrar=${cerrar} />` : null}
     ${abierta?.tipo === "fisico" ? html`<${VentanaFisicoSinAx} r=${r} alCerrar=${cerrar} />` : null}
+    ${abierta?.tipo === "base" && r.ax ? html`<${VentanaBase} r=${r} alCerrar=${cerrar} />` : null}
     ${ventanaImportar}
   `;
 }

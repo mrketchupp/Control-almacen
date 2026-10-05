@@ -21,6 +21,7 @@ import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, compactar, mayusculas, unidad } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
 import { ErrorCorreccion, corregirDimensionNp, lugarCorto, previaCorreccion } from "./inventario.js";
+import { estadoAxDeVales, seguimientoParaCorte } from "./seguimiento.js";
 import { candidatosExactos, indiceExistencias } from "./primeraCarga.js";
 
 export class ErrorConciliacion extends Error {}
@@ -147,11 +148,14 @@ export function enTransito(corte, vale) {
   return false;
 }
 
-const folioDeVale = (v) => (v.tipo === "ENTRADA" ? `${folioEntrada(v.folio)} (E)` : `${v.folio} (S)`);
+const folioDeVale = (v, marca = null) => (v.tipo === "ENTRADA" ? `${folioEntrada(v.folio)} (E)` : marca ? `${v.folio} (S, ${marca})` : `${v.folio} (S)`);
 
 /**
- * Vales en tránsito (RF-53) por variante y por código: cuánto salió y entró después del corte y
- * con qué folios.
+ * Vales en tránsito (RF-53) por variante y por código: lo que salió o entró y AX aún no refleja, con
+ * sus folios. Una salida está en tránsito si es posterior al corte (por folio o fecha) o, con el
+ * archivo de la base (Ronda 12), si la base todavía no la aplica en AX (INV sin IN/TR, o lo que falta
+ * de una aplicación parcial; folio "9 (S, pend. AX)"). Lo que la base marca NO INV / CONPROV no se
+ * descuenta en AX y no justifica diferencias: queda como pista (noSeDescuentan).
  *
  * Una partida sin renglón del inventario (vales migrados o por ubicar) se busca por código y clave:
  *  - si el vale es anterior al conteo de ese renglón, la cantidad contada ya la refleja, así que
@@ -159,11 +163,12 @@ const folioDeVale = (v) => (v.tipo === "ENTRADA" ? `${folioEntrada(v.folio)} (E)
  *  - si es posterior (está en Pendientes, por ubicar), aún no mueve la existencia: no cuenta y se
  *    muestra como pista.
  */
-export function transitoDesde(estado, corte, { indices = new Indices(estado) } = {}) {
+export function transitoDesde(estado, corte, { indices = new Indices(estado), ax = estadoAxDeVales(estado, seguimientoParaCorte(estado, corte)) } = {}) {
   const porVariante = new Map();
   const porCodigo = new Map();
   const porUbicar = new Map();
-  const sumarA = (mapa, clave, vale, cantidad) => {
+  const noSeDescuentan = new Map();
+  const sumarA = (mapa, clave, vale, cantidad, marca) => {
     let t = mapa.get(clave);
     if (!t) {
       t = { salidas: CERO, entradas: CERO, folios: [] };
@@ -171,15 +176,32 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado) } =
     }
     if (vale.tipo === "SALIDA") t.salidas = t.salidas.plus(cantidad);
     else t.entradas = t.entradas.plus(cantidad);
-    const folio = folioDeVale(vale);
+    const folio = folioDeVale(vale, marca);
     if (!t.folios.includes(folio)) t.folios.push(folio);
   };
   let indice = null;
-  const vales = estado.vales.filter((v) => enTransito(corte, v)).sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.folio - b.folio));
+  const vales = estado.vales
+    .filter((v) => v.estado === "EMITIDO" && v.fecha)
+    .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.folio - b.folio));
   for (const vale of vales) {
+    const porFecha = enTransito(corte, vale);
+    if (!porFecha && (vale.tipo !== "SALIDA" || !ax)) continue;
     for (const l of vale.lineas) {
       if (l.no_inventariado || !Number.isInteger(l.codigo)) continue;
-      const cantidad = dec(l.cantidad);
+      const total = dec(l.cantidad);
+      if (!total || total.eq(0)) continue;
+      const info = vale.tipo === "SALIDA" ? ax?.porLinea.get(l.id) : null;
+      if (info?.estado === "no_inv") {
+        const folio = folioDeVale(vale);
+        if (!noSeDescuentan.has(l.codigo)) noSeDescuentan.set(l.codigo, []);
+        if (!noSeDescuentan.get(l.codigo).includes(folio)) noSeDescuentan.get(l.codigo).push(folio);
+        continue;
+      }
+      let cantidad = null;
+      let marca = null;
+      if (porFecha) cantidad = total;
+      else if (info?.estado === "pendiente") [cantidad, marca] = [total, "pend. AX"];
+      else if (info?.estado === "parcial") [cantidad, marca] = [info.pendiente, `${decTexto(info.pendiente)} pend. AX`];
       if (!cantidad || cantidad.eq(0)) continue;
       let existencia = hay(l.existencia_id) ? indices.existencia(l.existencia_id) : null;
       if (!existencia) {
@@ -189,15 +211,15 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado) } =
         const yaContado = (e) => !cuentaParaSaldo(e.conteo_id !== null && e.conteo_id !== undefined ? indices.conteos.get(e.conteo_id) : null, vale);
         if (variantes.size === 1 && candidatos.every(yaContado)) existencia = candidatos[0];
         else {
-          sumarA(porUbicar, l.codigo, vale, cantidad);
+          sumarA(porUbicar, l.codigo, vale, cantidad, marca);
           continue;
         }
       }
-      sumarA(porVariante, existencia.variante_id, vale, cantidad);
-      sumarA(porCodigo, l.codigo, vale, cantidad);
+      sumarA(porVariante, existencia.variante_id, vale, cantidad, marca);
+      sumarA(porCodigo, l.codigo, vale, cantidad, marca);
     }
   }
-  return { porVariante, porCodigo, porUbicar };
+  return { porVariante, porCodigo, porUbicar, noSeDescuentan };
 }
 
 // ---------------------------------------------------------------- emparejamiento
@@ -465,7 +487,8 @@ export function conciliar(estado, corte) {
   const fisico = fisicoComparable(estado, corte, indices);
   const lineasCorte = lineasInv(corte);
   const pares = emparejar(estado, corte, { indices, fisico });
-  const transito = transitoDesde(estado, corte, { indices });
+  const ax = estadoAxDeVales(estado, seguimientoParaCorte(estado, corte));
+  const transito = transitoDesde(estado, corte, { indices, ax });
 
   // Por variante (renglón de AX ↔ variante del inventario).
   const grupos = new Map();
@@ -536,6 +559,7 @@ export function conciliar(estado, corte) {
         renglones_ax: lineas.length,
         variantes: variantes.length,
         por_ubicar: pista ? pista.folios : [],
+        no_inv: transito.noSeDescuentan.get(codigo) ?? [],
         ...comparar({
           ax: sumar(...lineas.map((l) => dec(l.disponible) ?? CERO)),
           valorAx: sumar(...lineas.map((l) => dec(l.valor_financiero) ?? CERO)),
@@ -592,7 +616,7 @@ export function conciliar(estado, corte) {
     valor_sobrante: valorDe(1),
     valor_faltante: valorDe(-1),
   };
-  return { corte, pares, renglones, porCodigo, porContenedor, axSinFisico, fisicoSinAx, porConfirmar, transito, fisico, resumen };
+  return { corte, pares, renglones, porCodigo, porContenedor, axSinFisico, fisicoSinAx, porConfirmar, transito, fisico, resumen, ax };
 }
 
 /** Texto de los folios en tránsito para la solicitud de ajuste: "9 (S), E-0003 (E)". */

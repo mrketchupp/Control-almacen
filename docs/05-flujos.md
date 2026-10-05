@@ -166,6 +166,22 @@ flowchart LR
   Cada corrección tiene *Deshacer* en el aviso y queda en la bitácora (`CORREGIR_CLAVE`).
 - **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante.
 - **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
+- **Con el archivo de vales de la base (Ronda 12)** también está en tránsito, aunque el vale sea anterior al corte, lo que
+  la base **todavía no aplica en AX**: partidas `INV` sin folio IN / TR (o con `PENDIENTE`) y, si la `CANTIDAD` aplicada
+  es menor que la del vale, lo que falta (folio `6 (S, pend. AX)` o `1 (S, 2 pend. AX)`). Con folio IN / TR la partida
+  ya está en AX (CANTIDAD vacía = todo). Lo marcado `NO INV`, `CONPROV` o `SIN EXISTENCIA` no se descuenta en AX: no
+  justifica diferencias y queda como pista en la vista por artículo. Las salidas posteriores al corte siguen en tránsito
+  por fecha/folio pase lo que pase en la base. Como el archivo de la base y el reporte de AX llegan en fechas distintas,
+  se usa el archivo de fecha más cercana al corte y se avisa qué se ve mal: si la base es **anterior**, lo que aplicó
+  entre una fecha y otra sigue contando como pendiente; si es **posterior**, lo que aplicó después del corte ya no cuenta
+  como tránsito aunque el reporte de AX aún no lo traiga.
+- **Avisos de diferencias entre la base y los vales:** cada fila de la base se empareja con la partida del vale por folio
+  y código (luego clave y cantidad). Se avisa cuando la base anotó otra clave u otra cantidad, aplicó menos (o más) de lo
+  del vale, escribió texto en CANTIDAD (`REGRESAR`), marcó NO INV con folio de AX, tiene una partida que el vale no tiene,
+  o falta una partida del vale (si está **duplicada** en el vale, lo dice).
+- **Partidas duplicadas en un vale:** mismo código, clave y cantidad que otra partida del mismo vale (el formulario de
+  Excel a veces guardaba el vale dos veces). Se marcan en el historial (filtro *Revisar → Duplicadas en el vale*) y en el
+  detalle; *Quitar duplicadas…* abre la corrección sin ellas y con el motivo escrito (folio intacto, bitácora).
 - **Diferencia explicada** = físico − AX + salidas en tránsito − entradas en tránsito. Si da 0, la diferencia se marca como "explicada por vales" y se listan los folios; si no, queda como **sobrante** o **faltante** sin explicar.
 - **Valuación:** costo unitario = Valor financiero / Disponible del renglón AX; valor = lo sin explicar × costo.
 - **Pantalla en bento (masonry):** cada sección es un mosaico con su número (por confirmar, emparejadas, faltantes,

@@ -9,7 +9,7 @@
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
-| **Conciliación AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado |
+| **Conciliación AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado. Con el **archivo de vales de la base** sabe qué partidas ya están en AX (IN / TR) y cuáles siguen pendientes |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
@@ -161,6 +161,22 @@ cheques en tránsito.
 5. **Solicitud de ajuste → Descargar:** el reporte de AX con *Existencia física*, *Folios que justifican* y *Estado*,
    con cada fila coloreada (verde cuadra, azul explicada, amarillo sobrante, rojo faltante, gris por confirmar).
 Las cantidades del inventario no cambian: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
+
+**Vales en la base (qué ya está en AX).** Siguiendo con el banco: el archivo de vales que lleva la base es como la
+lista de cheques que el banco ya cobró. *Importar vales de la base* → elige el `VALES DE SALIDA DELTA RIG91.xlsm` que
+te manda la base y confirma de qué día es (sale del nombre o de cuándo lo guardó Excel). Desde ahí:
+- Las partidas con folio **IN / TR** ya están en AX (la *CANTIDAD* de la base es lo aplicado; vacía = todo).
+- Las **INV sin folio** siguen pendientes: cuentan como tránsito en la conciliación aunque el vale sea anterior al corte
+  (folio `6 (S, pend. AX)`); si la base aplicó solo una parte, cuenta lo que falta.
+- **NO INV, CONPROV, SIN EXISTENCIA** no se descuentan en AX: no justifican diferencias.
+- El mosaico *Vales en la base* muestra cuántas siguen pendientes y abre los **avisos de diferencias** (la base anotó
+  otra clave u otra cantidad, una partida que el vale no tiene o le falta una del vale). Si la base y AX son de días
+  distintos, avisa qué se ve mal; lo ideal es pedir los dos del mismo día. Puedes guardar varios: cada corte usa el de
+  fecha más cercana.
+- En el **Historial** aparece la columna *AX* y el filtro **Revisar** (pendientes en AX, ya en AX, no se descuentan, con
+  aviso, **duplicadas en el vale**). En el detalle de un vale, la columna *AX (base)*.
+- **Partidas duplicadas:** si el formulario de Excel guardó un vale dos veces, sus partidas repetidas se marcan
+  *duplicada de la N*; *Quitar duplicadas…* abre la corrección sin ellas y con el motivo escrito.
 
 ### Áreas y personas
 - **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).

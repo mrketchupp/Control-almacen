@@ -10,12 +10,15 @@ import {
   datosParaCorregir,
   esHistorial,
   firmasExtraDe,
+  partidasDuplicadas,
   plantillaArea,
   resumenCambios,
   validarVale,
 } from "../../servicios/vales.js";
-import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
+import { estadoAxDeVales } from "../../servicios/seguimiento.js";
+import { Aviso, Boton, Dato, Insignia, Pastilla, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { PastillaAx } from "./base.js";
 import { EditorVale, ListaErrores, VistaPrevia } from "./vales.js";
 
 const ACCIONES = { EMITIR: "Emitido", CORREGIR: "Corregido", CANCELAR: "Cancelado", UBICAR: "Ubicado" };
@@ -25,15 +28,22 @@ export function valeDeRuta() {
   return m ? Number(m[1]) : null;
 }
 
-function Correccion({ vale, alTerminar }) {
+/**
+ * Corregir el vale. Con `quitar` (ids de partidas) empieza ya sin ellas: así se quitan las duplicadas
+ * y el motivo dice por qué.
+ */
+function Correccion({ vale, alTerminar, quitar = null }) {
   const sesion = useSesion();
-  const [datos, setDatos] = useState(() => datosParaCorregir(sesion.estado, vale.id));
+  const [datos, setDatos] = useState(() => {
+    const base = datosParaCorregir(sesion.estado, vale.id);
+    return quitar ? { ...base, lineas: base.lineas.filter((l) => !quitar.has(l.id)) } : base;
+  });
   // El motivo se llena solo con lo que cambió; si lo editas, se respeta tu texto.
   const [motivoPropio, setMotivoPropio] = useState(null);
   const [errores, setErrores] = useState([]);
   const historial = esHistorial(sesion.estado, vale);
   const cambios = useMemo(() => resumenCambios(sesion.estado, vale, datos), [datos, vale]);
-  const automatico = cambios.join("\n");
+  const automatico = [quitar ? "Partidas duplicadas: el formulario de Excel guardó el vale dos veces." : "", ...cambios].filter(Boolean).join("\n");
   const motivo = motivoPropio ?? automatico;
   const guardar = () =>
     sesion.tarea("Guardando corrección…", async () => {
@@ -111,6 +121,7 @@ export function PaginaVale() {
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [previa, setPrevia] = useState(false);
   const indices = useMemo(() => new Indices(estado), [estado]);
+  const ax = useMemo(() => estadoAxDeVales(estado), [estado]);
   if (!vale) return html`<${Aviso} tipo="advertencia" titulo="No se encontró el vale">Vuelve al <a href="#historial">historial</a>.<//>`;
 
   const area = plantillaArea(estado, vale.plantilla_area_id);
@@ -124,6 +135,7 @@ export function PaginaVale() {
   const extras = firmasExtraDe(estado, vale);
   const firmas = conFirmasPorPapel(estado, vale);
   const bitacora = bitacoraDeVale(estado, vale.id).reverse();
+  const duplicadas = partidasDuplicadas(vale);
 
   return html`
     <div class="cabeza-vale">
@@ -141,8 +153,14 @@ export function PaginaVale() {
     </div>
     ${cancelado ? html`<${Aviso} tipo="error" titulo="Vale cancelado (versión anterior de la herramienta)">${fmtFechaHora(vale.cancelado_en)} · ${vale.motivo_cancelacion}<//>` : null}
 
+    ${!cancelado && !corrigiendo && duplicadas.size
+      ? html`<${Aviso} tipo="advertencia" titulo=${duplicadas.size === 1 ? "1 partida parece duplicada" : `${duplicadas.size} partidas parecen duplicadas`}>
+          Tienen el mismo código, clave y cantidad que otra partida de este vale (el formulario de Excel a veces guardaba el vale dos veces).
+          <div class="acciones-linea"><${Boton} tamano="chico" onClick=${() => setCorrigiendo("duplicadas")}>Quitar duplicadas…<//></div>
+        <//>`
+      : null}
     ${corrigiendo
-      ? html`<${Correccion} vale=${vale} alTerminar=${() => setCorrigiendo(false)} />`
+      ? html`<${Correccion} vale=${vale} quitar=${corrigiendo === "duplicadas" ? new Set(duplicadas.keys()) : null} alTerminar=${() => setCorrigiendo(false)} />`
       : html`
           <div class="datos datos-texto">
             <${Dato} etiqueta="Fecha" valor=${fmtFecha(vale.fecha)} />
@@ -170,7 +188,16 @@ export function PaginaVale() {
                 { titulo: "O.C.", render: (l) => l.oc || "S/OC" },
                 { clave: "lote", titulo: "Lote" },
                 { titulo: "Salió de", render: (l) => lugar(l) },
-                { titulo: "Notas", render: (l) => [l.justificacion && `Justificación: ${l.justificacion}`, l.notas].filter(Boolean).join(" · ") },
+                ...(ax && vale.tipo === "SALIDA" && !cancelado ? [{ titulo: "AX (base)", render: (l) => html`<${PastillaAx} info=${ax.porLinea.get(l.id)} />` }] : []),
+                {
+                  titulo: "Notas",
+                  render: (l) => html`${duplicadas.has(l.id) ? html`<${Pastilla} tono="alerta" titulo="Mismo código, clave y cantidad">duplicada de la ${duplicadas.get(l.id)}<//> ` : ""}${[
+                    l.justificacion && `Justificación: ${l.justificacion}`,
+                    l.notas,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}`,
+                },
               ]}
             />
           <//>

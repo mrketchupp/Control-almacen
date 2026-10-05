@@ -97,6 +97,21 @@ export function PaginaAyuda() {
           que explican los vales posteriores al corte salen con sus folios; las demás, como sobrantes o faltantes con su valor.
           Descarga la solicitud de ajuste (cada fila coloreada según su estado). Las cantidades no cambian.
         </dd>
+        <dt>¿Cómo sé qué vales ya descontó la base en AX?</dt>
+        <dd>
+          Importa el archivo de vales que lleva la base (el que trae <em>INV/NINV</em>, <em>TR</em> e <em>IN</em>) en
+          <a href="#conciliacion">Conciliación AX</a> → <em>Importar vales de la base</em>. Con folio IN / TR la partida ya está en AX
+          (la <em>CANTIDAD</em> de la base es lo aplicado; vacía = todo); INV sin folio sigue pendiente y cuenta como tránsito aunque el
+          vale sea anterior al corte; NO INV y CONPROV no se descuentan en AX. Si la base y AX son de días distintos, se avisa qué se ve
+          mal. En el <a href="#historial">Historial</a> sale la columna <em>AX</em> y el filtro <em>Revisar</em> (pendientes, ya en AX,
+          avisos de la base).
+        </dd>
+        <dt>Un vale tiene partidas repetidas</dt>
+        <dd>
+          El formulario de Excel a veces guardaba el vale dos veces. En el <a href="#historial">Historial</a>, filtro <em>Revisar →
+          Duplicadas en el vale</em>; abre cada vale y pulsa <em>Quitar duplicadas…</em>: se abre la corrección sin ellas y con el
+          motivo escrito. El folio no cambia y queda en la bitácora.
+        </dd>
         <dt>Descarté un borrador por error</dt>
         <dd>En el aviso que aparece abajo a la derecha pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>
         <dt>¿Cómo paso material de un contenedor a otro?</dt>

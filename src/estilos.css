@@ -4393,6 +4393,102 @@ button.mosaico:hover .mosaico-abrir {
   color: var(--alerta);
 }
 
+/* Archivo de vales de la base (Ronda 12). */
+.mosaico-base-vacio {
+  align-items: flex-start;
+}
+
+.mosaico-base-vacio .nota {
+  margin: 0;
+}
+
+.ax-fechas {
+  display: block;
+  padding: 6px 10px;
+  border-left: 3px solid var(--alerta);
+  border-radius: 6px;
+  background: var(--alerta-suave);
+  color: var(--texto);
+  font-size: 0.82rem;
+}
+
+.archivos-base {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.archivos-base h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.archivos-base ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archivos-base li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.archivos-base .nota {
+  margin: 0;
+}
+
+.archivos-base > :last-child {
+  justify-self: start;
+}
+
+.ax-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ax-aviso {
+  color: var(--alerta);
+  font-weight: 700;
+  cursor: help;
+}
+
+.resumen-ax {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resumen-ax li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resumen-ax .pastilla {
+  min-width: 3.2em;
+  justify-content: center;
+}
+
+/* Partida que repite otra del mismo vale (el formulario de Excel guardó el vale dos veces). */
+.fila-duplicada td {
+  background: color-mix(in srgb, var(--alerta-suave) 55%, transparent);
+}
+
+.fila-duplicada td:first-child {
+  box-shadow: inset 3px 0 0 var(--alerta);
+}
+
 .mosaico-lista {
   display: grid;
   gap: 4px;

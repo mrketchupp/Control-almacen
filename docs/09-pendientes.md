@@ -17,7 +17,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | P-08 | **Devolución de material:** ¿se corrige el vale original o se registra una entrada tipo "Devolución"? | Si la base aún no lo captura en AX: corregir el vale original. Si ya lo capturó: entrada tipo Devolución que referencia el folio. **F3 permite las dos.** El usuario aclaró que las entradas vienen de la base o de otro equipo; copiar partidas de un vale de salida queda como opción secundaria. |
 | P-09 | ¿El vale impreso debe ser **idéntico** al actual o basta con los mismos campos, orden y logo? | **Resuelto:** el usuario los comparó impresos y "lucen 98 % similares"; funcionan. |
 | P-10 | Tamaño de hoja e impresora | Carta, vertical, 1 vale por hoja |
-| P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. |
+| P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. **Ronda 12:** la base lleva su propio *TIPO DE MOV* (consumo / transferencia) e *INV/NINV* en su copia del DIARIO; la herramienta los lee de ahí. |
 | P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias o en las áreas marcadas "Exigir Autorizó"; el autorizador habitual se guarda en el área. **Aplicado en F2.** |
 | P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** |
 | P-22 | **Transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | **Resuelto:** así están correctos (se editan en el vale; Autorizó con nombre y puesto obligatorio). |
@@ -34,7 +34,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. **Aplicado en F4** (campo "Base capturó hasta el folio"). |
+| P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. **Aplicado en F4** (campo "Base capturó hasta el folio"). **Ronda 12:** mejor aún, el archivo de vales de la base dice partida por partida qué ya aplicó (folio IN / TR) y qué sigue pendiente; se importa en *Conciliación AX*. |
 | P-11 | ¿Cada cuándo se hace un **conteo físico** completo? ¿Hay conteos cíclicos por contenedor? | Soportar ambos: total y parcial por contenedor. **Aplicado en F3.** |
 | P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos). **Aplicado.** |
 | P-17 | Columna **ITEM**: ¿renumerar consecutivo al exportar? | Sí, 1..n por hoja |

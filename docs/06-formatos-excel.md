@@ -108,6 +108,8 @@ En `sheet1.xml` se reemplazan:
 - **Vales cancelados:** ya no se cancela (todos los folios se usan). Los cancelados con versiones anteriores salen como un renglón con cantidad 0 y `CANCELADO – <motivo>`.
 - **NOV (almacenista a la derecha):** como hacía la macro, P ("Entrego/Recibio") lleva a quien firma a la izquierda (el químico) y Q al almacenista.
 - **Borradores:** no se exportan.
+- **La copia de la base:** el encargado de la base agrega a su copia del DIARIO las columnas INV/NINV, TIPO DE MOV,
+  CANTIDAD (aplicada), TR, IN y COMENTARIOS (sección G). La herramienta solo las lee; el DIARIO que exporta no las lleva.
 - **Nombre de archivo:** `VALES DE SALIDA DLTA.xlsm` (el mismo nombre de hoy).
 
 ---
@@ -161,3 +163,28 @@ Mismo formulario de 21 renglones:
 - Encabezado: K8 (folio), J6 (fecha), E17/I17, E18/I18.
 - Renglones: 21–41, columnas C (O.C.), D (cantidad), E (código), I (clave) y J (UM).
 - Si trae varias hojas con datos, se ofrece elegir cuál importar.
+
+## G. Archivo de vales de la base (importación, Ronda 12)
+
+El encargado de la base copia el `DIARIO` de los vales de salida (`VALES DE SALIDA DELTA RIG91.xlsm`) y le agrega
+columnas para llevar qué ya descontó en AX. Solo se lee (`src/importadores/base.js`, `leerArchivoBase`); nunca se escribe.
+
+- Hoja: la visible que tenga `No. folio` e `INV/NINV` en los encabezados (primero `DIARIO`); las ocultas se ignoran.
+  Columnas **por nombre** (sin acentos, en mayúsculas), en las primeras 10 filas.
+- Columnas del DIARIO que se usan: `Fecha`, `No. folio`, `Pase de Entrada` (`XXXXX` = entrada, se ignora), `Cantidad`,
+  `Código`, `Clave`.
+- Columnas de la base (después de las 18 del DIARIO, S–X en el archivo actual):
+  - **`INV/NINV`:** `INV` = se descuenta en AX; `NO INV`, `CONPROV`, `SIN EXISTENCIA` = no se descuenta (con variantes:
+    espacios, minúsculas, errores de dedo). Vacía = la base no la ha revisado.
+  - **`TIPO DE MOV`:** `CONSUMO` o `TRANSFERENCIA`.
+  - **`CANTIDAD`** (la segunda; la primera es la del vale): lo aplicado en AX. Vacía = todo; `4 Y 2` = 6; texto sin
+    números (`REGRESAR`) = se toma como todo y se avisa.
+  - **`TR` / `IN`:** folio que dio AX (`TRS000000287`, `IN00000182`; puede haber varios: `IN598/IN651`). Con folio = ya
+    está en AX. `PENDIENTE` = pendiente.
+  - **`COMENTARIOS`:** se muestra en el título de la pastilla.
+- `ultimoFolio` = el folio más alto del archivo: las partidas de vales hasta ese folio que no están en el archivo se
+  avisan ("no está en el archivo de la base").
+- Fecha sugerida: la del nombre (`DDMMAA`…) o, si no trae, la de `docProps/core.xml` (`dcterms:modified`, en hora local:
+  cuándo lo guardó Excel). El usuario la confirma.
+- Fixture: `VALES DE SALIDA BASE SINTETICO 050926.xlsx` (`generar_base` en `tests/fixtures/generar.py`, casos en
+  `SEGUIMIENTO_BASE`).

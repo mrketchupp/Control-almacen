@@ -170,6 +170,15 @@ aplicación* (acceso directo de Edge en ventana propia).
 sugieren ni aparecen en *Otra…* (antes se podía asignar la misma a varias); se avisa cuántas se ocultan y, si no queda
 ninguna libre, se propone *No está en el físico*.
 
+**Ronda 12 (aplicada):** el **archivo de vales de la base** (su copia del DIARIO con INV/NINV, TIPO DE MOV, CANTIDAD
+aplicada, TR, IN y COMENTARIOS) se importa en *Conciliación AX*: cada partida de los vales sabe si ya está en AX (folio
+IN / TR), si está pendiente (INV sin folio, o lo que falta de una aplicación parcial) o si no se descuenta (NO INV,
+CONPROV). Lo pendiente cuenta como tránsito aunque el vale sea anterior al corte; NO INV no justifica diferencias. Avisos
+de diferencias entre la base y los vales; aviso cuando la base y AX son de días distintos (se usa el archivo de fecha más
+cercana; se guardan varios). Columna *AX* y filtro *Revisar* en el historial y en el detalle del vale. **Partidas
+duplicadas** dentro de un vale (el formulario de Excel guardaba el vale dos veces): se marcan, se filtran y se quitan
+con una corrección con el motivo escrito. Estado formato 7 (`seguimientos_base`).
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;
@@ -181,6 +190,10 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ✔ Cada diferencia muestra los folios que la explican (salidas y entradas en tránsito), o queda como sobrante / faltante sin explicar con su valor (prueba automática y en pantalla).
 - ☐ Con el corte real (`DELTA RIG 91 <fecha>.xlsx`): al menos 95 % emparejado tras una sesión de confirmación.
 - ☐ Revisar con la base que la solicitud de ajuste se entienda igual que el reporte de AX.
+- ✔ Con el archivo de la base sintético, cada partida queda aplicada / parcial / pendiente / NO INV / sin revisar como
+  dice la base, lo pendiente explica diferencias como tránsito y las duplicadas se quitan con una corrección (pruebas
+  automáticas y en pantalla).
+- ☐ Importar el archivo de la base del mismo día que el reporte de AX y revisar los avisos de diferencias y las duplicadas.
 
 ## Fase 5 — Piloto en paralelo y cierre
 - Durante **una guardia completa (~14 días)** se trabaja con la herramienta y se siguen enviando los Excel exportados. La base no debe notar diferencia.

@@ -14,7 +14,7 @@ import { claveEstricta } from "./normalizar.js";
 // firmas (NOV) y fotos de los vales.
 // Formato 5 (Fase 3): vales de entrada en borrador, conteo en curso y reacomodos entre
 // contenedores. Cada conteo guarda su alcance y sus renglones contados.
-export const FORMATO_ESTADO = 6;
+export const FORMATO_ESTADO = 7;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio() {
@@ -41,6 +41,7 @@ export function estadoVacio() {
     reacomodos: [], // movimientos entre contenedores (no cambian el total)
     cortes_ax: [], // reportes de inventario de AX importados (conciliación)
     equivalencias_ax: {}, // renglón de AX (código|tamaño|color) → variante, confirmado por el usuario
+    seguimientos_base: [], // archivos de vales de la base (qué partidas ya aplicó en AX, con IN / TR)
     config: {},
   };
 }
@@ -99,6 +100,11 @@ export function migrarEstado(estado) {
     estado.config ??= {};
     estado.config.almacen_ax ??= ALMACEN_AX_DEFECTO;
     estado.formato = 6;
+  }
+  if (estado.formato < 7) {
+    // Archivo de vales de la base: qué partidas ya se aplicaron en AX (IN / TR).
+    estado.seguimientos_base ??= [];
+    estado.formato = 7;
   }
   return estado;
 }

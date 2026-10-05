@@ -619,6 +619,34 @@ export function esHistorial(estado, vale) {
 }
 
 /** Datos editables de un vale emitido (para abrirlo en el editor de corrección). */
+/**
+ * Partidas que parecen duplicadas dentro de un vale: mismo código, clave (normalizada: 15-1010-52 =
+ * 15101052) y cantidad que una partida anterior del mismo vale. Pasa cuando el formulario de Excel
+ * guardaba el vale dos veces.
+ * @returns Map(id de la partida duplicada → número de la partida que repite)
+ */
+export function partidasDuplicadas(vale) {
+  const vistas = new Map();
+  const duplicadas = new Map();
+  vale.lineas.forEach((l, i) => {
+    if (!Number.isInteger(l.codigo)) return;
+    const clave = `${l.codigo}|${claveEstricta(l.clave)}|${dec(l.cantidad)?.toFixed() ?? texto(l.cantidad)}`;
+    if (vistas.has(clave)) duplicadas.set(l.id, vistas.get(clave));
+    else vistas.set(clave, l.renglon ?? i + 1);
+  });
+  return duplicadas;
+}
+
+/** Las partidas duplicadas de todos los vales (de un tipo): Map(id de la partida → número de la que repite). */
+export function duplicadasEnVales(estado, tipo = "SALIDA") {
+  const todas = new Map();
+  for (const vale of estado.vales) {
+    if (vale.tipo !== tipo) continue;
+    for (const [id, de] of partidasDuplicadas(vale)) todas.set(id, de);
+  }
+  return todas;
+}
+
 export function datosParaCorregir(estado, valeId) {
   const original = estado.vales.find((v) => v.id === valeId);
   if (!original) throw new ErrorVale("No existe el vale.");

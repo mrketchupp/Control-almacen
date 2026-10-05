@@ -7,9 +7,9 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
 - Fase 2 (vales de salida) **aceptada** (P-09 validado impreso, P-22 así está bien, P-23 lo corrige el usuario).
 - Fase 3 (entradas, conteos, reacomodos) **entregada**; el usuario dio luz verde para F4 tras las rondas 5–8 — ver "Avance de la Fase 3" abajo.
-- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 y 10 de comentarios aplicadas (ver abajo).
+- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 12 de comentarios aplicadas (ver abajo).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 6` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`.
+- Formato del estado: `FORMATO_ESTADO = 7` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -52,7 +52,16 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   variantes libres (ni exactas ni confirmadas con otra partida; `par.ocupadas` cuenta las ocultas); cada libre se sugiere a
   una sola partida (reparto por mayor puntaje). `confirmarPareja` rechaza una variante ya emparejada o una corrección que
   la juntaría con una emparejada (`previaCorreccion(...).otra`).
-Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja.
+- Ronda 12: **archivo de vales de la base** (su copia del DIARIO con INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN,
+  COMENTARIOS): `importadores/base.js` (`leerArchivoBase`, columnas por nombre, fecha del nombre o de `docProps/core.xml`),
+  `servicios/seguimiento.js` (`registrarSeguimiento` uno por día y máx. 12, `seguimientoVigente`, `seguimientoParaCorte`,
+  `clasificar`, `estadoAxDeVales` → estado AX por partida y avisos), `transitoDesde` cuenta lo pendiente en la base (marca
+  `pend. AX`) y deja NO INV como pista (`no_inv`). UI `ui/paginas/base.js` (`ImportarBase`, `MosaicoBase`, `VentanaBase`,
+  `PastillaAx`, `avisoFechas`); historial (columna AX, filtro *Revisar*) y detalle del vale (columna *AX (base)*).
+  **Partidas duplicadas** en un vale (`partidasDuplicadas`, `duplicadasEnVales` en `servicios/vales.js`): marca, filtro y
+  *Quitar duplicadas…* (`Correccion` con `quitar`). Fixture `generar_base` / `SEGUIMIENTO_BASE`; pruebas `tests/seguimiento.test.js`.
+Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja;
+☐ que el usuario importe el archivo de la base del mismo día que el reporte de AX.
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
@@ -98,6 +107,13 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Reporte diario: `estadoAlCierre(estado, fecha)` (copia del estado al cierre del día) → `Almacen.exportar(tipo, …, { corte })`. *Ya lo subí* del reporte usa `registrarEnvio(…, { hastaFolio })`.
 - Personalización por almacenista (`config.personalizacion`, `servicios/preferencias.js`) → `ui/tema.js` pone `data-tema`, `data-avisos` y `data-animaciones` en `<html>` (y lo recuerda en `localStorage` solo para el arranque). Colores siempre con variables CSS; el oscuro va en `:root[data-tema="oscuro"]` y en `prefers-color-scheme` si no eligió claro.
 - Conciliación AX: llave de AX = código + Tamaño + Color; **Tamaño + Color = la dimensión** (AX no trae NP; `dimensionAx`, `valoresAx`) y AX corta el Tamaño a 10 caracteres. Solo se concilia `Modelo de Inventario = INV`. Diferencia sin explicar = físico − AX + salidas en tránsito − entradas en tránsito. Las **cantidades** no cambian; confirmar una pareja sí corrige la dimensión / NP de la variante (a como está en AX).
+- Archivo de vales de la base: con folio **IN / TR** la partida ya está en AX (CANTIDAD de la base = lo aplicado; vacía =
+  todo; texto como `REGRESAR` = todo con aviso); **INV sin folio** = pendiente → tránsito aunque el vale sea anterior al
+  corte; **NO INV / CONPROV / SIN EXISTENCIA** = no se descuenta en AX (no justifica diferencias); vacío = sin revisar.
+  La base y AX **llegan en fechas distintas**: se usa el archivo de fecha más cercana al corte y se avisa qué se ve mal.
+  Se empareja por folio + código (luego clave y cantidad). El archivo se lee, nunca se escribe.
+- Partidas duplicadas: mismo código + clave + cantidad dentro de un vale (el formulario de Excel guardaba el vale dos
+  veces). Se quitan con una corrección (motivo escrito), nunca se borran a escondidas.
 - Corregir dimensión / NP (`corregirDimensionNp`): de una partida (`existenciaId`, pasa a otra variante) o de toda la variante (`varianteId`, cambia de nombre o se junta con la igual: `activo: false`, `unida_a`). **Nunca se reescriben los vales**: la escritura anterior queda en `variante.claves_anteriores` y `clavesPropias` (`nucleo/catalogo.js`) la sigue reconociendo.
 - Textos de la interfaz: **"partida"/"partidas"**, nunca "renglón" (en el código los nombres internos siguen igual). Bentos con `Bento` (`ui/componentes.js`, acomodo masonry con `useMasonry`). Atajos con `useAtajo` (Alt + N = nueva partida) y `Teclas`.
 - Inventario exportado: la fecha del encabezado de página (`oddHeader`) se cambia por la del inventario (`fechaEnTexto`, respeta la forma escrita). Escribir con "Guardar como" reintenta, verifica el tamaño y, si falla, descarga (`escribirEnArchivo`, `explicarErrorEscritura`).

@@ -344,7 +344,7 @@ export function filtrarHistorial(filas, filtros = {}) {
     if (filtros.desde && f.fecha_iso < filtros.desde) return false;
     if (filtros.hasta && f.fecha_iso > filtros.hasta) return false;
     if (palabras.length) {
-      const todo = sinAcentos([f.folio, f.descripcion, f.codigo, f.clave, f.destino, f.depto, f.recibio, f.oc, f.notas].join(" "));
+      const todo = sinAcentos([f.folio, f.descripcion, f.codigo, f.clave, f.destino, f.depto, f.recibio, f.oc, f.notas, f.ax_texto ?? ""].join(" "));
       if (!palabras.every((w) => todo.includes(w))) return false;
     }
     return true;

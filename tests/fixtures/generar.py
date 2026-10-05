@@ -883,12 +883,54 @@ def generar_ax(ruta: Path) -> Path:
     return ruta
 
 
+# ---------------------------------------------------------------- archivo de la base
+
+# El encargado de la base copia el DIARIO de salidas y le agrega estas columnas (S–X):
+# INV/NINV (si se descuenta en AX), TIPO DE MOV (consumo o transferencia), CANTIDAD (lo aplicado),
+# TR / IN (folio que da AX) y COMENTARIOS. Solo cambian S y T respecto al DIARIO de la herramienta.
+ENCABEZADOS_BASE = ENCABEZADOS_DIARIO[:18] + ["INV/NINV", "TIPO DE MOV", "CANTIDAD ", "TR", "IN", "COMENTARIOS"]
+NOMBRE_BASE = "VALES DE SALIDA BASE SINTETICO 050926.xlsx"
+# (folio, código, clave, cantidad, INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN, COMENTARIOS)
+SEGUIMIENTO_BASE = [
+    (1, 702, "P551317", 2, "INV", "CONSUMO", 2, None, "IN00000101", None),  # aplicada
+    (1, 702, "P557500", 3, "INV", "CONSUMO", 1, None, "IN00000101", "FALTAN 2"),  # parcial: 2 pendientes
+    (2, 708, "ISOFLEX", 1, "INV", "TRANSFERENCIA", None, "TRS000000201", None, None),  # U vacía = todo
+    (3, 704, '6"', 5, "NO INV", None, None, None, None, None),  # no se descuenta en AX
+    (3, 703, "1/2 X 2", 2, "CONPROV", None, None, None, None, None),
+    (4, 799, "S/D", 15, None, None, None, None, None, None),  # sin revisar
+    (5, 136, "DIESEL", 200, "NO INV ", None, None, None, None, None),
+    (6, 701, "6309-2Z/C3", 1, "INV", "CONSUMO", None, "PENDIENTE", None, None),  # pendiente
+    (6, 706, "555001", 1, "INV", None, None, None, None, None),  # pendiente
+    (7, 702, "P551318", 4, "INV", "CONSUMO", 4, None, "IN00000150", None),  # clave distinta
+    (7, 704, '6"', 1, "INV", "TRANSFERENCIA", "REGRESAR", "TRS000000233", None, None),  # U no numérica
+    (7, 712, "6303 SKF", 1, "INV", "CONSUMO", 1, None, "IN00000150", None),  # no está en la herramienta
+]
+
+
+def generar_base(ruta: Path) -> Path:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "DIARIO"
+    ws.append(ENCABEZADOS_BASE)
+    fechas = {r[1]: r[0] for r in DIARIO if isinstance(r[1], int) and isinstance(r[0], dt.datetime)}
+    for folio, codigo, clave, cantidad, inv, mov, aplicada, tr, in_, comentario in SEGUIMIENTO_BASE:
+        base = [fechas.get(folio), folio, 0, "XXXXX", "RIG 91", "ALMACEN", "RIG 91", "MECANICO ", "S/OC", cantidad, codigo,
+                CATALOGO.get(codigo, "ARTICULO"), clave, "PZA", 0, "ALMACENISTA UNO", "MECANICO UNO", 0]
+        ws.append(base + [inv, mov, aplicada, tr, in_, comentario])
+    oculta = wb.create_sheet("Produccion Nueva 2010")
+    oculta.sheet_state = "hidden"
+    oculta.append(["NO ES EL DIARIO"])
+    wb.save(ruta)
+    return ruta
+
+
 def generar_todo(carpeta: Path) -> dict[str, Path]:
     carpeta.mkdir(parents=True, exist_ok=True)
     return {
         "inventario": generar_inventario(carpeta / "INVENTARIO SINTETICO.xlsx"),
         "vales": generar_vales(carpeta / "VALES SINTETICO.xlsm"),
         "ax": generar_ax(carpeta / NOMBRE_AX),
+        "base": generar_base(carpeta / NOMBRE_BASE),
     }
 
 
