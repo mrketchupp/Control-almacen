@@ -184,12 +184,23 @@ flowchart LR
 - **Partidas duplicadas en un vale:** mismo código, clave y cantidad que otra partida del mismo vale (el formulario de
   Excel a veces guardaba el vale dos veces). Se marcan en el historial (filtro *Revisar → Duplicadas en el vale*) y en el
   detalle; *Quitar duplicadas…* abre la corrección sin ellas y con el motivo escrito (folio intacto, bitácora).
+- **Justificar faltantes (Ronda 14):** un faltante (físico < AX) se explica con vales que el físico ya descontó y AX no.
+  Los que no cuentan solos (su clave no ubica una sola partida del inventario, son de antes del reporte, la base les puso
+  folio pero los aplicó después…) se **asignan** al faltante (`servicios/justificacion.js`). Candidatas: partidas de
+  salida del mismo código (sin NO INV ni duplicadas sin registro), cada una con su estado: *sin IN / TR* (libre),
+  *justifica otra* (moverla deja de explicar aquella), *ya en AX* (solo si AX la aplicó después del reporte), *sin archivo de
+  la base*, *por ubicar* (posterior al conteo y sin partida ligada: el físico aún no la descuenta; no se puede) o *ya
+  justifica aquí*. **Sugerencias:** solo libres que coinciden en dimensión (misma clave, o el código tiene una sola
+  partida); se elige la combinación que cubre el faltante exacto con menos vales o, si no, la que más se acerca sin
+  pasarse; cada vale se sugiere a un solo faltante (los más grandes eligen primero). Se aprueban una por una o todas
+  (`asignarSugeridas`, con confirmación); a mano con *Elegir vales…*. Lo asignado sale en *VALES POR APLICAR*.
 - **Diferencia explicada** = físico − AX + salidas en tránsito − entradas en tránsito. Si da 0, la diferencia se marca como "explicada por vales" y se listan los folios; si no, queda como **sobrante** o **faltante** sin explicar.
 - **Valuación:** costo unitario = Valor financiero / Disponible del renglón AX; valor = lo sin explicar × costo.
-- **Pantalla en bento (masonry):** cada sección es un mosaico con su número (por confirmar, emparejadas, faltantes,
-  sobrantes, explicadas, cuadran, en AX y no en el físico, en el físico y no en AX, por artículo, por contenedor,
-  valuada, solicitud de ajuste); al pulsarlo se abre en una **ventana en primer plano** con buscador, para no bajar por
-  una sola página larga.
+- **Pantalla (Ronda 14):** al centro un bento con lo que **se hace**: *Enviar a la base* (solicitud de ajuste), *Por
+  resolver* (*Emparejar con AX*, con pestañas para lo que solo está en el físico o solo en AX, y *Justificar faltantes*),
+  *Diferencias contra AX*, *Reporte AX* (kardex completo) y *Consumos de la base*; a un lado, el **Resumen**, que solo
+  informa (emparejadas, cuadran, explicadas, faltantes, sobrantes, solo en AX, solo en el físico, valuada, códigos y
+  contenedores con diferencia) y abre el detalle de cada cifra. Todo se abre en **ventanas en primer plano** con buscador.
 - **Vistas:** por partida de AX, por artículo (código, sin depender del emparejamiento), por contenedor y valuada; filtros
   *todos, con diferencia, sin explicar, sobrantes, faltantes, explicadas, cuadran, por confirmar*. **Todos** (mosaico
   *Todo el reporte de AX*) trae cada partida INV del reporte: emparejadas con su resultado, **por confirmar** (con la

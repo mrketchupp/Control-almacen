@@ -76,6 +76,7 @@ export function registrarCorteAx(estado, { fecha, almacen, archivo = null, huell
     importado_en: ahoraIso(),
     importado_por: usuario,
     lineas: renglones.map((r, i) => ({ id: i + 1, ...r })),
+    asignaciones: [],
   };
   estado.cortes_ax.push(corte);
   auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "IMPORTAR", despues: { fecha, almacen, archivo, renglones: corte.lineas.length } });
@@ -148,7 +149,13 @@ export function enTransito(corte, vale) {
   return false;
 }
 
-const folioDeVale = (v, marca = null) => (v.tipo === "ENTRADA" ? `${folioEntrada(v.folio)} (E)` : marca ? `${v.folio} (S, ${marca})` : `${v.folio} (S)`);
+/**
+ * Folio con el que la base reconoce el vale: el de salida, o en las entradas el folio del vale de la base
+ * (con el que la base tiene registrado ese material; el interno E-0001 no le dice nada). "(S)" = salida,
+ * "(E)" = entrada.
+ */
+export const folioDeVale = (v, marca = null) =>
+  v.tipo === "ENTRADA" ? `${texto(v.folio_externo) || folioEntrada(v.folio)} (E)` : marca ? `${v.folio} (S, ${marca})` : `${v.folio} (S)`;
 
 /**
  * Vales en tránsito (RF-53) por variante y por código: lo que salió o entró y AX aún no refleja, con
@@ -164,22 +171,34 @@ const folioDeVale = (v, marca = null) => (v.tipo === "ENTRADA" ? `${folioEntrada
  *    cuenta como tránsito (caso típico del primer corte: AX al 27, conteo el 28 y vales en medio);
  *  - si es posterior (está en Pendientes, por ubicar), aún no mueve la existencia: no cuenta y se
  *    muestra como pista.
+ * Las partidas que el usuario asignó a un faltante (Ronda 14, corte.asignaciones) cuentan para ese
+ * faltante, sea cual sea su fecha: "466 (S, asignado)".
+ *
+ * @returns {{ porVariante, porCodigo, porLineaAx, porUbicar, noSeDescuentan, porLinea }}
+ *   cada grupo: { salidas, entradas, folios, partidas: [{ vale, linea, cantidad, marca }] };
+ *   porLinea: id de partida → { donde: "variante" | "asignada" | "ubicar", variante_id, motivo, cantidad, marca }
+ *   (motivo de "ubicar": "sin_variante", "varias" o "posterior_conteo").
  */
 export function transitoDesde(estado, corte, { indices = new Indices(estado), ax = estadoAxDeVales(estado) } = {}) {
   const porVariante = new Map();
   const porCodigo = new Map();
+  const porLineaAx = new Map();
   const porUbicar = new Map();
   const noSeDescuentan = new Map();
-  const sumarA = (mapa, clave, vale, cantidad, marca) => {
+  const porLinea = new Map();
+  const asignadas = new Map((corte.asignaciones ?? []).map((a) => [a.partida_id, a]));
+  const lineasAx = new Map(corte.lineas.map((l) => [l.id, l]));
+  const sumarA = (mapa, clave, vale, linea, cantidad, marca) => {
     let t = mapa.get(clave);
     if (!t) {
-      t = { salidas: CERO, entradas: CERO, folios: [] };
+      t = { salidas: CERO, entradas: CERO, folios: [], partidas: [] };
       mapa.set(clave, t);
     }
     if (vale.tipo === "SALIDA") t.salidas = t.salidas.plus(cantidad);
     else t.entradas = t.entradas.plus(cantidad);
     const folio = folioDeVale(vale, marca);
     if (!t.folios.includes(folio)) t.folios.push(folio);
+    t.partidas.push({ vale, linea, cantidad, marca });
   };
   let indice = null;
   const vales = estado.vales
@@ -187,8 +206,25 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
     .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.folio - b.folio));
   for (const vale of vales) {
     const porFecha = enTransito(corte, vale);
-    if (!porFecha && (vale.tipo !== "SALIDA" || !ax)) continue;
+    const conAsignadas = asignadas.size > 0 && vale.lineas.some((l) => asignadas.has(l.id));
+    if (!porFecha && !conAsignadas && (vale.tipo !== "SALIDA" || !ax)) continue;
     for (const l of vale.lineas) {
+      const asignada = asignadas.get(l.id);
+      if (asignada) {
+        const cantidad = dec(asignada.cantidad) ?? CERO;
+        if (cantidad.eq(0)) continue;
+        if (hay(asignada.variante_id)) {
+          const varianteId = varianteVigente(indices, asignada.variante_id);
+          sumarA(porVariante, varianteId, vale, l, cantidad, "asignado");
+          sumarA(porCodigo, indices.variante(varianteId)?.codigo ?? l.codigo, vale, l, cantidad, "asignado");
+        } else {
+          sumarA(porLineaAx, asignada.linea_ax_id, vale, l, cantidad, "asignado");
+          sumarA(porCodigo, lineasAx.get(asignada.linea_ax_id)?.codigo ?? l.codigo, vale, l, cantidad, "asignado");
+        }
+        porLinea.set(l.id, { donde: "asignada", asignacion: asignada, cantidad, marca: "asignado" });
+        continue;
+      }
+      if (!porFecha && (vale.tipo !== "SALIDA" || !ax)) continue;
       if (l.no_inventariado || !Number.isInteger(l.codigo)) continue;
       const total = dec(l.cantidad);
       if (!total || total.eq(0)) continue;
@@ -215,15 +251,41 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
         const yaContado = (e) => !cuentaParaSaldo(e.conteo_id !== null && e.conteo_id !== undefined ? indices.conteos.get(e.conteo_id) : null, vale);
         if (variantes.size === 1 && candidatos.every(yaContado)) existencia = candidatos[0];
         else {
-          sumarA(porUbicar, l.codigo, vale, cantidad, marca);
+          sumarA(porUbicar, l.codigo, vale, l, cantidad, marca);
+          const motivo = !candidatos.length ? "sin_variante" : variantes.size > 1 ? "varias" : "posterior_conteo";
+          porLinea.set(l.id, { donde: "ubicar", motivo, cantidad, marca });
           continue;
         }
       }
-      sumarA(porVariante, existencia.variante_id, vale, cantidad, marca);
-      sumarA(porCodigo, l.codigo, vale, cantidad, marca);
+      sumarA(porVariante, existencia.variante_id, vale, l, cantidad, marca);
+      sumarA(porCodigo, l.codigo, vale, l, cantidad, marca);
+      porLinea.set(l.id, { donde: "variante", variante_id: existencia.variante_id, cantidad, marca });
     }
   }
-  return { porVariante, porCodigo, porUbicar, noSeDescuentan };
+  return { porVariante, porCodigo, porLineaAx, porUbicar, noSeDescuentan, porLinea };
+}
+
+/** La variante en la que quedó una que se juntó con otra al corregir su dimensión (unida_a). */
+export function varianteVigente(indices, varianteId) {
+  let id = varianteId;
+  for (let i = 0; i < 10; i++) {
+    const v = indices.variante(id);
+    if (!v || v.activo !== false || !hay(v.unida_a)) break;
+    id = v.unida_a;
+  }
+  return id;
+}
+
+/** Junta el tránsito de varias llaves (una variante y las partidas de AX que le asignaron vales). */
+function juntarTransito(...grupos) {
+  const ts = grupos.filter(Boolean);
+  if (ts.length <= 1) return ts[0] ?? null;
+  return {
+    salidas: sumar(...ts.map((t) => t.salidas)),
+    entradas: sumar(...ts.map((t) => t.entradas)),
+    folios: [...new Set(ts.flatMap((t) => t.folios))],
+    partidas: ts.flatMap((t) => t.partidas),
+  };
 }
 
 // ---------------------------------------------------------------- emparejamiento
@@ -472,6 +534,7 @@ function comparar({ ax, valorAx, fisico, transito }) {
     salidas,
     entradas,
     folios: transito?.folios ?? [],
+    partidas: transito?.partidas ?? [],
     diferencia,
     sin_explicar: sinExplicar,
     estado,
@@ -524,7 +587,7 @@ export function conciliar(estado, corte) {
         ax: sumar(...lineas.map((l) => dec(l.disponible) ?? CERO)),
         valorAx: sumar(...lineas.map((l) => dec(l.valor_financiero) ?? CERO)),
         fisico: f?.total ?? CERO,
-        transito: transito.porVariante.get(varianteId),
+        transito: juntarTransito(transito.porVariante.get(varianteId), ...lineas.map((l) => transito.porLineaAx.get(l.id))),
       }),
     };
   });
@@ -552,7 +615,7 @@ export function conciliar(estado, corte) {
       metodo: p.metodo,
       codigo: p.linea.codigo,
       descripcion: descripcionDe(estado, p.linea.codigo, p.linea.nombre),
-      ...comparar({ ax: dec(p.linea.disponible) ?? CERO, valorAx: dec(p.linea.valor_financiero), fisico: CERO, transito: null }),
+      ...comparar({ ax: dec(p.linea.disponible) ?? CERO, valorAx: dec(p.linea.valor_financiero), fisico: CERO, transito: transito.porLineaAx.get(p.linea.id) ?? null }),
     }));
 
   const porConfirmar = pares.filter((p) => !p.confirmado);
@@ -572,6 +635,7 @@ export function conciliar(estado, corte) {
       salidas: CERO,
       entradas: CERO,
       folios: [],
+      partidas: [],
       diferencia: null,
       sin_explicar: null,
       estado: "por_confirmar",

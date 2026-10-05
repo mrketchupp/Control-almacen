@@ -185,6 +185,14 @@ base no tiene y los vales posteriores a su archivo); la fecha que importa es la 
 kardex completo** (antes faltaban las partidas por confirmar y las que no están en el físico): mosaico *Todo el reporte
 de AX*, filtro *Por confirmar* con *Confirmar…* y casilla para incluir lo que solo está en el físico.
 
+**Ronda 14 (aplicada):** **justificar faltantes con vales**: a cada faltante se le asignan los vales que ya salieron y
+que AX aún no descuenta (sin IN / TR), sin importar su fecha; se sugieren por código, dimensión y cantidad y se aprueban
+una por una o todas, o se eligen a mano (con *Deshacer* y *Quitar*). La solicitud de ajuste trae ahora la hoja **LEYENDA**
+al principio (colores, (S) = salida, (E) = entrada, marcas de los folios), la hoja de AX igual y **VALES POR APLICAR**
+para que la base registre esas partidas; las entradas se citan con el **folio del vale de la base**. La pantalla se
+reorganizó: bento con lo que se hace (*Enviar a la base*, *Por resolver*: emparejar y justificar, *Diferencias contra AX*,
+*Reporte AX*, *Consumos de la base*) y una columna de *Resumen* que solo informa. Estado formato 8 (`corte.asignaciones`).
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;
@@ -202,6 +210,9 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ✔ La vista *Todos* trae cada partida INV del reporte de AX (también por confirmar y sin físico) y cada mosaico cuenta
   lo mismo que su filtro (prueba automática y en pantalla).
 - ☐ Importar un archivo de la base con todos los vales hasta la fecha del reporte de AX y revisar los avisos y las duplicadas.
+- ✔ Un faltante se justifica asignándole vales (sugeridos y aprobados, o a mano); lo asignado explica la diferencia y sale
+  en *VALES POR APLICAR*; la solicitud abre con su *LEYENDA* (pruebas automáticas y en pantalla).
+- ☐ Revisar con la base que *VALES POR APLICAR* y la *LEYENDA* se entiendan.
 
 ## Fase 5 — Piloto en paralelo y cierre
 - Durante **una guardia completa (~14 días)** se trabaja con la herramienta y se siguen enviando los Excel exportados. La base no debe notar diferencia.

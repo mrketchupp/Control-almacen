@@ -4703,3 +4703,264 @@ button.mosaico:hover .mosaico-abrir {
   overflow-wrap: anywhere;
   user-select: all;
 }
+
+/* ---------------------------------------------------------------- conciliación (Ronda 14) */
+/* Acciones en el bento; a un lado, el resumen (solo informa). */
+.concilia-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  align-items: start;
+  gap: 14px;
+}
+
+.concilia-layout .bento-concilia {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 1700px) {
+  .concilia-layout .bento-concilia {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .concilia-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .concilia-resumen {
+    position: static;
+  }
+
+  .concilia-resumen ul {
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  }
+}
+
+.concilia-resumen {
+  position: sticky;
+  top: 12px;
+  padding: 14px;
+  border: 1px dashed var(--borde);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--neutro-suave) 45%, transparent);
+}
+
+.concilia-resumen h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.concilia-resumen > .nota {
+  margin: 2px 0 10px;
+  font-size: 0.8rem;
+}
+
+.concilia-resumen ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cifra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cifra:hover {
+  background: var(--superficie);
+}
+
+.cifra:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.cifra-titulo {
+  font-size: 0.86rem;
+  color: var(--texto-suave);
+}
+
+.cifra-dato {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cifra-detalle {
+  grid-column: 1 / -1;
+  font-size: 0.76rem;
+  color: var(--texto-suave);
+}
+
+.cifra .medidor {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.cifra-ok .cifra-dato {
+  color: var(--ok);
+}
+
+.cifra-info .cifra-dato {
+  color: var(--primario);
+}
+
+.cifra-alerta .cifra-dato {
+  color: var(--alerta);
+}
+
+.cifra-error .cifra-dato {
+  color: var(--error);
+}
+
+.leyenda-folios {
+  margin: 6px 0 0;
+}
+
+/* Por resolver: emparejar y justificar, cada uno con su número y su botón. */
+.resolver-fila {
+  display: grid;
+  grid-template-columns: 3.2em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--borde);
+}
+
+.resolver-fila .nota {
+  display: block;
+}
+
+.resolver-dato {
+  font-size: 1.6rem;
+  font-weight: 750;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.resolver-dato.atencion {
+  color: var(--alerta);
+}
+
+.resolver-dato.error {
+  color: var(--error);
+}
+
+.resolver-dato.ok {
+  color: var(--ok);
+}
+
+/* Justificar faltantes. */
+.lista-justificar {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item-justificar {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+}
+
+.just-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+
+.just-partida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.just-cifras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 0.86rem;
+  color: var(--texto-suave);
+}
+
+.just-cifras strong {
+  color: var(--texto);
+}
+
+.just-sugerencia,
+.just-asignadas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.just-sugerencia {
+  background: color-mix(in srgb, var(--ok-suave) 60%, transparent);
+}
+
+.just-asignadas {
+  background: color-mix(in srgb, var(--primario-suave) 60%, transparent);
+}
+
+.vale-sugerido,
+.vale-asignado {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie);
+}
+
+.enlace-boton.peligro {
+  color: var(--error);
+}
+
+.controles-elegir {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.controles-elegir .buscador {
+  flex: 1 1 260px;
+}
+
+.elegir-vales {
+  display: grid;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--borde);
+}

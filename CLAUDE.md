@@ -7,9 +7,9 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
 - Fase 2 (vales de salida) **aceptada** (P-09 validado impreso, P-22 así está bien, P-23 lo corrige el usuario).
 - Fase 3 (entradas, conteos, reacomodos) **entregada**; el usuario dio luz verde para F4 tras las rondas 5–8 — ver "Avance de la Fase 3" abajo.
-- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 12 de comentarios aplicadas (ver abajo).
+- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 14 de comentarios aplicadas (ver abajo).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 7` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base).
+- Formato del estado: `FORMATO_ESTADO = 8` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -66,6 +66,14 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   reporte de AX. Vista **Todos** = kardex completo: `conciliar(...).general` (emparejadas + por confirmar con estado
   `por_confirmar` + sin físico + solo en el físico), filtro *Por confirmar*, mosaico *Todo el reporte de AX*, casilla
   *Incluir lo que solo está en el físico*, *Confirmar…* abre `VentanaConfirmar` con `textoInicial`.
+- Ronda 14: **justificar faltantes** (`servicios/justificacion.js`: `justificables`, `candidatos` con estado libre / otra /
+  en_ax / sin_base / posterior_conteo / aqui, `sugerencias` + `mejorCombinacion` (exacta con menos vales o lo más cerca sin
+  pasarse), `asignarVales`, `asignarSugeridas`, `quitarAsignaciones`); `corte.asignaciones` (formato 8) las usa
+  `transitoDesde` (marca `asignado`, `porLinea`, `porLineaAx`, `partidas` por grupo, `varianteVigente`). Solicitud de ajuste:
+  hoja `LEYENDA` primero, la de AX igual, `VALES POR APLICAR` (`valesPorAplicar`). Entradas en los folios = `folio_externo`
+  (`folioDeVale`). UI: `ui/paginas/justificar.js` (`VentanaJustificar`), página con `.concilia-layout` (bento de acciones +
+  `aside.concilia-resumen` con `Cifra`), `VentanaEmparejar` (pestañas distinto / solo en el físico / solo en AX).
+  Renombres: Enviar a la base, Por resolver, Emparejar con AX, Reporte AX, Consumos de la base.
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja;
 ☐ que el usuario importe un archivo de la base con todos los vales hasta la fecha del reporte de AX.
 
@@ -119,6 +127,9 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   descuenta en AX (no justifica diferencias). **La fecha del archivo de la base no importa** (decisión del usuario, Ronda
   13); la del reporte de AX sí: lo posterior siempre está en tránsito. Se empareja por folio + código (luego clave y
   cantidad). El archivo se lee, nunca se escribe.
+- Faltantes: se justifican con vales que el físico ya descontó y AX no. Asignar no cambia cantidades ni vales; una
+  partida se asigna una sola vez por corte. Una partida sin ligar y posterior al conteo de la variante NO se puede asignar
+  (el físico aún no la descuenta: hay que ubicarla). En los folios, (S) = salida, (E) = entrada con el folio de la base.
 - Partidas duplicadas: mismo código + clave + cantidad dentro de un vale (el formulario de Excel guardaba el vale dos
   veces). Se quitan con una corrección (motivo escrito), nunca se borran a escondidas.
 - Corregir dimensión / NP (`corregirDimensionNp`): de una partida (`existenciaId`, pasa a otra variante) o de toda la variante (`varianteId`, cambia de nombre o se junta con la igual: `activo: false`, `unida_a`). **Nunca se reescriben los vales**: la escritura anterior queda en `variante.claves_anteriores` y `clavesPropias` (`nucleo/catalogo.js`) la sigue reconociendo.

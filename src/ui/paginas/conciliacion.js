@@ -22,12 +22,14 @@ import {
   valoresAx,
 } from "../../servicios/conciliacion.js";
 import { corregirDimensionNp } from "../../servicios/inventario.js";
-import { COLORES_ESTADO, filasSolicitud } from "../../exportadores/ajuste.js";
+import { COLORES_ESTADO, filasSolicitud, valesPorAplicar } from "../../exportadores/ajuste.js";
+import { sugerencias as sugerenciasDeVales } from "../../servicios/justificacion.js";
 import { Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { ImportarBase, MosaicoBase, VentanaBase } from "./base.js";
 import { EditorClave, escrituraClave, useCorreccion } from "./clave.js";
+import { VentanaJustificar } from "./justificar.js";
 import { exportarConDialogo } from "./sharepoint.js";
 
 const n = (d) => (d === null || d === undefined ? "—" : num(aNumero(d)));
@@ -435,7 +437,27 @@ function ItemConfirmar({ p, r, corte }) {
   </li>`;
 }
 
-function VentanaConfirmar({ r, corte, alCerrar, textoInicial = "" }) {
+const PESTANAS_EMPAREJAR = { distinto: "AX lo escribe distinto", fisico: "Solo en el físico", ax: "Solo en AX" };
+
+/**
+ * Emparejar con AX: las partidas que AX y el inventario escriben distinto (corregir el inventario), lo
+ * que solo está en el físico (corregir su dimensión / NP) y lo que solo está en AX (volver a emparejar).
+ */
+function VentanaEmparejar({ r, corte, alCerrar, pestana: inicial = "distinto", textoInicial = "" }) {
+  const [pestana, setPestana] = useState(inicial);
+  const cuantas = { distinto: r.porConfirmar.length, fisico: r.fisicoSinAx.length, ax: r.axSinFisico.length };
+  const opciones = Object.fromEntries(Object.entries(PESTANAS_EMPAREJAR).map(([k, v]) => [k, `${v} (${cuantas[k]})`]));
+  return html`<${Ventana} titulo="Emparejar con AX" clase="ventana-concilia" alCerrar=${alCerrar}>
+    <div class="controles-concilia"><${Segmentos} valor=${pestana} opciones=${opciones} alCambiar=${setPestana} /></div>
+    ${pestana === "distinto"
+      ? html`<${ListaConfirmar} r=${r} corte=${corte} textoInicial=${textoInicial} />`
+      : pestana === "fisico"
+        ? html`<${ListaFisicoSinAx} r=${r} />`
+        : html`<${ListaAxSinFisico} r=${r} corte=${corte} />`}
+  <//>`;
+}
+
+function ListaConfirmar({ r, corte, textoInicial = "" }) {
   const sesion = useSesion();
   const corregir = useCorreccion();
   const [texto, setTexto] = useState(textoInicial);
@@ -445,7 +467,7 @@ function VentanaConfirmar({ r, corte, alCerrar, textoInicial = "" }) {
     texto,
     ["_buscar"],
   );
-  return html`<${Ventana} titulo=${`Por confirmar (${r.porConfirmar.length})`} clase="ventana-concilia" alCerrar=${alCerrar}>
+  return html`
     <p class="nota">
       AX y el inventario escriben distinto estas partidas. Al confirmar, la <strong>dimensión y el NP del inventario se corrigen</strong> a como
       están en AX (en todas sus partidas); la siguiente vez emparejan solas. Las cantidades no cambian.
@@ -467,17 +489,18 @@ function VentanaConfirmar({ r, corte, alCerrar, textoInicial = "" }) {
     ${r.porConfirmar.length
       ? html`<ul class="lista-confirmar">${items.map(({ p }) => html`<${ItemConfirmar} key=${p.linea.id} p=${p} r=${r} corte=${corte} />`)}</ul>`
       : html`<p class="vacio">✓ Todo emparejado.</p>`}
-  <//>`;
+  `;
 }
 
 // ---------------------------------------------------------------- sin pareja
 
-function VentanaAxSinFisico({ r, corte, alCerrar }) {
+function ListaAxSinFisico({ r, corte }) {
   const sesion = useSesion();
   const [texto, setTexto] = useState("");
   const filas = useFiltroTexto(r.axSinFisico.map(buscable), texto, ["_buscar"]);
   const volver = (linea) => sesion.tarea("Guardando…", () => sesion.almacen.modificar((e) => olvidarPareja(e, { corteId: corte.id, lineaId: linea.id }, sesion.usuario)));
-  return html`<${Ventana} titulo=${`En AX y no en el físico (${r.axSinFisico.length})`} clase="ventana-concilia" alCerrar=${alCerrar}>
+  return html`
+    <p class="nota">Partidas de AX sin pareja en el inventario. Si en realidad sí están, vuelve a emparejarlas; si salieron con vales, justifícalas en «Justificar faltantes».</p>
     <div class="controles-concilia"><${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, tamaño…" /></div>
     <${Tabla}
       filas=${filas.map((x) => ({ ...x, id: x.linea.id }))}
@@ -497,16 +520,16 @@ function VentanaAxSinFisico({ r, corte, alCerrar }) {
         },
       ]}
     />
-  <//>`;
+  `;
 }
 
-function VentanaFisicoSinAx({ r, alCerrar }) {
+function ListaFisicoSinAx({ r }) {
   const sesion = useSesion();
   const corregir = useCorreccion();
   const [texto, setTexto] = useState("");
   const [editando, setEditando] = useState(null);
   const filas = useFiltroTexto(r.fisicoSinAx.map(buscable), texto, ["_buscar"]);
-  return html`<${Ventana} titulo=${`En el físico y no en AX (${r.fisicoSinAx.length})`} clase="ventana-concilia" alCerrar=${alCerrar}>
+  return html`
     <p class="nota">Si AX lo tiene con otra dimensión o NP, corrígela aquí: la siguiente conciliación ya lo empareja.</p>
     <div class="controles-concilia"><${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión…" /></div>
     ${filas.length
@@ -538,7 +561,7 @@ function VentanaFisicoSinAx({ r, alCerrar }) {
           )}
         </ul>`
       : html`<p class="vacio">Todo el inventario está en AX.</p>`}
-  <//>`;
+  `;
 }
 
 // ---------------------------------------------------------------- mosaicos
@@ -555,6 +578,18 @@ function Mosaico({ titulo, icono, dato, detalle, tono = "", clase = "", onClick,
     ${detalle ? html`<span class="nota">${detalle}</span>` : null}
     ${children}
   </button>`;
+}
+
+/** Fila del resumen lateral: solo informa; al pulsarla abre su detalle. */
+function Cifra({ titulo, dato, detalle, tono = "", onClick, children }) {
+  return html`<li>
+    <button type="button" class=${`cifra ${tono ? `cifra-${tono}` : ""}`} onClick=${onClick}>
+      <span class="cifra-titulo">${titulo}</span>
+      <span class="cifra-dato">${dato}</span>
+      ${detalle ? html`<span class="cifra-detalle">${detalle}</span>` : null}
+      ${children}
+    </button>
+  </li>`;
 }
 
 const LEYENDA = [
@@ -578,6 +613,7 @@ export function PaginaConciliacion() {
   const [abierta, setAbierta] = useState(null);
   const [todos, setTodos] = useState(false);
   const r = useMemo(() => (corte ? conciliar(estado, corte) : null), [estado, corte]);
+  const sugerencias = useMemo(() => (r ? sugerenciasDeVales(estado, r) : new Map()), [estado, r]);
 
   const abrir = (archivo) =>
     sesion.tarea("Leyendo el reporte de AX…", async () => {
@@ -645,11 +681,14 @@ export function PaginaConciliacion() {
   const { resumen } = r;
   const cerrar = () => setAbierta(null);
   const diferencias = (vista, filtro, conFisico = true) => () => setAbierta({ tipo: "diferencias", vista, filtro, conFisico });
+  const emparejar = (pestana = "distinto") => () => setAbierta({ tipo: "emparejar", pestana });
   const conDiferencia = r.porCodigo.filter((x) => x.estado !== "cuadra").length;
   const contenedoresConDif = r.porContenedor.filter((c) => c.renglones.some((x) => x.por_confirmar || !x.en_ax || (x.resultado && x.resultado.estado !== "cuadra"))).length;
   const neto = resumen.valor_sobrante.plus(resumen.valor_faltante);
-  const vistaPrevia = r.porConfirmar.slice(0, 4);
   const filasAjuste = filasSolicitud(r, corte, { todos }).length;
+  const porAplicar = valesPorAplicar(r, corte, { todos }).length;
+  const asignadas = (corte.asignaciones ?? []).length;
+  const faltantesSinExplicar = resumen.faltantes;
 
   return html`
     <div class="barra-cortes">
@@ -670,82 +709,112 @@ export function PaginaConciliacion() {
       <${Boton} tipo="peligro-texto" tamano="chico" onClick=${quitar}>Quitar corte<//>
     </div>
 
-    <${Bento} clase="bento-concilia" etiqueta="Resumen de la conciliación">
-      <section class="bento-celda bento-doble bento-exportar-ajuste" aria-label="Solicitud de ajuste">
-        <header class="bento-cabeza">
-          <span class="cabeza-icono"><${Icono} nombre="descargar" tam=${18} /></span>
-          <h2>Solicitud de ajuste</h2>
-          <${Pastilla} tono=${filasAjuste ? "info" : "ok"}>${filasAjuste} ${filasAjuste === 1 ? "partida" : "partidas"}<//>
-        </header>
-        <div class="ajuste-cuerpo">
-          <div>
-            <p class="nota">El reporte de AX con <em>Existencia física</em>, <em>Folios que justifican</em> y el <em>Estado</em> de cada partida, con la fila coloreada:</p>
-            <ul class="leyenda-colores">
-              ${LEYENDA.map(([clave, texto]) => html`<li><span class="muestra-color" style=${`background: #${COLORES_ESTADO[clave]}`}></span>${texto}</li>`)}
-            </ul>
+    <div class="concilia-layout">
+      <${Bento} clase="bento-concilia" etiqueta="Qué hacer con la conciliación">
+        <section class="bento-celda bento-doble bento-exportar-ajuste" aria-label="Enviar a la base">
+          <header class="bento-cabeza">
+            <span class="cabeza-icono"><${Icono} nombre="descargar" tam=${18} /></span>
+            <h2>Enviar a la base</h2>
+            <${Pastilla} tono=${filasAjuste ? "info" : "ok"}>${filasAjuste} ${filasAjuste === 1 ? "partida" : "partidas"}<//>
+          </header>
+          <div class="ajuste-cuerpo">
+            <div>
+              <p class="nota">
+                La <strong>solicitud de ajuste</strong> en Excel: el reporte de AX con <em>Existencia física</em>, <em>Folios que justifican</em> y <em>Estado</em>,
+                y la hoja <em>Vales por aplicar</em> (${porAplicar === 1 ? "1 partida" : `${porAplicar} partidas`} que la base aún no aplica en AX).
+              </p>
+              <ul class="leyenda-colores">
+                ${LEYENDA.map(([clave, texto]) => html`<li><span class="muestra-color" style=${`background: #${COLORES_ESTADO[clave]}`}></span>${texto}</li>`)}
+              </ul>
+              <p class="nota leyenda-folios"><strong>(S)</strong> vale de salida · <strong>(E)</strong> vale de entrada (con el folio del vale de la base)</p>
+            </div>
+            <div class="ajuste-acciones">
+              <label class="casilla"><input type="checkbox" checked=${todos} onChange=${(e) => setTodos(e.currentTarget.checked)} /> <span>Incluir también las que cuadran</span></label>
+              <${Boton} tipo="primario" onClick=${() => exportarConDialogo(sesion, "AJUSTE", null, { corteAx: corte.id, todos })}><${Icono} nombre="descargar" tam=${16} /> Descargar solicitud<//>
+            </div>
           </div>
-          <div class="ajuste-acciones">
-            <label class="casilla"><input type="checkbox" checked=${todos} onChange=${(e) => setTodos(e.currentTarget.checked)} /> <span>Incluir también las que cuadran</span></label>
-            <${Boton} tipo="primario" onClick=${() => exportarConDialogo(sesion, "AJUSTE", null, { corteAx: corte.id, todos })}><${Icono} nombre="descargar" tam=${16} /> Descargar solicitud<//>
-          </div>
-        </div>
-        ${resumen.por_confirmar ? html`<p class="alerta">Hay ${resumen.por_confirmar} por confirmar: saldrán en gris. Confírmalas antes de enviarla.</p>` : null}
-      </section>
-      ${r.porConfirmar.length
-        ? html`<${Mosaico}
-            clase="bento-doble"
-            tono="atencion"
-            icono="balanza"
-            titulo="Por confirmar"
-            dato=${r.porConfirmar.length}
-            detalle="AX y el inventario lo escriben distinto. Al confirmar se corrige la dimensión / NP del inventario."
-            onClick=${() => setAbierta({ tipo: "confirmar" })}
-          >
-            <span class="mosaico-lista">
-              ${vistaPrevia.map(
-                (p) => html`<span class="mosaico-item">
-                  <strong>${p.linea.codigo}</strong> <code>${describirAx(p.linea)}</code>
-                  ${p.variante_id !== null ? html` ← <span>${describir(r.fisico.get(p.variante_id)?.variante)}</span>` : html` <span class="nota">sin sugerencia</span>`}
-                </span>`,
-              )}
-              ${r.porConfirmar.length > vistaPrevia.length ? html`<span class="nota">y ${r.porConfirmar.length - vistaPrevia.length} más…</span>` : null}
-            </span>
-          <//>`
-        : null}
-      <${Mosaico}
-        icono="inventario"
-        titulo="Todo el reporte de AX"
-        dato=${resumen.lineas_ax}
-        detalle="Cada partida INV del kardex con su resultado (emparejadas, por confirmar y sin físico), con buscador y filtros."
-        onClick=${diferencias("renglon", "todos", false)}
-      />
-      <${MosaicoBase} r=${r} alAbrir=${() => setAbierta({ tipo: "base" })} />
-      <${Mosaico} titulo="Emparejadas" dato=${`${resumen.porcentaje}%`} detalle=${`${resumen.confirmados} de ${resumen.lineas_ax} partidas INV de AX${resumen.no_inv ? ` · ${resumen.no_inv} de otros modelos no se concilian` : ""}`} onClick=${diferencias("renglon", "todos", false)}>
-        <span class="medidor" role="img" aria-label=${`${resumen.porcentaje}% emparejado`}><span style=${`width: ${resumen.porcentaje}%`}></span></span>
-      <//>
-      <${Mosaico} tono="error" titulo="Faltantes" dato=${resumen.faltantes} detalle=${`Sin explicar · ${dinero(resumen.valor_faltante.abs())}`} onClick=${diferencias("renglon", "faltante")} />
-      <${Mosaico} tono="alerta" titulo="Sobrantes" dato=${resumen.sobrantes} detalle=${`Sin explicar · ${dinero(resumen.valor_sobrante)}`} onClick=${diferencias("renglon", "sobrante")} />
-      <${Mosaico} tono="info" titulo="Explicadas por vales" dato=${resumen.explicadas} detalle="La diferencia la cubren los vales posteriores al corte" onClick=${diferencias("renglon", "explicada")} />
-      <${Mosaico} tono="ok" titulo="Cuadran" dato=${resumen.cuadran} detalle="Físico = AX" onClick=${diferencias("renglon", "cuadra")} />
-      <${Mosaico} titulo="En AX y no en el físico" dato=${r.axSinFisico.length} detalle="Faltan en el inventario" onClick=${() => setAbierta({ tipo: "ax" })} />
-      <${Mosaico} titulo="En el físico y no en AX" dato=${r.fisicoSinAx.length} detalle="Sobran en el inventario (o AX los escribe distinto)" onClick=${() => setAbierta({ tipo: "fisico" })} />
-      <${Mosaico} icono="inventario" titulo="Por artículo" dato=${conDiferencia} detalle=${`códigos con diferencia de ${r.porCodigo.length}`} onClick=${diferencias("articulo", "diferencias")} />
-      <${Mosaico} icono="caja" titulo="Por contenedor" dato=${contenedoresConDif} detalle=${`contenedores con algo que revisar de ${r.porContenedor.length}`} onClick=${diferencias("contenedor", "diferencias")} />
-      <${Mosaico} titulo="Valuada en $" dato=${dinero(neto)} detalle=${`Sobrante ${dinero(resumen.valor_sobrante)} · faltante ${dinero(resumen.valor_faltante)}`} onClick=${diferencias("valuada", "sin_explicar")} />
-    <//>
+          ${resumen.por_confirmar ? html`<p class="alerta">Hay ${resumen.por_confirmar} por emparejar: saldrán en gris. Empárejalas antes de enviarla.</p>` : null}
+        </section>
 
-    ${abierta?.tipo === "confirmar" ? html`<${VentanaConfirmar} r=${r} corte=${corte} textoInicial=${abierta.texto ?? ""} alCerrar=${cerrar} />` : null}
+        <section class="bento-celda bento-doble bento-resolver" aria-label="Por resolver">
+          <header class="bento-cabeza">
+            <span class="cabeza-icono"><${Icono} nombre="balanza" tam=${18} /></span>
+            <h2>Por resolver</h2>
+          </header>
+          <div class="resolver-fila">
+            <span class=${`resolver-dato ${r.porConfirmar.length ? "atencion" : "ok"}`}>${r.porConfirmar.length}</span>
+            <div>
+              <strong>Emparejar con AX</strong>
+              <span class="nota">
+                ${r.porConfirmar.length
+                  ? "partidas que AX y el inventario escriben distinto: al emparejarlas se corrige la dimensión / NP del inventario."
+                  : "Todo lo de AX tiene su pareja en el inventario."}
+                ${` También: ${r.fisicoSinAx.length} solo en el físico · ${r.axSinFisico.length} solo en AX.`}
+              </span>
+            </div>
+            <${Boton} tipo=${r.porConfirmar.length ? "primario" : "secundario"} tamano="chico" onClick=${emparejar("distinto")}>Emparejar<//>
+          </div>
+          <div class="resolver-fila">
+            <span class=${`resolver-dato ${faltantesSinExplicar ? "error" : "ok"}`}>${faltantesSinExplicar}</span>
+            <div>
+              <strong>Justificar faltantes</strong>
+              <span class="nota">
+                ${faltantesSinExplicar ? "faltantes sin explicar: asígnales los vales sin IN / TR que ya salieron." : "No quedan faltantes sin explicar."}
+                ${sugerencias.size ? ` ${sugerencias.size} con vales sugeridos.` : ""}${asignadas ? ` ${asignadas === 1 ? "1 vale asignado" : `${asignadas} vales asignados`}.` : ""}
+              </span>
+            </div>
+            <${Boton} tipo=${sugerencias.size ? "primario" : "secundario"} tamano="chico" onClick=${() => setAbierta({ tipo: "justificar" })}>Justificar<//>
+          </div>
+        </section>
+
+        <${Mosaico}
+          icono="reporte"
+          titulo="Diferencias contra AX"
+          dato=${resumen.faltantes + resumen.sobrantes}
+          detalle=${`sin explicar: faltan ${resumen.faltantes} · sobran ${resumen.sobrantes} · ${resumen.explicadas} explicadas por vales. Por partida, artículo, contenedor o en pesos.`}
+          onClick=${diferencias("renglon", "diferencias")}
+        />
+        <${Mosaico}
+          icono="inventario"
+          titulo="Reporte AX"
+          dato=${resumen.lineas_ax}
+          detalle="Cada partida INV del kardex con su resultado (emparejadas, por confirmar y sin físico), con buscador y filtros."
+          onClick=${diferencias("renglon", "todos", false)}
+        />
+        <${MosaicoBase} r=${r} alAbrir=${() => setAbierta({ tipo: "base" })} />
+      <//>
+
+      <aside class="concilia-resumen" aria-label="Resumen de la conciliación">
+        <h2>Resumen</h2>
+        <p class="nota">Solo informa. Pulsa una cifra para ver su detalle.</p>
+        <ul>
+          <${Cifra} titulo="Emparejadas" dato=${`${resumen.porcentaje}%`} detalle=${`${resumen.confirmados} de ${resumen.lineas_ax} partidas INV`} onClick=${diferencias("renglon", "todos", false)}>
+            <span class="medidor" role="img" aria-label=${`${resumen.porcentaje}% emparejado`}><span style=${`width: ${resumen.porcentaje}%`}></span></span>
+          <//>
+          <${Cifra} tono="ok" titulo="Cuadran" dato=${resumen.cuadran} detalle="Físico = AX" onClick=${diferencias("renglon", "cuadra")} />
+          <${Cifra} tono="info" titulo="Explicadas por vales" dato=${resumen.explicadas} onClick=${diferencias("renglon", "explicada")} />
+          <${Cifra} tono="error" titulo="Faltantes" dato=${resumen.faltantes} detalle=${dinero(resumen.valor_faltante.abs())} onClick=${diferencias("renglon", "faltante")} />
+          <${Cifra} tono="alerta" titulo="Sobrantes" dato=${resumen.sobrantes} detalle=${dinero(resumen.valor_sobrante)} onClick=${diferencias("renglon", "sobrante")} />
+          <${Cifra} titulo="Solo en AX" dato=${r.axSinFisico.length} detalle="no están en el inventario" onClick=${emparejar("ax")} />
+          <${Cifra} titulo="Solo en el físico" dato=${r.fisicoSinAx.length} detalle="no están en AX" onClick=${emparejar("fisico")} />
+          <${Cifra} titulo="Valuada (neto)" dato=${dinero(neto)} onClick=${diferencias("valuada", "sin_explicar")} />
+          <${Cifra} titulo="Códigos con diferencia" dato=${conDiferencia} detalle=${`de ${r.porCodigo.length}`} onClick=${diferencias("articulo", "diferencias")} />
+          <${Cifra} titulo="Contenedores por revisar" dato=${contenedoresConDif} detalle=${`de ${r.porContenedor.length}`} onClick=${diferencias("contenedor", "diferencias")} />
+        </ul>
+      </aside>
+    </div>
+
+    ${abierta?.tipo === "emparejar" ? html`<${VentanaEmparejar} r=${r} corte=${corte} pestana=${abierta.pestana} textoInicial=${abierta.texto ?? ""} alCerrar=${cerrar} />` : null}
+    ${abierta?.tipo === "justificar" ? html`<${VentanaJustificar} r=${r} corte=${corte} sugerencias=${sugerencias} alCerrar=${cerrar} />` : null}
     ${abierta?.tipo === "diferencias"
       ? html`<${VentanaDiferencias}
           r=${r}
           corte=${corte}
           inicial=${abierta}
           alCerrar=${cerrar}
-          alConfirmar=${(x) => setAbierta({ tipo: "confirmar", texto: `${x.codigo} ${describirAx(x.linea)}` })}
+          alConfirmar=${(x) => setAbierta({ tipo: "emparejar", pestana: "distinto", texto: `${x.codigo} ${describirAx(x.linea)}` })}
         />`
       : null}
-    ${abierta?.tipo === "ax" ? html`<${VentanaAxSinFisico} r=${r} corte=${corte} alCerrar=${cerrar} />` : null}
-    ${abierta?.tipo === "fisico" ? html`<${VentanaFisicoSinAx} r=${r} alCerrar=${cerrar} />` : null}
     ${abierta?.tipo === "base" && r.ax ? html`<${VentanaBase} r=${r} alCerrar=${cerrar} />` : null}
     ${ventanaImportar}
   `;

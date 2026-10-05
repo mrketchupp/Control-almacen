@@ -92,21 +92,34 @@ export function PaginaAyuda() {
         <dt>¿Cómo concilio contra AX?</dt>
         <dd>
           En <a href="#conciliacion">Conciliación AX</a> importa el reporte de inventario de AX que manda la base (se comparan las
-          partidas con modelo INV). Cada mosaico abre su sección en una ventana. En <em>Por confirmar</em>, al confirmar se corrige la
-          dimensión / NP de tu inventario a como lo escribe AX (con <em>Deshacer</em>); la siguiente vez empareja solo. Las diferencias
-          que explican los vales posteriores al corte salen con sus folios; las demás, como sobrantes o faltantes con su valor.
-          Descarga la solicitud de ajuste (cada fila coloreada según su estado). Las cantidades no cambian.
+          partidas con modelo INV). Los bloques del centro son para actuar y la columna <em>Resumen</em> solo informa. En
+          <em>Por resolver → Emparejar con AX</em>, al confirmar se corrige la dimensión / NP de tu inventario a como lo escribe AX (con
+          <em>Deshacer</em>); la siguiente vez empareja solo. Las diferencias que explican los vales salen con sus folios; las demás, como
+          sobrantes o faltantes con su valor. <em>Enviar a la base</em> descarga la solicitud de ajuste (cada fila coloreada según su
+          estado, con su hoja de leyenda y los vales por aplicar). Las cantidades no cambian.
+        </dd>
+        <dt>¿Qué hago con los faltantes de la conciliación?</dt>
+        <dd>
+          En <a href="#conciliacion">Conciliación AX</a> → <em>Por resolver</em> → <em>Justificar faltantes</em>: a cada faltante le asignas los
+          vales que ya salieron y que AX aún no descuenta (sin IN / TR), aunque sean de antes del reporte de AX. La herramienta sugiere los
+          que coinciden en código, dimensión y cantidad: los apruebas uno por uno o todos; también los eliges a mano. Lo asignado explica el
+          faltante y sale en la hoja <em>VALES POR APLICAR</em> de la solicitud para que la base lo registre como consumo o transferencia.
+        </dd>
+        <dt>¿Qué significan (S) y (E) en los folios?</dt>
+        <dd>
+          <strong>(S)</strong> es un vale de salida (su folio del RIG 91) y <strong>(E)</strong> uno de entrada, con el folio del vale de la base
+          (así lo reconoce la base). La hoja <em>LEYENDA</em> de la solicitud lo explica junto con los colores.
         </dd>
         <dt>¿Dónde veo todo el reporte de AX?</dt>
         <dd>
-          En <a href="#conciliacion">Conciliación AX</a>, mosaico <em>Todo el reporte de AX</em>: cada partida del kardex con su resultado,
+          En <a href="#conciliacion">Conciliación AX</a>, mosaico <em>Reporte AX</em>: cada partida del kardex con su resultado,
           también las <em>por confirmar</em> (con <em>Confirmar…</em>) y las que no están en el físico. Busca por código, descripción o
           dimensión y filtra sin cerrar la ventana.
         </dd>
         <dt>¿Cómo sé qué vales ya descontó la base en AX?</dt>
         <dd>
           Importa el archivo de vales que lleva la base (el que trae <em>INV/NINV</em>, <em>TR</em> e <em>IN</em>) en
-          <a href="#conciliacion">Conciliación AX</a> → <em>Importar vales de la base</em>. Con folio IN / TR la partida ya está en AX
+          <a href="#conciliacion">Conciliación AX</a> → <em>Importar consumos de la base</em>. Con folio IN / TR la partida ya está en AX
           (la <em>CANTIDAD</em> de la base es lo aplicado; vacía = todo); lo que <strong>no tiene IN / TR</strong> cuenta como tránsito
           aunque el vale sea anterior al corte; NO INV y CONPROV no se descuentan en AX. La fecha del archivo de la base no importa (uno
           nuevo reemplaza al anterior); la que importa es la del reporte de AX. En el <a href="#historial">Historial</a> sale la columna

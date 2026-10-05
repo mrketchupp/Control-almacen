@@ -147,9 +147,12 @@ cheques en tránsito.
 1. *Conciliación AX* → **Importar reporte de AX** → elige el `DELTA RIG 91 <fecha>.xlsx` (completo o filtrado). Revisa el
    almacén y la fecha del corte (sale del nombre). Si sabes hasta qué folio capturó la base, escríbelo. **Importar corte**.
    Solo se comparan las partidas con *Modelo de Inventario* **INV**.
-2. La pantalla es un **bento**: cada mosaico (Por confirmar, Faltantes, Sobrantes, Explicadas, Cuadran, En AX y no en el
-   físico, Por artículo, Por contenedor, Valuada…) muestra su número y al pulsarlo se abre en una ventana con buscador.
-3. **Por confirmar:** las partidas que AX escribe distinto (errores de dedo, dimensiones cortadas…). *Corregir a como
+2. La pantalla tiene dos zonas: al centro, los bloques **para actuar** (*Enviar a la base*, *Por resolver*, *Diferencias
+   contra AX*, *Reporte AX* y *Consumos de la base*); a la derecha, el **Resumen**, que solo informa (emparejadas,
+   cuadran, explicadas, faltantes, sobrantes, solo en AX, solo en el físico, valuada…) y al pulsar una cifra abre su
+   detalle. Cada bloque se abre en una ventana con buscador.
+3. **Por resolver → Emparejar con AX:** las partidas que AX escribe distinto (errores de dedo, dimensiones cortadas…),
+   con pestañas para lo que solo está en el físico y lo que solo está en AX. *Corregir a como
    está en AX* **cambia la dimensión / NP de tu inventario** a como lo escribe AX (todas sus partidas; las cantidades no
    cambian); *Ajustar…* para escribirla tú (si AX cortó el Tamaño a 10 caracteres, escríbela completa), *Otra…* para
    elegir otra variante o *No está en el físico* (solo para ese corte). Solo se ofrecen las partidas del inventario
@@ -157,14 +160,23 @@ cheques en tránsito.
    *Deshacer*; con *Corregir las seguras* van todas las de puntaje alto de una vez.
 4. **Diferencias:** cada partida dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o
    si *Sobran* / *Faltan* sin explicar. En la ventana cambias de vista (por artículo, por contenedor para ir a revisar,
-   valuada en pesos) y de filtro sin cerrarla. **Todo el reporte de AX** abre el kardex completo (también lo *por
-   confirmar*, con *Confirmar…*, y lo que no está en el físico) para buscar cualquier código o descripción.
-5. **Solicitud de ajuste → Descargar:** el reporte de AX con *Existencia física*, *Folios que justifican* y *Estado*,
-   con cada fila coloreada (verde cuadra, azul explicada, amarillo sobrante, rojo faltante, gris por confirmar).
+   valuada en pesos) y de filtro sin cerrarla. **Reporte AX** abre el kardex completo (también lo *por confirmar*, con
+   *Confirmar…*, y lo que no está en el físico) para buscar cualquier código o descripción.
+5. **Por resolver → Justificar faltantes:** a cada faltante le asignas los vales que ya salieron y que AX aún no
+   descuenta (sin IN / TR), aunque sean de antes del reporte de AX. Se **sugieren** los que coinciden en código,
+   dimensión y cantidad (la combinación que cubre el faltante exacto, o lo más cerca sin pasarse): los apruebas uno por
+   uno o con *Asignar las N sugerencias*. *Elegir vales…* muestra todos los del código con su estado (sin IN / TR,
+   justifica otra, ya en AX, por ubicar) para asignarlos a mano; cada asignación tiene *Deshacer* y *Quitar*. Lo
+   asignado cuenta para ese faltante (folio `466 (S, asignado)`) y sale en la hoja *VALES POR APLICAR*.
+6. **Enviar a la base → Descargar solicitud:** un Excel con tres hojas: **LEYENDA** (qué significa cada color, (S) =
+   salida, (E) = entrada con el folio del vale de la base, y las marcas de los folios), la hoja del **reporte de AX**
+   igual que siempre más *Existencia física*, *Folios que justifican* y *Estado* (fila coloreada: verde cuadra, azul
+   explicada, amarillo sobrante, rojo faltante, gris por confirmar) y **VALES POR APLICAR** (las partidas que justifican
+   diferencias y que la base aún no aplica, para que las registre como consumo o transferencia).
 Las cantidades del inventario no cambian: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
 
-**Vales en la base (qué ya está en AX).** Siguiendo con el banco: el archivo de vales que lleva la base es como la
-lista de cheques que el banco ya cobró. *Importar vales de la base* → elige el `VALES DE SALIDA DELTA RIG91.xlsm` que
+**Consumos de la base (qué ya está en AX).** Siguiendo con el banco: el archivo de vales que lleva la base es como la
+lista de cheques que el banco ya cobró. *Importar consumos de la base* → elige el `VALES DE SALIDA DELTA RIG91.xlsm` que
 te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; uno nuevo reemplaza al anterior). Desde ahí:
 - Las partidas con folio **IN / TR** ya están en AX (la *CANTIDAD* de la base es lo aplicado; vacía = todo).
 - Las que **no tienen IN / TR** (INV sin folio, sin revisar, que la base no tiene o posteriores a su archivo) cuentan como
@@ -173,7 +185,7 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 - **NO INV, CONPROV, SIN EXISTENCIA** no se descuentan en AX: no justifican diferencias.
 - La fecha que importa es la del **reporte de AX**: lo posterior siempre está en tránsito. Pide el archivo de la base con
   todos los vales hasta esa fecha; si le faltan vales que ya aplicó, cuentan como sin IN / TR.
-- El mosaico *Vales en la base* muestra cuántas partidas no tienen IN / TR y abre los **avisos de diferencias** (la base
+- El bloque *Consumos de la base* muestra cuántas partidas no tienen IN / TR y abre los **avisos de diferencias** (la base
   anotó otra clave u otra cantidad, una partida que el vale no tiene o le falta una del vale).
 - En el **Historial** aparece la columna *AX* y el filtro **Revisar** (sin IN / TR, ya en AX, no se descuentan, con
   aviso, **duplicadas en el vale**). En el detalle de un vale, la columna *AX (base)*.

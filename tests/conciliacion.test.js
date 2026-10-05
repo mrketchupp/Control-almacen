@@ -224,7 +224,8 @@ test("cada diferencia muestra los folios que la explican o queda como sobrante /
   b.lineas = [{ ...en.conRenglonExistente(estado, en.lineaEntradaVacia(), balero.id), cantidad: "2" }];
   en.confirmarEntrada(estado, b.id, { usuario: USUARIO });
   const conEntrada = renglonDe(c.conciliar(estado, corte), 701, "6205-2Z");
-  assert.deepEqual([conEntrada.estado, conEntrada.entradas.toFixed(), conEntrada.folios], ["explicada", "2", ["E-0001 (E)"]]);
+  // La base reconoce la entrada por el folio de su vale (B-1), no por el interno (E-0001).
+  assert.deepEqual([conEntrada.estado, conEntrada.entradas.toFixed(), conEntrada.folios], ["explicada", "2", ["B-1 (E)"]]);
 });
 
 test("solicitud de ajuste: las columnas del reporte AX + existencia física + folios + estado con color; lo físico sin AX al final", () => {

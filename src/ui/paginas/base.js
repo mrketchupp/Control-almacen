@@ -43,7 +43,7 @@ export function PastillaAx({ info }) {
 }
 
 /** Botón para importar el archivo de la base (abre la vista previa). */
-export function ImportarBase({ tipo = "secundario", etiqueta = "Importar vales de la base" }) {
+export function ImportarBase({ tipo = "secundario", etiqueta = "Importar consumos de la base" }) {
   const sesion = useSesion();
   const [previa, setPrevia] = useState(null);
   const abrir = (archivo) =>
@@ -80,7 +80,7 @@ function VentanaImportarBase({ previa, alCerrar }) {
         else throw error;
       }
     });
-  return html`<${Ventana} titulo="Importar vales de la base" alCerrar=${alCerrar}>
+  return html`<${Ventana} titulo="Importar consumos de la base" alCerrar=${alCerrar}>
     <p>
       <strong>${previa.nombre}</strong> · hoja <code>${leido.hoja}</code> · ${leido.partidas.length} partidas hasta el folio ${leido.ultimoFolio}
       ${leido.guardado ? html`<br /><span class="nota">Excel lo guardó el ${fmtFechaHora(leido.guardado)}.</span>` : null}
@@ -118,9 +118,9 @@ export function MosaicoBase({ r, alAbrir }) {
     return html`<section class="bento-celda mosaico-base-vacio">
       <header class="bento-cabeza">
         <span class="cabeza-icono"><${Icono} nombre="historial" tam=${18} /></span>
-        <h2>Vales en la base</h2>
+        <h2>Consumos de la base</h2>
       </header>
-      <p class="nota">Importa el archivo de vales de la base (con INV/NINV, TR e IN) para saber qué vales ya están en AX. Sin él, el tránsito se toma solo por la fecha del corte.</p>
+      <p class="nota">Importa el archivo de vales que lleva la base (con INV/NINV, TR e IN) para saber qué vales ya consumió o transfirió en AX y cuáles faltan. Sin él, el tránsito se toma solo por la fecha del corte.</p>
       <${ImportarBase} />
     </section>`;
   }
@@ -128,7 +128,7 @@ export function MosaicoBase({ r, alAbrir }) {
   return html`<button type="button" class="bento-celda mosaico" onClick=${alAbrir}>
     <span class="bento-cabeza">
       <span class="cabeza-icono"><${Icono} nombre="historial" tam=${18} /></span>
-      <span class="mosaico-titulo">Vales en la base</span>
+      <span class="mosaico-titulo">Consumos de la base</span>
       <span class="mosaico-abrir" aria-hidden="true">Ver ›</span>
     </span>
     <span class="dato-grande">${resumen.sin_aplicar}</span>
@@ -173,7 +173,7 @@ export function VentanaBase({ r, alCerrar }) {
   };
   const cuantas = { avisos: avisos.length, sin_folio: sinFolio.length, no_inv: noInv.length };
   const opciones = Object.fromEntries(Object.entries(VISTAS_BASE).map(([k, v]) => [k, `${v} (${cuantas[k]})`]));
-  return html`<${Ventana} titulo="Vales en la base" clase="ventana-concilia" alCerrar=${alCerrar}>
+  return html`<${Ventana} titulo="Consumos de la base" clase="ventana-concilia" alCerrar=${alCerrar}>
     <p class="nota">
       Las salidas <strong>sin folio IN / TR</strong> cuentan como tránsito en la conciliación aunque el vale sea anterior al corte (AX aún
       no las descuenta); las que tienen folio ya están en AX y no justifican diferencias, igual que las NO INV / CONPROV. Lo posterior

@@ -206,6 +206,12 @@ y su fecha no importa: `guardado` (cuándo lo guardó Excel, de `docProps/core.x
 la Ronda 12 pueden traer `fecha`; se ignora. Los textos de la base (INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN)
 se guardan como vienen. El estado en AX de cada partida **no se guarda**: se calcula (`estadoAxDeVales`).
 
+**Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
+cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
+vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese
+destino sea cual sea su fecha (marca `asignado`); si la variante se juntó con otra, sigue `unida_a`. Las cantidades y los
+vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriores.
+
 ### Operación
 
 | Tabla | Campos |

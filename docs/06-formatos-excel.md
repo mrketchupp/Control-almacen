@@ -145,9 +145,16 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 
 ## E. Solicitud de ajuste (exportación, archivo nuevo)
 
+- **Hojas (Ronda 14):** `LEYENDA` (primera, la que abre), la hoja del reporte de AX (igual que siempre: encabezados en la
+  fila 1, sin filas agregadas arriba) y `VALES POR APLICAR`.
+- **LEYENDA:** título con la fecha del corte y el almacén; la muestra de cada color con su estado y qué significa; cómo leer
+  *Folios que justifican*: **(S) = salida**, **(E) = entrada** (con el folio del vale de la base) y las marcas
+  `(S, sin IN/TR)`, `(S, 2 sin IN/TR)`, `(S, asignado)` y `POR CONFIRMAR`.
 - Hoja con el mismo nombre y las **mismas 10 columnas** del reporte AX (A–J, mismos encabezados y formatos), más:
   - **K = Existencia física:** `TOTAL` sumado de todas las ubicaciones de la variante.
-  - **L = Folios que justifican:** folios de vales en tránsito relacionados, separados por coma. Por ejemplo `545, 551 (S) · E-0003 (E)`.
+  - **L = Folios que justifican:** folios de vales en tránsito relacionados, separados por coma. Por ejemplo
+    `545 (S), 551 (S, sin IN/TR), 12345 (E)`. Las entradas llevan el **folio del vale de la base** (`folio_externo`, con el
+    que la base reconoce ese material), no el interno `E-0001`. `(S, asignado)` = vale asignado a mano a ese faltante.
   - **M = Estado:** *Cuadra*, *Explicada por vales*, *Sobrante*, *Faltante* o *Por confirmar*.
 - **Color de la fila según el estado:** verde `C6EFCE` (cuadra), azul `DDEBF7` (explicada por vales), amarillo
   `FFEB9C` (sobrante), rojo `FFC7CE` (faltante), gris `E7E6E6` (por confirmar).
@@ -155,6 +162,11 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 - Si varios renglones de AX son la misma variante, la existencia física va en el primero (los demás, 0). Los renglones aún
   sin confirmar salen con `Existencia física` vacía y `POR CONFIRMAR` en folios.
 - Los artículos físicos sin renglón en AX van al final: columnas AX llenas con código, nombre, UM, almacén y la dimensión completa en `Tamaño` (`Color` vacío: AX no trae NP); `Disponible = 0`; valores en blanco.
+- **VALES POR APLICAR:** las partidas de salida que justifican las diferencias de la solicitud y que la base aún no aplica
+  en AX (sin IN / TR, asignadas por el almacén o posteriores al reporte sin folio; nunca lo que ya tiene IN / TR salvo que se
+  haya asignado a mano). Columnas: Folio, Fecha, Tipo de mov. (el de la base o la naturaleza del vale), Área, Código de
+  Artículo (texto con ceros), Descripción, Clave, Cantidad por aplicar (de una aplicación parcial, lo que falta), U.M.,
+  Justifica en AX (Tamaño + Color), Estado en la solicitud (con su color), Cómo se identificó y En el archivo de la base.
 - **Nombre de archivo:** `SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`.
 
 ## F. Vale de la base en Excel (importación opcional, RF-35)
