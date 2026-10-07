@@ -87,10 +87,10 @@ LibreOffice recalcula las 1,258 fórmulas del inventario sin errores. Especifica
 | Qué | Dónde |
 |---|---|
 | Programa | `ControlAlmacen.html`: un archivo que se abre en Edge (o la misma página publicada en un sitio estático). No se instala. |
-| Datos de trabajo (estado) | IndexedDB de Edge, base `control-almacen`, almacén `estado`. Por equipo, por cuenta de Windows y por origen de la página (P-01: ambos almacenistas comparten cuenta y equipo). |
+| Datos de trabajo (estado) | IndexedDB de Edge, **una base por inventario**: `control-almacen` (DLTA, la de siempre) y `control-almacen-gsm` (GSM); almacén `estado`. Por equipo, por cuenta de Windows y por origen de la página (P-01: ambos almacenistas comparten cuenta y equipo). |
 | Plantillas de Excel | IndexedDB, almacén `archivos` (bytes originales + SHA-256) |
 | Copias internas | IndexedDB, almacén `instantaneas`: una al inicio de cada día y antes de restaurar (últimas 10) |
-| Respaldos | `<carpeta elegida>\respaldos\almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip` |
+| Respaldos | `<carpeta elegida>\respaldos\almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip` (GSM: `almacen_GSM_…`) |
 | Exportaciones | `<carpeta elegida>\exportaciones\AAAA-MM-DD\` |
 | Lista de revisión | `<carpeta elegida>\revision\` |
 
@@ -103,12 +103,20 @@ LibreOffice recalcula las 1,258 fórmulas del inventario sin errores. Especifica
 exportación, antes de restaurar o borrar, y manual. Retención en la carpeta: último de cada uno de los últimos 30 días
 y de los últimos 12 meses.
 
-**Restauración:** valida el respaldo (formato, folios únicos, plantillas completas), guarda una copia interna del
-estado actual y reemplaza todo en una sola transacción de IndexedDB.
+**Restauración:** valida el respaldo (formato, folios únicos, plantillas completas, **que sea del inventario abierto**),
+guarda una copia interna del estado actual y reemplaza todo en una sola transacción de IndexedDB.
+
+**Dos inventarios (Ronda 17):** DLTA y GSM usan el mismo formato de archivos pero van **por separado**: cada uno tiene su
+base de IndexedDB (estado, plantillas, ajustes —carpeta, último respaldo— y copias internas), sus folios, respaldos y
+conciliación. `src/nucleo/inventarios.js` los define (base, prefijo de respaldos, almacén de AX propuesto, palabras que
+los identifican en un nombre de archivo). `main.js` abre el último usado (recordado en `localStorage` solo para el
+arranque; si no se puede leer, DLTA) y cambia de uno a otro **en la misma pestaña** (sin recargar: crea otro `Almacen` y
+otra `Sesion` y vuelve a dibujar la app con otra `key`). El candado de pestaña única es uno solo. `estado.config.inventario`
+dice de cuál es cada estado: un respaldo de uno no se restaura en el otro, y la primera carga no acepta datos ajenos.
 
 ## Consistencia (el equivalente a las transacciones de SQLite)
 
-- **Una sola pestaña a la vez:** candado del navegador (Web Locks). La segunda pestaña muestra un aviso y no carga.
+- **Una sola pestaña a la vez:** candado del navegador (Web Locks). La segunda pestaña muestra un aviso y no carga. DLTA y GSM se cambian dentro de esa misma pestaña.
 - **Cada cambio es atómico:** se aplica a una copia del estado; solo si se guardó bien en IndexedDB pasa a ser el estado vigente. Los cambios se atienden en fila, uno por uno.
 - **Folios (F2):** se asignan dentro de ese mismo mecanismo (candado + cambio atómico): siempre el último + 1, validando que no exista para su tipo. Todos se usan: no se reutilizan, no se borran, no se cancelan ni se saltan; un vale equivocado se corrige con motivo y bitácora.
 

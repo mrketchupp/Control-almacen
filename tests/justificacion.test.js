@@ -147,5 +147,5 @@ test("formato 8: los cortes anteriores se migran con la lista de asignaciones va
   delete corte.asignaciones;
   estado.formato = 7;
   migrarEstado(estado);
-  assert.deepEqual([estado.formato, estado.cortes_ax[0].asignaciones], [8, []]);
+  assert.deepEqual([estado.formato, estado.cortes_ax[0].asignaciones], [9, []]);
 });

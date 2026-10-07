@@ -6,13 +6,8 @@
 import { esInterna, etapaDe, normalizarArea } from "../nucleo/areas.js";
 import { hayInterseccion, clavesDeBusqueda, clavesPropias } from "../nucleo/catalogo.js";
 import { CERO, decTexto } from "../nucleo/decimal.js";
-import {
-  ALMACEN_AX_DEFECTO,
-  Indices,
-  auditar,
-  estadoVacio,
-  siguienteId,
-} from "../nucleo/estado.js";
+import { Indices, auditar, estadoVacio, siguienteId } from "../nucleo/estado.js";
+import { inventarioPorId } from "../nucleo/inventarios.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, isoDesdePartes } from "../nucleo/fechas.js";
 import { sumaCantidad, sumaTotal } from "../importadores/inventario.js";
@@ -27,13 +22,14 @@ export class BaseNoVacia extends Error {}
  *
  * @param inventario  resultado de leerInventario
  * @param vales       resultado de leerVales
- * @param opciones    { folioCorte, fechaConteo, usuario, respuestas }
+ * @param opciones    { folioCorte, fechaConteo, usuario, respuestas, idInventario (DLTA o GSM) }
  * @returns {{ estado, reporte }}
  */
 export function ejecutarPrimeraCarga(inventario, vales, opciones) {
   const { folioCorte, fechaConteo, usuario = null } = opciones;
   const respuestas = opciones.respuestas || respuestasVacias();
-  const estado = estadoVacio();
+  const de = inventarioPorId(opciones.idInventario);
+  const estado = estadoVacio(de.id);
   const indices = new Indices(estado);
   const reporte = {
     articulos: 0,
@@ -70,12 +66,13 @@ export function ejecutarPrimeraCarga(inventario, vales, opciones) {
   cargarPlantillas(estado, indices, vales, respuestas, reporte);
   cargarDiario(estado, indices, vales, respuestas, { folioCorte, usuario }, reporte);
   verificar(estado, indices, inventario, reporte);
-  estado.config.almacen_ax = ALMACEN_AX_DEFECTO;
+  estado.config.almacen_ax = de.almacenAx;
   auditar(estado, {
     usuario,
     entidad: "sistema",
     accion: "PRIMERA_CARGA",
     despues: {
+      de: de.id,
       inventario: inventario.nombre,
       vales: vales.nombre,
       folio_corte: folioCorte,

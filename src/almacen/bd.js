@@ -1,4 +1,5 @@
 // Dónde viven los datos: IndexedDB del navegador, en ESTE equipo. Nada sale a internet.
+// Una base por inventario: "control-almacen" (DLTA, la de siempre) y "control-almacen-gsm" (GSM).
 //
 // Almacenes:
 //   estado        'actual' → el estado completo (un solo objeto)
@@ -44,6 +45,12 @@ export class BackendIndexedDB {
     this.bd = await promesa(peticion);
     this.bd.onversionchange = () => this.bd.close();
     return this.bd;
+  }
+
+  /** Suelta la conexión (al cambiar de inventario). */
+  cerrar() {
+    this.bd?.close();
+    this.bd = null;
   }
 
   async _leer(almacen, clave) {
@@ -142,6 +149,8 @@ export class BackendMemoria {
     this.ajustes = new Map();
     this.instantaneas = [];
   }
+
+  cerrar() {}
 
   async leerEstado() {
     return this.estado ? structuredClone(this.estado) : null;

@@ -104,6 +104,13 @@ function areaImpresion(libro, nombreHoja) {
   return null;
 }
 
+/** Huella corta de una imagen (FNV-1a + tamaño): la misma imagen en varias hojas tiene la misma. */
+export function huellaImagen(bytes) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) h = Math.imul(h ^ bytes[i], 0x01000193) >>> 0;
+  return `${h.toString(16).padStart(8, "0")}-${bytes.length}`;
+}
+
 function leerImagenes(libro, parteHoja) {
   const rel = libro.relaciones(parteHoja).find((r) => r.tipo === TIPO_DIBUJO);
   if (!rel || !libro.existe(rel.destino)) return [];
@@ -128,11 +135,13 @@ function leerImagenes(libro, parteHoja) {
     if (!desde) continue;
     const hasta = m[1] === "twoCellAnchor" ? punto(cuerpo, "to") : null;
     const ext = /<xdr:ext\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/.exec(cuerpo) || /<a:ext\b[^>]*cx="(\d+)"[^>]*cy="(\d+)"/.exec(cuerpo);
+    const bytes = libro.bytes(ruta);
     imagenes.push({
       desde,
       hasta,
       tamano: ext ? { ancho: Number(ext[1]) / EMU_POR_PX, alto: Number(ext[2]) / EMU_POR_PX } : null,
-      src: `data:${MIME[extension]};base64,${base64(libro.bytes(ruta))}`,
+      src: `data:${MIME[extension]};base64,${base64(bytes)}`,
+      huella: huellaImagen(bytes),
     });
   }
   return imagenes;
@@ -285,7 +294,7 @@ export function analizarFormulario(fuente, nombreHoja) {
     const anchoTotal = columnasVisibles.reduce((s, c) => s + c.px, 0);
     const altoTotal = filasVisibles.reduce((s, f) => s + f.px, 0);
     if (x + ancho <= 0 || y + alto <= 0 || x >= anchoTotal || y >= altoTotal) continue; // fuera del área
-    modelo.imagenes.push({ x, y, ancho, alto, src: img.src });
+    modelo.imagenes.push({ x, y, ancho, alto, src: img.src, huella: img.huella });
   }
 
   modelo.campos = localizarCampos(modelo);

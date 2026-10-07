@@ -129,7 +129,7 @@ Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se gene
 - E–H: de dónde viene y `RIG 91 · ALMACEN`; P = quien entregó (base), Q = almacenista que recibió; R = `0`.
 - **U = Folio interno** `E-0001`. Encabezado con filtro y panel congelado; fechas con formato `dd/mm/yyyy`.
 - **O (C.U) = LOTE = quien solicita** el material (como lo anota la base en sus vales), no el NP del inventario.
-- **Nombre de archivo:** `VALES DE ENTRADA DLTA.xlsx` (*Exportar y enviar → Vales de entrada*).
+- **Nombre de archivo:** `VALES DE ENTRADA DLTA.xlsx` (en GSM, `VALES DE ENTRADA GSM.xlsx`) (*Exportar y enviar → Vales de entrada*).
 
 **En el inventario exportado**, los renglones que crea la herramienta (entradas de una variante o contenedor nuevos,
 material encontrado en un conteo, reacomodos) van **al final de la tabla de su hoja**, con el estilo del renglón modelo
@@ -140,7 +140,8 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 ## D. Reporte AX (importación)
 
 - Se busca la fila de encabezados que contenga `Código de Artículo` (normalmente la fila 1). Las columnas se leen por nombre.
-- Se filtra `Almacén = RIG91-IX25` (configurable). Si el archivo ya viene filtrado, no pasa nada.
+- Se filtra `Almacén = RIG91-IX25` en DLTA (configurable; en GSM se propone el primero del reporte y se recuerda el
+  elegido). Si el archivo ya viene filtrado, no pasa nada.
 - Solo se concilian las partidas con `Modelo de Inventario = INV` (si el reporte no trae esa columna, todas); la vista
   previa dice cuántas de otros modelos se omiten.
 - `Código` → entero. `Tamaño`, `Color`, `Unidad de Medida` → texto sin espacios sobrantes.
@@ -172,7 +173,8 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
   haya asignado a mano). Columnas: Folio, Fecha, Tipo de mov. (el de la base o la naturaleza del vale), Área, Código de
   Artículo (texto con ceros), Descripción, Clave, Cantidad por aplicar (de una aplicación parcial, lo que falta), U.M.,
   Justifica en AX (Tamaño + Color), Estado en la solicitud (con su color), Cómo se identificó y En el archivo de la base.
-- **Nombre de archivo:** `SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`.
+- **Nombre de archivo:** `SOLICITUD DE AJUSTE RIG 91 <inventario> DDMMAA.xlsx` (`… DLTA 270926.xlsx`, `… GSM 270926.xlsx`;
+  Ronda 17). La LEYENDA dice el inventario en el título.
 
 ## F. Vale de la base en Excel (importación opcional, RF-35)
 

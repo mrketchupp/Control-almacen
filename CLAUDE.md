@@ -8,8 +8,10 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 2 (vales de salida) **aceptada** (P-09 validado impreso, P-22 así está bien, P-23 lo corrige el usuario).
 - Fase 3 (entradas, conteos, reacomodos) **entregada**; el usuario dio luz verde para F4 tras las rondas 5–8 — ver "Avance de la Fase 3" abajo.
 - Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 15 de comentarios aplicadas (ver abajo).
+- Ronda 17: **dos inventarios, DLTA y GSM, por separado** — ver "Dos inventarios" abajo.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 8` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes).
+- Formato del estado: `FORMATO_ESTADO = 9` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
+`config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -81,8 +83,28 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   `nucleo/normalizar.js`. Fixture: 711 (sin dimensión + MOD:A1) y 714 (todo el código).
 - Ronda 16 (no es de F4): **inventario diario** — `calcularSaldos(estado, ids, { dia })` pasa los vales de días anteriores a
   la CANTIDAD (`saldo.conteo` = lo contado); lo usan `filasInventario(estado, { dia = hoy })` y `exportarInventario(…, { fecha })`.
+- Ronda 17 (no es de F4): ver "Dos inventarios".
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja;
 ☐ que el usuario importe un archivo de la base con todos los vales hasta la fecha del reporte de AX.
+
+## Dos inventarios (Ronda 17)
+- `src/nucleo/inventarios.js`: `INVENTARIOS` (DLTA: base `control-almacen`, respaldos `almacen_…`, AX `RIG91-IX25`;
+  GSM: base `control-almacen-gsm`, respaldos `almacen_GSM_…`, AX sin propuesta), `inventarioPorId`, `inventarioDe(estado)`,
+  `inventarioDelNombre` / `deOtroInventario` (palabras DLTA/DELTA/GSM en el nombre del archivo), `otrosInventarios`.
+- **Cada inventario es un estado aparte en su propia base de IndexedDB** (estado, plantillas, ajustes, copias internas):
+  nunca se mezclan. `Almacen(backend, { inventario })`; `main.js` abre el último usado (`localStorage` solo para el
+  arranque) y cambia en la misma pestaña (`Sesion.cambiarInventario` → nueva `Sesion`, `render` con otra `key`).
+- Respaldos: `nombreRespaldo(…, inventario)`, `infoDeNombre(nombre, inventario)`, `respaldosABorrar(…, { inventario })`;
+  `revisarInventario(estado, actual)` rechaza restaurar uno del otro; `cargarPrimeraVez` rechaza datos ajenos.
+- Nombres: `nombreEntradas(inv)` = `VALES DE ENTRADA <inv>.xlsx`; `nombreSolicitud(fecha, inv)` =
+  `SOLICITUD DE AJUSTE RIG 91 <inv> DDMMAA.xlsx`; *Revision historial <inv> DDMMAA.xlsx*.
+- UI: `ui/inventario.js` (`SelectorInventario` en la cabecera, `seguirConArchivo` = confirmar si el nombre dice el otro);
+  `<html data-inventario>` y tokens `--inventario`, `--inventario-suave`, `--sobre-inventario` (GSM morado).
+- **Vale impreso por inventario** (*Ajustes*, `ui/paginas/valeImpreso.js`): se imprime con lo del libro de vales cargado;
+  `config.vale_impreso` solo corrige. `impresion/identidad.js` (`reemplazarTextos`, `identidadDe`, `imagenesConIdentidad`,
+  `encabezadoDelFormato`, `textosDelFormato`, `logosDelFormato`; huella de imagen `huellaImagen` en `formulario.js`) y
+  `servicios/valeImpreso.js` (`guardarTextosVale`, `fijarLogoVale`). Los reemplazos aplican a lo fijo del formato y al
+  encabezado/pie de página, **nunca** a lo capturado en el vale. Fixture: `MX DLTA ALM 1` / `CALLE FICTICIA 123` (inventados).
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.

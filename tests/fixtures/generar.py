@@ -576,6 +576,9 @@ def generar_vales(ruta: Path) -> Path:
         ws["I6"], ws["J6"] = "Fecha:", "=TODAY()"
         ws["J8"], ws["K8"] = "No. folio", 9
         ws["J10"], ws["J11"], ws["K11"] = "Entradas", "Salida Planta", "XXXXX"
+        # Encabezado fijo con el almacén y la dirección (inventados): en GSM se cambian al imprimir.
+        ws["C11"], ws["F12"] = "MX DLTA ALM 1", "ALMACEN:MX DLTA ALM 1"
+        ws["C12"] = "CALLE FICTICIA 123, COL. PRUEBA"
         ws["C17"], ws["E17"], ws["H17"], ws["I17"] = (
             "Origen: ",
             "RIG 91",

@@ -3,13 +3,15 @@
 
 import { FORMATO_ESTADO } from "../nucleo/estado.js";
 import { ahoraIso } from "../nucleo/fechas.js";
+import { INVENTARIO_DEFECTO, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
 import { bytesATexto, crearZip, descomprimirZip } from "../xlsx/zip.js";
 
 export const ARCHIVO_ESTADO = "estado.json";
 export const ARCHIVO_MANIFIESTO = "manifiesto.json";
 export const CARPETA_PLANTILLAS = "plantillas/";
 export const CARPETA_FOTOS = "fotos/";
-const PATRON = /^almacen_(\d{4}-\d{2}-\d{2})_(\d{2})(\d{2})(\d{2})(?:_(.+))?\.zip$/;
+// almacen_AAAA-MM-DD_HHMMSS_motivo.zip (DLTA) · almacen_GSM_AAAA-MM-DD_HHMMSS_motivo.zip (GSM)
+const patron = (inventario) => new RegExp(`^${inventarioPorId(inventario).respaldo}(\\d{4}-\\d{2}-\\d{2})_(\\d{2})(\\d{2})(\\d{2})(?:_(.+))?\\.zip$`);
 
 export class ErrorRespaldo extends Error {}
 
@@ -24,14 +26,15 @@ function limpiarMotivo(motivo) {
   );
 }
 
-/** almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip */
-export function nombreRespaldo(fechaHora, motivo) {
+/** almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip (en GSM, almacen_GSM_…). */
+export function nombreRespaldo(fechaHora, motivo, inventario = INVENTARIO_DEFECTO) {
   const [fecha, hora] = fechaHora.split("T");
-  return `almacen_${fecha}_${hora.replace(/:/g, "").slice(0, 6)}_${limpiarMotivo(motivo)}.zip`;
+  return `${inventarioPorId(inventario).respaldo}${fecha}_${hora.replace(/:/g, "").slice(0, 6)}_${limpiarMotivo(motivo)}.zip`;
 }
 
-export function infoDeNombre(nombre) {
-  const m = PATRON.exec(nombre);
+/** Fecha y motivo de un respaldo de ESE inventario por su nombre; null si no es suyo. */
+export function infoDeNombre(nombre, inventario = INVENTARIO_DEFECTO) {
+  const m = patron(inventario).exec(nombre);
   if (!m) return null;
   return { nombre, fecha_hora: `${m[1]}T${m[2]}:${m[3]}:${m[4]}`, fecha: m[1], motivo: m[5] || "" };
 }
@@ -42,8 +45,10 @@ export function infoDeNombre(nombre) {
  */
 export function crearRespaldo(estado, plantillas, { motivo = "manual", version = "", ahora = ahoraIso(), fotos = [] } = {}) {
   if (!estado) throw new ErrorRespaldo("No hay datos que respaldar.");
+  const inventario = inventarioDe(estado).id;
   const manifiesto = {
     aplicacion: "Control de Almacén RIG 91",
+    inventario,
     version_app: version,
     formato_estado: estado.formato,
     fecha_hora: ahora,
@@ -60,7 +65,7 @@ export function crearRespaldo(estado, plantillas, { motivo = "manual", version =
     // Las fotos ya son JPEG comprimido: el .zip solo las guarda.
     ...fotos.map((f) => [f.clave.startsWith(CARPETA_FOTOS) ? f.clave : `${CARPETA_FOTOS}${f.clave}`, f.datos]),
   ]);
-  return { nombre: nombreRespaldo(ahora, motivo), datos, fecha_hora: ahora };
+  return { nombre: nombreRespaldo(ahora, motivo, inventario), datos, fecha_hora: ahora };
 }
 
 /** Valida y abre un respaldo. @returns {{ estado, plantillas: [{archivo, datos}], manifiesto }} */
@@ -102,6 +107,19 @@ export function leerRespaldo(datos) {
   return { estado, plantillas, fotos, manifiesto };
 }
 
+/**
+ * Un respaldo solo se restaura en su inventario: uno de DLTA no entra en GSM ni al revés (los
+ * anteriores a GSM son de DLTA). @returns el inventario del respaldo
+ */
+export function revisarInventario(estado, actual) {
+  const de = inventarioDe(estado).id;
+  const aqui = inventarioPorId(actual).id;
+  if (de !== aqui) {
+    throw new ErrorRespaldo(`Ese respaldo es del inventario ${de} y estás en ${aqui}. Cámbiate a ${de} (arriba, junto al nombre de la herramienta) para restaurarlo.`);
+  }
+  return de;
+}
+
 export function validarEstado(estado) {
   const colecciones = ["variantes", "ubicaciones", "conteos", "existencias", "personas", "vales", "plantillas_excel"];
   if (!estado || typeof estado !== "object" || colecciones.some((c) => !Array.isArray(estado[c]))) {
@@ -121,11 +139,12 @@ export function validarEstado(estado) {
 
 /**
  * Conserva el último respaldo de cada uno de los últimos `diarios` días y de los últimos
- * `mensuales` meses. @returns nombres a borrar
+ * `mensuales` meses. Solo considera los del `inventario` (los del otro no se tocan).
+ * @returns nombres a borrar
  */
-export function respaldosABorrar(nombres, { diarios = 30, mensuales = 12 } = {}) {
+export function respaldosABorrar(nombres, { diarios = 30, mensuales = 12, inventario = INVENTARIO_DEFECTO } = {}) {
   const respaldos = nombres
-    .map(infoDeNombre)
+    .map((n) => infoDeNombre(n, inventario))
     .filter(Boolean)
     .sort((a, b) => (a.fecha_hora < b.fecha_hora ? 1 : a.fecha_hora > b.fecha_hora ? -1 : 0));
   const dias = new Map();

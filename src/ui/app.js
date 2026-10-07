@@ -4,6 +4,7 @@ import { agregarAlmacenista, almacenistas, fijarUsuarioEnTurno, lineasPorUbicar 
 import { Boton, ContextoSesion, Lista, Ventana, useSesion } from "./componentes.js";
 import { html } from "./html.js";
 import { Icono } from "./iconos.js";
+import { SelectorInventario } from "./inventario.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
 import { PaginaExportar } from "./paginas/exportar.js";
 import { PaginaHistorial } from "./paginas/historial.js";
@@ -42,7 +43,7 @@ const PAGINAS = {
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true, icono: "pendientes", soloConAviso: true },
   exportar: { titulo: "Exportar y enviar", componente: PaginaExportar, requiereDatos: true, grupo: "mas", icono: "exportar", detalle: "Libros de Excel y SharePoint" },
   areas: { titulo: "Áreas y personas", componente: PaginaAreas, requiereDatos: true, grupo: "mas", icono: "personas", detalle: "Plantillas del vale y personal" },
-  ajustes: { titulo: "Ajustes", componente: PaginaAjustes, requiereDatos: true, grupo: "mas", icono: "ajustes", detalle: "Captura y tu pantalla de vales" },
+  ajustes: { titulo: "Ajustes", componente: PaginaAjustes, requiereDatos: true, grupo: "mas", icono: "ajustes", detalle: "Captura, tu pantalla y el vale impreso" },
   respaldos: { titulo: "Respaldos", componente: PaginaRespaldos, grupo: "mas", icono: "respaldos", detalle: "Copias en tu carpeta de OneDrive" },
   ayuda: { titulo: "Ayuda", componente: PaginaAyuda, grupo: "mas", icono: "ayuda", detalle: "Preguntas y dónde quedan los datos" },
 };
@@ -168,7 +169,7 @@ function VistaMas({ seccion, enlaces, insignia, titulos, alCerrar }) {
       <span class="logo-mini" aria-hidden="true">▦</span>
       <span>
         <strong>Ajustes y más</strong>
-        <small>${sesion.usuario ? `En turno: ${sesion.usuario}` : "Nadie en turno"}</small>
+        <small>Inventario ${sesion.inventario.id} · ${sesion.usuario ? `En turno: ${sesion.usuario}` : "Nadie en turno"}</small>
       </span>
     </div>`}
   >
@@ -271,10 +272,13 @@ function Marco() {
   };
   return html`<div class="marco">
     <header class="cabecera">
-      <a class="marca" href="#inicio">
-        <span class="logo" aria-hidden="true">▦</span>
-        <span><strong>Control de Almacén</strong><small>RIG 91 · datos en este equipo</small></span>
-      </a>
+      <div class="cabecera-izquierda">
+        <a class="marca" href="#inicio">
+          <span class="logo" aria-hidden="true">▦</span>
+          <span><strong>Control de Almacén</strong><small>RIG 91 · datos en este equipo</small></span>
+        </a>
+        <${SelectorInventario} />
+      </div>
       <div class="cabecera-derecha">
         <${EstadoGuardado} />
         <${SelectorUsuario} />

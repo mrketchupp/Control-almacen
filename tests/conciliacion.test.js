@@ -233,8 +233,9 @@ test("solicitud de ajuste: las columnas del reporte AX + existencia física + fo
   const { estado, corte } = conCorte();
   confirmarTodo(estado, corte);
   const { datos, nombre, renglones } = exportarSolicitudAjuste(estado, corte);
-  assert.equal(nombre, "SOLICITUD DE AJUSTE RIG 91 050926.xlsx");
-  assert.equal(nombreSolicitud("2026-09-27"), "SOLICITUD DE AJUSTE RIG 91 270926.xlsx");
+  assert.equal(nombre, "SOLICITUD DE AJUSTE RIG 91 DLTA 050926.xlsx");
+  assert.equal(nombreSolicitud("2026-09-27"), "SOLICITUD DE AJUSTE RIG 91 DLTA 270926.xlsx");
+  assert.equal(nombreSolicitud("2026-09-27", "GSM"), "SOLICITUD DE AJUSTE RIG 91 GSM 270926.xlsx");
   const hoja = new LibroLeido(datos).hoja("rptInventSumDateTransForDimensi");
   assert.deepEqual(hoja.fila(1, 1, 13), [
     "Código de Artículo", "Nombre del Artículo", "Modelo de Inventario", "Unidad de Medida", "Almacén", "Tamaño", "Color",

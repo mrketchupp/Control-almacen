@@ -6,6 +6,7 @@
 
 import { esInterna, etapaDe, normalizarArea, tieneDatosFijos } from "./areas.js";
 import { ahoraIso } from "./fechas.js";
+import { INVENTARIO_DEFECTO, inventarioPorId } from "./inventarios.js";
 import { claveEstricta } from "./normalizar.js";
 
 // Formato 2 (Fase 2): borradores de vales y envíos a la base.
@@ -14,10 +15,11 @@ import { claveEstricta } from "./normalizar.js";
 // firmas (NOV) y fotos de los vales.
 // Formato 5 (Fase 3): vales de entrada en borrador, conteo en curso y reacomodos entre
 // contenedores. Cada conteo guarda su alcance y sus renglones contados.
-export const FORMATO_ESTADO = 8;
+// Formato 9: dos inventarios (DLTA y GSM), cada uno con su estado; `config.inventario` dice de cuál es.
+export const FORMATO_ESTADO = 9;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
-export function estadoVacio() {
+export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
   return {
     formato: FORMATO_ESTADO,
     creado_en: ahoraIso(),
@@ -42,7 +44,7 @@ export function estadoVacio() {
     cortes_ax: [], // reportes de inventario de AX importados (conciliación)
     equivalencias_ax: {}, // renglón de AX (código|tamaño|color) → variante, confirmado por el usuario
     seguimientos_base: [], // archivos de vales de la base (qué partidas ya aplicó en AX, con IN / TR)
-    config: {},
+    config: { inventario: inventarioPorId(inventario).id }, // DLTA o GSM: nunca se mezclan
   };
 }
 
@@ -110,6 +112,12 @@ export function migrarEstado(estado) {
     // Vales asignados a mano (o por sugerencia aprobada) para justificar faltantes de cada corte de AX.
     for (const corte of estado.cortes_ax ?? []) corte.asignaciones ??= [];
     estado.formato = 8;
+  }
+  if (estado.formato < 9) {
+    // Antes solo había un inventario: el de DLTA.
+    estado.config ??= {};
+    estado.config.inventario ??= INVENTARIO_DEFECTO;
+    estado.formato = 9;
   }
   return estado;
 }

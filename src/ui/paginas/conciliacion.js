@@ -28,6 +28,7 @@ import { COLORES_ESTADO, filasSolicitud, valesPorAplicar } from "../../exportado
 import { sugerencias as sugerenciasDeVales } from "../../servicios/justificacion.js";
 import { Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { seguirConArchivo } from "../inventario.js";
 import { Icono } from "../iconos.js";
 import { ImportarBase, MosaicoBase, VentanaBase } from "./base.js";
 import { EditorClave, escrituraClave, useCorreccion } from "./clave.js";
@@ -624,6 +625,7 @@ export function PaginaConciliacion() {
   const sugerencias = useMemo(() => (r ? sugerenciasDeVales(estado, r) : new Map()), [estado, r]);
 
   const abrir = (archivo) =>
+    seguirConArchivo(sesion, archivo.name) &&
     sesion.tarea("Leyendo el reporte de AX…", async () => {
       try {
         const datos = await leerArchivoSubido(archivo);
@@ -676,8 +678,8 @@ export function PaginaConciliacion() {
     return html`<${Tarjeta} titulo="Concilia el inventario contra AX" clase="tarjeta-inicio-vales">
         <p>
           Funciona como conciliar el banco: <strong>AX</strong> es el estado de cuenta, el <strong>inventario</strong> es tu chequera y
-          los <strong>vales posteriores al corte</strong> son los cheques en tránsito. Importa el reporte de inventario de AX que manda
-          la base (<code>DELTA RIG 91 &lt;fecha&gt;.xlsx</code>, completo o ya filtrado): la herramienta compara las partidas con modelo
+          los <strong>vales posteriores al corte</strong> son los cheques en tránsito. Importa el reporte de inventario de AX de
+          ${sesion.inventario.id} que manda la base (${sesion.inventario.reporteAx ? html`<code>${sesion.inventario.reporteAx}</code>, ` : ""}completo o ya filtrado): la herramienta compara las partidas con modelo
           <strong>INV</strong>, te pide confirmar solo las que se escriben distinto (y corrige el inventario) y te dice qué diferencias
           explican los vales.
         </p>

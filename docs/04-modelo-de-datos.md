@@ -206,6 +206,15 @@ y su fecha no importa: `guardado` (cuándo lo guardó Excel, de `docProps/core.x
 la Ronda 12 pueden traer `fecha`; se ignora. Los textos de la base (INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN)
 se guardan como vienen. El estado en AX de cada partida **no se guarda**: se calcula (`estadoAxDeVales`).
 
+**Dos inventarios (formato 9, Ronda 17):** `config.inventario` = `DLTA` | `GSM` (los estados anteriores se migran como
+DLTA). Cada inventario es un estado aparte, en su propia base de IndexedDB; nunca se mezclan. `config.almacen_ax` se
+propone por inventario (DLTA `RIG91-IX25`; GSM ninguno: el primero del reporte, y se recuerda el elegido).
+`config.vale_impreso = { textos: [{ buscar, poner }], logos: { <huella de la imagen>: { src, nombre, guardado_en } |
+{ quitar: true } } }` (opcional): lo que se cambia **al imprimir** sobre la hoja-formulario (textos fijos y logos del
+formato), por ejemplo el nombre del almacén y la dirección de DLTA en el vale de GSM. Los textos se reemplazan sin
+importar mayúsculas ni espacios de más y nunca tocan lo capturado en el vale; el logo nuevo va como `data:` URL (≤ 300 KB)
+para que viaje en los respaldos. Ver `src/impresion/identidad.js` y `src/servicios/valeImpreso.js`.
+
 **Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
 cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
 vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese
@@ -224,7 +233,7 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **5**). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **9**; del 6 al 9 se describen arriba en *Conciliación* y *Dos inventarios*). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario

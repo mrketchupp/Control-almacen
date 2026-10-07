@@ -42,7 +42,6 @@
     --primario-hover: #8bb7f0;
     --primario-suave: #1d3150;
     --sobre-primario: #0b1a2e;
-  --sobre-intenso: #12161c;
     --sobre-intenso: #12161c;
     --ok: #5cc98a;
     --ok-suave: #173526;
@@ -125,6 +124,36 @@ h3 {
   margin: 20px 0 8px;
 }
 
+/* ---------------------------------------------------------------- inventario (DLTA / GSM, ronda 17)
+   Cada inventario con su color: la franja de la cabecera, el logo y el selector dicen siempre en cuál
+   estás. DLTA conserva el azul de siempre. */
+
+:root {
+  --inventario: var(--primario);
+  --inventario-suave: var(--primario-suave);
+  --sobre-inventario: var(--sobre-primario);
+}
+
+:root[data-inventario="GSM"] {
+  --inventario: #6b3fa0;
+  --inventario-suave: #f1eafa;
+  --sobre-inventario: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-inventario="GSM"]:not([data-tema="claro"]) {
+    --inventario: #b99df0;
+    --inventario-suave: #2c2240;
+    --sobre-inventario: #1a1030;
+  }
+}
+
+:root[data-inventario="GSM"][data-tema="oscuro"] {
+  --inventario: #b99df0;
+  --inventario-suave: #2c2240;
+  --sobre-inventario: #1a1030;
+}
+
 /* ---------------------------------------------------------------- marco */
 
 .cabecera {
@@ -138,6 +167,56 @@ h3 {
   padding: 10px 20px;
   background: var(--superficie);
   border-bottom: 1px solid var(--borde);
+  box-shadow: inset 0 3px 0 var(--inventario);
+}
+
+.cabecera-izquierda {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.selector-inventario {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie-2);
+}
+
+.selector-inventario-etiqueta {
+  padding: 0 6px 0 5px;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+}
+
+.inventario-opcion {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background var(--dur-corta) ease, color var(--dur-corta) ease;
+}
+
+.inventario-opcion:hover {
+  background: var(--neutro-suave);
+  color: var(--texto);
+}
+
+.inventario-opcion.activo {
+  background: var(--inventario);
+  color: var(--sobre-inventario);
+  cursor: default;
 }
 
 .marca {
@@ -165,8 +244,8 @@ h3 {
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: var(--primario);
-  color: var(--sobre-primario);
+  background: var(--inventario);
+  color: var(--sobre-inventario);
   font-size: 20px;
 }
 
@@ -329,6 +408,10 @@ h3 {
 
   .cabecera {
     padding: 10px 16px;
+  }
+
+  .selector-inventario-etiqueta {
+    display: none;
   }
 }
 
@@ -2480,8 +2563,8 @@ select.con-error {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--primario);
-  color: var(--sobre-primario);
+  background: var(--inventario);
+  color: var(--sobre-inventario);
 }
 
 .menu-texto {
@@ -4968,4 +5051,344 @@ button.mosaico:hover .mosaico-abrir {
 /* Inventario (Ronda 16): explica la vista diaria, como el Excel del almacén. */
 .nota-inventario-dia {
   margin: -4px 0 10px;
+}
+
+/* ---------------------------------------------------------------- vale impreso por inventario (ronda 17)
+   Ajustes → logos y textos fijos del formato que cambian al imprimir (el Excel no cambia). */
+
+.vale-impreso {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 400px);
+  gap: 20px;
+  align-items: start;
+}
+
+.vale-impreso-editor {
+  min-width: 0;
+}
+
+.vale-impreso-editor h3:first-child {
+  margin-top: 4px;
+}
+
+.reglas-texto {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.regla-texto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.regla-campo {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+.regla-campo input {
+  width: 100%;
+  min-width: 0;
+}
+
+.regla-flecha {
+  padding-bottom: 7px;
+  color: var(--texto-suave);
+}
+
+.regla-veces {
+  min-width: 70px;
+  padding-bottom: 8px;
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.regla-sin {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.boton-quitar-regla {
+  width: 30px;
+  height: 30px;
+  margin-bottom: 2px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.boton-quitar-regla:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.sugeridos-texto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+}
+
+.chip-texto {
+  max-width: 100%;
+  padding: 2px 10px;
+  overflow: hidden;
+  border: 1px dashed var(--alerta);
+  border-radius: 999px;
+  background: var(--alerta-suave);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.textos-formato {
+  max-height: 280px;
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  list-style: none;
+}
+
+.textos-formato li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.textos-formato li:last-child {
+  border-bottom: 0;
+}
+
+.texto-formato {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.textos-formato small {
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.logos-formato {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.logo-formato {
+  padding: 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.logo-par {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.logo-par figure {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+/* Las imágenes van sobre blanco, como en el papel (también en tema oscuro). */
+.logo-marco {
+  display: grid;
+  place-items: center;
+  width: 180px;
+  max-width: 100%;
+  height: 70px;
+  padding: 4px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: #fff;
+  color: #5b6b7c;
+  font-size: 0.8rem;
+}
+
+.logo-marco img {
+  max-width: 100%;
+  max-height: 60px;
+  object-fit: contain;
+}
+
+.logo-vacio {
+  background: repeating-linear-gradient(45deg, #fff, #fff 6px, #eef1f5 6px, #eef1f5 12px);
+}
+
+.logo-par figcaption {
+  max-width: 180px;
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.vale-impreso-previa {
+  position: sticky;
+  top: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.vale-impreso-previa figcaption {
+  margin-bottom: 6px;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+}
+
+.previa-hoja {
+  max-height: 560px;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: #fff;
+}
+
+.previa-escala {
+  zoom: 0.48;
+}
+
+@media (max-width: 1100px) {
+  .vale-impreso {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vale-impreso-previa {
+    position: static;
+  }
+}
+
+@container (max-width: 820px) {
+  .vale-impreso {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vale-impreso-previa {
+    position: static;
+  }
+}
+
+@container (max-width: 520px) {
+  .regla-texto {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .regla-flecha {
+    display: none;
+  }
+}
+
+.vale-impreso-previa figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+
+@media (max-width: 640px) {
+  .marca small {
+    display: none;
+  }
+
+  .marca strong {
+    white-space: nowrap;
+  }
+}
+
+/* Encabezado del formato como viene en el archivo, con lo que se imprime (editable). */
+.textos-archivo {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.texto-archivo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.texto-cambiado {
+  border-color: var(--inventario);
+  background: var(--inventario-suave);
+}
+
+.texto-archivo-original {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.texto-archivo-original small {
+  width: 100%;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+}
+
+.texto-original {
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.texto-archivo-impreso {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.texto-archivo-impreso input {
+  flex: 1;
+  min-width: 0;
+}
+
+.barra-guardar-textos {
+  margin: 12px 0 4px;
+}
+
+@container (max-width: 620px) {
+  .texto-archivo {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

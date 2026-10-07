@@ -1,8 +1,11 @@
 // Punto de entrada: una sola pestaña a la vez, datos en IndexedDB de este equipo.
+// Dos inventarios (DLTA y GSM), cada uno con su propia base: se cambia de uno a otro en la
+// misma pestaña y se recuerda el último que se usó.
 
 import { render } from "preact";
 import { Almacen } from "./almacen/almacen.js";
 import { BackendIndexedDB } from "./almacen/bd.js";
+import { INVENTARIO_DEFECTO, inventarioPorId } from "./nucleo/inventarios.js";
 import { App } from "./ui/app.js";
 import { html } from "./ui/html.js";
 import { Sesion } from "./ui/sesion.js";
@@ -10,6 +13,7 @@ import { aplicarPersonalizacion, personalizacionRecordada } from "./ui/tema.js";
 
 const VERSION = typeof __VERSION__ === "undefined" ? "desarrollo" : __VERSION__;
 const raiz = document.getElementById("app");
+const CLAVE_INVENTARIO = "control-almacen:inventario";
 
 function pantalla(titulo, texto) {
   raiz.innerHTML = "";
@@ -27,17 +31,68 @@ function requisitos() {
   return faltan;
 }
 
+/** El último inventario abierto en este navegador (solo para el arranque; si no se puede leer, DLTA). */
+function inventarioRecordado() {
+  try {
+    return inventarioPorId(localStorage.getItem(CLAVE_INVENTARIO) ?? INVENTARIO_DEFECTO).id;
+  } catch {
+    return INVENTARIO_DEFECTO;
+  }
+}
+
+function recordarInventario(id) {
+  try {
+    localStorage.setItem(CLAVE_INVENTARIO, id);
+  } catch {
+    // sin almacenamiento local: la próxima vez abre DLTA
+  }
+}
+
+/** Marca la página con el inventario abierto (título de la pestaña y color de la cabecera). */
+function marcarInventario(id) {
+  document.title = `Control de Almacén · ${id}`;
+  document.documentElement.dataset.inventario = id;
+}
+
+let abierta = null; // la sesión del inventario abierto
+
+/** Abre un inventario con su propia base y dibuja la herramienta para él. */
+async function abrirInventario(id) {
+  const inventario = inventarioPorId(id);
+  const backend = new BackendIndexedDB(inventario.bd);
+  const almacen = new Almacen(backend, { version: VERSION, inventario: inventario.id });
+  const sesion = new Sesion(almacen, backend, { cambiarInventario });
+  try {
+    await sesion.iniciar();
+  } catch (error) {
+    backend.cerrar();
+    throw error;
+  }
+  const anterior = abierta;
+  abierta = sesion;
+  recordarInventario(inventario.id);
+  marcarInventario(inventario.id);
+  if (!anterior) raiz.innerHTML = ""; // quita el "Cargando…" del HTML
+  render(html`<${App} key=${inventario.id} sesion=${sesion} />`, raiz);
+  anterior?.backend.cerrar();
+  return sesion;
+}
+
+/** Cambia de inventario sin recargar: el otro se abre desde el inicio. */
+async function cambiarInventario(id) {
+  if (inventarioPorId(id).id === abierta?.almacen.inventario) return abierta;
+  if (location.hash && location.hash !== "#inicio") history.replaceState(null, "", "#inicio");
+  return abrirInventario(id);
+}
+
 async function arrancar() {
   const faltan = requisitos();
   if (faltan.length) {
     pantalla("Navegador no compatible", `Abre la herramienta en Microsoft Edge o Google Chrome actualizados. Falta: ${faltan.join(", ")}.`);
     return;
   }
-  const backend = new BackendIndexedDB();
-  const almacen = new Almacen(backend, { version: VERSION });
-  const sesion = new Sesion(almacen, backend);
   try {
-    await sesion.iniciar();
+    await abrirInventario(inventarioRecordado());
   } catch (error) {
     console.error(error);
     pantalla(
@@ -46,17 +101,15 @@ async function arrancar() {
     );
     return;
   }
-  raiz.innerHTML = "";
-  render(html`<${App} sesion=${sesion} />`, raiz);
   window.addEventListener("beforeunload", (e) => {
-    if (sesion.ocupado) {
+    if (abierta?.ocupado) {
       e.preventDefault();
       e.returnValue = "";
     }
   });
 }
 
-document.title = "Control de Almacén";
+marcarInventario(inventarioRecordado());
 aplicarPersonalizacion({ tema: "sistema", avisos: "arriba", animaciones: true, ...personalizacionRecordada() });
 document.documentElement.dataset.version = VERSION;
 

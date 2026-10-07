@@ -17,7 +17,8 @@
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
 | Exportar y enviar | Generar `VALES DE SALIDA DLTA.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **subir al SharePoint** y traer vales hechos en el Excel |
 | **Áreas y personas** | Editar las plantillas de cada área (interna, externa o transferencia) y las personas (almacenistas, puestos) |
-| **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida), **tu pantalla de vales** (orden de los datos y de qué lado van) y etapa de perforación actual |
+| **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida), **tu pantalla de vales** (orden de los datos y de qué lado van), **vale impreso** del inventario (textos y logos del formato) y etapa de perforación actual |
+| **Inventario DLTA / GSM** | Selector en la cabecera: cada inventario con sus datos por separado (vales, folios, inventario, respaldos, conciliación) |
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
 
 El menú de la izquierda tiene lo del día a día. **Exportar y enviar, Áreas y personas, Ajustes, Respaldos y Ayuda**
@@ -56,6 +57,10 @@ aplicación* de Edge no aparece con archivos locales; por eso se usa el acceso d
 **Diagnóstico opcional:** `herramientas/diagnostico-navegador.html` comprueba, sin conectarse a internet, que Edge puede
 leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 
+**Dos inventarios:** arriba, junto al nombre, eliges **DLTA** (azul) o **GSM** (morado). Cada uno tiene sus datos por
+separado; la primera vez GSM está vacío y se hace su *Primera carga* con los archivos de GSM. Al abrir, entra al último
+que usaste. Si el libro de vales de GSM trae los textos o el logo de DLTA, se corrigen en *Ajustes → Vale impreso de GSM*.
+
 ## 2. Carpeta de respaldos (una sola vez)
 
 1. En **Inicio** o **Respaldos**, pulsa **Elegir carpeta** y selecciona (o crea) `OneDrive\ControlAlmacen`.
@@ -63,6 +68,9 @@ leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 3. Ahí se crean `respaldos\`, `exportaciones\AAAA-MM-DD\` y `revision\`.
 
 En cada sesión nueva Edge vuelve a pedir el permiso: aparece un aviso amarillo arriba con el botón **Permitir** (un clic).
+
+Cada inventario elige su carpeta. Puede ser la misma (los respaldos de GSM se llaman `almacen_GSM_…` y no se mezclan),
+pero para tenerlo ordenado conviene una para cada uno, por ejemplo `OneDrive\ControlAlmacen\GSM`.
 
 | Qué | Dónde queda |
 |---|---|
@@ -209,7 +217,8 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 - **Respaldar ahora** crea uno en cualquier momento (o lo descarga si no hay carpeta).
 - **Cambiar de equipo o de navegador:** abre la herramienta allá, ve a **Respaldos → Restaurar desde un archivo…** y elige el `.zip` más reciente de OneDrive.
 - Antes de restaurar se guarda el estado actual (respaldo en la carpeta y copia interna), así que siempre puedes volver atrás.
-- **Zona de cuidado → Borrar todos los datos de este navegador:** deja la herramienta vacía (por ejemplo, después de una prueba). Antes crea un respaldo.
+- **Zona de cuidado → Borrar los datos de <inventario>:** deja vacío el inventario abierto (por ejemplo, después de una prueba); el otro no cambia. Antes crea un respaldo.
+- Un respaldo se restaura estando en su inventario: uno de DLTA no entra en GSM (la herramienta dice a cuál cambiarse).
 
 > ⚠️ Si alguien borra en Edge "Cookies y otros datos de sitios", se borran los datos de trabajo. Se recuperan restaurando el último respaldo.
 

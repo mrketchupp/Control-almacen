@@ -15,19 +15,24 @@ import {
   soportaCarpetas,
   soportaGuardarComo,
 } from "../almacen/archivos.js";
-import { infoDeNombre, respaldosABorrar } from "../almacen/respaldos.js";
+import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
+import { inventarioPorId } from "../nucleo/inventarios.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
 import { documentoHojaConteo } from "../impresion/conteo.js";
 import { documentoImpresion } from "../impresion/vale.js";
+import { identidadDe } from "../impresion/identidad.js";
+import { MAXIMO_LOGO } from "../servicios/valeImpreso.js";
 import { CAPACIDAD_DEFECTO, plantillaArea } from "../servicios/vales.js";
 import { LibroLeido } from "../xlsx/leer.js";
 
 export const CARPETA_RESPALDOS = "respaldos";
 
 export class Sesion {
-  constructor(almacen, backend) {
+  /** @param cambiarInventario  (id) => abre el otro inventario (DLTA / GSM) en esta misma pestaña */
+  constructor(almacen, backend, { cambiarInventario = null } = {}) {
     this.almacen = almacen;
     this.backend = backend;
+    this.cambiarInventario = cambiarInventario;
     this.carpeta = null;
     this.permiso = null;
     this.ultimoRespaldo = null;
@@ -46,6 +51,11 @@ export class Sesion {
 
   get usuario() {
     return usuarioEnTurno(this.estado);
+  }
+
+  /** El inventario abierto ({ id: "DLTA" | "GSM", … }). */
+  get inventario() {
+    return inventarioPorId(this.almacen.inventario);
   }
 
   get carpetaLista() {
@@ -205,7 +215,7 @@ export class Sesion {
   async aplicarRetencion() {
     try {
       const nombres = (await listarCarpeta(this.carpeta, CARPETA_RESPALDOS)).map((a) => a.nombre);
-      for (const nombre of respaldosABorrar(nombres)) await borrarDeCarpeta(this.carpeta, CARPETA_RESPALDOS, nombre);
+      for (const nombre of respaldosABorrar(nombres, { inventario: this.almacen.inventario })) await borrarDeCarpeta(this.carpeta, CARPETA_RESPALDOS, nombre);
     } catch (error) {
       console.warn("Retención de respaldos:", error);
     }
@@ -215,7 +225,7 @@ export class Sesion {
     if (!this.carpetaLista) return [];
     const archivos = await listarCarpeta(this.carpeta, CARPETA_RESPALDOS);
     return archivos
-      .map((a) => ({ ...a, info: infoDeNombre(a.nombre) }))
+      .map((a) => ({ ...a, info: infoDeNombre(a.nombre, this.almacen.inventario) }))
       .filter((a) => a.info)
       .sort((a, b) => (a.info.fecha_hora < b.info.fecha_hora ? 1 : -1));
   }
@@ -240,6 +250,8 @@ export class Sesion {
   }
 
   async restaurar(datos) {
+    // Antes de respaldar lo actual: que sea un respaldo válido y de este inventario.
+    revisarInventario(leerRespaldo(datos).estado, this.almacen.inventario);
     if (!this.almacen.vacio) await this.respaldar("antes-de-restaurar", { descargarSiNoHayCarpeta: false });
     const manifiesto = await this.almacen.restaurar(datos);
     await this.actualizarUso();
@@ -280,6 +292,60 @@ export class Sesion {
     const porDepto = estado.plantillas_area.find((p) => (p.depto_destino || "").trim().toUpperCase() === depto && hojas.includes(p.hoja_excel));
     if (porDepto) return porDepto.hoja_excel;
     return hojas.find((h) => h.trim().toUpperCase() === depto) ?? hojas[0];
+  }
+
+  /** Modelos de todas las hojas-formulario (para elegir logos y textos del vale impreso). */
+  async modelosFormato() {
+    const modelos = [];
+    for (const hoja of await this.hojasFormato()) modelos.push(await this.formulario(hoja));
+    return modelos;
+  }
+
+  /**
+   * Un vale para la vista previa: el último de salida emitido (o uno en blanco), en su hoja o en
+   * la `hoja` que se pida.
+   */
+  async muestraVale(hoja = null) {
+    const salidas = this.estado.vales.filter((v) => v.tipo !== "ENTRADA" && v.folio !== null && v.folio !== undefined);
+    const ultimo = salidas.reduce((a, v) => (!a || v.folio > a.folio ? v : a), null);
+    const vale = ultimo ?? { tipo: "SALIDA", folio: null, fecha: hoyIso(), lineas: [], observaciones: null };
+    const nombre = hoja ?? (await this.hojaParaVale(vale));
+    return { vale, hoja: nombre, modelo: await this.formulario(nombre) };
+  }
+
+  /** HTML y CSS de un vale de muestra con `identidad` (logos y textos aún sin guardar). */
+  async documentoMuestra(identidad, hoja = null) {
+    const { vale, hoja: nombre, modelo } = await this.muestraVale(hoja);
+    return { vale, hoja: nombre, ...documentoImpresion([{ modelo, vale: this._paraImprimir(vale) }], identidad) };
+  }
+
+  /**
+   * Lee un logo para el vale impreso: lado mayor de 800 px, PNG (con transparencia) o, si queda
+   * muy pesado, JPG sobre blanco. @returns { src, nombre }
+   */
+  async leerLogo(archivo) {
+    let imagen;
+    try {
+      imagen = await createImageBitmap(archivo);
+    } catch {
+      throw new Error(`No se pudo leer ${archivo.name}. Usa una imagen PNG o JPG.`);
+    }
+    const escala = Math.min(1, 800 / Math.max(imagen.width, imagen.height));
+    const lienzo = document.createElement("canvas");
+    lienzo.width = Math.max(1, Math.round(imagen.width * escala));
+    lienzo.height = Math.max(1, Math.round(imagen.height * escala));
+    const ctx = lienzo.getContext("2d");
+    ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+    let src = lienzo.toDataURL("image/png");
+    if (src.length > MAXIMO_LOGO) {
+      ctx.globalCompositeOperation = "destination-over";
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+      src = lienzo.toDataURL("image/jpeg", 0.85);
+    }
+    imagen.close?.();
+    if (src.length > MAXIMO_LOGO) throw new Error("La imagen es muy grande aun reducida: usa una más sencilla (menos de 300 KB).");
+    return { src, nombre: archivo.name };
   }
 
   /** Renglones que caben en el formato impreso del vale (P-16). */
@@ -354,7 +420,7 @@ export class Sesion {
       for (const clave of vale.fotos ?? []) fotos.push(clave ? await this.urlFoto(clave) : null);
       paginas.push({ modelo: await this.formulario(await this.hojaParaVale(vale)), vale: this._paraImprimir(vale), fotos });
     }
-    return documentoImpresion(paginas);
+    return documentoImpresion(paginas, identidadDe(this.estado));
   }
 
   /** Abre el cuadro de impresión del navegador (desde ahí también se guarda en PDF). */

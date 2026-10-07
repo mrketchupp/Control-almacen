@@ -7,8 +7,10 @@ import { leerVales } from "../../importadores/vales.js";
 import { agregarAlmacenista, fijarUsuarioEnTurno } from "../../servicios/consultas.js";
 import { ejecutarPrimeraCarga, fechaDesdeNombre, sugerirFolioCorte } from "../../servicios/primeraCarga.js";
 import { generarRevision, leerRevision } from "../../servicios/revision.js";
+import { otrosInventarios } from "../../nucleo/inventarios.js";
 import { Aviso, Boton, Dato, Detalles, ElegirArchivo, Tabla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { seguirConArchivo } from "../inventario.js";
 
 const n = (v) => num(aNumero(v));
 
@@ -167,6 +169,7 @@ export function PaginaPrimeraCarga() {
   };
 
   const cargarInventario = (archivo) =>
+    seguirConArchivo(sesion, archivo.name) &&
     sesion.tarea(`Leyendo ${archivo.name}…`, async () => {
       invalidar();
       const datos = await leerArchivoSubido(archivo);
@@ -178,6 +181,7 @@ export function PaginaPrimeraCarga() {
     });
 
   const cargarVales = (archivo) =>
+    seguirConArchivo(sesion, archivo.name) &&
     sesion.tarea(`Leyendo ${archivo.name}…`, async () => {
       invalidar();
       setRevision(null);
@@ -191,7 +195,7 @@ export function PaginaPrimeraCarga() {
   const generarLista = () =>
     sesion.tarea("Generando lista de revisión…", async () => {
       const datos = generarRevision(vales.libro, inventario.libro, catalogoCombinado(inventario.libro, vales.libro));
-      const destino = await sesion.guardarArchivo("revision", `Revision historial ${ddmmaa(hoyIso())}.xlsx`, datos);
+      const destino = await sesion.guardarArchivo("revision", `Revision historial ${sesion.inventario.id} ${ddmmaa(hoyIso())}.xlsx`, datos);
       sesion.avisar("exito", `Lista de revisión guardada en ${destino}`);
     });
 
@@ -211,12 +215,13 @@ export function PaginaPrimeraCarga() {
         fechaConteo,
         usuario: usuario.trim().toUpperCase(),
         respuestas: revision?.respuestas,
+        idInventario: sesion.inventario.id,
       });
       setEnsayo(resultado);
     });
 
   const cargar = () => {
-    if (!confirmar("Se guardarán los datos en este equipo y tus archivos quedarán como plantillas de exportación. ¿Continuar?")) return;
+    if (!confirmar(`Se guardarán como el inventario ${sesion.inventario.id} en este equipo y tus archivos quedarán como sus plantillas de exportación. ¿Continuar?`)) return;
     return sesion.tarea("Guardando la carga…", async () => {
       // Se vuelve a ejecutar para guardar exactamente lo que se ensayó con las opciones actuales.
       const nombre = usuario.trim().toUpperCase();
@@ -225,6 +230,7 @@ export function PaginaPrimeraCarga() {
         fechaConteo,
         usuario: nombre,
         respuestas: revision?.respuestas,
+        idInventario: sesion.inventario.id,
       });
       agregarAlmacenista(estado, nombre);
       fijarUsuarioEnTurno(estado, nombre);
@@ -245,6 +251,10 @@ export function PaginaPrimeraCarga() {
       Convierte tus Excel actuales en los datos de la herramienta. Tus archivos <strong>no se modifican</strong>: se leen
       aquí mismo, en tu equipo, y se guardan como plantillas para exportar.
     </p>
+    <${Aviso} tipo="info" titulo=${`Primera carga del inventario ${sesion.inventario.id}`}>
+      Usa el inventario y el libro de vales de <strong>${sesion.inventario.id}</strong>. ${otrosInventarios(sesion.inventario.id).join(" y ")} lleva sus
+      datos por separado (folios, plantillas y respaldos): para cargarlo, cámbiate arriba, junto al nombre de la herramienta.
+    <//>
     <${Paso} numero="1" titulo="Tus archivos" listo=${inventario && vales}>
       <div class="rejilla-2">
         <div>

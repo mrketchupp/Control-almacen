@@ -14,6 +14,7 @@ import {
 } from "../../servicios/preferencias.js";
 import { Aviso, Boton, Segmentos, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { ValeImpreso } from "./valeImpreso.js";
 
 /** Tema claro u oscuro, dónde salen los avisos y animaciones (por almacenista). */
 export function Personalizacion() {
@@ -218,6 +219,7 @@ export function PaginaAjustes() {
     <${Personalizacion} />
     <${Captura} />
     <${PantallaVales} />
+    <${ValeImpreso} />
     <${Etapa} />
     <p class="nota">Las áreas (plantillas del vale) y las personas se editan en <a href="#areas">Áreas y personas</a>.</p>
   `;

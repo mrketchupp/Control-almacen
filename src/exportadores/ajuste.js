@@ -9,6 +9,7 @@
 
 import { CERO, dec } from "../nucleo/decimal.js";
 import { fmtFecha, serialExcel } from "../nucleo/fechas.js";
+import { INVENTARIO_DEFECTO, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
 import { conciliar, dimensionAx, etiquetaEstado, foliosTexto } from "../servicios/conciliacion.js";
 import { etiquetaAx } from "../servicios/seguimiento.js";
 import { letraColumna } from "../xlsx/celdas.js";
@@ -55,7 +56,7 @@ export const LEYENDA_ESTADOS = [
 
 /** Cómo leer «Folios que justifican». */
 export const LEYENDA_FOLIOS = [
-  ["545 (S)", "Vale de SALIDA del almacén del RIG 91 con ese folio."],
+  ["545 (S)", "Vale de SALIDA del almacén con ese folio."],
   ["12345 (E)", "Vale de ENTRADA: el folio del vale de la base con el que llegó el material."],
   ["545 (S, sin IN/TR)", "Salida que en el archivo de la base aún no tiene folio IN / TR: falta aplicarla en AX."],
   ["545 (S, 2 sin IN/TR)", "De esa partida la base aplicó una parte; faltan 2 por aplicar."],
@@ -71,10 +72,10 @@ const CELDA = { fuente: FUENTE, borde: BORDE };
 const NUMERO = { ...CELDA, formato: "#,##0.00" };
 const FECHA = { ...CELDA, formato: "dd/mm/yyyy" };
 
-/** SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx (con la fecha del corte de AX). */
-export function nombreSolicitud(fecha) {
+/** SOLICITUD DE AJUSTE RIG 91 DLTA DDMMAA.xlsx (con el inventario y la fecha del corte de AX). */
+export function nombreSolicitud(fecha, inventario = INVENTARIO_DEFECTO) {
   const [anio, mes, dia] = String(fecha).split("-");
-  return `SOLICITUD DE AJUSTE RIG 91 ${dia}${mes}${anio.slice(2)}.xlsx`;
+  return `SOLICITUD DE AJUSTE RIG 91 ${inventarioPorId(inventario).id} ${dia}${mes}${anio.slice(2)}.xlsx`;
 }
 
 const codigoTexto = (codigo) => String(codigo).padStart(9, "0");
@@ -240,13 +241,13 @@ function hojaVales(libro, c, corte, partidas) {
 }
 
 /** Primera hoja: qué significan los colores, (S) / (E) y las marcas de los folios. No toca los datos. */
-function hojaLeyenda(libro, corte, { renglones, vales }) {
+function hojaLeyenda(libro, corte, { renglones, vales, inventario }) {
   const ws = libro.agregarHoja(HOJA_LEYENDA);
   const titulo = { fuente: { ...FUENTE, tam: 13, negrita: true } };
   const subtitulo = { fuente: { ...FUENTE, negrita: true }, relleno: "D9E1F2", borde: BORDE };
   const texto = { fuente: FUENTE };
   let f = 1;
-  ws.poner(f++, 1, `SOLICITUD DE AJUSTE RIG 91 · AX al ${fmtFecha(corte.fecha)} (${corte.almacen})`, titulo);
+  ws.poner(f++, 1, `SOLICITUD DE AJUSTE RIG 91 · INVENTARIO ${inventario} · AX al ${fmtFecha(corte.fecha)} (${corte.almacen})`, titulo);
   const plural = (n, una, varias) => `${n} ${n === 1 ? una : varias}`;
   ws.poner(f++, 1, `Hoja «${HOJA_AJUSTE}»: el reporte de AX con 3 columnas agregadas (${plural(renglones, "partida", "partidas")}). Hoja «${HOJA_VALES}»: ${plural(vales, "partida de vale", "partidas de vale")} por aplicar en AX.`, texto);
   f++;
@@ -264,7 +265,7 @@ function hojaLeyenda(libro, corte, { renglones, vales }) {
   ws.poner(f++, 3, "Qué significa", subtitulo);
   ws.poner(f, 1, "(S)", CELDA);
   ws.poner(f, 2, "Salida", CELDA);
-  ws.poner(f++, 3, "Vale de salida: material que salió del almacén del RIG 91.", { ...CELDA, envolver: true });
+  ws.poner(f++, 3, `Vale de salida: material que salió del almacén ${inventario} del RIG 91.`, { ...CELDA, envolver: true });
   ws.poner(f, 1, "(E)", CELDA);
   ws.poner(f, 2, "Entrada", CELDA);
   ws.poner(f++, 3, "Vale de entrada: material que llegó de la base (con el folio de su vale).", { ...CELDA, envolver: true });
@@ -286,8 +287,9 @@ export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
   const c = conciliar(estado, corte);
   const filas = filasSolicitud(c, corte, { todos });
   const partidas = valesPorAplicar(c, corte, { todos });
+  const inventario = inventarioDe(estado).id;
   const libro = new LibroNuevo();
-  hojaLeyenda(libro, corte, { renglones: filas.length, vales: partidas.length });
+  hojaLeyenda(libro, corte, { renglones: filas.length, vales: partidas.length, inventario });
   const ws = libro.agregarHoja(HOJA_AJUSTE);
   ENCABEZADOS_AJUSTE.forEach((titulo, i) => ws.poner(1, i + 1, titulo, i >= 10 ? AGREGADO : ENCABEZADO));
   filas.forEach((valores, k) => {
@@ -301,5 +303,5 @@ export function exportarSolicitudAjuste(estado, corte, { todos = false } = {}) {
   ws.congelar = "A2";
   ws.filtro = `A1:${letraColumna(ENCABEZADOS_AJUSTE.length)}${Math.max(2, filas.length + 1)}`;
   hojaVales(libro, c, corte, partidas);
-  return { datos: libro.generar(), nombre: nombreSolicitud(corte.fecha), renglones: filas.length, porConfirmar: c.porConfirmar.length, vales: partidas.length };
+  return { datos: libro.generar(), nombre: nombreSolicitud(corte.fecha, inventario), renglones: filas.length, porConfirmar: c.porConfirmar.length, vales: partidas.length };
 }

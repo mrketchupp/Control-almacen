@@ -5,6 +5,7 @@ import { dec } from "../nucleo/decimal.js";
 import { FechaCelda, serialExcel } from "../nucleo/fechas.js";
 import { formatearValor } from "../xlsx/estilos.js";
 import { CARTA } from "./formulario.js";
+import { imagenesConIdentidad, reemplazarTextos } from "./identidad.js";
 
 const MARCA = "XXXXX";
 
@@ -124,14 +125,16 @@ function cssEnLinea(objeto) {
 
 /**
  * HTML de una página con el vale sobre la hoja-formulario.
- * @param fotos  src (data:/blob:) de las fotos del vale, en el orden de los espacios de la hoja
+ * @param fotos      src (data:/blob:) de las fotos del vale, en el orden de los espacios de la hoja
+ * @param identidad  logos y textos del inventario (`identidadDe`): cambian solo lo fijo del formato
  */
-export function paginaHtml(modelo, valores = new Map(), fotos = []) {
+export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = null) {
   const { estilos } = modelo;
   const { ancho, alto, escala, paginaAlto } = medidas(modelo);
   const colVisible = new Set(modelo.columnas.map((c) => c.c));
   const filaVisible = new Set(modelo.filas.map((f) => f.r));
-  const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : modelo.valor(r, c));
+  const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
+  const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : fijo(modelo.valor(r, c)));
   const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
   const altoFila = new Map(modelo.filas.map((f) => [f.r, f.px]));
   const bordeIzquierdo = (r) =>
@@ -201,7 +204,7 @@ export function paginaHtml(modelo, valores = new Map(), fotos = []) {
     return `<tr style="height:${px}px">${celdas.join("")}</tr>`;
   });
   const columnas = modelo.columnas.map((c) => `<col style="width:${c.px}px">`).join("");
-  const imagenes = modelo.imagenes
+  const imagenes = imagenesConIdentidad(modelo.imagenes, identidad)
     .map(
       (i) =>
         `<img alt="" src="${i.src}" style="left:${(i.x + ORILLA).toFixed(1)}px;top:${(i.y + ORILLA).toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
@@ -217,7 +220,7 @@ export function paginaHtml(modelo, valores = new Map(), fotos = []) {
   const centrado = modelo.pagina.centrado ? "margin-left:auto;margin-right:auto;" : "";
   const seccion = (partes, clase) =>
     partes
-      ? `<div class="${clase}"><span>${escaparHtml(partes.izq)}</span><span>${escaparHtml(partes.centro)}</span><span>${escaparHtml(partes.der)}</span></div>`
+      ? `<div class="${clase}"><span>${escaparHtml(fijo(partes.izq))}</span><span>${escaparHtml(fijo(partes.centro))}</span><span>${escaparHtml(fijo(partes.der))}</span></div>`
       : "";
   return (
     `<section class="vale-pagina" style="height:${(paginaAlto - 0.02).toFixed(2)}in">` +
@@ -246,12 +249,13 @@ export function cssImpresion(modelo) {
 
 /**
  * Documento para imprimir varios vales (uno por hoja).
- * @param paginas [{ modelo, vale }]
+ * @param paginas    [{ modelo, vale }]
+ * @param identidad  logos y textos del inventario (`identidadDe(estado)`)
  */
-export function documentoImpresion(paginas) {
+export function documentoImpresion(paginas, identidad = null) {
   if (!paginas.length) return { css: "", html: "" };
   return {
     css: cssImpresion(paginas[0].modelo),
-    html: paginas.map(({ modelo, vale, fotos = [] }) => paginaHtml(modelo, valoresDeVale(modelo, vale), fotos)).join(""),
+    html: paginas.map(({ modelo, vale, fotos = [] }) => paginaHtml(modelo, valoresDeVale(modelo, vale), fotos, identidad)).join(""),
   };
 }

@@ -7,15 +7,16 @@
 import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
 import { exportarSolicitudAjuste, nombreSolicitud } from "../exportadores/ajuste.js";
-import { NOMBRE_ENTRADAS, exportarEntradas } from "../exportadores/entradas.js";
+import { exportarEntradas, nombreEntradas } from "../exportadores/entradas.js";
 import { corteAx } from "../servicios/conciliacion.js";
 import { estadoAlCierre } from "../servicios/corte.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
 import { Indices } from "../nucleo/estado.js";
+import { INVENTARIO_DEFECTO, inventarioPorId } from "../nucleo/inventarios.js";
 import { leerVales } from "../importadores/vales.js";
 import { completarAreaDesdeFormulario } from "../servicios/primeraCarga.js";
-import { CARPETA_FOTOS, crearRespaldo, leerRespaldo } from "./respaldos.js";
+import { CARPETA_FOTOS, crearRespaldo, leerRespaldo, revisarInventario } from "./respaldos.js";
 
 export class SinPlantilla extends Error {}
 export class BaseNoVacia extends Error {}
@@ -41,9 +42,11 @@ export function nombreConFecha(nombreOriginal, iso) {
 }
 
 export class Almacen {
-  constructor(backend, { version = "" } = {}) {
+  /** @param inventario  DLTA o GSM: cada uno tiene su propio backend (base de IndexedDB) y nunca se mezclan. */
+  constructor(backend, { version = "", inventario = INVENTARIO_DEFECTO } = {}) {
     this.backend = backend;
     this.version = version;
+    this.inventario = inventarioPorId(inventario).id;
     this.estado = null;
     this.oyentes = new Set();
     this.cola = Promise.resolve();
@@ -156,6 +159,11 @@ export class Almacen {
       if (!estaVacio(this.estado)) {
         throw new BaseNoVacia("Ya hay datos cargados. La primera carga solo se hace con la herramienta vacía.");
       }
+      estado.config ??= {};
+      estado.config.inventario ??= this.inventario;
+      if (estado.config.inventario !== this.inventario) {
+        throw new Error(`Esos datos son del inventario ${estado.config.inventario} y estás en ${this.inventario}.`);
+      }
       const archivos = await this._registrarPlantillas(estado, plantillas);
       await this.backend.guardarTodo(estado, archivos);
       this.estado = estado;
@@ -204,10 +212,10 @@ export class Almacen {
 
   /** Nombre con el que se exporta (el del archivo original; el inventario lleva la fecha). */
   nombreExportacion(tipo, hoy = hoyIso(), { corteAx: corteAxId = null } = {}) {
-    if (tipo === "ENTRADAS") return NOMBRE_ENTRADAS;
+    if (tipo === "ENTRADAS") return nombreEntradas(this.inventario);
     if (tipo === "AJUSTE") {
       const c = corteAx(this.estado, corteAxId);
-      return c ? nombreSolicitud(c.fecha) : null;
+      return c ? nombreSolicitud(c.fecha, this.inventario) : null;
     }
     const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === tipo && p.activa);
     if (!registro) return null;
@@ -229,7 +237,7 @@ export class Almacen {
     const estado = cierre ? cierre.estado : this.estado;
     if (tipo === "ENTRADAS") {
       resultado = exportarEntradas(estado);
-      nombre = NOMBRE_ENTRADAS;
+      nombre = resultado.nombre;
     } else if (tipo === "AJUSTE") {
       const c = corteAx(estado, corteAxId);
       if (!c) throw new Error("El corte de AX ya no existe.");
@@ -270,10 +278,14 @@ export class Almacen {
     return crearRespaldo(this.estado, plantillas, { motivo, version: this.version, fotos });
   }
 
-  /** Reemplaza TODO por el contenido de un respaldo (el llamador respalda antes el estado actual). */
+  /**
+   * Reemplaza TODO por el contenido de un respaldo (el llamador respalda antes el estado actual).
+   * Solo un respaldo de ESTE inventario: uno de DLTA no se restaura en GSM ni al revés.
+   */
   restaurar(datos) {
     const { estado: leido, plantillas, fotos, manifiesto } = leerRespaldo(datos);
     const estado = migrarEstado(leido);
+    revisarInventario(estado, this.inventario);
     return this._enCola(async () => {
       const ahora = ahoraIso();
       const archivos = plantillas.map((p) => {

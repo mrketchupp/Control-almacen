@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
+import { otrosInventarios } from "../../nucleo/inventarios.js";
 import { fijarAjuste } from "../../servicios/catalogos.js";
 import { resumen } from "../../servicios/consultas.js";
 import { folioEntrada } from "../../servicios/entradas.js";
@@ -15,6 +16,7 @@ import { RespaldoReciente, restaurarConConfirmacion, useRespaldoReciente } from 
 function Bienvenida() {
   const sesion = useSesion();
   const reciente = useRespaldoReciente(sesion);
+  const inventario = sesion.inventario.id;
   return html`
     ${reciente
       ? html`<${Tarjeta} titulo="Encontramos un respaldo en tu carpeta">
@@ -26,10 +28,14 @@ function Bienvenida() {
           />
         <//>`
       : null}
-    <${Tarjeta} titulo="Bienvenido">
+    <${Tarjeta} titulo=${`Bienvenido · inventario ${inventario}`}>
       <p>
-        La herramienta está <strong>vacía</strong>: no trae datos de nadie. Tus datos entran desde tus propios Excel y se
-        quedan <strong>solo en este equipo</strong> (en el almacenamiento de Edge). Nada se envía a internet.
+        El inventario <strong>${inventario}</strong> está <strong>vacío</strong>: no trae datos de nadie. Tus datos entran desde tus
+        propios Excel y se quedan <strong>solo en este equipo</strong> (en el almacenamiento de Edge). Nada se envía a internet.
+      </p>
+      <p class="nota">
+        ${otrosInventarios(inventario).join(" y ")} lleva sus datos por separado (vales, folios, inventario, respaldos y conciliación).
+        Cambias de uno a otro arriba, junto al nombre de la herramienta.
       </p>
       <ol class="pasos">
         <li>
@@ -181,7 +187,7 @@ export function PaginaInicio() {
     <div class="saludo">
       <div>
         <h2>${saludo(ahora)}${sesion.usuario ? `, ${sesion.usuario.split(" ")[0].charAt(0)}${sesion.usuario.split(" ")[0].slice(1).toLowerCase()}` : ""}</h2>
-        <p class="nota">${DIAS[ahora.getDay()]} ${ahora.getDate()} de ${MESES[ahora.getMonth()]} · ${datos.vales_hoy} ${datos.vales_hoy === 1 ? "vale" : "vales"} y ${entradasHoy} ${entradasHoy === 1 ? "entrada" : "entradas"} hoy</p>
+        <p class="nota">Inventario ${sesion.inventario.id} · ${DIAS[ahora.getDay()]} ${ahora.getDate()} de ${MESES[ahora.getMonth()]} · ${datos.vales_hoy} ${datos.vales_hoy === 1 ? "vale" : "vales"} y ${entradasHoy} ${entradasHoy === 1 ? "entrada" : "entradas"} hoy</p>
       </div>
       ${alertas.length ? html`<div class="alertas-inicio">${alertas.map((a) => html`<span class="chip-alerta">⚠ ${a}</span>`)}</div>` : null}
     </div>

@@ -204,6 +204,17 @@ almacén. La página *Inventario*, el inventario exportado y el del reporte diar
 empezar el día y CONSUMO / INGRESO = solo los vales de ese día (antes se acumulaban desde el conteo, por eso un consumo
 de días atrás seguía apareciendo). El TOTAL y lo guardado no cambian.
 
+**Ronda 17 (aplicada):** **dos inventarios, DLTA y GSM, por separado** (mismos tipos de archivo: vales de salida,
+inventario, reporte de AX y archivo de la base). Selector en la cabecera con un color por inventario; cada uno con su base
+en el navegador, folios, plantillas, respaldos (`almacen_GSM_…` para GSM), carpeta, reporte diario y conciliación; formato
+9 (`config.inventario`). Nombres con el inventario: `VALES DE ENTRADA GSM.xlsx`, `SOLICITUD DE AJUSTE RIG 91 GSM
+DDMMAA.xlsx`. Aviso al elegir un archivo cuyo nombre dice el otro inventario; un respaldo no se restaura en el otro.
+**Vale impreso por inventario** (*Ajustes*): se imprime con los textos y logos del libro de vales cargado; el encabezado
+del archivo aparece editable (p. ej. el nombre del almacén «MX DLTA …» y la dirección para GSM), reemplazos en todo el
+formato y cambio de logos, con vista previa por hoja. No cambia el Excel ni los vales.
+- ☐ Hacer la primera carga de GSM con sus archivos y revisar que DLTA sigue igual.
+- ☐ Revisar el vale impreso de GSM (textos y logo) contra uno en papel.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

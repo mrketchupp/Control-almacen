@@ -189,7 +189,7 @@ test("al abrir datos de una versión anterior, las áreas se completan desde la 
   assert.equal(otro.estado.plantillas_area.find((a) => a.nombre === "TRANSFERENCIAS").autoriza_puesto, "RIG MANAGER");
   assert.equal(otro.estado.config.completar_areas, undefined);
   assert.equal(otro.estado.vales.at(-1).almacenista_derecha, true);
-  assert.equal((await almacen.backend.leerEstado()).formato, 8);
+  assert.equal((await almacen.backend.leerEstado()).formato, 9);
 });
 
 test("respaldos inválidos se rechazan con un mensaje claro", () => {

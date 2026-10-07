@@ -36,7 +36,8 @@ function ComoAplicacion() {
     </ol>
     <p class="nota">
       Si Edge no está en esa carpeta, busca <code>msedge.exe</code> en <code>${EDGE_SIN_X86}</code>. Si mueves o
-      renombras el HTML, vuelve a copiar el destino desde aquí. Usa un solo acceso a la vez: la herramienta no se abre en dos ventanas.
+      renombras el HTML, vuelve a copiar el destino desde aquí. Usa un solo acceso a la vez: la herramienta no se abre en dos ventanas
+      (DLTA y GSM se cambian dentro de la misma; abre el último que usaste).
     </p>
   <//>`;
 }
@@ -56,6 +57,22 @@ export function PaginaAyuda() {
     <//>
     <${Tarjeta} titulo="Preguntas frecuentes">
       <dl class="faq">
+        <dt>¿Cómo manejo los inventarios DLTA y GSM?</dt>
+        <dd>
+          Arriba, junto al nombre de la herramienta, eliges el inventario: <strong>DLTA</strong> (azul) o <strong>GSM</strong> (morado); la franja
+          de arriba y el logo toman su color para que siempre sepas en cuál estás. Cada uno va <strong>por separado</strong>: sus vales y
+          folios, entradas, inventario, conteos, plantillas de Excel, respaldos (los de GSM se llaman <code>almacen_GSM_…</code>) y
+          conciliación contra AX. Lo que haces en uno no cambia el otro. La primera vez GSM está vacío: haz su <em>Primera carga</em> con
+          los archivos de GSM. Al abrir, la herramienta entra al último que usaste; si eliges un archivo cuyo nombre dice el otro
+          inventario (por ejemplo «DLTA» estando en GSM), te pregunta antes de leerlo.
+        </dd>
+        <dt>El vale de GSM sale con el nombre, la dirección o el logo de DLTA</dt>
+        <dd>
+          El vale se imprime con los textos y logos del libro de vales que cargaste para ese inventario. Si el de GSM trae los de DLTA,
+          en <a href="#ajustes">Ajustes</a> → <em>Vale impreso de GSM</em> aparece el encabezado de tu archivo tal como viene: escribe lo que
+          debe decir (por ejemplo el nombre del almacén y la dirección) y guarda; cambia el logo por otra imagen o quítalo. Lo ves en la
+          vista previa antes de imprimir. Tu Excel y los vales no cambian.
+        </dd>
         <dt>¿Qué pasa si borro el historial de navegación?</dt>
         <dd>Si incluyes "cookies y datos de sitios", se borran los datos de la herramienta. Restaura el último respaldo en <a href="#respaldos">Respaldos</a>.</dd>
         <dt>¿Los dos almacenistas ven lo mismo?</dt>

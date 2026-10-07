@@ -1,16 +1,18 @@
-// Exporta el historial de entradas a VALES DE ENTRADA DLTA.xlsx (RF-62, docs/06 §C).
+// Exporta el historial de entradas a VALES DE ENTRADA DLTA.xlsx (GSM: … GSM.xlsx) (RF-62, docs/06 §C).
 //
 // Es un archivo NUEVO (no hay plantilla del usuario que conservar): hoja DIARIO con las mismas
 // columnas A–T del DIARIO de salidas y una columna U con el folio interno (E-0001).
 // B = folio del vale de la base (P-05); C = XXXXX y D = 0 marcan la entrada.
 
 import { folioEntrada } from "../servicios/entradas.js";
+import { INVENTARIO_DEFECTO, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
 import { textoONumero } from "../nucleo/normalizar.js";
 import { letraColumna } from "../xlsx/celdas.js";
 import { LibroNuevo } from "../xlsx/nuevo.js";
 import { valoresRenglon } from "./vales.js";
 
-export const NOMBRE_ENTRADAS = "VALES DE ENTRADA DLTA.xlsx";
+/** VALES DE ENTRADA DLTA.xlsx · VALES DE ENTRADA GSM.xlsx */
+export const nombreEntradas = (inventario = INVENTARIO_DEFECTO) => `VALES DE ENTRADA ${inventarioPorId(inventario).id}.xlsx`;
 export const HOJA_ENTRADAS = "DIARIO";
 export const ENCABEZADOS_ENTRADAS = [
   "FECHA", "No. folio", "Pase de Entrada", "Pase de Salida", "Origen:", "Depto", "Destino", "Depto", "OC",
@@ -57,5 +59,5 @@ export function exportarEntradas(estado) {
   ws.congelar = "A2";
   ws.filtro = `A1:${letraColumna(ENCABEZADOS_ENTRADAS.length)}${Math.max(2, renglones.length + 1)}`;
   const folios = renglones.map(([v]) => v.folio);
-  return { datos: libro.generar(), renglones: renglones.length, ultimoFolio: folios.length ? Math.max(...folios) : null };
+  return { datos: libro.generar(), nombre: nombreEntradas(inventarioDe(estado).id), renglones: renglones.length, ultimoFolio: folios.length ? Math.max(...folios) : null };
 }

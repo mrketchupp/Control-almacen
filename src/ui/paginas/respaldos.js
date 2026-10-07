@@ -1,7 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
 import { fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
 import { descargar, leerArchivoSubido, leerDeCarpeta } from "../../almacen/archivos.js";
-import { leerRespaldo } from "../../almacen/respaldos.js";
+import { leerRespaldo, revisarInventario } from "../../almacen/respaldos.js";
+import { otrosInventarios } from "../../nucleo/inventarios.js";
 import { CARPETA_RESPALDOS } from "../sesion.js";
 import { Aviso, Boton, ElegirArchivo, Tabla, Tarjeta, confirmar, useSesion } from "../componentes.js";
 import { html } from "../html.js";
@@ -32,8 +33,9 @@ function haceCuanto(fechaHora) {
 export function restaurarConConfirmacion(sesion, datos, origen, alTerminar = async () => {}) {
   let resumen = "";
   try {
-    const { manifiesto } = leerRespaldo(datos);
-    resumen = `\n\nContiene: ${manifiesto.vales ?? "?"} vales y ${manifiesto.existencias ?? "?"} partidas de inventario (${fmtFechaHora(manifiesto.fecha_hora || "")}).`;
+    const { estado, manifiesto } = leerRespaldo(datos);
+    const de = revisarInventario(estado, sesion.inventario.id);
+    resumen = `\n\nInventario ${de}. Contiene: ${manifiesto.vales ?? "?"} vales y ${manifiesto.existencias ?? "?"} partidas de inventario (${fmtFechaHora(manifiesto.fecha_hora || "")}).`;
   } catch (error) {
     sesion.avisar("error", error.message);
     return undefined;
@@ -107,7 +109,7 @@ export function PaginaRespaldos() {
 
   const borrarTodo = () => {
     const texto = window.prompt(
-      "Esto borra TODOS los datos de la herramienta en este navegador (se crea antes un respaldo). Escribe BORRAR para confirmar:",
+      `Esto borra TODOS los datos del inventario ${sesion.inventario.id} en este navegador (se crea antes un respaldo; ${otrosInventarios(sesion.inventario.id).join(" y ")} no cambia). Escribe BORRAR para confirmar:`,
     );
     if (texto !== "BORRAR") return;
     return sesion.tarea("Borrando…", async () => {
@@ -115,7 +117,7 @@ export function PaginaRespaldos() {
       await sesion.almacen.borrarTodo();
       await sesion.backend.guardarAjuste("ultimo_respaldo", null);
       sesion.ultimoRespaldo = null;
-      sesion.avisar("exito", "Datos borrados de este navegador. La herramienta quedó vacía.");
+      sesion.avisar("exito", `Datos de ${sesion.inventario.id} borrados de este navegador. Ese inventario quedó vacío.`);
       location.hash = "#inicio";
     });
   };
@@ -128,6 +130,11 @@ export function PaginaRespaldos() {
               Elige una carpeta dentro de <strong>OneDrive</strong> (por ejemplo <code>OneDrive\\ControlAlmacen</code>).
               Ahí se crea un respaldo al día, otro después de cada exportación, y se guardan los Excel exportados. Se
               conservan los últimos 30 días y 12 meses.
+            </p>
+            <p class="nota">
+              Esta carpeta es la del inventario <strong>${sesion.inventario.id}</strong>; ${otrosInventarios(sesion.inventario.id).join(" y ")} elige la suya.
+              Si es la misma, no se mezclan: los respaldos de GSM se llaman <code>almacen_GSM_…</code> y los de DLTA <code>almacen_…</code>.
+              Para tenerlo ordenado, usa una carpeta para cada uno (por ejemplo <code>ControlAlmacen\\GSM</code>).
             </p>
             <div class="acciones-linea">
               <${Boton} tipo=${sesion.carpeta ? "secundario" : "primario"} onClick=${() => sesion.tarea("Eligiendo carpeta…", () => sesion.elegirCarpeta())}>
@@ -160,7 +167,10 @@ export function PaginaRespaldos() {
       : null}
 
     <${Tarjeta} titulo="Restaurar">
-      <p>Reemplaza los datos de este navegador por los de un respaldo (.zip). Útil al cambiar de equipo o de navegador.</p>
+      <p>
+        Reemplaza los datos de <strong>${sesion.inventario.id}</strong> en este navegador por los de un respaldo (.zip) de ${sesion.inventario.id}.
+        Útil al cambiar de equipo o de navegador. Un respaldo del otro inventario no se restaura aquí.
+      </p>
       ${respaldos.length
         ? html`<${RespaldoReciente}
             respaldo=${respaldos[0]}
@@ -219,8 +229,8 @@ export function PaginaRespaldos() {
 
     ${!vacio
       ? html`<${Tarjeta} titulo="Zona de cuidado" clase="peligro">
-          <p>Deja la herramienta vacía en este navegador (por ejemplo, después de una prueba). Antes se crea un respaldo.</p>
-          <${Boton} tipo="peligro" onClick=${borrarTodo}>Borrar todos los datos de este navegador<//>
+          <p>Deja vacío el inventario ${sesion.inventario.id} en este navegador (por ejemplo, después de una prueba). Antes se crea un respaldo; el otro inventario no cambia.</p>
+          <${Boton} tipo="peligro" onClick=${borrarTodo}>Borrar los datos de ${sesion.inventario.id} en este navegador<//>
         <//>`
       : null}
   `;

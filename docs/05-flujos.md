@@ -242,9 +242,26 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
 
 ## 8. Respaldo y restauración
 
+> Cada inventario (DLTA y GSM) tiene sus respaldos (`almacen_…` y `almacen_GSM_…`). Se restaura estando en el
+> inventario del respaldo; uno del otro se rechaza con un aviso que dice a cuál cambiarse.
+
 - Los respaldos automáticos funcionan como se describe en [03-arquitectura.md](03-arquitectura.md#almacenamiento-y-respaldos).
 - **Equipo o navegador nuevo:**
   1. Abrir `ControlAlmacen.html` en Edge (no se instala nada).
   2. **Respaldos → Restaurar desde un archivo…** y elegir el `.zip` más reciente de `OneDrive\ControlAlmacen\respaldos`.
   3. La herramienta valida el respaldo (formato, folios únicos, plantillas completas) antes de reemplazar.
   4. Elegir otra vez la carpeta de respaldos; queda lista.
+
+## 9. Dos inventarios: DLTA y GSM (Ronda 17)
+
+1. Arriba, junto al nombre de la herramienta, el selector **Inventario: DLTA | GSM** dice en cuál estás (DLTA azul, GSM
+   morado: también la franja de la cabecera, el logo y el título de la pestaña). Al abrir, entra al último que usaste.
+2. **La primera vez GSM está vacío:** *Primera carga* con el inventario y el libro de vales de GSM. Desde ahí lleva sus
+   propios vales y folios, entradas, conteos, plantillas, respaldos, reporte diario y conciliación contra AX.
+3. Si eliges un archivo cuyo nombre dice el otro inventario (por ejemplo `…DLTA…` estando en GSM), la herramienta pregunta
+   antes de leerlo (primera carga, traer vales del Excel, reporte de AX y archivo de la base).
+4. **Vale impreso:** se imprime con los textos y logos del libro de vales cargado para ese inventario. Si el archivo de GSM
+   es el mismo formato que el de DLTA (dice «MX DLTA …», dirección y logo de DLTA), en *Ajustes → Vale impreso de GSM* se
+   corrige: el encabezado del archivo aparece tal como viene, cada texto con lo que se imprime (editable); *Reemplazar en
+   todo el formato* cambia una parte de varios textos a la vez (p. ej. `DLTA` → `GSM`); cada logo se cambia por otra imagen
+   o se quita. Con vista previa por hoja. No cambia el Excel ni los vales.

@@ -21,6 +21,7 @@ import {
 } from "../../servicios/seguimiento.js";
 import { Boton, Buscador, ElegirArchivo, Pastilla, Segmentos, Tabla, Ventana, confirmar, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { seguirConArchivo } from "../inventario.js";
 import { Icono } from "../iconos.js";
 
 const TONOS_AX = { aplicada: "ok", parcial: "alerta", pendiente: "alerta", no_inv: "neutro", sin_revisar: "alerta", sin_registro: "alerta", posterior: "neutro" };
@@ -47,6 +48,7 @@ export function ImportarBase({ tipo = "secundario", etiqueta = "Importar consumo
   const sesion = useSesion();
   const [previa, setPrevia] = useState(null);
   const abrir = (archivo) =>
+    seguirConArchivo(sesion, archivo.name) &&
     sesion.tarea("Leyendo el archivo de la base…", async () => {
       try {
         const datos = await leerArchivoSubido(archivo);

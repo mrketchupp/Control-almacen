@@ -7,12 +7,14 @@ import { importarValesNuevos, revisarValesNuevos } from "../../servicios/sincron
 import { valesPorEnviar } from "../../servicios/vales.js";
 import { Aviso, Boton, ElegirArchivo, Tabla, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { seguirConArchivo } from "../inventario.js";
 import { SubirSharePoint, exportarConDialogo } from "./sharepoint.js";
 
 function TraerDelExcel() {
   const sesion = useSesion();
   const [vista, setVista] = useState(null);
   const revisar = (archivo) =>
+    seguirConArchivo(sesion, archivo.name) &&
     sesion.tarea(`Leyendo ${archivo.name}…`, async () => {
       const libro = leerVales(await leerArchivoSubido(archivo), archivo.name);
       setVista({ nombre: archivo.name, libro, ...revisarValesNuevos(sesion.estado, libro) });
