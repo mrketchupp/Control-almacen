@@ -74,12 +74,12 @@ HOJAS_INV = {
         (2, 799, "SIN DIMENSION", None, 1, "PZA", None, None),
         # Ronda 15: en AX sin Tamaño ni Color. 711 tiene otra partida en AX con dimensión (MOD:A1): la
         # partida sin dimensión junta solo las variantes sin dimensión (S/D, SIN DIMENSION, S/N con NP
-        # distintos). 714 solo tiene esa partida en AX: es el código completo, también MOD:HWD003.
+        # distintos). 714 solo tiene esa partida en AX: es el código completo, también MOD:ZX100.
         (3, 711, "S/D", "LED 20W", 4, "PZA", None, None),
         (4, 711, "SIN DIMENSION", "LED 50W", 3, "PZA", None, None),
         (5, 711, "S/N", "X100", 0, "PZA", None, None),
         (6, 711, "MOD:A1", None, 2, "PZA", None, None),
-        (7, 714, "MOD:HWD003", None, 6, "PZA", None, None),
+        (7, 714, "MOD:ZX100", None, 6, "PZA", None, None),
         (8, 714, "S/D", None, 2, "PZA", None, None),
     ],
     "CONTENEDOR #2 CONSUMIBLE": [

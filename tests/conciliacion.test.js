@@ -303,9 +303,9 @@ test("AX sin dimensión (Tamaño y Color vacíos): junta las variantes sin dimen
   assert.deepEqual(foco.grupo.map((id) => variante(id).np).sort(), ["LED 20W", "LED 50W", "X100"]);
   assert.equal(variante(foco.variante_id).np, "LED 20W"); // la de más existencia
   assert.equal(par(711, "MOD:A1").metodo, "exacto");
-  // 714 solo tiene esa partida en AX: es el código completo, también la de dimensión MOD:HWD003.
+  // 714 solo tiene esa partida en AX: es el código completo, también la de dimensión MOD:ZX100.
   const mano = par(714, "");
-  assert.deepEqual([mano.metodo, mano.grupo.map((id) => variante(id).dimension).sort()], ["todo_el_codigo", ["MOD:HWD003", "S/D"]]);
+  assert.deepEqual([mano.metodo, mano.grupo.map((id) => variante(id).dimension).sort()], ["todo_el_codigo", ["MOD:ZX100", "S/D"]]);
   // Si el Color trae algo (S/D + X00489 = un NP), se empareja normal.
   assert.equal(par(710, "S/D").metodo, "exacto");
   // En la conciliación cada una es UNA fila con el físico de todas sus variantes; nada queda "solo en el físico".
@@ -326,5 +326,5 @@ test("AX sin dimensión (Tamaño y Color vacíos): junta las variantes sin dimen
 
 test("sinDimension: vacía, S/D, SIN DIMENSIÓN, S/N… o que empieza así", () => {
   for (const t of ["", null, "S/D", "SIN DIMENSION", "SIN DIMENSIÓN", "Sin dimención", "S/N", "S/D NP: 1/4\"", "S/D CABLE UTP"]) assert.equal(sinDimension(t), true, String(t));
-  for (const t of ["MOD:HWD003", "6309-2Z/C3", "SD-12", '1/2"']) assert.equal(sinDimension(t), false, t);
+  for (const t of ["MOD:ZX100", "6309-2Z/C3", "SD-12", '1/2"']) assert.equal(sinDimension(t), false, t);
 });
