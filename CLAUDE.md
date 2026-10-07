@@ -7,7 +7,7 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 0 (planeación) y Fase 1 (núcleo, primera carga, exportación idéntica, interfaz) aceptadas; F1 se rehízo en web (la versión de escritorio en Python quedó en el historial, commit `93fd82a`).
 - Fase 2 (vales de salida) **aceptada** (P-09 validado impreso, P-22 así está bien, P-23 lo corrige el usuario).
 - Fase 3 (entradas, conteos, reacomodos) **entregada**; el usuario dio luz verde para F4 tras las rondas 5–8 — ver "Avance de la Fase 3" abajo.
-- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 14 de comentarios aplicadas (ver abajo).
+- Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 15 de comentarios aplicadas (ver abajo).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 8` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
@@ -74,6 +74,11 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   (`folioDeVale`). UI: `ui/paginas/justificar.js` (`VentanaJustificar`), página con `.concilia-layout` (bento de acciones +
   `aside.concilia-resumen` con `Cifra`), `VentanaEmparejar` (pestañas distinto / solo en el físico / solo en AX).
   Renombres: Enviar a la base, Por resolver, Emparejar con AX, Reporte AX, Consumos de la base.
+- Ronda 15: **AX sin dimensión** (Tamaño y Color vacíos o `S/D`): `emparejar` le da un `grupo` de variantes (método
+  `todo_el_codigo` si es su única partida en AX; si no, `sin_dimension` = las variantes `sinDimension`), confirmado y sin
+  corregir el inventario. `conciliar` arma las filas con `agruparPares` (componentes por variante compartida):
+  `variante_ids`, `variantes`, físico sumado, `lugares[].detalle`; `textoFisico` / `textoVariante`. `sinDimension()` en
+  `nucleo/normalizar.js`. Fixture: 711 (sin dimensión + MOD:A1) y 714 (todo el código).
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja;
 ☐ que el usuario importe un archivo de la base con todos los vales hasta la fecha del reporte de AX.
 
@@ -127,6 +132,9 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   descuenta en AX (no justifica diferencias). **La fecha del archivo de la base no importa** (decisión del usuario, Ronda
   13); la del reporte de AX sí: lo posterior siempre está en tránsito. Se empareja por folio + código (luego clave y
   cantidad). El archivo se lee, nunca se escribe.
+- Dimensión vacía, "S/D", "SIN DIMENSIÓN" / "SIN DIMENCION", "S/N" (o que empieza así: "S/D NP: …") = **sin dimensión**
+  (`sinDimension`). Una partida de AX sin Tamaño ni Color representa a todas las variantes sin dimensión del código (o al
+  código completo si es su única partida en AX).
 - Faltantes: se justifican con vales que el físico ya descontó y AX no. Asignar no cambia cantidades ni vales; una
   partida se asigna una sola vez por corte. Una partida sin ligar y posterior al conteo de la variante NO se puede asignar
   (el físico aún no la descuenta: hay que ubicarla). En los folios, (S) = salida, (E) = entrada con el folio de la base.

@@ -152,7 +152,9 @@ cheques en tránsito.
    cuadran, explicadas, faltantes, sobrantes, solo en AX, solo en el físico, valuada…) y al pulsar una cifra abre su
    detalle. Cada bloque se abre en una ventana con buscador.
 3. **Por resolver → Emparejar con AX:** las partidas que AX escribe distinto (errores de dedo, dimensiones cortadas…),
-   con pestañas para lo que solo está en el físico y lo que solo está en AX. *Corregir a como
+   con pestañas para lo que solo está en el físico y lo que solo está en AX. Si AX no trae dimensión (Tamaño y Color
+   vacíos), la partida se compara sola contra **todas** las variantes sin dimensión del código (S/D, SIN DIMENSIÓN,
+   S/N…), o contra el código completo si es su única partida en AX: no hay nada que confirmar. *Corregir a como
    está en AX* **cambia la dimensión / NP de tu inventario** a como lo escribe AX (todas sus partidas; las cantidades no
    cambian); *Ajustar…* para escribirla tú (si AX cortó el Tamaño a 10 caracteres, escríbela completa), *Otra…* para
    elegir otra variante o *No está en el físico* (solo para ese corte). Solo se ofrecen las partidas del inventario

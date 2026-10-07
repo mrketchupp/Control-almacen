@@ -11,7 +11,7 @@ test("resumen de una herramienta vacía", () => {
 test("resumen con datos", () => {
   const r = consultas.resumen(cargaSintetica().estado);
   assert.ok(!r.vacia);
-  assert.deepEqual([r.existencias, r.ultimo_folio, r.conteo_folio, r.por_ubicar], [14, 9, FOLIO_CORTE, 2]);
+  assert.deepEqual([r.existencias, r.ultimo_folio, r.conteo_folio, r.por_ubicar], [20, 9, FOLIO_CORTE, 2]);
 });
 
 test("filas de inventario e historial", () => {

@@ -193,6 +193,12 @@ para que la base registre esas partidas; las entradas se citan con el **folio de
 reorganizó: bento con lo que se hace (*Enviar a la base*, *Por resolver*: emparejar y justificar, *Diferencias contra AX*,
 *Reporte AX*, *Consumos de la base*) y una columna de *Resumen* que solo informa. Estado formato 8 (`corte.asignaciones`).
 
+**Ronda 15 (aplicada):** **partidas de AX sin dimensión** (Tamaño y Color vacíos): se comparan contra todas las
+variantes del código que tampoco tienen dimensión (S/D, SIN DIMENSIÓN, S/N… con distintos NP), o contra el código
+completo si es su única partida en AX. Antes emparejaba con una sola variante (por ejemplo la que tenía 0) y el resto
+quedaba "solo en el físico". La fila muestra "Todo el código (N variantes)" o "Sin dimensión (N variantes)" con lo que
+hay en cada una; en AX se lee *SIN DIMENSIÓN*.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

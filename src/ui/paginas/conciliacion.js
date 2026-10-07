@@ -19,6 +19,8 @@ import {
   quitarCorteAx,
   registrarCorteAx,
   dimensionAx,
+  textoFisico,
+  textoVariante,
   valoresAx,
 } from "../../servicios/conciliacion.js";
 import { corregirDimensionNp } from "../../servicios/inventario.js";
@@ -36,9 +38,9 @@ const n = (d) => (d === null || d === undefined ? "—" : num(aNumero(d)));
 const pesos = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
 const dinero = (d) => (d === null || d === undefined ? "—" : pesos.format(aNumero(d)));
 const conSigno = (d) => (d && d.gt(0) ? `+${n(d)}` : n(d));
-const describir = (v) => (v ? `${v.dimension || "SIN DIMENSIÓN"}${v.np ? ` · NP ${v.np}` : ""}` : "—");
+const describir = textoVariante;
 // En AX la dimensión es Tamaño + Color.
-const describirAx = (l) => dimensionAx(l) || "—";
+const describirAx = (l) => dimensionAx(l) || "SIN DIMENSIÓN";
 const TONOS = { cuadra: "ok", explicada: "info", sobrante: "alerta", faltante: "error", por_confirmar: "info" };
 
 /** Pastilla del resultado: Cuadra / Explicada por vales / Sobran N / Faltan N. */
@@ -63,7 +65,7 @@ function Transito({ r }) {
  * otra partida de AX (las sugeridas para otra se marcan), o "no está en físico".
  */
 function ElegirPareja({ par, r, alElegir, etiqueta = "Otra…" }) {
-  const ocupadas = new Set(r.pares.filter((q) => q.confirmado && q.variante_id !== null).map((q) => q.variante_id));
+  const ocupadas = new Set(r.pares.filter((q) => q.confirmado && q.variante_id !== null).flatMap((q) => q.grupo ?? [q.variante_id]));
   const sugeridaPara = new Map(r.pares.filter((q) => !q.confirmado && q.variante_id !== null && q !== par).map((q) => [q.variante_id, q.linea]));
   const candidatos = [...r.fisico.values()]
     .filter((x) => x.variante.codigo === par.linea.codigo && !ocupadas.has(x.variante.id))
@@ -173,7 +175,7 @@ const buscable = (x) => {
   const lineas = x.lineas ?? (x.linea ? [x.linea] : []);
   return {
     ...x,
-    _buscar: [x.codigo, x.descripcion, x.variante ? describir(x.variante) : "", ...lineas.flatMap((l) => [describirAx(l), l.nombre, l.codigo_texto]), x.dimension, x.np]
+    _buscar: [x.codigo, x.descripcion, ...(x.variantes ?? (x.variante ? [x.variante] : [])).map(describir), ...lineas.flatMap((l) => [describirAx(l), l.nombre, l.codigo_texto]), x.dimension, x.np]
       .filter(Boolean)
       .join(" "),
   };
@@ -188,6 +190,12 @@ function EnFisico({ x }) {
       : html`<span class="nota">sin sugerencia</span>`;
   }
   if (!x.variante) return html`<span class="nota">no está en el físico</span>`;
+  if (x.variantes?.length > 1) {
+    // Partida de AX sin dimensión: junta las variantes que AX no distingue.
+    return html`<span title=${x.variantes.map(describir).join("\n")}>${textoFisico(x)}</span>
+      <${Pastilla} tono="info" titulo="AX no trae Tamaño ni Color para esta partida: se compara contra todas estas variantes">AX sin dimensión<//>
+      <span class="lugares">${x.lugares.map((l) => html`<${Pastilla} tono="lugar" titulo=${`${l.hoja} · ${l.lugar}`}>${l.detalle}: ${n(l.total)}<//>`)}</span>`;
+  }
   return html`<span>${describir(x.variante)}</span>${lugares}`;
 }
 

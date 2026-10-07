@@ -18,7 +18,7 @@ import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
-import { claveEstricta, claveLaxa, compactar, mayusculas, unidad } from "../nucleo/normalizar.js";
+import { claveEstricta, claveLaxa, compactar, mayusculas, sinDimension, unidad } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
 import { ErrorCorreccion, corregirDimensionNp, lugarCorto, previaCorreccion } from "./inventario.js";
 import { estadoAxDeVales, sinAplicar } from "./seguimiento.js";
@@ -276,6 +276,32 @@ export function varianteVigente(indices, varianteId) {
   return id;
 }
 
+/**
+ * Junta las parejas confirmadas que comparten alguna variante (una partida de AX puede traer varias en su
+ * grupo). @returns [{ pares, varianteIds }] en el orden de las partidas de AX.
+ */
+function agruparPares(pares) {
+  const raiz = new Map();
+  const buscar = (x) => {
+    while (raiz.get(x) !== x) x = raiz.get(x);
+    return x;
+  };
+  for (const p of pares) {
+    const ids = p.grupo ?? [p.variante_id];
+    for (const id of ids) if (!raiz.has(id)) raiz.set(id, id);
+    for (const id of ids.slice(1)) raiz.set(buscar(id), buscar(ids[0]));
+  }
+  const grupos = new Map();
+  for (const p of pares) {
+    const r = buscar(p.variante_id);
+    if (!grupos.has(r)) grupos.set(r, { pares: [], varianteIds: [] });
+    const g = grupos.get(r);
+    g.pares.push(p);
+    for (const id of p.grupo ?? [p.variante_id]) if (!g.varianteIds.includes(id)) g.varianteIds.push(id);
+  }
+  return [...grupos.values()];
+}
+
 /** Junta el tránsito de varias llaves (una variante y las partidas de AX que le asignaron vales). */
 function juntarTransito(...grupos) {
   const ts = grupos.filter(Boolean);
@@ -347,7 +373,10 @@ function fisicoComparable(estado, corte, indices, fisico = null) {
 
 /**
  * Empareja cada renglón INV del corte con una variante del inventario.
- * @returns [{ linea, variante_id, metodo, puntaje, confirmado, candidatos: [{ variante_id, puntaje }], ocupadas }]
+ * @returns [{ linea, variante_id, grupo, metodo, puntaje, confirmado, candidatos: [{ variante_id, puntaje }], ocupadas }]
+ *   grupo (Ronda 15): las variantes que junta una partida de AX SIN dimensión (Tamaño y Color vacíos, "S/D"…):
+ *   AX no las distingue. Si es la única partida del código en AX es el código completo ("todo_el_codigo");
+ *   si no, las variantes sin dimensión del código ("sin_dimension"). variante_id = la de más existencia.
  *   candidatos: solo variantes libres (ninguna que ya sea pareja de otra partida de AX);
  *   ocupadas: cuántas variantes del código ya tienen su pareja (no se ofrecen).
  *   metodo: 'exacto' (confirmado), 'aproximado' | 'unico' | 'recordada' | 'sin_sugerencia' (por
@@ -365,12 +394,16 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
   const sinPareja = new Set(corte.sin_pareja ?? []);
   const pares = lineasInv(corte).map((linea) => ({ linea, variante_id: null, metodo: null, puntaje: null, confirmado: false, candidatos: [] }));
   const tomadas = new Set();
+  // Sin dimensión en AX: ni Tamaño ni Color dicen nada ("", "S/D"…). Si el Color trae algo (un NP), se empareja normal.
+  const axSinDimension = (linea) => sinDimension(linea.tamano) && claveEstricta(linea.color) === "" && claveEstricta(linea.tamano) === "";
+  const partidasDelCodigo = new Map();
+  for (const p of pares) partidasDelCodigo.set(p.linea.codigo, (partidasDelCodigo.get(p.linea.codigo) ?? 0) + 1);
   // Lo que se decidió en este corte: "no está en físico" (y lo que decían las versiones anteriores).
   for (const p of pares) {
     if (sinPareja.has(p.linea.id) || equivalencias[claveAx(p.linea)]?.variante_id === null) Object.assign(p, { metodo: "sin_pareja", confirmado: true });
   }
-  // Exacto tras normalizar.
-  for (const p of pares.filter((x) => !x.metodo)) {
+  // Exacto tras normalizar (las partidas de AX sin dimensión van después: juntan varias variantes).
+  for (const p of pares.filter((x) => !x.metodo && !axSinDimension(x.linea))) {
     const ax = formasAx(p.linea);
     const exactos = (porCodigo.get(p.linea.codigo) ?? []).filter((r) => esExacto(ax, formasFisico(r.variante)));
     if (!exactos.length) continue;
@@ -378,6 +411,24 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
     const elegido = [...exactos].sort((a, b) => orden(a) - orden(b))[0];
     Object.assign(p, { variante_id: elegido.variante.id, metodo: "exacto", puntaje: 1, confirmado: true });
     tomadas.add(elegido.variante.id);
+  }
+  // Sin dimensión en AX: AX no distingue entre las variantes que tampoco tienen dimensión (S/D, SIN
+  // DIMENSIÓN, S/N… con distintos NP), así que se comparan todas juntas. Si es la única partida del código
+  // en AX, representa al código completo. No se corrige nada del inventario.
+  for (const p of pares.filter((x) => !x.metodo && axSinDimension(x.linea))) {
+    const libres = (porCodigo.get(p.linea.codigo) ?? []).filter((r) => !tomadas.has(r.variante.id));
+    const unica = partidasDelCodigo.get(p.linea.codigo) === 1;
+    const grupo = unica ? libres : libres.filter((r) => sinDimension(r.variante.dimension));
+    if (!grupo.length) continue;
+    const principal = [...grupo].sort((a, b) => b.total.cmp(a.total) || a.variante.id - b.variante.id)[0];
+    Object.assign(p, {
+      variante_id: principal.variante.id,
+      grupo: [principal, ...grupo.filter((r) => r !== principal)].map((r) => r.variante.id),
+      metodo: unica ? "todo_el_codigo" : "sin_dimension",
+      puntaje: 1,
+      confirmado: true,
+    });
+    for (const r of grupo) tomadas.add(r.variante.id);
   }
   // Aproximado (sugerencia que el usuario confirma corrigiendo el inventario). Solo con variantes
   // LIBRES: una que ya es la pareja de otra partida de AX (exacta o confirmada) no se ofrece, porque
@@ -420,6 +471,19 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
 }
 
 /** En AX la dimensión es Tamaño + Color (AX no trae NP). */
+/** Una variante como se lee: "S/D · NP X00489" (sin dimensión → "SIN DIMENSIÓN"). */
+export const textoVariante = (v) => (v ? `${v.dimension || "SIN DIMENSIÓN"}${v.np ? ` · NP ${v.np}` : ""}` : "—");
+
+/**
+ * Las partidas del inventario de una fila: una variante, o las que junta una partida de AX sin dimensión
+ * ("Todo el código (9 variantes)", "Sin dimensión (3 variantes)").
+ */
+export function textoFisico(fila) {
+  const variantes = fila.variantes ?? (fila.variante ? [fila.variante] : []);
+  if (variantes.length <= 1) return textoVariante(fila.variante);
+  return `${fila.metodos?.includes("todo_el_codigo") ? "Todo el código" : "Sin dimensión"} (${variantes.length} variantes)`;
+}
+
 export const dimensionAx = (linea) => [texto(linea.tamano), texto(linea.color)].filter(Boolean).join(" ");
 
 /**
@@ -469,7 +533,7 @@ export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimensio
   // con la que se juntaría al corregirla pueden ser ya la pareja de otra.
   const otras = emparejar(estado, corte).filter((q) => q.linea.id !== lineaId && q.confirmado && q.variante_id !== null);
   const destino = previaCorreccion(estado, { varianteId }, valores).otra;
-  const ocupada = otras.find((q) => q.variante_id === varianteId || q.variante_id === destino?.id);
+  const ocupada = otras.find((q) => (q.grupo ?? [q.variante_id]).some((id) => id === varianteId || id === destino?.id));
   if (ocupada) {
     throw new ErrorConciliacion(
       `Esa partida del inventario ya es la pareja de ${ocupada.linea.codigo} ${dimensionAx(ocupada.linea) || "SIN DIMENSIÓN"} en AX. Si esta no tiene otra, márcala como "No está en el físico".`,
@@ -564,34 +628,40 @@ export function conciliar(estado, corte) {
   const ax = estadoAxDeVales(estado);
   const transito = transitoDesde(estado, corte, { indices, ax });
 
-  // Por variante (renglón de AX ↔ variante del inventario).
-  const grupos = new Map();
-  for (const p of pares) {
-    if (!p.confirmado || p.variante_id === null) continue;
-    if (!grupos.has(p.variante_id)) grupos.set(p.variante_id, []);
-    grupos.get(p.variante_id).push(p);
-  }
-  const renglones = [...grupos].map(([varianteId, ps]) => {
-    const f = fisico.get(varianteId);
-    const variante = f?.variante ?? indices.variante(varianteId);
+  // Filas: cada partida de AX con su(s) variante(s). Las que comparten variante van juntas: varias de
+  // AX con una variante, o una de AX sin dimensión con varias variantes (grupo).
+  const renglones = agruparPares(pares.filter((p) => p.confirmado && p.variante_id !== null)).map(({ pares: ps, varianteIds }) => {
+    const principalId = ps[0].variante_id;
+    const variantes = varianteIds.map((id) => fisico.get(id)?.variante ?? indices.variante(id)).filter(Boolean);
+    const variante = variantes.find((v) => v.id === principalId) ?? variantes[0];
     const lineas = ps.map((p) => p.linea);
+    const fs = varianteIds.map((id) => fisico.get(id)).filter(Boolean);
     return {
-      variante_id: varianteId,
+      variante_id: principalId,
+      variante_ids: varianteIds,
       codigo: variante.codigo,
       descripcion: descripcionDe(estado, variante.codigo, lineas[0].nombre),
       variante,
+      variantes,
       lineas,
       metodos: [...new Set(ps.map((p) => p.metodo))],
-      lugares: (f?.renglones ?? []).map((r) => ({ lugar: lugarCorto(r.ubicacion), hoja: r.ubicacion.hoja_excel.trim(), total: r.total })),
+      lugares: fs.flatMap((f) =>
+        f.renglones.map((r) => ({
+          lugar: lugarCorto(r.ubicacion),
+          hoja: r.ubicacion.hoja_excel.trim(),
+          total: r.total,
+          detalle: varianteIds.length > 1 ? [f.variante.dimension, f.variante.np ? `NP ${f.variante.np}` : ""].filter(Boolean).join(" · ") || "SIN DIMENSIÓN" : "",
+        })),
+      ),
       ...comparar({
         ax: sumar(...lineas.map((l) => dec(l.disponible) ?? CERO)),
         valorAx: sumar(...lineas.map((l) => dec(l.valor_financiero) ?? CERO)),
-        fisico: f?.total ?? CERO,
-        transito: juntarTransito(transito.porVariante.get(varianteId), ...lineas.map((l) => transito.porLineaAx.get(l.id))),
+        fisico: sumar(...fs.map((f) => f.total)),
+        transito: juntarTransito(...varianteIds.map((id) => transito.porVariante.get(id)), ...lineas.map((l) => transito.porLineaAx.get(l.id))),
       }),
     };
   });
-  const enAx = new Set(grupos.keys());
+  const enAx = new Set(renglones.flatMap((r) => r.variante_ids));
   const sugeridas = new Set(pares.filter((p) => !p.confirmado && hay(p.variante_id)).map((p) => p.variante_id));
 
   // Físico sin renglón en AX (RF-55): variantes con existencia que ningún renglón confirmado toma.
@@ -670,7 +740,7 @@ export function conciliar(estado, corte) {
     .sort((a, b) => a.codigo - b.codigo);
 
   // Por contenedor: cada renglón del inventario con el resultado de su variante.
-  const resultadoDe = new Map([...renglones, ...fisicoSinAx].map((r) => [r.variante_id, r]));
+  const resultadoDe = new Map([...renglones.flatMap((r) => r.variante_ids.map((id) => [id, r])), ...fisicoSinAx.map((r) => [r.variante_id, r])]);
   const contenedores = new Map();
   for (const r of fisico.values()) {
     for (const x of r.renglones) {

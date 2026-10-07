@@ -98,6 +98,12 @@ export function PaginaAyuda() {
           sobrantes o faltantes con su valor. <em>Enviar a la base</em> descarga la solicitud de ajuste (cada fila coloreada según su
           estado, con su hoja de leyenda y los vales por aplicar). Las cantidades no cambian.
         </dd>
+        <dt>AX no trae dimensión de un artículo</dt>
+        <dd>
+          Si una partida de AX no tiene Tamaño ni Color, se compara contra todas las variantes del código que tampoco tienen dimensión
+          («S/D», «SIN DIMENSIÓN», «S/N»… con distintos NP), o contra el código completo si es su única partida en AX. En la conciliación
+          sale como «Todo el código (N variantes)» o «Sin dimensión (N variantes)» con lo que hay en cada una. No se corrige el inventario.
+        </dd>
         <dt>¿Qué hago con los faltantes de la conciliación?</dt>
         <dd>
           En <a href="#conciliacion">Conciliación AX</a> → <em>Por resolver</em> → <em>Justificar faltantes</em>: a cada faltante le asignas los

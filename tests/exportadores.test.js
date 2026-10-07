@@ -108,7 +108,7 @@ test("inventario: partes intactas y recálculo al abrir", () => {
   const { estado } = cargaSintetica();
   const original = bytesInventario();
   const resultado = exportarInventario(estado, original);
-  assert.equal(resultado.renglones, 14);
+  assert.equal(resultado.renglones, 20);
   const distintas = partesDistintas(original, resultado.datos);
   const permitidas = new Set([
     "[Content_Types].xml",

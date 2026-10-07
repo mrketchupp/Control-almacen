@@ -34,6 +34,8 @@ CATALOGO = {
     708: "GRASA",
     709: "CABLES",
     710: "LAMPARA DE USO GENERAL",
+    711: "FOCO LED",
+    714: "LAMPARA DE MANO",
 }
 SOLO_EN_VALES = {721: "CODIGO SOLO EN CATALOGO DE VALES"}
 
@@ -70,6 +72,15 @@ HOJAS_INV = {
     "CONTENEDOR #2 INVENTARIABLE": [
         (1, 701, "6309-2Z/C3", None, 3, "PZA", None, None),
         (2, 799, "SIN DIMENSION", None, 1, "PZA", None, None),
+        # Ronda 15: en AX sin Tamaño ni Color. 711 tiene otra partida en AX con dimensión (MOD:A1): la
+        # partida sin dimensión junta solo las variantes sin dimensión (S/D, SIN DIMENSION, S/N con NP
+        # distintos). 714 solo tiene esa partida en AX: es el código completo, también MOD:HWD003.
+        (3, 711, "S/D", "LED 20W", 4, "PZA", None, None),
+        (4, 711, "SIN DIMENSION", "LED 50W", 3, "PZA", None, None),
+        (5, 711, "S/N", "X100", 0, "PZA", None, None),
+        (6, 711, "MOD:A1", None, 2, "PZA", None, None),
+        (7, 714, "MOD:HWD003", None, 6, "PZA", None, None),
+        (8, 714, "S/D", None, 2, "PZA", None, None),
     ],
     "CONTENEDOR #2 CONSUMIBLE": [
         (1, 705, '1/2"', None, 100, "MTS", None, None),
@@ -860,6 +871,9 @@ RENGLONES_AX = [
     (710, "S/D", "X00489", "PZA", 2, 75.0, ALMACEN_AX),
     (703, "1/2 X 2", "", "PZA", 10, 4.75, ALMACEN_AX),
     (709, "CABLE 3/4", "", "m", 50, 18.0, ALMACEN_AX),
+    (711, "", "", "PZA", 7, 60.0, ALMACEN_AX),
+    (711, "MOD:A1", "", "PZA", 2, 60.0, ALMACEN_AX),
+    (714, "", "", "PZA", 8, 45.0, ALMACEN_AX),
     (701, "6309-2Z/C3", "", "PZA", 99, 350.0, "RIG48-XX10"),
     # Otro modelo de inventario (no INV, como el diésel): no se concilia.
     (136, "", "", "LT", 500, 20.0, ALMACEN_AX, "NO INV"),

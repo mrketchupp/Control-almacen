@@ -2,7 +2,8 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exportarSolicitudAjuste, nombreSolicitud } from "../src/exportadores/ajuste.js";
+import { exportarSolicitudAjuste, filasSolicitud, nombreSolicitud } from "../src/exportadores/ajuste.js";
+import { sinDimension } from "../src/nucleo/normalizar.js";
 import { ErrorReporteAx, delAlmacen, fechaDeNombre, leerReporteAx } from "../src/importadores/ax.js";
 import * as c from "../src/servicios/conciliacion.js";
 import * as en from "../src/servicios/entradas.js";
@@ -37,11 +38,11 @@ test("importar el reporte de AX: columnas por nombre, almacenes, fecha del nombr
   assert.equal(reporte.hoja, "rptInventSumDateTransForDimensi");
   assert.equal(reporte.fechaSugerida, "2026-09-05");
   assert.deepEqual(reporte.almacenes, [
-    { nombre: "RIG91-IX25", renglones: 14 },
+    { nombre: "RIG91-IX25", renglones: 17 },
     { nombre: "RIG48-XX10", renglones: 1 },
   ]);
   const propios = delAlmacen(reporte.renglones, "rig91-ix25");
-  assert.equal(propios.length, 14);
+  assert.equal(propios.length, 17);
   assert.equal(propios.find((r) => r.codigo === 136).modelo, "NO INV");
   const [primero] = propios;
   assert.deepEqual([primero.codigo, primero.codigo_texto, primero.tamano, primero.disponible, primero.valor_financiero], [701, "000000701", "6309-2Z/C3", "9", "3150"]);
@@ -82,7 +83,7 @@ test("solo se concilia el modelo INV: los códigos de otro modelo tampoco cuenta
   assert.deepEqual(r.fisicoSinAx, []);
   assert.equal(r.porCodigo.some((x) => x.codigo === 799 || x.codigo === 136), false);
   assert.equal(r.resumen.no_inv, 2);
-  assert.equal(c.lineasInv(otro.corte).length, 13);
+  assert.equal(c.lineasInv(otro.corte).length, 16);
   // Un reporte sin la columna de modelo se concilia completo.
   assert.equal(c.lineasInv({ lineas: [{ codigo: 1, modelo: "" }, { codigo: 2, modelo: "" }] }).length, 2);
 });
@@ -289,4 +290,41 @@ test("vista general («Todos»): cada partida INV del reporte sale una vez (tamb
     assert.equal(r.general.filter((x) => x.estado === estadoFila).length, r.resumen[cuenta], estadoFila);
   }
   assert.ok(r.general.every((x, i) => i === 0 || r.general[i - 1].codigo <= x.codigo), "ordenado por código");
+});
+
+test("AX sin dimensión (Tamaño y Color vacíos): junta las variantes sin dimensión, o el código completo si es su única partida", () => {
+  const { estado, corte } = conCorte();
+  const pares = c.emparejar(estado, corte);
+  const variante = (id) => estado.variantes.find((v) => v.id === id);
+  const par = (codigo, tamano) => pares.find((p) => p.linea.codigo === codigo && p.linea.tamano === tamano);
+  // 711 también tiene MOD:A1 en AX: la de sin dimensión junta solo S/D, SIN DIMENSION y S/N (NP distintos).
+  const foco = par(711, "");
+  assert.deepEqual([foco.metodo, foco.confirmado], ["sin_dimension", true]);
+  assert.deepEqual(foco.grupo.map((id) => variante(id).np).sort(), ["LED 20W", "LED 50W", "X100"]);
+  assert.equal(variante(foco.variante_id).np, "LED 20W"); // la de más existencia
+  assert.equal(par(711, "MOD:A1").metodo, "exacto");
+  // 714 solo tiene esa partida en AX: es el código completo, también la de dimensión MOD:HWD003.
+  const mano = par(714, "");
+  assert.deepEqual([mano.metodo, mano.grupo.map((id) => variante(id).dimension).sort()], ["todo_el_codigo", ["MOD:HWD003", "S/D"]]);
+  // Si el Color trae algo (S/D + X00489 = un NP), se empareja normal.
+  assert.equal(par(710, "S/D").metodo, "exacto");
+  // En la conciliación cada una es UNA fila con el físico de todas sus variantes; nada queda "solo en el físico".
+  const r = c.conciliar(estado, corte);
+  const fila = (codigo, tamano) => r.renglones.find((x) => x.codigo === codigo && x.lineas.some((l) => l.tamano === tamano));
+  assert.deepEqual([fila(711, "").variante_ids.length, fila(711, "").fisico.toFixed(), fila(711, "").ax.toFixed(), fila(711, "").estado], [3, "7", "7", "cuadra"]);
+  assert.deepEqual([fila(714, "").variante_ids.length, fila(714, "").fisico.toFixed(), fila(714, "").estado], [2, "8", "cuadra"]);
+  assert.equal(c.textoFisico(fila(714, "")), "Todo el código (2 variantes)");
+  assert.equal(c.textoFisico(fila(711, "")), "Sin dimensión (3 variantes)");
+  assert.deepEqual(r.fisicoSinAx.map((x) => x.codigo), [799]);
+  // El inventario no se corrige (AX no trae dimensión que copiar).
+  assert.equal(estado.variantes.filter((v) => v.codigo === 711 && v.claves_anteriores?.length).length, 0);
+  // En la solicitud (con todas) el físico de la fila va completo en su partida de AX.
+  const filas = filasSolicitud(r, corte, { todos: true });
+  const deAx = filas.find((x) => x[0] === "000000714");
+  assert.deepEqual([String(deAx[10]), deAx[12]], ["8", "cuadra"]);
+});
+
+test("sinDimension: vacía, S/D, SIN DIMENSIÓN, S/N… o que empieza así", () => {
+  for (const t of ["", null, "S/D", "SIN DIMENSION", "SIN DIMENSIÓN", "Sin dimención", "S/N", "S/D NP: 1/4\"", "S/D CABLE UTP"]) assert.equal(sinDimension(t), true, String(t));
+  for (const t of ["MOD:HWD003", "6309-2Z/C3", "SD-12", '1/2"']) assert.equal(sinDimension(t), false, t);
 });

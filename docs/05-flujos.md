@@ -164,7 +164,15 @@ flowchart LR
   aparte. La escritura anterior queda en `claves_anteriores` para seguir reconociendo los vales viejos. *No está en el
   físico* se anota solo en ese corte. Un código de AX sin ninguna partida física va directo a "en AX y no en el físico".
   Cada corrección tiene *Deshacer* en el aviso y queda en la bitácora (`CORREGIR_CLAVE`).
-- **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante.
+- **AX sin dimensión (Ronda 15):** si una partida de AX no trae Tamaño ni Color (vacíos o `S/D`), AX no distingue
+  entre las variantes que tampoco tienen dimensión, así que se comparan **todas juntas** en una sola fila (físico =
+  suma de todas): si es la **única partida del código en AX**, es el **código completo** (todas sus variantes, aunque
+  alguna tenga dimensión); si el código tiene otras partidas en AX con dimensión, solo las variantes **sin dimensión**.
+  "Sin dimensión" = vacía, `S/D`, `SIN DIMENSIÓN` / `SIN DIMENCION`, `S/N`, o un texto que empieza así (`S/D NP: …`,
+  `S/D CABLE UTP`: lo que sigue es NP o descripción). No se corrige el inventario (AX no trae dimensión que copiar). Si
+  el Color trae algo (`S/D` + `X00489`, un NP), se empareja normal.
+- **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante (o de todas las
+  variantes de la fila, cuando AX no trae dimensión).
 - **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
 - **Con el archivo de vales de la base (Rondas 12 y 13)** lo único que importa es si la partida tiene **folio de AX**:
   - Con folio IN / TR ya está en AX (CANTIDAD vacía = todo): no justifica diferencias.

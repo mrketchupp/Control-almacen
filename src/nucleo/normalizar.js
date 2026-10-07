@@ -60,6 +60,16 @@ export function claveEstricta(valor) {
   return SIN_VALOR.has(texto.replaceAll("/", "")) ? "" : texto;
 }
 
+/**
+ * ¿No tiene dimensión? Vacía, "S/D", "SIN DIMENSIÓN" (o "SIN DIMENCION"), "S/N", "N/A"… o un texto que
+ * empieza así ("S/D NP: 1/4\"", "S/D CABLE UTP"): lo que sigue es NP o descripción, no la dimensión.
+ */
+export function sinDimension(valor) {
+  if (claveEstricta(valor) === "") return true;
+  const texto = sinAcentos(compactar(valor) ?? "");
+  return /^(S\/D|S\/N|SIN DIMENSION|SIN DIMENCION)(\s|:|$)/.test(texto);
+}
+
 /** Solo letras y dígitos. Se usa para SUGERIR parejas, nunca para fusionar. */
 export function claveLaxa(valor) {
   const texto = mayusculas(valor);

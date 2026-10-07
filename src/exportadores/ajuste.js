@@ -85,7 +85,8 @@ const codigoTexto = (codigo) => String(codigo).padStart(9, "0");
  * @param todos  también las partidas que cuadran
  */
 export function filasSolicitud(c, corte, { todos = false } = {}) {
-  const porVariante = new Map(c.renglones.map((r) => [r.variante_id, r]));
+  // Una fila puede juntar varias variantes (partida de AX sin dimensión): cualquiera lleva a su fila.
+  const porVariante = new Map(c.renglones.flatMap((r) => (r.variante_ids ?? [r.variante_id]).map((id) => [id, r])));
   const sinFisico = new Map(c.axSinFisico.map((r) => [r.linea.id, r]));
   const conFisico = new Set();
   const filas = [];
@@ -111,9 +112,9 @@ export function filasSolicitud(c, corte, { todos = false } = {}) {
       estadoFila = r ? r.estado : disponible.gt(0) ? "faltante" : disponible.lt(0) ? "sobrante" : "cuadra";
     } else {
       const r = porVariante.get(p.variante_id);
-      // Si varios renglones de AX son la misma variante, el físico va en el primero.
-      const primero = !conFisico.has(p.variante_id);
-      conFisico.add(p.variante_id);
+      // Si varios renglones de AX son la misma fila, el físico va en el primero.
+      const primero = !conFisico.has(r);
+      conFisico.add(r);
       fisico = primero ? r.fisico : CERO;
       folios = primero ? foliosTexto(r.folios) : "";
       conDiferencia = r.estado !== "cuadra";

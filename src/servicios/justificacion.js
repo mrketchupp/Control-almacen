@@ -13,7 +13,7 @@ import { clavesDeBusqueda, clavesPropias, hayInterseccion } from "../nucleo/cata
 import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso } from "../nucleo/fechas.js";
-import { claveEstricta } from "../nucleo/normalizar.js";
+import { claveEstricta, sinDimension } from "../nucleo/normalizar.js";
 import { corteAx, conciliar, dimensionAx, enTransito, varianteVigente } from "./conciliacion.js";
 import { sinAplicar } from "./seguimiento.js";
 
@@ -28,8 +28,10 @@ export const claveDestino = (x) => (x.variante_id !== undefined && x.variante_id
 export const destinoDe = (x) => (x.lineas && hay(x.variante_id) ? { variante_id: x.variante_id, linea_ax_id: null } : { variante_id: null, linea_ax_id: x.linea.id });
 
 /** ¿Esta asignación es de esta fila? (una fila de variante también recibe lo asignado a sus partidas de AX). */
+const idsDeFila = (fila) => fila.variante_ids ?? (hay(fila.variante_id) ? [fila.variante_id] : []);
+
 function esDeFila(asignacion, fila, indices) {
-  if (hay(asignacion.variante_id)) return fila.lineas && hay(fila.variante_id) && varianteVigente(indices, asignacion.variante_id) === fila.variante_id;
+  if (hay(asignacion.variante_id)) return Boolean(fila.lineas) && idsDeFila(fila).includes(varianteVigente(indices, asignacion.variante_id));
   const lineas = fila.lineas ?? (fila.linea ? [fila.linea] : []);
   return lineas.some((l) => l.id === asignacion.linea_ax_id);
 }
@@ -58,9 +60,14 @@ function coincidencia(linea, fila, variantesDelCodigo) {
   const delVale = clavesDeBusqueda(clave);
   // "S/D" = "S/D" también cuenta (clavesDeBusqueda quita esas marcas).
   const igual = (...textos) => Boolean(estricta) && textos.some((t) => claveEstricta(t ?? "") === estricta);
+  const metodos = fila.metodos ?? [];
+  // La partida de AX es el código completo: cualquier vale del código es de ella.
+  if (metodos.includes("todo_el_codigo")) return "exacta";
+  // Sin dimensión en AX: un vale sin dimensión (S/D, SIN DIMENSIÓN…) es de esta fila.
+  if (metodos.includes("sin_dimension") && sinDimension(clave)) return "exacta";
   if (fila.variante) {
-    const v = fila.variante;
-    if (hayInterseccion(delVale, clavesPropias(v)) || igual(v.dimension, `${v.dimension ?? ""} ${v.np ?? ""}`)) return "exacta";
+    const variantes = fila.variantes ?? [fila.variante];
+    if (variantes.some((v) => hayInterseccion(delVale, clavesPropias(v)) || igual(v.dimension, `${v.dimension ?? ""} ${v.np ?? ""}`))) return "exacta";
     return variantesDelCodigo === 1 ? "unica" : "";
   }
   const lineas = fila.lineas ?? [fila.linea];
@@ -94,7 +101,8 @@ export const ESTADOS_CANDIDATO = {
 export function candidatos(estado, r, fila, { indices = new Indices(estado), codigo = fila.codigo } = {}) {
   const asignadas = new Set((r.corte.asignaciones ?? []).map((a) => a.partida_id));
   const variantesDelCodigo = new Set([...r.fisico.values()].filter((x) => x.variante.codigo === codigo).map((x) => x.variante.id)).size;
-  const existenciasDestino = fila.variante ? estado.existencias.filter((e) => e.activo !== false && e.variante_id === fila.variante_id) : [];
+  const destino = new Set(idsDeFila(fila));
+  const existenciasDestino = fila.variante ? estado.existencias.filter((e) => e.activo !== false && destino.has(e.variante_id)) : [];
   // El físico ya descontó una partida sin renglón ligado si el vale es anterior al conteo de todos los renglones del destino.
   const yaContado = (vale) =>
     existenciasDestino.every((e) => !cuentaParaSaldo(hay(e.conteo_id) ? indices.conteos.get(e.conteo_id) : null, vale));
@@ -115,12 +123,12 @@ export function candidatos(estado, r, fila, { indices = new Indices(estado), cod
       const varianteLigada = ligada ? varianteVigente(indices, ligada.variante_id) : null;
       if (t?.donde === "variante") {
         const v = varianteVigente(indices, t.variante_id);
-        if (fila.variante && v === fila.variante_id) estadoCand = "aqui";
+        if (fila.variante && destino.has(v)) estadoCand = "aqui";
         else {
           estadoCand = "otra";
           otra = indices.variante(v);
         }
-      } else if (ligada && fila.variante && varianteLigada !== fila.variante_id) {
+      } else if (ligada && fila.variante && !destino.has(varianteLigada)) {
         // Salió de otra partida del inventario: moverla es decir que salió de esta.
         estadoCand = "otra";
         otra = indices.variante(varianteLigada);

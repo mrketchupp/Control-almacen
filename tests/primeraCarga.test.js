@@ -10,8 +10,8 @@ const indices = new Indices(estado);
 const valePorFolio = (folio) => estado.vales.find((v) => v.folio === folio);
 
 test("carga el inventario completo", () => {
-  assert.equal(reporte.existencias, 14);
-  assert.deepEqual(reporte.hojas.map((h) => h.renglones), [5, 5, 2, 2]);
+  assert.equal(reporte.existencias, 20);
+  assert.deepEqual(reporte.hojas.map((h) => h.renglones), [5, 5, 8, 2]);
   assert.ok(estado.ubicaciones.some((u) => u.hoja_excel === "CONTENEDOR #1 CONSUMIBLE "));
   // la misma variante en dos ubicaciones es una sola variante
   assert.equal(estado.variantes.filter((v) => v.codigo === 701).length, 2);

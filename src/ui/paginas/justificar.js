@@ -5,7 +5,7 @@
 import { useMemo, useState } from "preact/hooks";
 import { aNumero } from "../../nucleo/decimal.js";
 import { fmtFecha } from "../../nucleo/fechas.js";
-import { dimensionAx } from "../../servicios/conciliacion.js";
+import { dimensionAx, textoFisico } from "../../servicios/conciliacion.js";
 import {
   ESTADOS_CANDIDATO,
   ErrorJustificacion,
@@ -140,7 +140,7 @@ function ItemJustificar({ j, sugerencia, r, corte }) {
       <div class="just-partida">
         <strong>${fila.codigo}</strong> <span class="descripcion-corta" title=${fila.descripcion}>${fila.descripcion}</span>
         <code class="dim-ax">${enAx(fila)}</code>
-        ${fila.variante ? html`<span class="nota">físico: ${describir(fila.variante)}</span>` : html`<span class="nota">no está en el físico</span>`}
+        ${fila.variante ? html`<span class="nota" title=${(fila.variantes ?? [fila.variante]).map(describir).join("\n")}>físico: ${textoFisico(fila)}</span>` : html`<span class="nota">no está en el físico</span>`}
       </div>
       <div class="just-cifras">
         <span>AX <strong>${n(fila.ax)}</strong></span>
@@ -200,7 +200,7 @@ export function VentanaJustificar({ r, corte, sugerencias, alCerrar }) {
   const [texto, setTexto] = useState("");
   const deVista = lista.filter((j) => (vista === "sugeridos" ? sugerencias.has(j.clave) : vista === "faltantes" ? j.falta.gt(0) : j.asignadas.length));
   const filas = useFiltroTexto(
-    deVista.map((j) => ({ ...j, _buscar: `${j.codigo} ${j.fila.descripcion ?? ""} ${enAx(j.fila)} ${describir(j.fila.variante)}` })),
+    deVista.map((j) => ({ ...j, _buscar: `${j.codigo} ${j.fila.descripcion ?? ""} ${enAx(j.fila)} ${(j.fila.variantes ?? [j.fila.variante]).map(describir).join(" ")}` })),
     texto,
     ["_buscar"],
   );
