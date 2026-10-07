@@ -16,8 +16,11 @@ test("resumen con datos", () => {
 
 test("filas de inventario e historial", () => {
   const { estado } = cargaSintetica();
-  const sellos = consultas.filasInventario(estado).find((f) => f.codigo === 706);
-  assert.deepEqual([sellos.cantidad, sellos.consumo, sellos.total], [2, 1, 1]);
+  // Como el Excel diario: el día del vale (04-sep) sale en CONSUMO; al día siguiente ya está en CANTIDAD.
+  const sellos = (dia) => consultas.filasInventario(estado, { dia }).find((f) => f.codigo === 706);
+  assert.deepEqual([sellos("2026-09-04").cantidad, sellos("2026-09-04").consumo, sellos("2026-09-04").total], [2, 1, 1]);
+  assert.deepEqual([sellos("2026-09-05").cantidad, sellos("2026-09-05").consumo, sellos("2026-09-05").total], [1, null, 1]);
+  assert.deepEqual([sellos("2026-09-03").cantidad, sellos("2026-09-03").consumo], [2, 1]); // un vale posterior al día va en CONSUMO
   const historial = consultas.filasHistorial(estado);
   assert.equal(historial.length, 13);
   assert.equal(historial[0].folio, 9); // más reciente primero

@@ -4964,3 +4964,8 @@ button.mosaico:hover .mosaico-abrir {
   padding-top: 6px;
   border-top: 1px dashed var(--borde);
 }
+
+/* Inventario (Ronda 16): explica la vista diaria, como el Excel del almacén. */
+.nota-inventario-dia {
+  margin: -4px 0 10px;
+}

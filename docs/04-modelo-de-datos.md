@@ -271,6 +271,20 @@ TOTAL    = CANTIDAD + INGRESO − CONSUMO      ← en el Excel sigue siendo fór
 
 El corte se hace **por folio, no por fecha**. Así no hay ambigüedad cuando un vale y un conteo ocurren el mismo día.
 
+**Vista diaria (Ronda 16), como el Excel del almacén:** el inventario de un día `D` (la página *Inventario* con `D` =
+hoy, el inventario exportado y el del reporte diario con `D` = su fecha) reparte lo mismo de otra forma:
+
+```
+CANTIDAD (al empezar D) = cantidad_conteo − salidas de días anteriores a D + entradas de días anteriores a D
+CONSUMO  (de D)         = salidas del día D (y posteriores)
+INGRESO  (de D)         = entradas del día D (y posteriores)
+TOTAL                   = el mismo de arriba
+```
+
+Así, como en el Excel, CONSUMO e INGRESO "se limpian" al pasar el día: lo de ayer ya está en la CANTIDAD. Solo los vales
+posteriores al conteo de cada renglón cuentan (el corte por folio no cambia) y nada de esto se guarda
+(`calcularSaldos(estado, ids, { dia })`; el saldo trae `conteo` = lo contado y `cantidad` = al empezar el día).
+
 **Cada renglón tiene su propio conteo** (`existencia.conteo_id`). Un conteo parcial solo cambia los renglones que se
 contaron; los demás siguen descontando desde su conteo anterior. Por eso "el folio de corte" ya no es uno solo:
 `cortesVigentes` da el más antiguo en uso (lo usan *Pendientes*, *Traer vales del Excel* y la marca "Anterior al

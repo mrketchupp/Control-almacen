@@ -3,13 +3,17 @@
 //   CONSUMO = salidas emitidas con folio posterior al del último conteo,
 //   INGRESO = entradas emitidas con folio posterior al del último conteo,
 //   TOTAL   = CANTIDAD + INGRESO − CONSUMO.
+// Vista DIARIA (como el Excel del almacén, Ronda 16): con `dia`, CANTIDAD = lo que había al empezar ese
+// día (conteo + movimientos de días anteriores) y CONSUMO / INGRESO = solo los vales de ese día. El TOTAL
+// es el mismo; nada de esto se guarda.
 
 import { CERO, dec } from "./decimal.js";
 
 export class Saldo {
   constructor(existenciaId, cantidad) {
     this.existencia_id = existenciaId;
-    this.cantidad = cantidad;
+    this.conteo = cantidad; // lo contado
+    this.cantidad = cantidad; // lo contado o, en la vista diaria, lo que había al empezar el día
     this.consumo = CERO;
     this.ingreso = CERO;
   }
@@ -48,8 +52,11 @@ export function cortesVigentes(estado) {
 /** Corte de un tipo de vale ('SALIDA' / 'ENTRADA'). */
 export const corteDe = (cortes, tipo) => (tipo === "ENTRADA" ? cortes.entrada : cortes.salida);
 
-/** Map id de existencia → Saldo. */
-export function calcularSaldos(estado, idsExistencia = null) {
+/**
+ * Map id de existencia → Saldo.
+ * @param dia  AAAA-MM-DD (opcional): vista diaria; los vales de días anteriores pasan a la CANTIDAD.
+ */
+export function calcularSaldos(estado, idsExistencia = null, { dia = null } = {}) {
   const filtro = idsExistencia ? new Set(idsExistencia) : null;
   const conteos = new Map(estado.conteos.map((c) => [c.id, c]));
   const existencias = new Map();
@@ -67,6 +74,11 @@ export function calcularSaldos(estado, idsExistencia = null) {
       const cantidad = dec(linea.cantidad);
       if (cantidad === null || !cuentaParaSaldo(conteos.get(existencia.conteo_id), vale)) continue;
       const saldo = saldos.get(existencia.id);
+      if (dia && vale.fecha && vale.fecha < dia) {
+        // Día anterior: ya está en lo que había al empezar el día.
+        saldo.cantidad = vale.tipo === "SALIDA" ? saldo.cantidad.minus(cantidad) : saldo.cantidad.plus(cantidad);
+        continue;
+      }
       if (vale.tipo === "SALIDA") saldo.consumo = saldo.consumo.plus(cantidad);
       else saldo.ingreso = saldo.ingreso.plus(cantidad);
     }

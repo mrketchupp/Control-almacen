@@ -79,6 +79,8 @@ Hecho (pruebas `tests/conciliacion.test.js` con el reporte AX sintético de `gen
   corregir el inventario. `conciliar` arma las filas con `agruparPares` (componentes por variante compartida):
   `variante_ids`, `variantes`, físico sumado, `lugares[].detalle`; `textoFisico` / `textoVariante`. `sinDimension()` en
   `nucleo/normalizar.js`. Fixture: 711 (sin dimensión + MOD:A1) y 714 (todo el código).
+- Ronda 16 (no es de F4): **inventario diario** — `calcularSaldos(estado, ids, { dia })` pasa los vales de días anteriores a
+  la CANTIDAD (`saldo.conteo` = lo contado); lo usan `filasInventario(estado, { dia = hoy })` y `exportarInventario(…, { fecha })`.
 Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el puntaje/normalización si algo no empareja;
 ☐ que el usuario importe un archivo de la base con todos los vales hasta la fecha del reporte de AX.
 
@@ -88,7 +90,7 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 3. **Exportación sobre plantilla con edición XML mínima** (`docs/03`, `docs/06`): solo se reescriben los fragmentos necesarios; las partes no tocadas se copian con sus bytes comprimidos originales. Prohibido reescribir los libros del usuario con una biblioteca genérica (openpyxl, SheetJS…): borra logos, botones con macro, `customXml` y configuración de impresora. `src/xlsx/nuevo.js` solo genera archivos **nuevos** (revisión, entradas, solicitud de ajuste).
 4. **Nombres de hoja exactos**, con espacios finales incluidos: `CONTENEDOR #1 CONSUMIBLE `, `CONTENEDOR #5 CONSUMIBLE `, `MECANICO `, `OPERACION DIA `; encabezado `DESCRIPCIÓN `.
 5. **Folios:** únicos, consecutivos (último + 1) y asignados dentro de un cambio atómico (`Almacen.modificar`, con el candado de pestaña única). **Todos se usan:** nunca se reutilizan, borran, cancelan ni saltan; un error se corrige con motivo y bitácora (el motivo se prellena con `resumenCambios`).
-6. **Existencias derivadas de movimientos:** CONSUMO e INGRESO se calculan con los vales posteriores al último conteo (corte por **folio**), no se guardan sueltos.
+6. **Existencias derivadas de movimientos:** CONSUMO e INGRESO se calculan con los vales posteriores al último conteo (corte por **folio**), no se guardan sueltos. Se muestran y exportan **por día** como el Excel del almacén (Ronda 16): CANTIDAD = lo que había al empezar el día, CONSUMO / INGRESO = solo los vales de ese día (`calcularSaldos(…, { dia })`); el TOTAL es el mismo.
 7. **Datos vivos en IndexedDB; respaldos en la carpeta del usuario** (OneDrive) como `.zip` (estado JSON + plantillas + manifiesto). Todo cambio de formato del estado requiere subir `FORMATO_ESTADO` y migrar respaldos anteriores.
 8. **Pruebas con Excel sintéticos**; si un caso real revela un problema, reprodúcelo en `generar.py` con datos inventados.
 

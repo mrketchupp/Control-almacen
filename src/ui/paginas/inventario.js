@@ -1,5 +1,5 @@
 import { useMemo, useState } from "preact/hooks";
-import { hoyIso } from "../../nucleo/fechas.js";
+import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { filasInventario } from "../../servicios/consultas.js";
 import { corregirDimensionNp, lugarCorto, renglonDe, ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { ErrorReacomodo, historialReacomodos, reacomodar } from "../../servicios/reacomodos.js";
@@ -108,7 +108,9 @@ function Reacomodos() {
 
 export function PaginaInventario() {
   const sesion = useSesion();
-  const filas = useMemo(() => filasInventario(sesion.estado), [sesion.estado]);
+  // Como el Excel diario: CANTIDAD = lo que había al empezar hoy; CONSUMO e INGRESO = los vales de hoy.
+  const dia = hoyIso();
+  const filas = useMemo(() => filasInventario(sesion.estado, { dia }), [sesion.estado, dia]);
   const [texto, setTexto] = useState("");
   const [hoja, setHoja] = useState("");
   const [vista, setVista] = useState("todos");
@@ -145,7 +147,7 @@ export function PaginaInventario() {
         ariaLabel="Vista"
         opciones=${[
           { valor: "todos", etiqueta: "Todas las partidas" },
-          { valor: "movimiento", etiqueta: "Con consumo o ingreso" },
+          { valor: "movimiento", etiqueta: "Con consumo o ingreso hoy" },
           { valor: "agotado", etiqueta: "Existencia 0 o negativa" },
           { valor: "notas", etiqueta: "Con nota" },
           { valor: "nuevos", etiqueta: "Agregados en la herramienta" },
@@ -153,6 +155,10 @@ export function PaginaInventario() {
       />
       <span class="conteo">${num(visibles.length)} de ${num(filas.length)}</span>
     </div>
+    <p class="nota nota-inventario-dia">
+      Como el Excel diario: <strong>Cantidad</strong> es lo que había al empezar hoy (${fmtFecha(dia)});
+      <strong>Consumo</strong> e <strong>Ingreso</strong> son solo los vales de hoy. Los de días anteriores ya están en la cantidad.
+    </p>
     <${Tabla}
       limite=${300}
       filas=${visibles.map((f) => ({ ...f, _clase: f.total < 0 ? "fila-negativa" : "" }))}
@@ -166,9 +172,9 @@ export function PaginaInventario() {
         { clave: "dimension", titulo: "Dimensión" },
         { clave: "np", titulo: "NP" },
         { clave: "um", titulo: "UM" },
-        { titulo: "Cantidad", numero: true, render: (f) => num(f.cantidad) },
-        { titulo: "Consumo", numero: true, render: (f) => num(f.consumo) },
-        { titulo: "Ingreso", numero: true, render: (f) => num(f.ingreso) },
+        { titulo: html`<span title="Lo que había al empezar el día">Cantidad</span>`, numero: true, render: (f) => num(f.cantidad) },
+        { titulo: html`<span title="Vales de salida de hoy">Consumo</span>`, numero: true, render: (f) => num(f.consumo) },
+        { titulo: html`<span title="Vales de entrada de hoy">Ingreso</span>`, numero: true, render: (f) => num(f.ingreso) },
         { titulo: "Total", numero: true, render: (f) => html`<strong>${num(f.total)}</strong>` },
         {
           titulo: "Nota",

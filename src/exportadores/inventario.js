@@ -18,7 +18,8 @@ const COLUMNAS = "ABCDEFGHIJ".split("");
 
 /**
  * @param plantilla  bytes del inventario del usuario
- * @param fecha  AAAA-MM-DD que se escribe en el encabezado de página (el día del inventario)
+ * @param fecha  AAAA-MM-DD del inventario: va en el encabezado de página y define el día (como el Excel
+ *   diario: CANTIDAD = lo que había al empezar ese día; CONSUMO e INGRESO = solo los vales de ese día)
  * @returns {{ datos: Uint8Array, renglones, hojas, partesModificadas, advertencias }}
  */
 export function exportarInventario(estado, plantilla, { fecha = null } = {}) {
@@ -26,7 +27,7 @@ export function exportarInventario(estado, plantilla, { fecha = null } = {}) {
   const hojas = paquete.hojas();
   const indiceHoja = new Map(hojas.map(([nombre], i) => [nombre, i]));
   const partes = new Map(hojas);
-  const saldos = calcularSaldos(estado);
+  const saldos = calcularSaldos(estado, null, { dia: fecha });
   const indices = new Indices(estado);
   let libro = paquete.texto("xl/workbook.xml");
   const advertencias = [];
@@ -103,7 +104,7 @@ function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias
       B: variante.codigo,
       D: textoONumero(dimensionMostrada(existencia, variante)),
       E: textoONumero(npMostrado(existencia, variante)),
-      F: dec(existencia.cantidad_conteo),
+      F: saldo ? saldo.cantidad : dec(existencia.cantidad_conteo),
       G: umMostrada(existencia, variante) || null,
       H: consumo.eq(0) ? null : consumo,
       I: ingreso.eq(0) ? null : ingreso,

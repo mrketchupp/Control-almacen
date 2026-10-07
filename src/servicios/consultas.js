@@ -54,8 +54,12 @@ export function renglonesAgotados(estado) {
 
 // ---------------------------------------------------------------- inventario
 
-export function filasInventario(estado) {
-  const saldos = calcularSaldos(estado);
+/**
+ * Partidas del inventario como el Excel diario: CANTIDAD = lo que había al empezar el día, CONSUMO e
+ * INGRESO = los vales de ese día (hoy, si no se indica), TOTAL = lo que hay.
+ */
+export function filasInventario(estado, { dia = hoyIso() } = {}) {
+  const saldos = calcularSaldos(estado, null, { dia });
   const indices = new Indices(estado);
   const filas = [];
   const existencias = [...estado.existencias].sort((a, b) => {

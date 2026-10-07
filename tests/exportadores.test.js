@@ -162,6 +162,18 @@ test("inventario: datos, fórmulas, totales y notas", () => {
   assert.equal(libro.hoja("CONTENEDOR #2 CONSUMIBLE").valorRef("A6"), "TEXTO FUERA DE LA TABLA");
 });
 
+test("inventario diario: CANTIDAD = lo que había al empezar el día; CONSUMO e INGRESO = solo los vales de ese día", () => {
+  const { estado } = cargaSintetica();
+  const del = (fecha) => new LibroLeido(exportarInventario(estado, bytesInventario(), { fecha }).datos).hoja("CONTENEDOR #1 INVENTARIABLE");
+  // 706 (fila 6): conteo 2 y el vale 6 del 04-sep por 1.
+  const ese = del("2026-09-04");
+  assert.deepEqual([ese.valorRef("F6"), ese.valorRef("H6")], [2, 1]);
+  // Al día siguiente el consumo ya está en la CANTIDAD (como el Excel del almacén) y CONSUMO queda vacío.
+  const despues = del("2026-09-05");
+  assert.deepEqual([despues.valorRef("F6"), despues.valorRef("H6")], [1, null]);
+  assert.equal(despues.formulas.get("J6"), ese.formulas.get("J6")); // el TOTAL sigue siendo la fórmula
+});
+
 test("inventario: al crecer se recorren totales y notas", () => {
   const { estado } = cargaSintetica();
   const indices = new Indices(estado);

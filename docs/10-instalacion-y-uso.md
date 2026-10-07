@@ -115,6 +115,10 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
+**Inventario del día.** Igual que el Excel: *Cantidad* es lo que había al empezar el día, *Consumo* e *Ingreso* solo los
+vales de hoy y *Total* lo que hay. Al día siguiente lo de hoy pasa a la cantidad y consumo / ingreso quedan limpios. El
+inventario exportado y el del reporte diario usan la fecha del archivo.
+
 ### Entradas, conteos y movimientos
 - **Entrada de material** (*Vales de entrada → Nueva entrada*): elige **Captura manual** o **Desde foto o PDF**.
   Arriba quedan siempre a la vista el folio, los pendientes y los botones **Registrar entrada** y **Descartar**.

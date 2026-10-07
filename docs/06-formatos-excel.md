@@ -20,6 +20,11 @@
 
 ## A. Inventario de refaccionamiento (`.xlsx`)
 
+> **Es un inventario diario** (Ronda 16): en el Excel del almacén, CANTIDAD es lo que había al empezar el día y
+> CONSUMO / INGRESO solo los vales de ese día (en el archivo real del 28-sep la única partida con consumo era la de un vale
+> de ese mismo día). Al exportar (fecha de hoy o la del reporte diario) se escribe igual: F = CANTIDAD al empezar el día,
+> H / I = consumo / ingreso del día; J sigue siendo la fórmula del TOTAL.
+
 ### Importación
 - **Hojas de contenedor:** las que tienen una tabla con encabezados `ITEM … TOTAL`. Los encabezados se comparan sin espacios finales (`DESCRIPCIÓN␠`). El número de contenedor y la clase se deducen del nombre de la hoja, **guardando el nombre exacto** con sus espacios.
 - **Renglones:** con CODIGO AX numérico. Los vacíos dentro de la tabla se ignoran. La fila `Total` se ignora.

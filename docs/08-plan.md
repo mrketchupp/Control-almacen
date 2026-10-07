@@ -199,6 +199,11 @@ completo si es su única partida en AX. Antes emparejaba con una sola variante (
 quedaba "solo en el físico". La fila muestra "Todo el código (N variantes)" o "Sin dimensión (N variantes)" con lo que
 hay en cada una; en AX se lee *SIN DIMENSIÓN*.
 
+**Ronda 16 (aplicada):** **inventario diario**: CONSUMO e INGRESO se "limpian" al pasar el día, como en el Excel del
+almacén. La página *Inventario*, el inventario exportado y el del reporte diario muestran CANTIDAD = lo que había al
+empezar el día y CONSUMO / INGRESO = solo los vales de ese día (antes se acumulaban desde el conteo, por eso un consumo
+de días atrás seguía apareciendo). El TOTAL y lo guardado no cambian.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;
