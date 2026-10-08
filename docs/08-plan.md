@@ -255,6 +255,10 @@ formato 11.
   fuentes en *Del inventario* (pruebas nuevas en `tests/compartidos.test.js` y `tests/etiquetas.test.js`).
 - ☐ Armar una hoja con material de los dos inventarios en el almacén y revisar que cada etiqueta lleve su logo.
 
+**Ronda 22 (planeada, sin implementar):** fecha del vale y **fecha de recibido** en las entradas (la de recibido decide
+el día del inventario y del reporte diario) y **editor libre de diseños de etiquetas** con texto libre, QR y código de
+barras. Decisiones y pasos en `docs/12-ronda-22-plan.md`.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

@@ -13,6 +13,8 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
   quitar áreas (borrar si nadie la usa, descartar si tiene vales) y personalización / captura / Mi pantalla compartidas.
 - Ronda 20: **etiquetas de almacén** (el generador aparte, ahora dentro) — ver "Etiquetas" abajo y `docs/11-etiquetas.md`.
   Ronda 21: lista y bitácora de etiquetas **compartidas entre DLTA y GSM**, leer el otro inventario sin cambiar y ventanas sin scroll.
+- **Ronda 22 planeada, SIN implementar** (el usuario pidió dejar solo el plan): fecha de recibido en entradas y editor de
+  diseños de etiquetas — decisiones y pasos en `docs/12-ronda-22-plan.md`. Retomar desde ahí.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 12` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
