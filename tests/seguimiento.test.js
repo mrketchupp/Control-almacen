@@ -120,7 +120,7 @@ test("formato 7: los estados anteriores se migran con la lista de archivos de la
   estado.formato = 6;
   delete estado.seguimientos_base;
   migrarEstado(estado);
-  assert.deepEqual([estado.formato, estado.seguimientos_base, s.seguimientoVigente(estado), s.estadoAxDeVales(estado)], [10, [], null, null]);
+  assert.deepEqual([estado.formato, estado.seguimientos_base, s.seguimientoVigente(estado), s.estadoAxDeVales(estado)], [11, [], null, null]);
   assert.throws(() => s.registrarSeguimiento(estado, { archivo: "VACIO.xlsm", partidas: [] }), s.ErrorSeguimiento);
 });
 

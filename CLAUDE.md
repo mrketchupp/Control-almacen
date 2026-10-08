@@ -12,10 +12,12 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
   toda la interfaz, etapa de perforación compartida y vale impreso más fiel (bordes, rendijas, títulos de firma). Ronda 19:
   quitar áreas (borrar si nadie la usa, descartar si tiene vales) y personalización / captura / Mi pantalla compartidas.
 - Ronda 20: **etiquetas de almacén** (el generador aparte, ahora dentro) — ver "Etiquetas" abajo y `docs/11-etiquetas.md`.
+  Ronda 21: lista y bitácora de etiquetas **compartidas entre DLTA y GSM**, leer el otro inventario sin cambiar y ventanas sin scroll.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 10` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
+- Formato del estado: `FORMATO_ESTADO = 11` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
-`etiquetas` (`{ material, ax }` por imprimir) e `impresiones_etiquetas` (bitácora).
+`etiquetas` (`{ material, ax }` por imprimir) e `impresiones_etiquetas` (bitácora); el 11, ids `INV-n`, `origen.inventario`,
+`vales: [{ inventario, vale_id }]`, `etiquetas.cambiado_en` y `juntar` (Ronda 21).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -137,6 +139,14 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   flex), `ui/paginas/etiquetas.js` (`PaginaEtiquetas`, `EtiquetasDeEntrada`, `VistaPreviaEtiquetas`, `EstadoEtiquetas`).
 - `config.etiquetas` (diseño + identidad por inventario) está en `VALORES_COMPARTIDOS`; la bitácora de sincronización
   anota las imágenes por tamaño (`sinImagenes`). Las etiquetas son copias: nunca cambian el inventario ni los vales.
+- **Ronda 21 — DLTA y GSM juntos:** `estado.etiquetas` y `estado.impresiones_etiquetas` también son compartidos
+  (`EN_ESTADO` en `almacen/compartidos.js`: claves `etiquetas_por_imprimir` / `impresiones_etiquetas`, sin auditoría; cada
+  clave con `leer` / `poner` / `adoptar` / `publicable`). Lista: gana `cambiado_en` más nuevo (`adoptarListaEtiquetas`,
+  `tocar` en cada cambio; `juntar` une una vez la del formato 10); bitácora: `juntarImpresiones` (unión por id). Ids
+  `nuevoId` = `<inv>-<n>` sin repetir; `origen.inventario`; `impresionesPorVale(estado, inv)`, `entradasEnLista(estado, inv)`,
+  `entradasSinEtiquetas(estado, { registro })`. **Leer el otro inventario:** `main.js` `leerOtroInventario` (no crea la base
+  si no existe) → `Sesion.estadoDeInventario(id)` (copia migrada; nunca se escribe) → hook `useEstadoDe` y selector
+  `DeInventario` en las ventanas. Ventanas `.ventana-etq` (alto casi completo, tabla flexible, pie sticky).
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.

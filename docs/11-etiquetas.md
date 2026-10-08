@@ -57,20 +57,42 @@ aquí.
 | Diseño de plantilla, cuadrícula calculada | Igual (`impresion/etiquetas.js`) | `cuadricula` = `Layout.computeGrid`; mismas plantillas y mismas medidas. |
 | Etiqueta Material / Código AX | Igual | Mismos campos y orden; *CONDICION* → *INVENTARIO*. Texto vacío = `N/A`, nombre largo con «…». |
 
-## Datos (formato 10)
+## DLTA y GSM en una sola impresión (Ronda 21)
 
-- `estado.etiquetas = { material: [...], ax: [...] }`: lo que está por imprimir. Cada etiqueta: `id`, `cantidad` (1–999),
-  `codigo`, `nombre`, `dimension`, `np`, `descripcion`, `area` (las de código AX solo código y nombre), `inventario`
-  (`DLTA` | `GSM`), `origen` (`{ tipo: "ENTRADA", vale_id, folio, folio_externo, linea_id }`, `{ tipo: "INVENTARIO",
-  existencia_id, hoja }`, `{ tipo: "MANUAL" }` o `{ tipo: "ARCHIVO", archivo }`) y `agregada_en`. Es una **copia**: si
-  después cambia el inventario, la etiqueta no cambia.
-- `estado.impresiones_etiquetas = [{ id, fecha_hora, usuario, tipo, partidas, etiquetas, vales: [vale_id…] }]`: bitácora.
-  Una entrada «tiene etiquetas» si aparece en `vales` de alguna impresión. **Los vales no se tocan.**
+Comentarios del usuario: la ventana *Del inventario* obligaba a hacer scroll para ver *Cancelar* / *Agregar*, y aunque una
+etiqueta podía decir DLTA o GSM, al cambiar de inventario la lista no se conservaba ni se podía traer material del otro.
+Decisión: **las dos cosas**.
+
+- **Una sola lista y una sola bitácora** para DLTA y GSM: se agrega en uno, se cambia arriba al otro y la lista sigue ahí;
+  se imprime todo junto. La marca *Etiquetas impresas* llega a la entrada de **su** inventario (la de GSM se ve en el
+  historial de GSM aunque se haya impreso desde DLTA).
+- **Leer el otro sin cambiar:** en *Del inventario* y *De un vale de entrada*, **Datos de: DLTA | GSM**. El otro se lee
+  de su base tal como quedó guardado (copia en memoria, migrada); **nunca se escribe en él**. Sus etiquetas llevan su
+  inventario (y su logo). *Entradas recientes sin etiquetas* muestra las de los dos.
+- **Ventanas sin scroll:** *Del inventario* y *De un vale de entrada* ocupan casi toda la pantalla; la tabla toma lo que
+  queda y el pie (*Cancelar*, *Agregar…*, *Imprimir ahora*) siempre está a la vista (verificado en 1366 × 768).
+
+Cómo se sincroniza: la lista y la bitácora entran en lo compartido (`almacen/compartidos.js`, claves
+`etiquetas_por_imprimir` e `impresiones_etiquetas`) igual que los ajustes, pero sin auditoría. La lista: gana la del último
+cambio según `cambiado_en` (con milisegundos), así un cambio que no alcanzó a llegar a la base común no se pierde; la
+bitácora: se juntan las dos por id (nunca se pierde una impresión). Una lista del formato 10 que ya traía etiquetas se
+une la primera vez con la del otro (`juntar`).
+
+## Datos (formatos 10 y 11)
+
+- `estado.etiquetas = { material: [...], ax: [...], cambiado_en }`: lo que está por imprimir (de DLTA y GSM). Cada
+  etiqueta: `id` (`DLTA-12`), `cantidad` (1–999), `codigo`, `nombre`, `dimension`, `np`, `descripcion`, `area` (las de
+  código AX solo código y nombre), `inventario` (`DLTA` | `GSM`), `origen` (`{ tipo: "ENTRADA", inventario, vale_id, folio,
+  folio_externo, linea_id }`, `{ tipo: "INVENTARIO", inventario, existencia_id, hoja }`, `{ tipo: "MANUAL" }` o
+  `{ tipo: "ARCHIVO", archivo }`) y `agregada_en`. Es una **copia**: si después cambia el inventario, la etiqueta no cambia.
+- `estado.impresiones_etiquetas = [{ id, fecha_hora, usuario, tipo, partidas, etiquetas, vales: [{ inventario, vale_id }] }]`:
+  bitácora. Una entrada «tiene etiquetas» si aparece en `vales` de alguna impresión. **Los vales no se tocan.**
 - `config.etiquetas = { diseno: { hoja, margen_sup, margen_lat, ancho, alto, sep_x, sep_y, fuente, borde },
   identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: {…} } }`: **compartido** entre DLTA y GSM
   (`VALORES_COMPARTIDOS.etiquetas`), así una etiqueta de GSM lleva el logo de GSM aunque se imprima desde DLTA. En la
   bitácora de sincronización las imágenes se anotan por su tamaño (`sinImagenes`), no completas.
-- Código: `servicios/etiquetas.js` (propuestas, lista, bitácora, lista del generador), `impresion/etiquetas.js` (hojas y
+- Código: `servicios/etiquetas.js` (propuestas, lista, bitácora, lista del generador, `adoptarListaEtiquetas`,
+  `juntarImpresiones`), `ui/sesion.js` (`estadoDeInventario`: el otro, solo para leer) y `main.js` (`leerOtroInventario`), `impresion/etiquetas.js` (hojas y
   cuadrícula, HTML/CSS escapado; `vista: true` para la pantalla), `ui/paginas/etiquetas.js` (página, ventanas, vista
   previa; `EtiquetasDeEntrada` y `EstadoEtiquetas` se usan en *Vales de entrada*, el detalle y el historial).
 

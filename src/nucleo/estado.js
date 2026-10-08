@@ -17,7 +17,8 @@ import { claveEstricta } from "./normalizar.js";
 // contenedores. Cada conteo guarda su alcance y sus renglones contados.
 // Formato 9: dos inventarios (DLTA y GSM), cada uno con su estado; `config.inventario` dice de cuál es.
 // Formato 10 (Ronda 20): etiquetas por imprimir y la bitácora de las impresas.
-export const FORMATO_ESTADO = 10;
+// Formato 11 (Ronda 21): esa lista y esa bitácora son las mismas en DLTA y GSM: ids con el inventario.
+export const FORMATO_ESTADO = 11;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -45,7 +46,7 @@ export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
     cortes_ax: [], // reportes de inventario de AX importados (conciliación)
     equivalencias_ax: {}, // renglón de AX (código|tamaño|color) → variante, confirmado por el usuario
     seguimientos_base: [], // archivos de vales de la base (qué partidas ya aplicó en AX, con IN / TR)
-    etiquetas: { material: [], ax: [] }, // etiquetas por imprimir (servicios/etiquetas.js)
+    etiquetas: { material: [], ax: [], cambiado_en: null }, // etiquetas por imprimir, de DLTA y GSM (servicios/etiquetas.js)
     impresiones_etiquetas: [], // cada vez que se imprimieron etiquetas (y de qué entradas)
     config: { inventario: inventarioPorId(inventario).id }, // DLTA o GSM: nunca se mezclan
   };
@@ -127,6 +128,28 @@ export function migrarEstado(estado) {
     estado.etiquetas ??= { material: [], ax: [] };
     estado.impresiones_etiquetas ??= [];
     estado.formato = 10;
+  }
+  if (estado.formato < 11) {
+    // La lista y la bitácora de etiquetas se comparten con el otro inventario: los ids llevan el de este
+    // (no chocan), el origen dice de cuál es, y una lista que ya traía etiquetas se junta con la del otro.
+    const inventario = inventarioPorId(estado.config?.inventario).id;
+    const etiquetas = estado.etiquetas ?? { material: [], ax: [] };
+    for (const tipo of ["material", "ax"]) {
+      etiquetas[tipo] ??= [];
+      for (const e of etiquetas[tipo]) {
+        if (typeof e.id === "number") e.id = `${inventario}-${e.id}`;
+        if (e.origen?.tipo === "ENTRADA" || e.origen?.tipo === "INVENTARIO") e.origen.inventario ??= inventario;
+      }
+    }
+    etiquetas.cambiado_en ??= null;
+    if (etiquetas.material.length || etiquetas.ax.length) etiquetas.juntar = true;
+    estado.etiquetas = etiquetas;
+    for (const r of estado.impresiones_etiquetas ?? []) {
+      if (typeof r.id === "number") r.id = `${inventario}-${r.id}`;
+      r.vales = (r.vales ?? []).map((v) => (typeof v === "object" && v !== null ? v : { inventario, vale_id: v }));
+    }
+    estado.impresiones_etiquetas ??= [];
+    estado.formato = 11;
   }
   return estado;
 }

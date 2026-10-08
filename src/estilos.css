@@ -5849,3 +5849,84 @@ button.mosaico:hover .mosaico-abrir {
 .ventana-etq-entrada .segmentos-etiqueta {
   white-space: nowrap;
 }
+
+/* Ronda 21: las ventanas de etiquetas (inventario y vale de entrada) ocupan casi toda la pantalla; la
+   tabla toma el espacio que queda y los botones de abajo siempre están a la vista. */
+.ventana.ventana-etq {
+  height: min(92vh, 1000px);
+  max-height: none;
+}
+
+.ventana-etq .ventana-cuerpo {
+  display: flex;
+  flex-direction: column;
+}
+
+.ventana-etq .ventana-cuerpo > *,
+.ventana-etq .etq-buscar-entrada > * {
+  flex: none;
+}
+
+.ventana-etq .tabla-contenedor {
+  flex: 1 1 auto;
+  min-height: 160px;
+  max-height: none;
+}
+
+.ventana-etq .etq-buscar-entrada {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ventana-etq .etq-buscar-entrada .etq-entradas {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow: auto;
+}
+
+.ventana-etq .pie-editor {
+  position: sticky;
+  bottom: -20px;
+  z-index: 2;
+  margin-top: auto;
+  margin-bottom: -20px;
+  padding-top: 12px;
+  padding-bottom: 16px;
+  background: var(--superficie);
+}
+
+.ventana-etq .filtros,
+.ventana-etq .etq-de-inventario {
+  margin-bottom: 10px;
+}
+
+.etq-de-inventario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.etq-de-inventario .nota {
+  margin: 0;
+}
+
+.etq-sin-datos,
+.ventana-etq .etq-sin-datos {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.etq-entrada .pastilla-inv {
+  margin-right: -4px;
+}
+
+.etq-compartida {
+  margin: -4px 0 8px;
+}

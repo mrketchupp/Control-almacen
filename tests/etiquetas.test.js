@@ -88,7 +88,7 @@ test("desde un vale de entrada: piezas, OC en la descripción y sin marcar lo qu
       ["136", 1, "", "", false, true],
     ],
   );
-  assert.deepEqual(propuestas[0].etiqueta.origen, { tipo: "ENTRADA", vale_id: vale.id, folio: "E-0001", folio_externo: "B-100", linea_id: vale.lineas[0].id });
+  assert.deepEqual(propuestas[0].etiqueta.origen, { tipo: "ENTRADA", inventario: "DLTA", vale_id: vale.id, folio: "E-0001", folio_externo: "B-100", linea_id: vale.lineas[0].id });
   assert.equal(propuestas[0].etiqueta.area, "");
   assert.throws(() => et.etiquetasDeEntrada(estado, 9999), et.ErrorEtiquetas);
 });
@@ -141,7 +141,8 @@ test("imprimir: queda en la bitácora con sus entradas; la entrada deja de falta
   assert.deepEqual(et.entradasSinEtiquetas(estado).map((v) => v.id), [otra.id]);
   assert.equal(et.entradasEnLista(estado).get(vale.id), 1);
   const registro = et.registrarImpresion(estado, "material", ids, { usuario: USUARIO });
-  assert.deepEqual([registro.partidas, registro.etiquetas, registro.vales, registro.usuario], [1, 2, [vale.id], USUARIO]);
+  assert.deepEqual([registro.partidas, registro.etiquetas, registro.vales, registro.usuario], [1, 2, [{ inventario: "DLTA", vale_id: vale.id }], USUARIO]);
+  assert.match(registro.id, /^DLTA-\d+$/);
   assert.equal(estado.etiquetas.material.length, 0);
   assert.equal(et.impresionesPorVale(estado).get(vale.id)[0].id, registro.id);
   assert.deepEqual(et.entradasSinEtiquetas(estado).map((v) => v.id), [otra.id]);
@@ -219,7 +220,79 @@ test("formato 10: los estados anteriores se migran con la lista de etiquetas vac
   delete estado.impresiones_etiquetas;
   estado.formato = 9;
   migrarEstado(estado);
-  assert.deepEqual([estado.formato, estado.etiquetas, estado.impresiones_etiquetas], [10, { material: [], ax: [] }, []]);
+  assert.deepEqual([estado.formato, estado.etiquetas, estado.impresiones_etiquetas], [11, { material: [], ax: [], cambiado_en: null }, []]);
+});
+
+test("formato 11: ids con el inventario, origen con su inventario y la lista que ya traía etiquetas se junta", () => {
+  const { estado } = cargaSintetica({ idInventario: "GSM" });
+  estado.formato = 10;
+  estado.etiquetas = {
+    material: [{ id: 3, codigo: "701", inventario: "GSM", origen: { tipo: "ENTRADA", vale_id: 7, folio: "E-0001" } }],
+    ax: [{ id: 4, codigo: "708", inventario: "GSM", origen: { tipo: "MANUAL" } }],
+  };
+  estado.impresiones_etiquetas = [{ id: 1, fecha_hora: "2026-10-08T10:00:00", vales: [7] }];
+  migrarEstado(estado);
+  assert.equal(estado.formato, 11);
+  assert.deepEqual(estado.etiquetas.material.map((e) => [e.id, e.origen.inventario]), [["GSM-3", "GSM"]]);
+  assert.deepEqual(estado.etiquetas.ax.map((e) => [e.id, e.origen.inventario]), [["GSM-4", undefined]]);
+  assert.equal(estado.etiquetas.juntar, true);
+  assert.deepEqual(estado.impresiones_etiquetas[0], { id: "GSM-1", fecha_hora: "2026-10-08T10:00:00", vales: [{ inventario: "GSM", vale_id: 7 }] });
+  // Una lista vacía no queda «por juntar».
+  const vacio = cargaSintetica().estado;
+  vacio.formato = 10;
+  migrarEstado(vacio);
+  assert.equal(vacio.etiquetas.juntar, undefined);
+});
+
+test("DLTA y GSM: una sola lista por imprimir; gana el último cambio y la de antes de compartir se junta", () => {
+  const vacia = { material: [], ax: [], cambiado_en: null };
+  const vieja = { material: [{ id: "DLTA-1" }], ax: [], cambiado_en: "2026-10-08T10:00:00.000Z" };
+  const nueva = { material: [{ id: "GSM-1" }], ax: [{ id: "GSM-2" }], cambiado_en: "2026-10-08T10:05:00.000Z" };
+  assert.deepEqual(et.adoptarListaEtiquetas(vieja, nueva), nueva);
+  assert.deepEqual(et.adoptarListaEtiquetas(nueva, vieja), nueva); // la de aquí es más nueva: se queda
+  assert.deepEqual(et.adoptarListaEtiquetas(vacia, nueva), nueva);
+  const juntada = et.adoptarListaEtiquetas({ ...vieja, juntar: true, material: [{ id: "DLTA-1" }, { id: "GSM-1" }] }, nueva);
+  assert.deepEqual(juntada.material.map((e) => e.id), ["GSM-1", "DLTA-1"]);
+  assert.deepEqual(juntada.ax.map((e) => e.id), ["GSM-2"]);
+  assert.equal(juntada.juntar, undefined);
+  assert.deepEqual(et.listaPublicable({ ...vieja, juntar: true }), vieja);
+  // La bitácora se junta sin repetir y en orden.
+  const a = [{ id: "DLTA-1", fecha_hora: "2026-10-08T09:00:00" }, { id: "DLTA-2", fecha_hora: "2026-10-08T11:00:00" }];
+  const b = [{ id: "GSM-1", fecha_hora: "2026-10-08T10:00:00" }, { id: "DLTA-1", fecha_hora: "2026-10-08T09:00:00" }];
+  assert.deepEqual(et.juntarImpresiones(a, b).map((r) => r.id), ["DLTA-1", "GSM-1", "DLTA-2"]);
+});
+
+test("la marca de impresa llega a la entrada de su inventario y los ids nunca chocan", () => {
+  const { estado: dlta, renglon } = preparar();
+  const valeDlta = entrada(dlta, [{ existencia: renglon(701, "6309-2Z/C3"), cantidad: "2" }]);
+  const { estado: gsm } = cargaSintetica({ idInventario: "GSM" });
+  const indicesGsm = new Indices(gsm);
+  const balero = gsm.existencias.find((e) => indicesGsm.variante(e.variante_id).codigo === 701);
+  const valeGsm = entrada(gsm, [{ existencia: balero, cantidad: "3" }]);
+  // Se agregan en DLTA las de su entrada y las de la de GSM (leída del estado de GSM).
+  const ids = et.agregarEtiquetas(dlta, "material", [
+    ...et.etiquetasDeEntrada(dlta, valeDlta.id).map((p) => p.etiqueta),
+    ...et.etiquetasDeEntrada(gsm, valeGsm.id).map((p) => p.etiqueta),
+  ]);
+  assert.ok(ids.every((id) => /^DLTA-\d+$/.test(id)));
+  assert.deepEqual(dlta.etiquetas.material.map((e) => [e.inventario, e.origen.inventario]), [["DLTA", "DLTA"], ["GSM", "GSM"]]);
+  // Las dos entradas tienen el mismo id interno en su inventario: cada una se ve por separado.
+  assert.equal(valeDlta.id, valeGsm.id);
+  assert.equal(et.entradasEnLista(dlta, "GSM").get(valeGsm.id), 1);
+  assert.deepEqual(et.entradasSinEtiquetas(gsm, { registro: dlta }), []);
+  const registro = et.registrarImpresion(dlta, "material", ids, { usuario: USUARIO });
+  assert.deepEqual(registro.vales, [{ inventario: "DLTA", vale_id: valeDlta.id }, { inventario: "GSM", vale_id: valeGsm.id }]);
+  assert.equal(et.impresionesPorVale(dlta, "GSM").get(valeGsm.id)[0].id, registro.id);
+  assert.equal(et.impresionesPorVale(dlta).get(valeDlta.id)[0].id, registro.id);
+  // En GSM (con la bitácora ya compartida) su entrada se ve impresa.
+  gsm.impresiones_etiquetas = et.juntarImpresiones(gsm.impresiones_etiquetas, dlta.impresiones_etiquetas);
+  assert.equal(et.impresionesPorVale(gsm).get(valeGsm.id)[0].etiquetas, 5);
+  // Un id que ya está en la lista (p. ej. tras restaurar un respaldo viejo) no se vuelve a dar.
+  dlta.etiquetas.ax.push({ id: `DLTA-${(dlta.secuencias.etiqueta ?? 0) + 1}`, codigo: "1", nombre: "X", cantidad: 1, inventario: "DLTA" });
+  const [nuevo] = et.agregarEtiquetas(dlta, "ax", [{ codigo: "2", nombre: "Y" }]);
+  assert.equal(new Set([...dlta.etiquetas.ax].map((e) => e.id)).size, dlta.etiquetas.ax.length);
+  assert.notEqual(nuevo, dlta.etiquetas.ax[0].id);
+  assert.ok(dlta.etiquetas.cambiado_en);
 });
 
 test("hoja de etiquetas: la cuadrícula se calcula con lo que cabe en el papel", () => {

@@ -242,6 +242,16 @@ marcan la entrada (historial con filtro *Etiquetas*). Estado formato 10.
 - ☐ Elegir los logos del vale para DLTA y GSM y revisar que se vean bien en la etiqueta.
 - ☐ Contestar P-25 a P-28 (`docs/11`).
 
+**Ronda 21 (aplicada):** etiquetas de **DLTA y GSM en una sola impresión** (`docs/11`): la lista por imprimir y la bitácora
+son las mismas en los dos inventarios; en *Del inventario* y *De un vale de entrada* se eligen los **datos de DLTA o GSM**
+sin cambiar de inventario (el otro solo se lee); las ventanas ya no obligan a hacer scroll para ver los botones. Estado
+formato 11.
+- ✔ Pruebas: compartir la lista y la bitácora con la base común (también atrasada), migración 10 → 11, marcas por
+  inventario e ids sin choques.
+- ✔ Recorrido en Chromium (1366 × 768): GSM trae material de DLTA, la lista sigue al cambiar a DLTA, se imprime junto y
+  cada entrada queda marcada en su inventario; botones a la vista; sin errores ni peticiones de red.
+- ☐ Armar una hoja con material de los dos inventarios en el almacén y revisar que cada etiqueta lleve su logo.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

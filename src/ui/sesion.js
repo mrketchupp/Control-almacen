@@ -17,7 +17,8 @@ import {
 } from "../almacen/archivos.js";
 import { Compartidos } from "../almacen/compartidos.js";
 import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
-import { inventarioPorId } from "../nucleo/inventarios.js";
+import { estaVacio, migrarEstado } from "../nucleo/estado.js";
+import { inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
 import { documentoHojaConteo } from "../impresion/conteo.js";
 import { documentoImpresion } from "../impresion/vale.js";
@@ -32,11 +33,13 @@ export class Sesion {
   /**
    * @param cambiarInventario  (id) => abre el otro inventario (DLTA / GSM) en esta misma pestaña
    * @param comun              base de lo que comparten los inventarios (la etapa de perforación)
+   * @param leerOtroInventario (id) => el estado guardado del otro inventario, o null (solo se lee)
    */
-  constructor(almacen, backend, { cambiarInventario = null, comun = null } = {}) {
+  constructor(almacen, backend, { cambiarInventario = null, comun = null, leerOtroInventario = null } = {}) {
     this.almacen = almacen;
     this.backend = backend;
     this.cambiarInventario = cambiarInventario;
+    this.leerOtroInventario = leerOtroInventario;
     this.compartidos = comun ? new Compartidos(almacen, comun) : null;
     this.carpeta = null;
     this.permiso = null;
@@ -61,6 +64,22 @@ export class Sesion {
   /** El inventario abierto ({ id: "DLTA" | "GSM", … }). */
   get inventario() {
     return inventarioPorId(this.almacen.inventario);
+  }
+
+  /**
+   * Los datos de un inventario para LEERLOS (Ronda 21, etiquetas): el abierto o una copia del otro tal
+   * como quedó guardado en su base. A la copia nunca se le escribe nada (ni a su base).
+   * @returns el estado, o null si ese inventario aún no tiene datos
+   */
+  async estadoDeInventario(id) {
+    const inventario = inventarioPorId(id).id;
+    if (inventario === this.inventario.id) return this.estado;
+    if (!this.leerOtroInventario) return null;
+    const guardado = await this.leerOtroInventario(inventario);
+    if (!guardado || estaVacio(guardado)) return null;
+    const copia = migrarEstado(structuredClone(guardado));
+    if (inventarioDe(copia).id !== inventario) throw new Error(`La base de ${inventario} trae datos de ${inventarioDe(copia).id}.`);
+    return copia;
   }
 
   get carpetaLista() {

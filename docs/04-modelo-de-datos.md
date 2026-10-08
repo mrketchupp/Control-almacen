@@ -231,6 +231,13 @@ usuario, tipo, partidas, etiquetas, vales }]` (bitácora; una entrada tiene etiq
 no cambian. `config.etiquetas = { diseno, identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: … } }` es compartido entre
 DLTA y GSM. Detalle en `docs/11-etiquetas.md`.
 
+**Etiquetas de DLTA y GSM juntas (formato 11, Ronda 21):** la lista por imprimir y la bitácora son **las mismas en los
+dos inventarios** (se sincronizan con la base común como los ajustes compartidos; cada estado guarda su copia, que va en
+sus respaldos). Los ids llevan el inventario que los creó (`DLTA-12`, `GSM-3`) para no chocar; `origen.inventario` dice de
+qué inventario es la partida o la entrada; la bitácora marca `vales: [{ inventario, vale_id }]`; la lista lleva
+`cambiado_en` (gana el último cambio) y, si venía con etiquetas del formato 10, `juntar: true` (la primera vez se une con
+la del otro). La migración convierte los ids numéricos y los `vales` anteriores.
+
 **Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
 cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
 vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese
@@ -249,7 +256,7 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **10**; del 6 al 10 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **11**; del 6 al 11 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario

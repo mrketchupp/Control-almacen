@@ -8,6 +8,12 @@
 // (logos y texto de almacén) van en `config.etiquetas`, compartido entre DLTA y GSM
 // (almacen/compartidos.js): una etiqueta de GSM lleva el logo de GSM aunque se imprima desde DLTA.
 //
+// Ronda 21: la lista por imprimir y la bitácora son **una sola para DLTA y GSM** (también en
+// `VALORES_COMPARTIDOS` de almacen/compartidos.js): se agrega material de los dos y se imprime junto.
+// Por eso los ids llevan el inventario que los creó (`DLTA-12`), el origen dice de qué inventario es la
+// partida o la entrada (`origen.inventario`), la bitácora marca `{ inventario, vale_id }` y la lista lleva
+// `cambiado_en` (gana el último cambio; la bitácora se junta y nunca pierde una impresión).
+//
 // Las etiquetas nunca cambian el inventario ni los vales.
 
 import { dec } from "../nucleo/decimal.js";
@@ -162,7 +168,7 @@ export function etiquetaDeExistencia(estado, existenciaId, { indices = new Indic
       dimension: dimensionMostrada(e, v),
       np: npMostrado(e, v),
       inventario,
-      origen: { tipo: "INVENTARIO", existencia_id: e.id, hoja: texto(u?.hoja_excel) },
+      origen: { tipo: "INVENTARIO", inventario: inventarioDe(estado).id, existencia_id: e.id, hoja: texto(u?.hoja_excel) },
     },
     inventario,
   );
@@ -202,7 +208,7 @@ export function buscarEntradas(estado, consulta, { limite = 12 } = {}) {
 export function etiquetasDeEntrada(estado, valeId, { indices = new Indices(estado), nombres = nombresAx(estado), inventario = inventarioDe(estado).id } = {}) {
   const vale = estado.vales.find((v) => v.id === valeId && esEntrada(v));
   if (!vale) throw new ErrorEtiquetas("No se encontró esa entrada.");
-  const origen = { tipo: "ENTRADA", vale_id: vale.id, folio: folioEntrada(vale.folio), folio_externo: texto(vale.folio_externo) || null };
+  const origen = { tipo: "ENTRADA", inventario: inventarioDe(estado).id, vale_id: vale.id, folio: folioEntrada(vale.folio), folio_externo: texto(vale.folio_externo) || null };
   return vale.lineas.map((l) => {
     const e = hay(l.existencia_id) ? indices.existencia(l.existencia_id) : null;
     const v = e ? indices.variante(e.variante_id) : hay(l.variante_id) ? indices.variante(l.variante_id) : null;
@@ -272,10 +278,34 @@ export function clavesDeCodigo(estado, codigo) {
 
 function lista(estado, tipo) {
   if (!TIPOS_ETIQUETA[tipo]) throw new ErrorEtiquetas(`Tipo de etiqueta desconocido: ${tipo}.`);
-  estado.etiquetas ??= { material: [], ax: [] };
+  estado.etiquetas ??= { material: [], ax: [], cambiado_en: null };
   estado.etiquetas[tipo] ??= [];
   return estado.etiquetas[tipo];
 }
+
+/** Marca de tiempo del último cambio de la lista (con milisegundos: decide cuál gana entre DLTA y GSM). */
+const marca = () => new Date().toISOString();
+
+/** La lista cambió aquí: desde ahora es la más reciente (y ya no está «por juntar»). */
+function tocar(estado) {
+  estado.etiquetas.cambiado_en = marca();
+  delete estado.etiquetas.juntar;
+}
+
+/** De qué inventario es el origen de una etiqueta (las anteriores a la Ronda 21, del abierto). */
+const inventarioDelOrigen = (estado, origen) => inventarioPorId(origen?.inventario ?? inventarioDe(estado).id).id;
+
+/** Id nuevo que no choca con los del otro inventario ni con uno ya usado: `DLTA-12`. */
+function nuevoId(estado, coleccion, usados) {
+  const inventario = inventarioDe(estado).id;
+  let id;
+  do id = `${inventario}-${siguienteId(estado, coleccion)}`;
+  while (usados.has(id));
+  usados.add(id);
+  return id;
+}
+
+const idsDeLista = (estado) => new Set(Object.keys(TIPOS_ETIQUETA).flatMap((t) => etiquetasPorImprimir(estado, t).map((e) => e.id)));
 
 export const etiquetasPorImprimir = (estado, tipo) => estado.etiquetas?.[tipo] ?? [];
 
@@ -286,13 +316,15 @@ export const totalEtiquetas = (etiquetas) => etiquetas.reduce((t, e) => t + ente
 export function agregarEtiquetas(estado, tipo, etiquetas) {
   const inventario = inventarioDe(estado).id;
   const destino = lista(estado, tipo);
+  const usados = idsDeLista(estado);
   const ids = [];
   for (const datos of etiquetas) {
     const limpia = etiquetaLimpia(datos, inventario);
-    const etiqueta = { id: siguienteId(estado, "etiqueta"), ...(tipo === "ax" ? comoAx(limpia) : limpia), agregada_en: ahoraIso() };
+    const etiqueta = { id: nuevoId(estado, "etiqueta", usados), ...(tipo === "ax" ? comoAx(limpia) : limpia), agregada_en: ahoraIso() };
     destino.push(etiqueta);
     ids.push(etiqueta.id);
   }
+  if (ids.length) tocar(estado);
   return ids;
 }
 
@@ -302,6 +334,7 @@ export function cambiarEtiqueta(estado, tipo, id, cambios) {
   if (!etiqueta) throw new ErrorEtiquetas("Esa etiqueta ya no está en la lista.");
   const limpia = etiquetaLimpia({ ...etiqueta, ...cambios }, etiqueta.inventario);
   for (const campo of Object.keys(cambios)) if (campo in limpia && campo !== "origen") etiqueta[campo] = limpia[campo];
+  tocar(estado);
   return etiqueta;
 }
 
@@ -310,8 +343,9 @@ export function duplicarEtiqueta(estado, tipo, id) {
   const destino = lista(estado, tipo);
   const i = destino.findIndex((e) => e.id === id);
   if (i < 0) throw new ErrorEtiquetas("Esa etiqueta ya no está en la lista.");
-  const copia = { ...structuredClone(destino[i]), id: siguienteId(estado, "etiqueta"), agregada_en: ahoraIso() };
+  const copia = { ...structuredClone(destino[i]), id: nuevoId(estado, "etiqueta", idsDeLista(estado)), agregada_en: ahoraIso() };
   destino.splice(i + 1, 0, copia);
+  tocar(estado);
   return copia.id;
 }
 
@@ -321,17 +355,22 @@ export function quitarEtiquetas(estado, tipo, ids) {
   const destino = lista(estado, tipo);
   const quitadas = destino.map((etiqueta, indice) => ({ etiqueta, indice })).filter((q) => quitar.has(q.etiqueta.id));
   estado.etiquetas[tipo] = destino.filter((e) => !quitar.has(e.id));
+  if (quitadas.length) tocar(estado);
   return quitadas;
 }
 
 /** Vuelve a poner las etiquetas quitadas en su lugar (las que ya están no se repiten). */
 export function reponerEtiquetas(estado, tipo, quitadas) {
   const destino = lista(estado, tipo);
-  const presentes = new Set(destino.map((e) => e.id));
+  const presentes = idsDeLista(estado);
+  let repuestas = 0;
   for (const { etiqueta, indice } of [...quitadas].sort((a, b) => a.indice - b.indice)) {
     if (presentes.has(etiqueta.id)) continue;
     destino.splice(Math.min(indice, destino.length), 0, structuredClone(etiqueta));
+    presentes.add(etiqueta.id);
+    repuestas += 1;
   }
+  if (repuestas) tocar(estado);
 }
 
 // ---------------------------------------------------------------- impresiones
@@ -344,10 +383,20 @@ export function registrarImpresion(estado, tipo, ids, { usuario = null, quitar =
   const elegidas = new Set(ids);
   const impresas = lista(estado, tipo).filter((e) => elegidas.has(e.id));
   if (!impresas.length) throw new ErrorEtiquetas("No hay etiquetas que registrar.");
-  const vales = [...new Set(impresas.filter((e) => e.origen?.tipo === "ENTRADA").map((e) => e.origen.vale_id))];
+  // Cada entrada una vez, con su inventario: la de GSM se marca en GSM aunque se imprima desde DLTA.
+  const vales = [];
+  const vistas = new Set();
+  for (const e of impresas) {
+    if (e.origen?.tipo !== "ENTRADA") continue;
+    const marcaVale = { inventario: inventarioDelOrigen(estado, e.origen), vale_id: e.origen.vale_id };
+    const clave = `${marcaVale.inventario}:${marcaVale.vale_id}`;
+    if (vistas.has(clave)) continue;
+    vistas.add(clave);
+    vales.push(marcaVale);
+  }
   estado.impresiones_etiquetas ??= [];
   const registro = {
-    id: siguienteId(estado, "impresion_etiquetas"),
+    id: nuevoId(estado, "impresion_etiquetas", new Set(estado.impresiones_etiquetas.map((r) => r.id))),
     fecha_hora: ahoraIso(),
     usuario,
     tipo,
@@ -360,37 +409,80 @@ export function registrarImpresion(estado, tipo, ids, { usuario = null, quitar =
   return registro;
 }
 
-/** Impresiones de etiquetas de cada entrada: vale_id → [registros], del más reciente al más viejo. */
-export function impresionesPorVale(estado) {
+/**
+ * Impresiones de etiquetas de cada entrada del `inventario` (el del estado, si no se dice): vale_id →
+ * [registros], del más reciente al más viejo. La bitácora es la misma en DLTA y GSM.
+ */
+export function impresionesPorVale(estado, inventario = inventarioDe(estado).id) {
   const porVale = new Map();
   for (const r of [...(estado.impresiones_etiquetas ?? [])].reverse()) {
-    for (const id of r.vales ?? []) {
-      if (!porVale.has(id)) porVale.set(id, []);
-      porVale.get(id).push(r);
+    for (const v of r.vales ?? []) {
+      const deVale = typeof v === "object" && v !== null ? v : { inventario: inventarioDe(estado).id, vale_id: v };
+      if (inventarioPorId(deVale.inventario).id !== inventario) continue;
+      if (!porVale.has(deVale.vale_id)) porVale.set(deVale.vale_id, []);
+      porVale.get(deVale.vale_id).push(r);
     }
   }
   return porVale;
 }
 
-/** Entradas que tienen etiquetas en la lista por imprimir: vale_id → cuántas partidas. */
-export function entradasEnLista(estado) {
+/** Entradas del `inventario` que tienen etiquetas en la lista por imprimir: vale_id → cuántas partidas. */
+export function entradasEnLista(estado, inventario = inventarioDe(estado).id) {
   const enLista = new Map();
   for (const tipo of Object.keys(TIPOS_ETIQUETA)) {
     for (const e of etiquetasPorImprimir(estado, tipo)) {
-      if (e.origen?.tipo === "ENTRADA") enLista.set(e.origen.vale_id, (enLista.get(e.origen.vale_id) ?? 0) + 1);
+      if (e.origen?.tipo !== "ENTRADA" || inventarioDelOrigen(estado, e.origen) !== inventario) continue;
+      enLista.set(e.origen.vale_id, (enLista.get(e.origen.vale_id) ?? 0) + 1);
     }
   }
   return enLista;
 }
 
-/** Las entradas más recientes que aún no tienen etiquetas impresas ni en la lista. */
-export function entradasSinEtiquetas(estado, { limite = 6 } = {}) {
-  const impresas = impresionesPorVale(estado);
-  const enLista = entradasEnLista(estado);
+/**
+ * Las entradas más recientes de `estado` que aún no tienen etiquetas impresas ni en la lista. `registro`
+ * es el estado con la lista y la bitácora al día (el del inventario abierto, si `estado` es una copia
+ * del otro).
+ */
+export function entradasSinEtiquetas(estado, { limite = 6, registro = estado } = {}) {
+  const inventario = inventarioDe(estado).id;
+  const impresas = impresionesPorVale(registro, inventario);
+  const enLista = entradasEnLista(registro, inventario);
   return estado.vales
     .filter((v) => esEntrada(v) && !impresas.has(v.id) && !enLista.has(v.id))
     .sort((a, b) => (b.folio ?? 0) - (a.folio ?? 0))
     .slice(0, limite);
+}
+
+// ---------------------------------------------------------------- DLTA y GSM (Ronda 21)
+
+const LISTA_VACIA = { material: [], ax: [], cambiado_en: null };
+
+/** La lista como se comparte (sin la marca de «por juntar», que solo vale en el estado que la trae). */
+export function listaPublicable(lista) {
+  const l = lista ?? LISTA_VACIA;
+  return { material: l.material ?? [], ax: l.ax ?? [], cambiado_en: l.cambiado_en ?? null };
+}
+
+/**
+ * La lista por imprimir que queda al abrir un inventario, con la compartida (`otra`): gana la del último
+ * cambio. Si la de este estado viene de antes de compartirse (`juntar`), se juntan las dos (sin repetir).
+ */
+export function adoptarListaEtiquetas(local, otra) {
+  const aqui = local ?? LISTA_VACIA;
+  const alla = listaPublicable(otra);
+  if (aqui.juntar) {
+    const ids = new Set([...alla.material, ...alla.ax].map((e) => e.id));
+    const faltan = (tipo) => (aqui[tipo] ?? []).filter((e) => !ids.has(e.id));
+    return { material: [...alla.material, ...faltan("material")], ax: [...alla.ax, ...faltan("ax")], cambiado_en: marca() };
+  }
+  return (aqui.cambiado_en ?? "") > (alla.cambiado_en ?? "") ? listaPublicable(aqui) : alla;
+}
+
+/** Las dos bitácoras de impresiones juntas, sin repetir (por id) y en orden: nunca se pierde una. */
+export function juntarImpresiones(a, b) {
+  const porId = new Map();
+  for (const r of [...(a ?? []), ...(b ?? [])]) if (r && !porId.has(r.id)) porId.set(r.id, r);
+  return [...porId.values()].sort((x, y) => String(x.fecha_hora).localeCompare(String(y.fecha_hora)) || String(x.id).localeCompare(String(y.id)));
 }
 
 // ---------------------------------------------------------------- lista del generador

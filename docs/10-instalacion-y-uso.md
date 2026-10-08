@@ -168,6 +168,9 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   borde (quítalo en hojas precortadas). Logos: *Del vale…* toma los del libro de vales del inventario abierto; *Subir…*
   de un archivo. Cada etiqueta lleva los logos de su **inventario** (DLTA o GSM, se cambia por etiqueta).
 - *Historial de vales → Vales de entrada* tiene la columna y el filtro **Etiquetas** (sin imprimir / impresas).
+- **DLTA y GSM juntos:** la lista por imprimir es la misma en los dos. En *Del inventario* y *De un vale de entrada*,
+  **Datos de: DLTA | GSM** trae material o entradas del otro sin cambiar de inventario (solo se leen). La marca *Etiquetas
+  impresas* aparece en la entrada de su inventario.
 
 ### Conciliación contra AX
 Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera y los vales posteriores al corte, los
