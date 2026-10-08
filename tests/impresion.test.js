@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
 import { analizarFormulario, hojasFormulario, seccionesPie } from "../src/impresion/formulario.js";
-import { documentoImpresion, observacionesDeHoja, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
+import { capaFondos, documentoImpresion, enRejilla, grosorEscalado, observacionesDeHoja, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
 import * as v from "../src/servicios/vales.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import { bytesVales, cargaSintetica } from "./ayuda.js";
@@ -108,12 +108,14 @@ test("encabezados y pies de página de Excel", () => {
   assert.equal(seccionesPie(""), null);
 });
 
-test("el texto de una fila espaciadora de 1 px se recorta como en Excel", () => {
+test("el texto de una fila espaciadora de 1 px no se imprime (en Excel no se ve)", () => {
   const m = analizarFormulario(libro, "SOLDADOR");
   const fila = m.filas.find((f) => f.r === 47);
   assert.ok(fila.px <= 2, `la fila 47 mide ${fila.px}px`);
+  assert.equal(m.valor(47, 3), 3);
   const html = paginaHtml(m);
-  assert.match(html, /<div style="height:1px;overflow:hidden">3<\/div>/);
+  const tr = html.split("<tr ")[m.filas.findIndex((f) => f.r === 47) + 1];
+  assert.doesNotMatch(tr, />3</);
   assert.ok(!m.campos.observaciones.textos.some((t) => t.r === 47), "el número no es una observación");
 });
 
@@ -153,4 +155,42 @@ test("NOV migrado del DIARIO: al reimprimir, las firmas respetan su posición", 
   assert.deepEqual([valores.get("52,4"), valores.get("52,9")], ["QUIMICO DOS", "ALMACENISTA UNO"]);
   const nuevo = valoresDeVale(m, { ...migrado, migrado: false, entrego_nombre: "ALMACENISTA UNO", recibio_nombre: "QUIMICO DOS" });
   assert.deepEqual([nuevo.get("52,4"), nuevo.get("52,9")], ["QUIMICO DOS", "ALMACENISTA UNO"]);
+});
+
+test("los títulos de firma se centran sobre las columnas de su nombre y puesto", () => {
+  const m = analizarFormulario(libro, "SOLDADOR");
+  // En el formato, «RECIBIO/ENTREGO» es una celda suelta en J50 y el nombre ocupa I52:K52.
+  const r = m.campos.recibe_nombre;
+  assert.deepEqual([r.r, r.c], [52, 9]);
+  assert.deepEqual(m.combinadaEn.get("50,9"), { r1: 50, r2: 50, c1: 9, c2: 11 });
+  assert.deepEqual([m.valor(50, 9), m.valor(50, 10)], ["RECIBIO/ENTREGO", null]);
+  assert.ok(m.centradas.has("50,9"));
+  const html = paginaHtml(m);
+  assert.match(html, /<td colspan="3" style="[^"]*text-align:center[^"]*">RECIBIO\/ENTREGO<\/td>/);
+  assert.match(html, /<td colspan="3" style="[^"]*">ENTREGO\/RECIBIO<\/td>/);
+});
+
+test("bordes nítidos y sin rendijas: rejilla de píxeles, grosor escalado y capa de rellenos", () => {
+  // Cada orilla cae en un píxel entero ya con el zoom.
+  const anchos = enRejilla([82, 96, 155], 0.59);
+  let x = 0;
+  for (const w of anchos) {
+    x += w;
+    assert.ok(Math.abs(x * 0.59 - Math.round(x * 0.59)) < 1e-9);
+  }
+  // Un borde de 2 px (marco) sigue midiendo 2 px después del zoom; uno de 1 px, 1 px.
+  assert.equal(grosorEscalado("2px solid #000000", 0.5), "4.000px solid #000000");
+  assert.equal(grosorEscalado("1px solid #000000", 0.5), "2.000px solid #000000");
+  // Rellenos contiguos del mismo color se juntan en un solo rectángulo (franja morada).
+  const capa = capaFondos([
+    { x: 0, y: 10, w: 5, h: 2, fondo: "#7030A0" },
+    { x: 5, y: 10, w: 7, h: 2, fondo: "#7030A0" },
+    { x: 12, y: 10, w: 3, h: 2, fondo: "#FFFF00" },
+    { x: 0, y: 12, w: 12, h: 2, fondo: "#7030A0" },
+  ]);
+  assert.equal((capa.match(/vale-fondo/g) ?? []).length, 2);
+  assert.match(capa, /left:0\.000px;top:10\.000px;width:12\.000px;height:4\.000px;background:#7030A0/);
+  // En la hoja: la franja de encabezados de la tabla va en la capa, debajo de la tabla.
+  const html = paginaHtml(analizarFormulario(libro, "SOLDADOR"));
+  assert.ok(html.indexOf("vale-fondo") < html.indexOf("<table"));
 });

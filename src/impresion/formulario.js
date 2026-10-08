@@ -313,7 +313,54 @@ export function analizarFormulario(fuente, nombreHoja) {
     }
   }
   modelo.fotos ??= [];
+  centrarTitulosFirma(modelo);
   return modelo;
+}
+
+const vacia = (valor) => valor === null || valor === undefined || (typeof valor === "string" && !valor.trim());
+
+/**
+ * El título de cada firma («RECIBIO/ENTREGO») se imprime centrado sobre las columnas de su nombre y
+ * puesto. En el formato a veces es una celda suelta alineada a la izquierda (el nombre ocupa I:K y el
+ * título está solo en J), y así Excel lo imprime corrido. Solo se ensancha si en esa fila las demás
+ * celdas de esas columnas están vacías y sin combinar; un título ya combinado sobre las mismas columnas
+ * (D:F sobre un nombre en D:F) se deja como está.
+ */
+function centrarTitulosFirma(modelo) {
+  const { campos, area } = modelo;
+  const firmas = [campos.entrega_nombre, campos.recibe_nombre, campos.autoriza, campos.firmas_extra?.izq?.nombre, campos.firmas_extra?.der?.nombre];
+  const movidos = new Map();
+  const estiloTexto = new Map();
+  modelo.centradas = new Set();
+  for (const celda of firmas.filter(Boolean)) {
+    const rango = modelo.combinadaEn.get(`${celda.r},${celda.c}`);
+    const c1 = rango ? rango.c1 : celda.c;
+    const c2 = rango ? rango.c2 : celda.c;
+    if (c1 === c2) continue;
+    for (let r = celda.r - 1; r >= Math.max(area.r1, celda.r - 4); r--) {
+      const conTexto = [];
+      for (let c = c1; c <= c2; c++) if (!vacia(modelo.valor(r, c))) conTexto.push(c);
+      if (!conTexto.length) continue; // la línea de la firma
+      if (conTexto.length > 1) break;
+      const c = conTexto[0];
+      if (/^(FIRMA|NOMBRE|PUESTO)/.test(etiqueta(modelo.valor(r, c)))) break;
+      let libre = true;
+      for (let x = c1; x <= c2; x++) if (modelo.combinadaEn.get(`${r},${x}`)) libre = false;
+      if (!libre) break; // ya combinado (centrado por el formato) o cruza otra combinada
+      const virtual = { r1: r, r2: r, c1, c2 };
+      for (let x = c1; x <= c2; x++) modelo.combinadaEn.set(`${r},${x}`, virtual);
+      const texto = modelo.valor(r, c);
+      movidos.set(`${r},${c}`, null);
+      movidos.set(`${r},${c1}`, texto);
+      estiloTexto.set(`${r},${c1}`, modelo.estiloDe(r, c));
+      modelo.centradas.add(`${r},${c1}`);
+      break;
+    }
+  }
+  if (!movidos.size) return;
+  const valorHoja = modelo.valor;
+  modelo.valor = (r, c) => (movidos.has(`${r},${c}`) ? movidos.get(`${r},${c}`) : valorHoja(r, c));
+  modelo.estiloTextoDe = (r, c) => estiloTexto.get(`${r},${c}`);
 }
 
 // ------------------------------------------------------------------ campos

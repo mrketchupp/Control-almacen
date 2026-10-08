@@ -5,6 +5,7 @@
 import { render } from "preact";
 import { Almacen } from "./almacen/almacen.js";
 import { BackendIndexedDB } from "./almacen/bd.js";
+import { BD_COMUN } from "./almacen/compartidos.js";
 import { INVENTARIO_DEFECTO, inventarioPorId } from "./nucleo/inventarios.js";
 import { App } from "./ui/app.js";
 import { html } from "./ui/html.js";
@@ -55,13 +56,15 @@ function marcarInventario(id) {
 }
 
 let abierta = null; // la sesión del inventario abierto
+let comun = null; // lo que comparten los inventarios (etapa de perforación)
 
 /** Abre un inventario con su propia base y dibuja la herramienta para él. */
 async function abrirInventario(id) {
   const inventario = inventarioPorId(id);
   const backend = new BackendIndexedDB(inventario.bd);
   const almacen = new Almacen(backend, { version: VERSION, inventario: inventario.id });
-  const sesion = new Sesion(almacen, backend, { cambiarInventario });
+  comun ??= new BackendIndexedDB(BD_COMUN);
+  const sesion = new Sesion(almacen, backend, { cambiarInventario, comun });
   try {
     await sesion.iniciar();
   } catch (error) {
@@ -74,6 +77,7 @@ async function abrirInventario(id) {
   marcarInventario(inventario.id);
   if (!anterior) raiz.innerHTML = ""; // quita el "Cargando…" del HTML
   render(html`<${App} key=${inventario.id} sesion=${sesion} />`, raiz);
+  anterior?.compartidos?.cerrar();
   anterior?.backend.cerrar();
   return sesion;
 }
@@ -81,6 +85,7 @@ async function abrirInventario(id) {
 /** Cambia de inventario sin recargar: el otro se abre desde el inicio. */
 async function cambiarInventario(id) {
   if (inventarioPorId(id).id === abierta?.almacen.inventario) return abierta;
+  await abierta?.compartidos?.terminar(); // que la etapa recién cambiada ya esté guardada
   if (location.hash && location.hash !== "#inicio") history.replaceState(null, "", "#inicio");
   return abrirInventario(id);
 }

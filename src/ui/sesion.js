@@ -15,6 +15,7 @@ import {
   soportaCarpetas,
   soportaGuardarComo,
 } from "../almacen/archivos.js";
+import { Compartidos } from "../almacen/compartidos.js";
 import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
 import { inventarioPorId } from "../nucleo/inventarios.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
@@ -28,11 +29,15 @@ import { LibroLeido } from "../xlsx/leer.js";
 export const CARPETA_RESPALDOS = "respaldos";
 
 export class Sesion {
-  /** @param cambiarInventario  (id) => abre el otro inventario (DLTA / GSM) en esta misma pestaña */
-  constructor(almacen, backend, { cambiarInventario = null } = {}) {
+  /**
+   * @param cambiarInventario  (id) => abre el otro inventario (DLTA / GSM) en esta misma pestaña
+   * @param comun              base de lo que comparten los inventarios (la etapa de perforación)
+   */
+  constructor(almacen, backend, { cambiarInventario = null, comun = null } = {}) {
     this.almacen = almacen;
     this.backend = backend;
     this.cambiarInventario = cambiarInventario;
+    this.compartidos = comun ? new Compartidos(almacen, comun) : null;
     this.carpeta = null;
     this.permiso = null;
     this.ultimoRespaldo = null;
@@ -126,6 +131,8 @@ export class Sesion {
 
   async iniciar() {
     await this.almacen.iniciar();
+    // La etapa de perforación es la misma en DLTA y GSM: toma la última que se cambió en cualquiera.
+    await this.compartidos?.sincronizar().catch((error) => console.warn("Ajustes compartidos:", error));
     this.carpeta = await this.backend.leerAjuste("carpeta");
     this.permiso = this.carpeta ? await permisoCarpeta(this.carpeta) : null;
     this.ultimoRespaldo = await this.backend.leerAjuste("ultimo_respaldo");

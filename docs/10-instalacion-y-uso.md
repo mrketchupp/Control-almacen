@@ -59,7 +59,9 @@ leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 
 **Dos inventarios:** arriba, junto al nombre, eliges **DLTA** (azul) o **GSM** (morado). Cada uno tiene sus datos por
 separado; la primera vez GSM está vacío y se hace su *Primera carga* con los archivos de GSM. Al abrir, entra al último
-que usaste. Si el libro de vales de GSM trae los textos o el logo de DLTA, se corrigen en *Ajustes → Vale impreso de GSM*.
+que usaste. Si el libro de vales de GSM trae los textos o el logo de DLTA, se corrigen en *Ajustes → Vale impreso de GSM*
+(valen para todas las hojas). En GSM toda la interfaz va en morado. La **etapa de perforación es la misma en los dos**:
+si la cambias en uno, el otro la toma al abrirlo.
 
 ## 2. Carpeta de respaldos (una sola vez)
 

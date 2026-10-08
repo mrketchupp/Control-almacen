@@ -103,6 +103,28 @@ export function valoresDeVale(modelo, vale) {
 // la tabla y el lienzo (overflow hidden) la recortaba; el borde derecho casi no se veía.
 const ORILLA = 3;
 
+/**
+ * Anchos (o altos) acomodados a la rejilla de píxeles ya escalada: cada orilla de celda cae en un píxel
+ * exacto después del zoom, así las líneas salen nítidas (no grises) y las celdas no dejan rendijas.
+ */
+export function enRejilla(medidas, escala) {
+  const salida = [];
+  let acumulado = 0;
+  let previo = 0;
+  for (const m of medidas) {
+    acumulado += m;
+    const fin = Math.round(acumulado * escala);
+    salida.push((fin - previo) / escala);
+    previo = fin;
+  }
+  return salida;
+}
+
+/** Grosor de un borde para que, ya con el zoom de la hoja, mida sus píxeles de Excel (1 fino, 2 medio, 3 grueso). */
+export function grosorEscalado(borde, escala) {
+  return String(borde).replace(/^(\d+(?:\.\d+)?)px/, (_, n) => `${(Number(n) / escala).toFixed(3)}px`);
+}
+
 function medidas(modelo) {
   const ancho = modelo.columnas.reduce((s, c) => s + c.px, 0) + 2 * ORILLA;
   const alto = modelo.filas.reduce((s, f) => s + f.px, 0) + 2 * ORILLA;
@@ -130,19 +152,33 @@ function cssEnLinea(objeto) {
  */
 export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = null) {
   const { estilos } = modelo;
-  const { ancho, alto, escala, paginaAlto } = medidas(modelo);
+  const { escala, paginaAlto } = medidas(modelo);
+  // Todo en la rejilla de píxeles ya escalada (ver enRejilla).
+  const orilla = Math.max(1, Math.round(ORILLA * escala)) / escala;
+  const anchoCol = enRejilla(modelo.columnas.map((c) => c.px), escala);
+  const altoFil = enRejilla(modelo.filas.map((f) => f.px), escala);
+  const ancho = anchoCol.reduce((a, b) => a + b, 0) + 2 * orilla;
+  const alto = altoFil.reduce((a, b) => a + b, 0) + 2 * orilla;
+  const xCol = new Map();
+  const wCol = new Map();
+  modelo.columnas.reduce((x, { c }, i) => (xCol.set(c, x), wCol.set(c, anchoCol[i]), x + anchoCol[i]), 0);
+  const yFil = new Map();
+  const hFil = new Map();
+  modelo.filas.reduce((y, { r }, i) => (yFil.set(r, y), hFil.set(r, altoFil[i]), y + altoFil[i]), 0);
+  const fondos = []; // rellenos de color de cada celda, para la capa de abajo (sin rendijas)
   const colVisible = new Set(modelo.columnas.map((c) => c.c));
   const filaVisible = new Set(modelo.filas.map((f) => f.r));
   const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
   const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : fijo(modelo.valor(r, c)));
   const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
-  const altoFila = new Map(modelo.filas.map((f) => [f.r, f.px]));
+  const altoFila = hFil;
   const bordeIzquierdo = (r) =>
     estilos.bordesCss(modelo.estiloDe(r, modelo.area.c1))["border-left"] ||
     estilos.bordesCss(modelo.estiloDe(r, modelo.area.c1 - 1))["border-right"] ||
     null;
 
-  const filasHtml = modelo.filas.map(({ r, px }) => {
+  const filasHtml = modelo.filas.map(({ r }) => {
+    const px = hFil.get(r);
     const celdas = [];
     for (const { c } of modelo.columnas) {
       const rango = modelo.combinadaEn.get(`${r},${c}`);
@@ -179,10 +215,20 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         const v = estilos.bordesCss(modelo.estiloDe(finFila + 1, c))["border-top"];
         if (v) bordes["border-bottom"] = v;
       }
-      const estilo = estilos.css(modelo.estiloDe(r, c));
+      for (const lado of Object.keys(bordes)) bordes[lado] = grosorEscalado(bordes[lado], escala);
+      const estilo = estilos.css(modelo.estiloTextoDe?.(r, c) ?? modelo.estiloDe(r, c));
       const valor = valorEn(r, c);
       const texto = textoEn(r, c);
       const css = { ...estilo.css, ...bordes };
+      if (modelo.centradas?.has(`${r},${c}`)) css["text-align"] = "center";
+      const fondo = estilos.css(modelo.estiloDe(r, c)).css.background;
+      if (fondo && !/^#?(fff|ffffff)$/i.test(fondo.replace("#", ""))) {
+        let w = 0;
+        for (const x of colVisible) if (x >= c && x <= finCol) w += wCol.get(x);
+        let h = 0;
+        for (const y of filaVisible) if (y >= r && y <= finFila) h += hFil.get(y);
+        fondos.push({ x: xCol.get(c), y: yFil.get(r), w, h, fondo });
+      }
       if (!estilo.alineado && typeof valor === "number") css["text-align"] = "right";
       if (!estilo.ajustar) {
         css["white-space"] = "nowrap";
@@ -197,23 +243,26 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         let altura = 0;
         for (let f = r; f <= finFila; f++) altura += altoFila.get(f) ?? 0;
         const puntos = Number.parseFloat(css["font-size"]) || 11;
-        if (altura < puntos * (96 / 72) * 1.1) contenido = `<div style="height:${altura}px;overflow:hidden">${contenido}</div>`;
+        const linea = puntos * (96 / 72);
+        // En una fila espaciadora (1–2 px) Excel no deja ver nada del texto: no se imprime.
+        if (altura < linea * 0.3) contenido = "";
+        else if (altura < linea * 1.1) contenido = `<div style="height:${+altura.toFixed(3)}px;overflow:hidden">${contenido}</div>`;
       }
       celdas.push(`<td${atributos} style="${escaparHtml(cssEnLinea(css))}">${contenido}</td>`);
     }
-    return `<tr style="height:${px}px">${celdas.join("")}</tr>`;
+    return `<tr style="height:${+px.toFixed(3)}px">${celdas.join("")}</tr>`;
   });
-  const columnas = modelo.columnas.map((c) => `<col style="width:${c.px}px">`).join("");
+  const columnas = anchoCol.map((w) => `<col style="width:${w.toFixed(3)}px">`).join("");
   const imagenes = imagenesConIdentidad(modelo.imagenes, identidad)
     .map(
       (i) =>
-        `<img alt="" src="${i.src}" style="left:${(i.x + ORILLA).toFixed(1)}px;top:${(i.y + ORILLA).toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
+        `<img alt="" src="${i.src}" style="left:${(i.x + orilla).toFixed(1)}px;top:${(i.y + orilla).toFixed(1)}px;width:${i.ancho.toFixed(1)}px;height:${i.alto.toFixed(1)}px">`,
     )
     .join("") +
     (modelo.fotos ?? [])
       .map((f, i) =>
         fotos[i]
-          ? `<img alt="" class="vale-foto" src="${escaparHtml(fotos[i])}" style="left:${(f.x + ORILLA).toFixed(1)}px;top:${(f.y + ORILLA).toFixed(1)}px;width:${f.ancho.toFixed(1)}px;height:${f.alto.toFixed(1)}px">`
+          ? `<img alt="" class="vale-foto" src="${escaparHtml(fotos[i])}" style="left:${(f.x + orilla).toFixed(1)}px;top:${(f.y + orilla).toFixed(1)}px;width:${f.ancho.toFixed(1)}px;height:${f.alto.toFixed(1)}px">`
           : "",
       )
       .join("");
@@ -225,10 +274,46 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
   return (
     `<section class="vale-pagina" style="height:${(paginaAlto - 0.02).toFixed(2)}in">` +
     seccion(modelo.pagina.encabezado, "vale-encabezado") +
-    `<div class="vale-lienzo" style="${centrado}width:${ancho}px;height:${alto}px;padding:${ORILLA}px;zoom:${escala}">` +
-    `<table class="vale-tabla" style="width:${ancho - 2 * ORILLA}px"><colgroup>${columnas}</colgroup><tbody>${filasHtml.join("")}</tbody></table>` +
+    `<div class="vale-lienzo" style="${centrado}width:${ancho.toFixed(3)}px;height:${alto.toFixed(3)}px;padding:${orilla.toFixed(3)}px;zoom:${escala}">` +
+    capaFondos(fondos, orilla) +
+    `<table class="vale-tabla" style="width:${(ancho - 2 * orilla).toFixed(3)}px"><colgroup>${columnas}</colgroup><tbody>${filasHtml.join("")}</tbody></table>` +
     `${imagenes}</div>${seccion(modelo.pagina.pie, "vale-pie")}</section>`
   );
+}
+
+/**
+ * Capa de color debajo de la tabla: los rellenos iguales y contiguos se juntan en un solo rectángulo, así
+ * entre celda y celda (franjas moradas, encabezados amarillos) no se cuela una rendija blanca al escalar.
+ * Las celdas conservan su propio relleno encima.
+ */
+export function capaFondos(fondos, orilla = 0) {
+  const cerca = (a, b) => Math.abs(a - b) < 0.01;
+  const juntar = (lista, clave, inicio, largo) => {
+    const grupos = new Map();
+    for (const f of lista) {
+      const k = clave(f);
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push({ ...f });
+    }
+    const salida = [];
+    for (const grupo of grupos.values()) {
+      grupo.sort((a, b) => a[inicio] - b[inicio]);
+      for (const f of grupo) {
+        const ultimo = salida[salida.length - 1];
+        if (ultimo && clave(ultimo) === clave(f) && cerca(ultimo[inicio] + ultimo[largo], f[inicio])) ultimo[largo] = f[inicio] + f[largo] - ultimo[inicio];
+        else salida.push(f);
+      }
+    }
+    return salida;
+  };
+  const filas = juntar(fondos, (f) => `${f.y.toFixed(2)}|${f.h.toFixed(2)}|${f.fondo}`, "x", "w");
+  const bloques = juntar(filas, (f) => `${f.x.toFixed(2)}|${f.w.toFixed(2)}|${f.fondo}`, "y", "h");
+  return bloques
+    .map(
+      (f) =>
+        `<div class="vale-fondo" style="left:${(f.x + orilla).toFixed(3)}px;top:${(f.y + orilla).toFixed(3)}px;width:${f.w.toFixed(3)}px;height:${f.h.toFixed(3)}px;background:${f.fondo}"></div>`,
+    )
+    .join("");
 }
 
 /** CSS de impresión: tamaño carta y márgenes de la hoja. */
@@ -241,7 +326,8 @@ export function cssImpresion(modelo) {
     ".vale-pie{position:absolute;left:0;right:0;bottom:0}.vale-pie span,.vale-encabezado span{flex:1}.vale-pie span:nth-child(2),.vale-encabezado span:nth-child(2){text-align:center}.vale-pie span:last-child,.vale-encabezado span:last-child{text-align:right}" +
     ".vale-pagina,.vale-pagina *{-webkit-print-color-adjust:exact;print-color-adjust:exact}" +
     ".vale-lienzo{position:relative;overflow:hidden;box-sizing:border-box;background:#fff;color:#000}" +
-    ".vale-tabla{table-layout:fixed;border-collapse:collapse;color:#000}" +
+    ".vale-tabla{position:relative;table-layout:fixed;border-collapse:collapse;color:#000}" +
+    ".vale-fondo{position:absolute}" +
     ".vale-tabla td{padding:0 2px;line-height:1.1;box-sizing:border-box}" +
     ".vale-lienzo img{position:absolute}.vale-lienzo img.vale-foto{object-fit:cover}"
   );

@@ -213,6 +213,14 @@ DDMMAA.xlsx`. Aviso al elegir un archivo cuyo nombre dice el otro inventario; un
 del archivo aparece editable (p. ej. el nombre del almacén «MX DLTA …» y la dirección para GSM), reemplazos en todo el
 formato y cambio de logos, con vista previa por hoja. No cambia el Excel ni los vales.
 - ☐ Hacer la primera carga de GSM con sus archivos y revisar que DLTA sigue igual.
+
+**Ronda 18 (aplicada):** en GSM **toda la interfaz** toma el morado (botones, enlaces, menú, pestañas, foco; claro y
+oscuro). **Etapa de perforación compartida** entre DLTA y GSM (base común; se adopta al abrir, cargar o restaurar).
+*Vale impreso*: dice que los textos y logos valen para todas las hojas. **Vale impreso más fiel:** bordes negros nítidos
+con su grosor (1 px fino, 2 px el marco) y sin rendijas entre celdas de color al escalar la hoja; «RECIBIO/ENTREGO» centrado
+sobre el nombre y el puesto (en el formato era una celda suelta alineada a la izquierda); las filas espaciadoras no
+imprimen su texto.
+- ☐ Imprimir un vale y revisar bordes y títulos de firma contra el de papel.
 - ☐ Revisar el vale impreso de GSM (textos y logo) contra uno en papel.
 
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha

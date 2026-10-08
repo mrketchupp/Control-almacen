@@ -200,12 +200,13 @@ function Etapa() {
   const guardar = () =>
     sesion.tarea("Guardando…", async () => {
       await sesion.almacen.modificar((e) => fijarAjuste(e, "etapa_perforacion", valor, sesion.usuario));
-      sesion.avisar("exito", "Etapa de perforación guardada: se usará en los vales nuevos.");
+      sesion.avisar("exito", "Etapa de perforación guardada: se usará en los vales nuevos de DLTA y GSM.");
     });
   return html`<${Tarjeta} titulo="Etapa de perforación">
     <p class="nota">
       Es la línea de las observaciones que cambia en los vales internos. Cada vale nuevo la trae prellenada con este valor,
-      y al emitir un vale con otra etapa, esa pasa a ser la actual.
+      y al emitir un vale con otra etapa, esa pasa a ser la actual. <strong>Es la misma en DLTA y GSM</strong> (es del pozo):
+      si la cambias en uno, el otro la toma al abrirlo.
     </p>
     <div class="acciones-linea">
       <input value=${valor} onInput=${(e) => setValor(e.currentTarget.value)} placeholder='Ej. 12 1/4"' aria-label="Etapa de perforación actual" />

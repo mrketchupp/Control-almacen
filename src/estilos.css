@@ -124,9 +124,10 @@ h3 {
   margin: 20px 0 8px;
 }
 
-/* ---------------------------------------------------------------- inventario (DLTA / GSM, ronda 17)
-   Cada inventario con su color: la franja de la cabecera, el logo y el selector dicen siempre en cuál
-   estás. DLTA conserva el azul de siempre. */
+/* ---------------------------------------------------------------- inventario (DLTA / GSM, rondas 17 y 18)
+   Cada inventario con su color en toda la interfaz (botones, enlaces, menú, pestañas, foco) además de la
+   franja de la cabecera, el logo y el selector: así siempre se sabe en cuál estás. DLTA conserva el azul
+   de siempre; en GSM el color principal es morado. */
 
 :root {
   --inventario: var(--primario);
@@ -135,6 +136,10 @@ h3 {
 }
 
 :root[data-inventario="GSM"] {
+  --primario: #6b3fa0;
+  --primario-hover: #573285;
+  --primario-suave: #f1eafa;
+  --sobre-primario: #fff;
   --inventario: #6b3fa0;
   --inventario-suave: #f1eafa;
   --sobre-inventario: #fff;
@@ -142,6 +147,10 @@ h3 {
 
 @media (prefers-color-scheme: dark) {
   :root[data-inventario="GSM"]:not([data-tema="claro"]) {
+    --primario: #b99df0;
+    --primario-hover: #cbb6f5;
+    --primario-suave: #2c2240;
+    --sobre-primario: #1a1030;
     --inventario: #b99df0;
     --inventario-suave: #2c2240;
     --sobre-inventario: #1a1030;
@@ -149,6 +158,10 @@ h3 {
 }
 
 :root[data-inventario="GSM"][data-tema="oscuro"] {
+  --primario: #b99df0;
+  --primario-hover: #cbb6f5;
+  --primario-suave: #2c2240;
+  --sobre-primario: #1a1030;
   --inventario: #b99df0;
   --inventario-suave: #2c2240;
   --sobre-inventario: #1a1030;

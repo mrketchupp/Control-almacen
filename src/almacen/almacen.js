@@ -128,8 +128,12 @@ export class Almacen {
     return () => this.oyentes.delete(oyente);
   }
 
-  _avisar() {
-    for (const oyente of this.oyentes) oyente(this.estado);
+  /**
+   * Avisa a los oyentes con el origen del cambio: "cambio" (una edición), "carga" (primera carga),
+   * "restaurar" (respaldo o copia interna) o "borrar". Lo usa la sesión para la etapa compartida.
+   */
+  _avisar(origen = "cambio") {
+    for (const oyente of this.oyentes) oyente(this.estado, origen);
   }
 
   _enCola(tarea) {
@@ -167,7 +171,7 @@ export class Almacen {
       const archivos = await this._registrarPlantillas(estado, plantillas);
       await this.backend.guardarTodo(estado, archivos);
       this.estado = estado;
-      this._avisar();
+      this._avisar("carga");
     });
   }
 
@@ -309,7 +313,7 @@ export class Almacen {
         await this.backend.guardarEstado(estado);
       }
       this.estado = estado;
-      this._avisar();
+      this._avisar("restaurar");
       return manifiesto;
     });
   }
@@ -327,7 +331,7 @@ export class Almacen {
       if (estado.config?.completar_areas) await this._completarAreas(estado);
       await this.backend.guardarEstado(estado);
       this.estado = estado;
-      this._avisar();
+      this._avisar("restaurar");
     });
   }
 
@@ -335,7 +339,7 @@ export class Almacen {
     return this._enCola(async () => {
       await this.backend.borrarTodo();
       this.estado = null;
-      this._avisar();
+      this._avisar("borrar");
     });
   }
 }

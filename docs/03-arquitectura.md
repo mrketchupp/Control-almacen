@@ -106,6 +106,13 @@ y de los últimos 12 meses.
 **Restauración:** valida el respaldo (formato, folios únicos, plantillas completas, **que sea del inventario abierto**),
 guarda una copia interna del estado actual y reemplaza todo en una sola transacción de IndexedDB.
 
+**Lo que comparten (Ronda 18):** la **etapa de perforación** es del pozo, no de un inventario. Vive además en una base
+aparte, `control-almacen-comun` (solo su almacén `ajustes`, clave `compartidos` = `{ etapa_perforacion: { valor, en,
+desde } }`). `almacen/compartidos.js` (`Compartidos`): al editarla (Ajustes, Inicio o al emitir un vale con otra etapa)
+se publica; al abrir un inventario, tras su primera carga o al restaurar un respaldo, se adopta la compartida (también
+en los borradores que traían la anterior) con auditoría `SINCRONIZAR`. El `Almacen` avisa el origen de cada cambio
+(`cambio`, `carga`, `restaurar`, `borrar`). Antes de cambiar de inventario se espera a que quede guardada.
+
 **Dos inventarios (Ronda 17):** DLTA y GSM usan el mismo formato de archivos pero van **por separado**: cada uno tiene su
 base de IndexedDB (estado, plantillas, ajustes —carpeta, último respaldo— y copias internas), sus folios, respaldos y
 conciliación. `src/nucleo/inventarios.js` los define (base, prefijo de respaldos, almacén de AX propuesto, palabras que
@@ -173,6 +180,14 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
 - `impresion/vale.js` genera páginas carta (`@page`) con `print-color-adjust: exact` para conservar los rellenos. La
   tabla lleva un margen de 3 px dentro del lienzo para que el marco exterior (bordes colapsados) no se recorte, y el
   borde derecho del marco replica el izquierdo donde la hoja no lo trae.
+- **Nitidez al escalar (Ronda 18):** la hoja se reduce (zoom ~0.59) para caber en carta. Para que no salgan líneas
+  grises ni rendijas: anchos y altos se acomodan a la rejilla de píxeles ya escalada (`enRejilla`), cada borde mide sus
+  píxeles de Excel después del zoom (`grosorEscalado`: 1 fino, 2 el marco) y los rellenos de color (franjas moradas,
+  encabezados) se pintan además en una capa debajo de la tabla, juntando los contiguos (`capaFondos`). Las filas
+  espaciadoras de 1–2 px no imprimen su texto (en Excel no se ve).
+- **Títulos de firma centrados (Ronda 18):** si el título («RECIBIO/ENTREGO») es una celda suelta dentro de las columnas
+  del nombre y el puesto (nombre en I:K, título solo en J), se imprime centrado sobre esas columnas
+  (`centrarTitulosFirma` en `formulario.js`). Uno ya combinado sobre las mismas columnas no se toca.
 - **Fotos de los vales (NOV):** las imágenes de la hoja-formulario que están sobre la zona de partidas se toman
   como espacios para fotos (posición y tamaño); las del ejemplo no se imprimen y las partidas caben solo arriba de ellas.
   Las fotos del vale se reducen a 1280 px (JPEG) al elegirlas, se guardan en IndexedDB con clave por contenido

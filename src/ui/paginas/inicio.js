@@ -136,7 +136,7 @@ function BentoEtapa() {
     sesion.tarea("Guardando…", async () => {
       await sesion.almacen.modificar((e) => fijarAjuste(e, "etapa_perforacion", valor.trim(), sesion.usuario));
       setEditando(false);
-      sesion.avisar("exito", "Etapa de perforación guardada: se usará en los vales nuevos.");
+      sesion.avisar("exito", "Etapa de perforación guardada: se usará en los vales nuevos de DLTA y GSM.");
     });
   return html`<section class="bento-celda bento-etapa">
     <header class="bento-cabeza">
@@ -162,7 +162,7 @@ function BentoEtapa() {
           </div>
         </div>`
       : html`<p class="dato-grande dato-etapa" title=${actual}>${actual || "—"}</p>`}
-    <p class="nota">Va en las observaciones de los vales internos; cada vale nuevo la trae puesta.</p>
+    <p class="nota">Va en las observaciones de los vales internos; cada vale nuevo la trae puesta. Es la misma en DLTA y GSM.</p>
     ${editando ? null : html`<button type="button" class="enlace-boton enlace-flecha" onClick=${() => setEditando(true)}>Cambiar etapa →</button>`}
   </section>`;
 }

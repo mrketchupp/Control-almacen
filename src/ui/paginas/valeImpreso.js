@@ -11,17 +11,19 @@ import { Aviso, Boton, Buscador, Detalles, ElegirArchivo, Lista, Pastilla, Tarje
 import { html } from "../html.js";
 
 const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** «en las 11 hojas» o «en 3 de 11 hojas». */
+const enHojas = (n, total) => (!total || n >= total ? `en ${total > 1 ? `las ${total}` : "la"} ${total === 1 ? "hoja" : "hojas"}` : `en ${n} de ${total} hojas`);
 const comparable = (texto) => String(texto ?? "").trim().toUpperCase().replace(/\s+/g, " ");
 
 /**
  * Un texto del encabezado como viene en el archivo y lo que se imprime (editable). Cambiarlo crea la
  * regla «este texto → lo escrito»; dejarlo igual al archivo la quita.
  */
-function TextoArchivo({ texto, valor, cambiado, inventario, alCambiar }) {
+function TextoArchivo({ texto, valor, cambiado, inventario, total, alCambiar }) {
   const ajeno = texto.marca && texto.marca !== inventario && !cambiado;
   return html`<li class=${`texto-archivo ${cambiado ? "texto-cambiado" : ""}`}>
     <div class="texto-archivo-original">
-      <small>${texto.zona === "pie" ? "Pie de página" : "Encabezado"} · en tu archivo:</small>
+      <small>${texto.zona === "pie" ? "Pie de página" : "Encabezado"} · en tu archivo, ${enHojas(texto.hojas, total)}:</small>
       <span class="texto-original">${texto.texto}</span>
       ${ajeno ? html`<${Pastilla} tono="alerta" titulo=${`Este texto dice ${texto.marca}`}>dice ${texto.marca}<//>` : null}
     </div>
@@ -72,7 +74,7 @@ function ElegirTexto({ textos, enUso, alElegir }) {
 }
 
 /** Un logo del formato: el original, lo que se imprime y sus acciones. */
-function Logo({ logo, cambio, alCambiar }) {
+function Logo({ logo, cambio, total, alCambiar }) {
   const sesion = useSesion();
   const elegir = (archivo) => sesion.tarea("Guardando la imagen…", async () => alCambiar(await sesion.leerLogo(archivo)));
   const cambiar = (cambio) => sesion.tarea("Guardando…", () => alCambiar(cambio));
@@ -81,12 +83,12 @@ function Logo({ logo, cambio, alCambiar }) {
     <div class="logo-par">
       <figure>
         <div class="logo-marco"><img src=${logo.src} alt="Logo original del formato" /></div>
-        <figcaption>Original · ${logo.hojas} ${logo.hojas === 1 ? "hoja" : "hojas"}</figcaption>
+        <figcaption>Original · ${enHojas(logo.hojas, total)}</figcaption>
       </figure>
       <span class="regla-flecha" aria-hidden="true">→</span>
       <figure>
         <div class=${`logo-marco ${imprime ? "" : "logo-vacio"}`}>${imprime ? html`<img src=${imprime} alt="Logo que se imprime" />` : "No se imprime"}</div>
-        <figcaption>${cambio ? (cambio.quitar ? "Quitado" : `Nuevo: ${cambio.nombre || "imagen"}`) : "Se imprime igual"}</figcaption>
+        <figcaption>${cambio ? (cambio.quitar ? "Quitado de todas las hojas" : `Nuevo en todas las hojas: ${cambio.nombre || "imagen"}`) : "Se imprime igual"}</figcaption>
       </figure>
     </div>
     <div class="acciones-linea">
@@ -184,6 +186,10 @@ export function ValeImpreso() {
       nada; aquí corriges o actualizas lo que deba decir otra cosa, sin tocar tu Excel ni los datos de los vales. ${otros.join(" y ")} tiene
       los suyos.
     </p>
+    <p class="nota nota-todas-hojas">
+      <strong>Valen para todas las hojas${formato ? ` (las ${formato.hojas.length} áreas)` : ""}:</strong> cualquier vale de ${inventario}, sea del
+      área que sea, se imprime con el mismo encabezado y los mismos logos.
+    </p>
     ${error ? html`<${Aviso} tipo="error" titulo="No se pudo leer el formato del vale">${error}<//>` : null}
     ${pendientes
       ? html`<${Aviso} tipo="advertencia" titulo=${`El formato dice ${otros.join(" / ")} en ${pendientes} ${pendientes === 1 ? "texto" : "textos"}`}>
@@ -204,6 +210,7 @@ export function ValeImpreso() {
                     valor=${e.valor}
                     cambiado=${e.cambiado}
                     inventario=${inventario}
+                    total=${formato.hojas.length}
                     alCambiar=${(valor) => fijarEncabezado(e.texto.texto, valor)}
                   />`,
                 )}
@@ -252,13 +259,13 @@ export function ValeImpreso() {
           ? html`<p class="nota">Leyendo el formato…</p>`
           : formato.logos.length
             ? html`<ul class="logos-formato">
-                ${formato.logos.map((logo) => html`<${Logo} key=${logo.huella} logo=${logo} cambio=${guardada.logos[logo.huella] ?? null} alCambiar=${(c) => cambiarLogo(logo.huella, c)} />`)}
+                ${formato.logos.map((logo) => html`<${Logo} key=${logo.huella} logo=${logo} cambio=${guardada.logos[logo.huella] ?? null} total=${formato.hojas.length} alCambiar=${(c) => cambiarLogo(logo.huella, c)} />`)}
               </ul>`
             : html`<p class="nota">El formato del vale no tiene logos.</p>`}
       </div>
       <figure class="vale-impreso-previa">
         <figcaption>
-          <span>Vista previa${previa?.vale?.folio ? ` con el vale ${previa.vale.folio}` : ""}${cambiado ? " · sin guardar" : ""}</span>
+          <span>Vista previa${previa?.vale?.folio ? ` con el vale ${previa.vale.folio}` : ""}${cambiado ? " · sin guardar" : ""} · ver con la hoja:</span>
           ${formato?.hojas.length > 1
             ? html`<${Lista}
                 clase="lista-hoja-previa"

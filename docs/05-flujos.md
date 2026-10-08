@@ -264,4 +264,7 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
    es el mismo formato que el de DLTA (dice «MX DLTA …», dirección y logo de DLTA), en *Ajustes → Vale impreso de GSM* se
    corrige: el encabezado del archivo aparece tal como viene, cada texto con lo que se imprime (editable); *Reemplazar en
    todo el formato* cambia una parte de varios textos a la vez (p. ej. `DLTA` → `GSM`); cada logo se cambia por otra imagen
-   o se quita. Con vista previa por hoja. No cambia el Excel ni los vales.
+   o se quita. Con vista previa por hoja. Valen para **todas las hojas** (todas las áreas). No cambia el Excel ni los vales.
+5. **La etapa de perforación es la misma en los dos** (Ronda 18): si se cambia en uno (Inicio, Ajustes o al emitir un
+   vale con otra etapa), el otro la toma al abrirlo; también al hacer su primera carga o restaurar un respaldo.
+6. **Color:** en GSM toda la interfaz (botones, enlaces, menú, pestañas) va en morado; en DLTA, en azul.

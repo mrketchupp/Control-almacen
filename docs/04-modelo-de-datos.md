@@ -215,6 +215,10 @@ formato), por ejemplo el nombre del almacén y la dirección de DLTA en el vale 
 importar mayúsculas ni espacios de más y nunca tocan lo capturado en el vale; el logo nuevo va como `data:` URL (≤ 300 KB)
 para que viaje en los respaldos. Ver `src/impresion/identidad.js` y `src/servicios/valeImpreso.js`.
 
+**Etapa de perforación compartida (Ronda 18):** `config.etapa_perforacion` es la misma en DLTA y GSM. Cada estado
+conserva su copia (prellena sus vales y va en sus respaldos) y se sincroniza con la base común
+`control-almacen-comun` (ver `docs/03`). No cambia el formato del estado.
+
 **Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
 cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
 vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese
