@@ -11,13 +11,15 @@ import {
   validarEntrada,
 } from "../../servicios/entradas.js";
 import { lugarCorto } from "../../servicios/inventario.js";
+import { impresionesPorVale } from "../../servicios/etiquetas.js";
 import { bitacoraDeVale } from "../../servicios/vales.js";
 import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { EditorEntrada } from "./entradas.js";
+import { EstadoEtiquetas, EtiquetasDeEntrada } from "./etiquetas.js";
 import { ListaErrores } from "./vales.js";
 
-const ACCIONES = { EMITIR: "Registrada", CORREGIR: "Corregida" };
+const ACCIONES = { EMITIR: "Registrada", CORREGIR: "Corregida", ETIQUETAS: "Etiquetas impresas" };
 
 export function entradaDeRuta() {
   const m = /^#entrada\/(\d+)/.exec(location.hash);
@@ -90,6 +92,7 @@ export function PaginaEntrada() {
   const id = entradaDeRuta();
   const vale = estado.vales.find((v) => v.id === id && v.tipo === "ENTRADA");
   const [corrigiendo, setCorrigiendo] = useState(false);
+  const [etiquetas, setEtiquetas] = useState(false);
   const indices = useMemo(() => new Indices(estado), [estado]);
   if (!vale) return html`<${Aviso} tipo="advertencia" titulo="No se encontró la entrada">Vuelve al <a href="#historial">historial</a>.<//>`;
   const lugar = (l) => {
@@ -98,19 +101,24 @@ export function PaginaEntrada() {
     const u = e && indices.ubicacion(e.ubicacion_id);
     return u ? html`<span title=${u.hoja_excel.trim()}>${lugarCorto(u)}</span>${e.origen === `ENTRADA ${folioEntrada(vale.folio)}` ? html` <small class="nota">partida nueva</small>` : null}` : "—";
   };
-  const bitacora = bitacoraDeVale(estado, vale.id).reverse();
+  // Ronda 20: las impresiones de sus etiquetas también van en la bitácora.
+  const impresas = (impresionesPorVale(estado).get(vale.id) ?? []).map((r) => ({ accion: "ETIQUETAS", fecha_hora: r.fecha_hora, usuario: r.usuario, etiquetas: r.etiquetas }));
+  const bitacora = [...bitacoraDeVale(estado, vale.id), ...impresas].sort((a, b) => b.fecha_hora.localeCompare(a.fecha_hora));
   return html`
     <div class="cabeza-vale">
       <div>
         <span class="folio-grande">Entrada ${folioEntrada(vale.folio)}</span>
         <${Insignia} tono="ok">REGISTRADA<//>
         ${vale.modificado_en ? html`<${Insignia}>Corregida<//>` : null}
+        <${EstadoEtiquetas} estado=${estado} valeId=${vale.id} />
       </div>
       <div class="acciones-linea">
+        ${!corrigiendo ? html`<${Boton} onClick=${() => setEtiquetas(true)}>Etiquetas…<//>` : null}
         ${!corrigiendo ? html`<${Boton} onClick=${() => setCorrigiendo(true)}>Corregir<//>` : null}
         <a class="boton boton-texto" href="#historial/entradas">← Historial de entradas</a>
       </div>
     </div>
+    ${etiquetas ? html`<${EtiquetasDeEntrada} valeId=${vale.id} alCerrar=${() => setEtiquetas(false)} />` : null}
     ${corrigiendo
       ? html`<${CorreccionEntrada} vale=${vale} alTerminar=${() => setCorrigiendo(false)} />`
       : html`
@@ -151,7 +159,7 @@ export function PaginaEntrada() {
         ? html`<ul class="bitacora">
             ${bitacora.map(
               (a) => html`<li>
-                <strong>${ACCIONES[a.accion] ?? a.accion}</strong> · ${fmtFechaHora(a.fecha_hora)} · ${a.usuario ?? "sin usuario"}
+                <strong>${ACCIONES[a.accion] ?? a.accion}</strong>${a.etiquetas ? ` (${a.etiquetas})` : ""} · ${fmtFechaHora(a.fecha_hora)} · ${a.usuario ?? "sin usuario"}
                 ${a.accion === "CORREGIR" && a.antes?.motivo ? html`<div class="nota preformateado">${a.antes.motivo}</div>` : null}
               </li>`,
             )}

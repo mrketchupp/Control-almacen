@@ -228,6 +228,20 @@ imprimen su texto.
 oscuro elegido en GSM también queda en DLTA.
 - ☐ Revisar el vale impreso de GSM (textos y logo) contra uno en papel.
 
+**Ronda 20 (aplicada, no es de una fase):** el **generador de etiquetas** dentro de la herramienta (menú *Etiquetas*,
+`docs/11-etiquetas.md`). Al registrar una entrada se sugiere hacer sus etiquetas (una por pieza); en la sección se agregan
+de un vale de entrada (por folio interno o de la base), del inventario, a mano o desde la lista `.json` del generador
+(que sigue para el teléfono). *Condición* pasa a *Inventario* (DLTA / GSM, editable); NOMBRE = el de AX si lo trae el
+reporte; ÁREA vacía; DESCRIPCIÓN = la O.C. Logos propuestos del libro de vales. Las impresas quedan en la bitácora y
+marcan la entrada (historial con filtro *Etiquetas*). Estado formato 10.
+- ✔ Propuestas, lista, bitácora, lista del generador, migración y cuadrícula (pruebas `tests/etiquetas.test.js`).
+- ✔ Recorrido en Chromium: entrada → sugerencia → imprimir → *Salieron bien*; inventario, a mano, `.json`, diseño (J-5163),
+  logos del vale y subidos, código AX, historial y detalle; sin errores ni peticiones de red; tema oscuro y pantalla
+  angosta. PDF de cada plantilla con las hojas exactas.
+- ☐ Imprimir una hoja real (carta 2 × 6 y precortada J-5163) y comparar con lo que daba el generador.
+- ☐ Elegir los logos del vale para DLTA y GSM y revisar que se vean bien en la etiqueta.
+- ☐ Contestar P-25 a P-28 (`docs/11`).
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

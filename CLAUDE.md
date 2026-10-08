@@ -11,9 +11,11 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Ronda 17: **dos inventarios, DLTA y GSM, por separado** — ver "Dos inventarios" abajo. Ronda 18: color de GSM en
   toda la interfaz, etapa de perforación compartida y vale impreso más fiel (bordes, rendijas, títulos de firma). Ronda 19:
   quitar áreas (borrar si nadie la usa, descartar si tiene vales) y personalización / captura / Mi pantalla compartidas.
+- Ronda 20: **etiquetas de almacén** (el generador aparte, ahora dentro) — ver "Etiquetas" abajo y `docs/11-etiquetas.md`.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 9` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
-`config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir).
+- Formato del estado: `FORMATO_ESTADO = 10` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
+`config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
+`etiquetas` (`{ material, ax }` por imprimir) e `impresiones_etiquetas` (bitácora).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -119,6 +121,22 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - **Ronda 19 — áreas:** `usosDeArea`, `descartarArea` (`activo: false`), `borrarArea` (solo sin vales ni borradores) y
   `reponerArea` (Deshacer) en `servicios/catalogos.js`; UI `useQuitarArea` en `ui/paginas/areas.js`. Un área en uso nunca se
   borra (sus vales la necesitan para imprimirse).
+
+## Etiquetas (Ronda 20)
+- Decisiones del usuario: el generador (`generador-etiquetas-almacen`) **se queda** para el teléfono y aquí se importa su
+  `.json` (`leerListaGenerador`, formato `etiquetas-almacen`; no se cambia el generador). Entrada = **una por pieza**,
+  inventario = **una por partida**, unidades continuas o decimales = 1 (`cantidadPropuesta`). NOMBRE = **AX** (`nombresAx`,
+  reporte más reciente) o la descripción del inventario. ÁREA **vacía**. **CONDICIÓN → INVENTARIO** (DLTA / GSM, el
+  abierto, editable por etiqueta; lleva el logo de su inventario). DESCRIPCIÓN = `OC: …` en entradas. Logos propuestos
+  **del libro de vales** del inventario abierto. Al imprimir, **¿Salieron bien?** → `registrarImpresion` (bitácora y
+  marca de la entrada; opcionalmente quita de la lista).
+- `src/servicios/etiquetas.js` (propuestas `etiquetaDeExistencia` / `etiquetasDeEntrada`, `buscarEntradas` por folio
+  interno o de la base, lista `agregarEtiquetas`…`reponerEtiquetas`, `impresionesPorVale`, `entradasSinEtiquetas`,
+  `configEtiquetas`, `fijarDiseno`, `fijarIdentidad`), `src/impresion/etiquetas.js` (`cuadricula` = la del generador,
+  `PLANTILLAS` con J-5163, `documentoEtiquetas` escapado, `vista: true` sin `@page`; al imprimir, hojas en bloque, no
+  flex), `ui/paginas/etiquetas.js` (`PaginaEtiquetas`, `EtiquetasDeEntrada`, `VistaPreviaEtiquetas`, `EstadoEtiquetas`).
+- `config.etiquetas` (diseño + identidad por inventario) está en `VALORES_COMPARTIDOS`; la bitácora de sincronización
+  anota las imágenes por tamaño (`sinImagenes`). Las etiquetas son copias: nunca cambian el inventario ni los vales.
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.

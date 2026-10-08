@@ -99,6 +99,14 @@ export function PaginaAyuda() {
           instrucciones, pégalas en Copilot (cuenta de trabajo) junto con la foto o el PDF, y pega aquí el bloque de código que te
           devuelva. Se llena el borrador y se marca lo dudoso para revisarlo. La herramienta no se conecta a nada: la foto la subes tú.
         </dd>
+        <dt>¿Cómo hago las etiquetas del material?</dt>
+        <dd>
+          Al registrar una entrada, la herramienta pregunta <em>¿Le hacemos sus etiquetas?</em>: marca las partidas y ajusta cuántas
+          (una por pieza). También en <a href="#etiquetas">Etiquetas</a>: de un vale de entrada (su folio E-0005 o el de la base), del
+          inventario, a mano o con la lista <code>.json</code> que exportas del generador en el teléfono. En <em>Diseño y logos</em>
+          eliges la hoja (por ejemplo la precortada J-5163) y los logos de cada inventario. Al imprimir deja la escala al 100 % y,
+          al terminar, contesta <em>¿Salieron bien?</em> para que la entrada quede marcada.
+        </dd>
         <dt>¿Qué es el reporte diario?</dt>
         <dd>
           Desde <a href="#inicio">Inicio</a> → <em>Crear reporte diario</em> eliges un día y descargas el libro de vales de salida y el

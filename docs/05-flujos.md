@@ -269,3 +269,17 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
    vale con otra etapa), el otro la toma al abrirlo; también al hacer su primera carga o restaurar un respaldo. Lo mismo
    (Ronda 19) con la **personalización** (tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales**.
 6. **Color:** en GSM toda la interfaz (botones, enlaces, menú, pestañas) va en morado; en DLTA, en azul.
+
+## 10. Etiquetas de almacén (Ronda 20)
+
+1. **Al registrar una entrada**, la tarjeta de éxito pregunta **¿Le hacemos sus etiquetas?** (cuántas partidas y
+   etiquetas). *Hacer etiquetas* → se marcan las partidas que van (las *sin existencia* salen sin marcar), cuántas de cada
+   una (una por pieza; una si es metro, litro, kilo o lleva decimales), el tipo (Material / Código AX) y el inventario →
+   *Agregar a la lista* o *🖨 Imprimir ahora*. También desde el detalle de la entrada (*Etiquetas…*).
+2. **Menú Etiquetas:** listas *Material* y *Código AX*. Se agrega **de un vale de entrada** (folio `E-0005` o el de la
+   base), **del inventario** (buscar y marcar; una por partida), **a mano** (nombre de AX al escribir el código) o desde la
+   **lista del generador** (`.json` del teléfono). Arriba, las entradas recientes sin etiquetas.
+3. **Imprimir:** *Vista previa e imprimir* → *Imprimir* (escala 100 %, sin encabezados) → **¿Salieron bien?** Al decir que
+   sí quedan en la bitácora, las entradas se marcan *Etiquetas impresas* y, si se elige, salen de la lista.
+4. **Diseño y logos:** plantilla (incluida la precortada J-5163), medidas, letra y borde, iguales para DLTA y GSM; logos
+   (propuestos del libro de vales) y texto de almacén por inventario.

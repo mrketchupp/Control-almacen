@@ -10,6 +10,7 @@
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
 | **Conciliación AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado. Con el **archivo de vales de la base** sabe qué partidas ya están en AX (IN / TR) y cuáles siguen pendientes |
+| **Etiquetas** | Etiquetas de material o de código AX (lo que hacía el generador de etiquetas): de un **vale de entrada** (se sugiere al registrarla), del **inventario**, a mano o desde la lista `.json` del generador; plantillas como la precortada J-5163; logos del vale por inventario; las entradas quedan marcadas *Etiquetas impresas* |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
@@ -155,6 +156,18 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   cantidades no cambian y el aviso trae *Deshacer*.
 - **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
 - **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.
+
+### Etiquetas
+- **Al registrar una entrada** aparece *¿Le hacemos sus etiquetas?* → **Hacer etiquetas**: marca las partidas, ajusta
+  cuántas (una por pieza; una sola si es metro, litro, kilo o con decimales) y *🖨 Imprimir ahora* o *Agregar a la lista*.
+- **Menú Etiquetas:** elige *Material* o *Código AX* y agrega **de un vale de entrada** (escribe `E-0005` o el folio de la
+  base), **del inventario** (busca y marca), **a mano** o la **lista del generador** (el `.json` que exportas en el
+  teléfono). Revisa la lista (cantidad, *Editar*, *Duplicar*, ×) y **Vista previa e imprimir**. En el cuadro de impresión:
+  escala 100 % y sin *Encabezados y pies de página*. Al terminar contesta **¿Salieron bien?**: así la entrada queda marcada.
+- **Diseño y logos** (en la lista): plantilla (estándar 2 × 6, precortada J-5163…), medidas en mm / cm / `4in`, letra y
+  borde (quítalo en hojas precortadas). Logos: *Del vale…* toma los del libro de vales del inventario abierto; *Subir…*
+  de un archivo. Cada etiqueta lleva los logos de su **inventario** (DLTA o GSM, se cambia por etiqueta).
+- *Historial de vales → Vales de entrada* tiene la columna y el filtro **Etiquetas** (sin imprimir / impresas).
 
 ### Conciliación contra AX
 Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera y los vales posteriores al corte, los

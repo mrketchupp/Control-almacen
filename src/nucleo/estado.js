@@ -16,7 +16,8 @@ import { claveEstricta } from "./normalizar.js";
 // Formato 5 (Fase 3): vales de entrada en borrador, conteo en curso y reacomodos entre
 // contenedores. Cada conteo guarda su alcance y sus renglones contados.
 // Formato 9: dos inventarios (DLTA y GSM), cada uno con su estado; `config.inventario` dice de cuál es.
-export const FORMATO_ESTADO = 9;
+// Formato 10 (Ronda 20): etiquetas por imprimir y la bitácora de las impresas.
+export const FORMATO_ESTADO = 10;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -44,6 +45,8 @@ export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
     cortes_ax: [], // reportes de inventario de AX importados (conciliación)
     equivalencias_ax: {}, // renglón de AX (código|tamaño|color) → variante, confirmado por el usuario
     seguimientos_base: [], // archivos de vales de la base (qué partidas ya aplicó en AX, con IN / TR)
+    etiquetas: { material: [], ax: [] }, // etiquetas por imprimir (servicios/etiquetas.js)
+    impresiones_etiquetas: [], // cada vez que se imprimieron etiquetas (y de qué entradas)
     config: { inventario: inventarioPorId(inventario).id }, // DLTA o GSM: nunca se mezclan
   };
 }
@@ -118,6 +121,12 @@ export function migrarEstado(estado) {
     estado.config ??= {};
     estado.config.inventario ??= INVENTARIO_DEFECTO;
     estado.formato = 9;
+  }
+  if (estado.formato < 10) {
+    // Etiquetas de almacén (antes en el generador aparte): lista por imprimir y bitácora.
+    estado.etiquetas ??= { material: [], ax: [] };
+    estado.impresiones_etiquetas ??= [];
+    estado.formato = 10;
   }
   return estado;
 }

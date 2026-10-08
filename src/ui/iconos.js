@@ -30,6 +30,7 @@ const TRAZOS = {
   descargar: ["M12 4v11", "M8 11l4 4 4-4", "M5 19h14"],
   balanza: ["M12 3v18", "M7 21h10", "M5 7h14", "M5 7l-3 6a3 3 0 0 0 6 0z", "M19 7l-3 6a3 3 0 0 0 6 0z"],
   subir: ["M12 15V4", "M8 8l4-4 4 4", "M5 19h14"],
+  etiqueta: ["M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z", "M7.5 7.5h.01"],
 };
 
 /** <Icono nombre="salida" /> */

@@ -28,12 +28,14 @@ import {
   vistaPreviaEntrada,
 } from "../../servicios/entradas.js";
 import { variantesParecidas } from "../../servicios/inventario.js";
+import { etiquetasDeEntrada } from "../../servicios/etiquetas.js";
 import { siguienteFolio } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, Ventana, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { hayAnimaciones } from "../tema.js";
 import { PasosCopilot } from "./capturaIA.js";
+import { EtiquetasDeEntrada } from "./etiquetas.js";
 import { CeldaCodigo, indiceArticulos, listas, normal, palabras, partidaConFoco } from "./vales.js";
 
 const hay = (v) => v !== null && v !== undefined;
@@ -537,16 +539,38 @@ function ElegirModo({ folio, alElegir, alCopiarSalida }) {
 // ---------------------------------------------------------------- página
 
 function ConfirmadaOk({ vale, alNueva }) {
+  const sesion = useSesion();
+  const [etiquetas, setEtiquetas] = useState(false);
   const renglones = vale.lineas.filter((l) => hay(l.existencia_id)).length;
+  // Ronda 20: lo que entró lleva etiqueta; se sugiere hacerlas (una por pieza) sin salir de aquí.
+  const propuestas = useMemo(() => {
+    try {
+      return etiquetasDeEntrada(sesion.estado, vale.id).filter((p) => p.incluir);
+    } catch {
+      return [];
+    }
+  }, [vale.id]);
+  const cuantas = propuestas.reduce((t, p) => t + p.etiqueta.cantidad, 0);
   return html`<${Tarjeta} titulo=${`✓ Entrada ${folioEntrada(vale.folio)} registrada`} clase="tarjeta-exito">
     <p>
       ${vale.folio_externo ? html`Vale <strong>${vale.folio_externo}</strong>${vale.origen ? ` de ${vale.origen}` : ""}.${" "}` : null}Sumó al INGRESO de ${renglones}${" "}
       ${renglones === 1 ? "partida" : "partidas"} del inventario. Queda en el historial de entradas.
     </p>
+    ${propuestas.length
+      ? html`<div class="sugerencia-etiquetas">
+          <${Icono} nombre="etiqueta" tam=${22} />
+          <span>
+            <strong>¿Le hacemos sus etiquetas?</strong>
+            <small>${propuestas.length} ${propuestas.length === 1 ? "partida" : "partidas"} · ${cuantas} ${cuantas === 1 ? "etiqueta" : "etiquetas"} (una por pieza; se ajusta antes de imprimir)</small>
+          </span>
+          <${Boton} tipo="primario" onClick=${() => setEtiquetas(true)}>Hacer etiquetas<//>
+        </div>`
+      : null}
     <div class="acciones-linea">
       <a class="boton boton-secundario" href=${`#entrada/${vale.id}`}>Ver entrada ${folioEntrada(vale.folio)}</a>
-      <${Boton} tipo="primario" onClick=${alNueva}>＋ Nueva entrada<//>
+      <${Boton} tipo=${propuestas.length ? "secundario" : "primario"} onClick=${alNueva}>＋ Nueva entrada<//>
     </div>
+    ${etiquetas ? html`<${EtiquetasDeEntrada} valeId=${vale.id} alCerrar=${() => setEtiquetas(false)} />` : null}
   <//>`;
 }
 

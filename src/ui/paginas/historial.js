@@ -6,6 +6,8 @@ import { duplicadasEnVales } from "../../servicios/vales.js";
 import { Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { PastillaAx } from "./base.js";
+import { EstadoEtiquetas } from "./etiquetas.js";
+import { entradasEnLista, impresionesPorVale } from "../../servicios/etiquetas.js";
 
 const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "", revisar: "" };
 
@@ -18,14 +20,27 @@ const REVISAR = {
   avisos: { etiqueta: "Con aviso de la base", pasa: (f) => f.ax?.avisos?.length > 0, base: true },
 };
 
-const SIN_FILTROS_ENTRADAS = { texto: "", folio: "", codigo: "", oc: "", desde: "", hasta: "" };
+const SIN_FILTROS_ENTRADAS = { texto: "", folio: "", codigo: "", oc: "", desde: "", hasta: "", etiquetas: "" };
+
+// Ronda 20: cuáles entradas ya tienen sus etiquetas impresas.
+const FILTRO_ETIQUETAS = [
+  { valor: "", etiqueta: "Todas" },
+  { valor: "faltan", etiqueta: "Sin imprimir" },
+  { valor: "impresas", etiqueta: "Impresas" },
+];
 
 function HistorialEntradas() {
   const sesion = useSesion();
   const filas = useMemo(() => filasEntradas(sesion.estado), [sesion.estado]);
   const [filtros, setFiltros] = useState(SIN_FILTROS_ENTRADAS);
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
-  const visibles = useMemo(() => filtrarEntradas(filas, filtros), [filas, filtros]);
+  const impresas = useMemo(() => impresionesPorVale(sesion.estado), [sesion.estado.impresiones_etiquetas]);
+  const enLista = useMemo(() => entradasEnLista(sesion.estado), [sesion.estado.etiquetas]);
+  const visibles = useMemo(() => {
+    const pasan = filtrarEntradas(filas, filtros);
+    if (!filtros.etiquetas) return pasan;
+    return pasan.filter((f) => (filtros.etiquetas === "impresas") === impresas.has(f.vale_id));
+  }, [filas, filtros, impresas]);
   const activos = Object.values(filtros).filter(Boolean).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
   return html`
@@ -36,6 +51,10 @@ function HistorialEntradas() {
       <label class="filtro"><span>O.C.</span><input value=${filtros.oc} onInput=${poner("oc")} placeholder="Orden de compra" /></label>
       <label class="filtro"><span>Desde</span><input type="date" value=${filtros.desde} onChange=${poner("desde")} /></label>
       <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
+      <div class="filtro">
+        <span>Etiquetas</span>
+        <${Lista} valor=${filtros.etiquetas} alCambiar=${(etiquetas) => setFiltros({ ...filtros, etiquetas })} ariaLabel="Etiquetas" opciones=${FILTRO_ETIQUETAS} />
+      </div>
       ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS_ENTRADAS)}>Quitar filtros (${activos})<//>` : null}
     </div>
     <p class="conteo">${num(visibles.length)} partidas · ${num(folios)} entradas${activos ? " con los filtros elegidos" : ""}</p>
@@ -54,6 +73,7 @@ function HistorialEntradas() {
         { clave: "clave", titulo: "Clave" },
         { clave: "oc", titulo: "O.C." },
         { titulo: "Entró a", render: (f) => html`<span class="sin-corte" title=${f.hoja}>${f.lugar}</span>` },
+        { titulo: "Etiquetas", render: (f) => html`<${EstadoEtiquetas} estado=${sesion.estado} valeId=${f.vale_id} corto=${true} impresas=${impresas} enLista=${enLista} />` },
       ]}
       vacia=${filas.length ? "Ninguna partida coincide con los filtros." : "Aún no hay entradas. Se registran en Vales de entrada."}
     />

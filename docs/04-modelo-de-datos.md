@@ -224,6 +224,13 @@ sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia
 `descartarArea`): deja de salir al hacer vales, sus vales se siguen imprimiendo con su formato y se puede recuperar. Los
 vales migrados del DIARIO no apuntan a un área. Auditoría `BORRAR`, `REPONER`, `DESCARTAR`, `RECUPERAR`.
 
+**Etiquetas (formato 10, Ronda 20):** `estado.etiquetas = { material: [...], ax: [...] }` (lo que está por imprimir;
+cada etiqueta es una copia: cantidad 1–999, código, nombre, dimensión, NP, descripción, área, `inventario` DLTA | GSM y su
+`origen` — entrada, inventario, a mano o archivo del generador) y `estado.impresiones_etiquetas = [{ id, fecha_hora,
+usuario, tipo, partidas, etiquetas, vales }]` (bitácora; una entrada tiene etiquetas si su id está en `vales`). Los vales
+no cambian. `config.etiquetas = { diseno, identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: … } }` es compartido entre
+DLTA y GSM. Detalle en `docs/11-etiquetas.md`.
+
 **Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
 cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
 vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese
@@ -242,7 +249,7 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **9**; del 6 al 9 se describen arriba en *Conciliación* y *Dos inventarios*). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **10**; del 6 al 10 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario

@@ -5405,3 +5405,447 @@ button.mosaico:hover .mosaico-abrir {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------------------------------------------------------------- etiquetas (Ronda 20) */
+
+/* DLTA en azul y GSM en morado, sea cual sea el inventario abierto. */
+.pastilla-inv-dlta {
+  background: #e6eef8;
+  color: #1f4e8c;
+}
+
+.pastilla-inv-gsm {
+  background: #f1eafa;
+  color: #6b3fa0;
+}
+
+:root[data-tema="oscuro"] .pastilla-inv-dlta {
+  background: #1d3150;
+  color: #6ea3e8;
+}
+
+:root[data-tema="oscuro"] .pastilla-inv-gsm {
+  background: #2c2240;
+  color: #b99df0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .pastilla-inv-dlta {
+    background: #1d3150;
+    color: #6ea3e8;
+  }
+
+  :root:not([data-tema="claro"]) .pastilla-inv-gsm {
+    background: #2c2240;
+    color: #b99df0;
+  }
+}
+
+.sugerencia-etiquetas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+  padding: 10px 14px;
+  border: 1px dashed var(--ok);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.sugerencia-etiquetas .icono {
+  flex: none;
+  color: var(--ok);
+}
+
+.sugerencia-etiquetas > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sugerencia-etiquetas small {
+  color: var(--texto-suave);
+}
+
+.etq-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-bottom: 14px;
+}
+
+.etq-cabeza .nota {
+  margin: 0;
+}
+
+.etq-fuentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.etq-fuente {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--sombra);
+  transition: border-color var(--dur-corta), background var(--dur-corta);
+}
+
+.etq-fuente:hover {
+  border-color: var(--primario);
+  background: var(--primario-suave);
+}
+
+.etq-fuente:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.etq-fuente .icono {
+  grid-row: 1 / 3;
+  color: var(--primario);
+}
+
+.etq-fuente small {
+  color: var(--texto-suave);
+}
+
+.etq-entradas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etq-entradas-fila {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.etq-entrada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.etq-entrada:hover {
+  border-color: var(--primario);
+}
+
+.etq-entrada:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.etq-entradas-fila .etq-entrada {
+  width: auto;
+}
+
+.etq-buscar-entrada .campo {
+  margin-bottom: 10px;
+}
+
+.etq-entrada-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.etq-entrada-cabeza .pastilla {
+  margin-left: 8px;
+}
+
+.etq-lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etq-fila {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.etq-fila:last-child {
+  border-bottom: none;
+}
+
+.etq-fuera .etq-fila-texto,
+.etq-fuera .etq-cantidad {
+  opacity: 0.45;
+}
+
+.etq-cantidad {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.etq-cantidad input {
+  width: 64px;
+  text-align: right;
+}
+
+.etq-fila-texto {
+  min-width: 0;
+}
+
+.etq-fila-texto > div:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etq-fila-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 3px;
+}
+
+.etq-origen {
+  font-size: 0.78rem;
+}
+
+.etq-fila-acciones {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ventana.ventana-ancha {
+  width: min(1100px, 100%);
+}
+
+.ventana.ventana-etiqueta {
+  width: min(640px, 100%);
+}
+
+.etq-editor {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px 14px;
+}
+
+.etq-editor .campo-ancho {
+  grid-column: 1 / -1;
+}
+
+.etq-editor .campo input,
+.etq-editor .combo {
+  width: 100%;
+}
+
+/* Diseño: campos a la izquierda; una etiqueta a tamaño real y la hoja a la derecha. */
+.etq-diseno {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.etq-diseno-campos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.etq-diseno-campos h3 {
+  margin: 10px 0 0;
+}
+
+.etq-medidas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.etq-medidas .casilla {
+  grid-column: 1 / -1;
+}
+
+.etq-identidad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.etq-identidad legend {
+  padding: 0 6px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.etq-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.etq-logo-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.etq-logo-titulo {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.etq-logo-campo .logo-marco {
+  width: 150px;
+  height: 56px;
+}
+
+.etq-logo-campo .logo-marco img {
+  max-height: 46px;
+}
+
+.etq-logos-vale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etq-logos-vale .logo-marco {
+  width: 96px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.etq-logos-vale .logo-marco:hover {
+  border-color: var(--primario);
+}
+
+.etq-logos-vale .logo-marco img {
+  max-height: 36px;
+}
+
+.etq-diseno-previa {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  margin: 0;
+}
+
+.etq-diseno-previa figcaption {
+  margin: 0 0 6px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.etq-previa-sola {
+  max-width: 100%;
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+/* Una sola etiqueta: sin el tamaño ni la sombra de la hoja. */
+.etq-previa-sola .etq-sola .etq-hoja {
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.etq-previa-marco {
+  overflow: hidden;
+  padding: 4px;
+  border-radius: var(--radio);
+  background: var(--neutro-suave);
+}
+
+.etq-previa-sola .etq-sola .etq-hojas {
+  align-items: flex-start;
+}
+
+.etq-consejo {
+  max-width: 760px;
+  margin: 0 auto 12px;
+  color: #e3e9f0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.etq-salieron > span {
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .etq-diseno {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .etq-diseno-previa {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .etq-fila {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .etq-fila-acciones {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .etq-editor,
+  .etq-medidas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.vista-previa.vista-etiquetas {
+  background: rgba(15, 22, 32, 0.92);
+}
+
+.etq-cabeza .segmentos-etiqueta,
+.ventana-etq-entrada .segmentos-etiqueta {
+  white-space: nowrap;
+}
