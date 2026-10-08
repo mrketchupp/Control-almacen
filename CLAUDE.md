@@ -167,6 +167,8 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 
 ## Verificación antes de cada commit
 - `npm test && npm run build`
+- **Al terminar cada cambio, adjunta `dist/ControlAlmacen.html` en la conversación** (pedido del usuario): recién
+  compilado, del mismo commit que se subió.
 - En cambios a exportadores: prueba de "partes intactas" (las partes que no se debían tocar deben ser idénticas byte a byte a la plantilla).
 - En cambios a importadores: el total por hoja y el número de renglones deben coincidir con la fixture.
 - En cambios de interfaz: abrir `dist/ControlAlmacen.html` en Chromium (Playwright) y recorrer primera carga → nuevo vale → emitir → imprimir → exportar → respaldo sin errores en consola ni peticiones de red. En headless, sustituye `window.print` para que dispare `afterprint`.
