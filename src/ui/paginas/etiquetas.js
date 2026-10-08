@@ -20,6 +20,8 @@ import { Icono } from "../iconos.js";
 
 const OPCIONES_INVENTARIO = Object.fromEntries(INVENTARIOS.map((i) => [i.id, i.id]));
 const OPCIONES_TIPO = { material: "Material", ax: "Código AX" };
+/** Para títulos: «material» / «código AX» (AX siempre en mayúsculas). */
+const TIPO_EN_TITULO = { material: "material", ax: "código AX" };
 const MM_A_PX = 96 / 25.4;
 const CLAVE_TIPO = "control-almacen.etiquetas.tipo";
 
@@ -131,7 +133,14 @@ export function VistaPreviaEtiquetas({ tipo, ids, alCerrar }) {
   const registrar = (quitar) =>
     sesion.tarea("Guardando…", async () => {
       const registro = await sesion.almacen.modificar((e) => et.registrarImpresion(e, tipo, elegidas.map((x) => x.id), { usuario: sesion.usuario, quitar }));
-      const folios = registro.vales.length ? ` de ${registro.vales.length === 1 ? "la entrada" : "las entradas"} ${registro.vales.map((id) => folioEntrada(estado.vales.find((v) => v.id === id)?.folio)).join(", ")}` : "";
+      // Los folios salen de las etiquetas impresas (el id interno de una entrada de GSM puede ser el de otra de DLTA).
+      const deEntradas = new Map();
+      for (const x of elegidas) {
+        if (x.origen?.tipo !== "ENTRADA") continue;
+        const inv = x.origen.inventario ?? sesion.inventario.id;
+        deEntradas.set(`${inv}:${x.origen.vale_id}:${x.origen.emitido_en ?? ""}`, `${x.origen.folio}${inv !== sesion.inventario.id ? ` de ${inv}` : ""}`);
+      }
+      const folios = deEntradas.size ? ` de ${deEntradas.size === 1 ? "la entrada" : "las entradas"} ${[...deEntradas.values()].join(", ")}` : "";
       sesion.avisar("exito", `Listo: ${etiquetasDe(registro.etiquetas)} impresas${folios}.${quitar ? " Salieron de la lista." : ""}`);
       alCerrar();
     });
@@ -290,26 +299,62 @@ function SinDatos({ inventario, cargando, error, alCerrar }) {
 
 // ---------------------------------------------------------------- desde el inventario
 
+/**
+ * Las marcas se guardan por inventario: al cambiar «Datos de» no se pierden, y «Agregar» toma las de
+ * los dos (cada una con los datos de su inventario).
+ */
 function VentanaInventario({ tipo, alCerrar }) {
   const sesion = useSesion();
+  const agregar = useAgregar();
   const [inventario, setInventario] = useState(sesion.inventario.id);
+  const [marcas, setMarcas] = useState({}); // inventario → Set de ids de partida del inventario
+  const leidos = useRef({}); // inventario → su estado (el abierto o la copia leída del otro)
   const fuente = useEstadoDe(inventario);
-  return html`<${Ventana} titulo=${`Etiquetas de ${OPCIONES_TIPO[tipo].toLowerCase()} desde el inventario`} alCerrar=${alCerrar} clase="ventana-ancha ventana-etq ventana-etq-inventario">
+  if (fuente.estado) leidos.current[inventario] = fuente.estado;
+  const elegidas = marcas[inventario] ?? new Set();
+  const setElegidas = (cambio) => setMarcas((m) => ({ ...m, [inventario]: cambio(m[inventario] ?? new Set()) }));
+  const conMarcas = INVENTARIOS.map((i) => i.id).filter((id) => marcas[id]?.size);
+  const total = conMarcas.reduce((t, id) => t + marcas[id].size, 0);
+  const resumen = conMarcas.map((id) => `${num(marcas[id].size)} de ${id}`).join(" y ");
+  const listo = async () => {
+    const etiquetas = [];
+    for (const id of conMarcas) {
+      const estado = leidos.current[id];
+      if (!estado) continue;
+      const indices = new Indices(estado);
+      const nombres = et.nombresAx(estado);
+      const orden = filasInventario(estado).filter((f) => marcas[id].has(f.id));
+      etiquetas.push(...orden.map((f) => et.etiquetaDeExistencia(estado, f.id, { indices, nombres, inventario: id })));
+    }
+    const ids = await agregar(tipo, etiquetas);
+    if (ids.length) alCerrar();
+  };
+  return html`<${Ventana} titulo=${`Etiquetas de ${TIPO_EN_TITULO[tipo]} desde el inventario`} alCerrar=${alCerrar} clase="ventana-ancha ventana-etq ventana-etq-inventario">
     <${DeInventario} valor=${inventario} alCambiar=${setInventario} />
     ${fuente.estado
-      ? html`<${PartidasDelInventario} key=${inventario} estado=${fuente.estado} inventario=${inventario} tipo=${tipo} alCerrar=${alCerrar} />`
+      ? html`<${PartidasDelInventario}
+          key=${inventario}
+          estado=${fuente.estado}
+          elegidas=${elegidas}
+          setElegidas=${setElegidas}
+          pie=${html`<div class="acciones-linea pie-editor">
+            <span class="nota">${total ? `${partidasDe(total)} ${total === 1 ? "elegida" : "elegidas"}: ${resumen}` : "Marca las partidas que llevan etiqueta"}</span>
+            ${total ? html`<${Boton} tipo="texto" onClick=${() => setMarcas({})}>Quitar las marcas<//>` : null}
+            <span class="espaciador"></span>
+            <${Boton} onClick=${alCerrar}>Cancelar<//>
+            <${Boton} tipo="primario" disabled=${!total} onClick=${listo}>Agregar ${partidasDe(total)}<//>
+          </div>`}
+        />`
       : html`<${SinDatos} inventario=${inventario} cargando=${fuente.cargando} error=${fuente.error} alCerrar=${alCerrar} />`}
   <//>`;
 }
 
 /** Buscar y marcar partidas del inventario `estado` (el abierto o una copia del otro). */
-function PartidasDelInventario({ estado, inventario, tipo, alCerrar }) {
-  const agregar = useAgregar();
+function PartidasDelInventario({ estado, elegidas, setElegidas, pie }) {
   const filas = useMemo(() => filasInventario(estado), [estado]);
   const [texto, setTexto] = useState("");
   const [hoja, setHoja] = useState("");
   const [conExistencia, setConExistencia] = useState(false);
-  const [elegidas, setElegidas] = useState(() => new Set());
   const hojas = useMemo(() => [...new Set(filas.map((f) => f.hoja))], [filas]);
   const porTexto = useFiltroTexto(filas, texto, ["codigo", "descripcion", "dimension", "np", "nota"]);
   const visibles = porTexto.filter((f) => (!hoja || f.hoja === hoja) && (!conExistencia || f.total > 0));
@@ -327,14 +372,6 @@ function PartidasDelInventario({ estado, inventario, tipo, alCerrar }) {
       for (const f of visibles) todasVisibles ? n.delete(f.id) : n.add(f.id);
       return n;
     });
-  const listo = async () => {
-    const indices = new Indices(estado);
-    const nombres = et.nombresAx(estado);
-    const orden = filas.filter((f) => elegidas.has(f.id));
-    const etiquetas = orden.map((f) => et.etiquetaDeExistencia(estado, f.id, { indices, nombres, inventario }));
-    const ids = await agregar(tipo, etiquetas);
-    if (ids.length) alCerrar();
-  };
   return html`
     <p class="nota">Una etiqueta por partida (la del lugar); la cantidad se cambia después en la lista. El nombre es el de AX cuando el código viene en un reporte importado.</p>
     <div class="filtros">
@@ -363,38 +400,35 @@ function PartidasDelInventario({ estado, inventario, tipo, alCerrar }) {
         { titulo: "Hay", numero: true, render: (f) => `${num(f.total)} ${f.um}` },
       ]}
     />
-    <div class="acciones-linea pie-editor">
-      <span class="nota">${partidasDe(elegidas.size)} ${elegidas.size === 1 ? "elegida" : "elegidas"} de ${inventario}</span>
-      ${elegidas.size ? html`<${Boton} tipo="texto" onClick=${() => setElegidas(new Set())}>Quitar las marcas<//>` : null}
-      <span class="espaciador"></span>
-      <${Boton} onClick=${alCerrar}>Cancelar<//>
-      <${Boton} tipo="primario" disabled=${!elegidas.size} onClick=${listo}>Agregar ${partidasDe(elegidas.size)}<//>
-    </div>
+    ${pie}
   `;
 }
 
 // ---------------------------------------------------------------- desde un vale de entrada
 
 /**
- * Cómo van las etiquetas de una entrada de `inventario` (el del estado, si no se dice): impresas (cuándo),
- * en la lista o faltan. `estado` es el abierto: su lista y su bitácora son las de los dos inventarios.
+ * Cómo van las etiquetas de la entrada `vale` de `inventario` (el del estado, si no se dice): impresas
+ * (cuándo), en la lista o faltan. `estado` es el abierto (su lista y su bitácora son las de los dos
+ * inventarios) o `registroParaLeer` si la entrada es de una copia del otro.
  */
-export function EstadoEtiquetas({ estado, valeId, inventario = null, corto = false, impresas: porVale = null, enLista = null }) {
+export function EstadoEtiquetas({ estado, vale, inventario = null, corto = false, impresas: porVale = null, enLista = null }) {
+  if (!vale) return corto ? html`<span class="nota">—</span>` : null;
   const inv = inventario ?? inventarioDe(estado).id;
-  const impresas = (porVale ?? et.impresionesPorVale(estado, inv)).get(valeId);
+  const impresas = et.marcaDe(porVale ?? et.impresionesPorVale(estado, inv), vale);
   if (impresas?.length) {
     const ultima = impresas[0];
     return html`<${Pastilla} tono="ok" titulo=${`${etiquetasDe(ultima.etiquetas)} el ${fmtFechaHora(ultima.fecha_hora)}${ultima.usuario ? ` · ${ultima.usuario}` : ""}`}
       >${corto ? "✓ " : "Etiquetas impresas "}${fmtFecha(ultima.fecha_hora.slice(0, 10))}<//
     >`;
   }
-  if ((enLista ?? et.entradasEnLista(estado, inv)).has(valeId)) return html`<${Pastilla} tono="info" titulo="Sus etiquetas están en la lista por imprimir">En la lista<//>`;
+  if (et.marcaDe(enLista ?? et.entradasEnLista(estado, inv), vale)) return html`<${Pastilla} tono="info" titulo="Sus etiquetas están en la lista por imprimir">En la lista<//>`;
   return corto ? html`<span class="nota">—</span>` : null;
 }
 
 /** Buscar una entrada de `estado` (el abierto o una copia del otro) por su folio. */
 function BuscarEntrada({ estado, inventario, alElegir }) {
   const sesion = useSesion();
+  const registro = useMemo(() => et.registroParaLeer(sesion.estado, estado), [sesion.estado, estado]);
   const [consulta, setConsulta] = useState("");
   const hallados = useMemo(() => et.buscarEntradas(estado, consulta), [estado, consulta]);
   return html`<div class="etq-buscar-entrada">
@@ -420,7 +454,7 @@ function BuscarEntrada({ estado, inventario, alElegir }) {
                   <strong>${folioEntrada(vale.folio)}</strong>
                   <span>${vale.folio_externo ? `Vale ${vale.folio_externo}` : "Sin folio de la base"}${por === "base" ? " ✓" : ""}</span>
                   <span class="nota">${fmtFecha(vale.fecha)} · ${vale.origen || "—"} · ${partidasDe(vale.lineas.length)}</span>
-                  <${EstadoEtiquetas} estado=${sesion.estado} valeId=${vale.id} inventario=${inventario} />
+                  <${EstadoEtiquetas} estado=${registro} vale=${vale} inventario=${inventario} />
                 </button>
               </li>`,
             )}
@@ -440,11 +474,12 @@ function PartidasDeEntrada({ estado, inventarioEntrada, valeId, tipo, setTipo, a
   const elegidas = filas.filter((f) => f.incluir).map((f) => ({ ...f.etiqueta, cantidad: et.etiquetaLimpia({ cantidad: f.texto }).cantidad, inventario }));
   const total = et.totalEtiquetas(elegidas);
   const otro = inventarioEntrada !== sesion.inventario.id;
+  const registro = useMemo(() => et.registroParaLeer(sesion.estado, estado), [sesion.estado, estado]);
   return html`
     <div class="etq-entrada-cabeza">
       <div>
         ${otro ? html`<${PastillaInventario} id=${inventarioEntrada} /> ` : null}<strong>Entrada ${folioEntrada(vale.folio)}</strong>${vale.folio_externo ? ` · vale ${vale.folio_externo}` : ""} · ${fmtFecha(vale.fecha)}${vale.origen ? ` · ${vale.origen}` : ""}
-        <${EstadoEtiquetas} estado=${sesion.estado} valeId=${valeId} inventario=${inventarioEntrada} />
+        <${EstadoEtiquetas} estado=${registro} vale=${vale} inventario=${inventarioEntrada} />
       </div>
       ${alCambiarEntrada ? html`<${Boton} tipo="texto" tamano="chico" onClick=${alCambiarEntrada}>Otra entrada…<//>` : null}
     </div>
@@ -521,6 +556,7 @@ export function EtiquetasDeEntrada({ valeId: inicial = null, inventario: inventa
     else alCerrar();
   };
   const elegir = (id) => {
+    if (id === inventario) return;
     setInventario(id);
     setValeId(null);
   };
@@ -956,7 +992,7 @@ export function PaginaEtiquetas() {
     ${ventana === "manual"
       ? html`<${EditorEtiqueta}
           tipo=${tipo}
-          titulo=${`Etiqueta de ${OPCIONES_TIPO[tipo].toLowerCase()} a mano`}
+          titulo=${`Etiqueta de ${TIPO_EN_TITULO[tipo]} a mano`}
           textoGuardar="Agregar a la lista"
           alGuardar=${async (datos) => {
             const ids = await agregar(tipo, [{ ...datos, origen: { tipo: "MANUAL" } }]);

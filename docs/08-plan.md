@@ -250,6 +250,9 @@ formato 11.
   inventario e ids sin choques.
 - ✔ Recorrido en Chromium (1366 × 768): GSM trae material de DLTA, la lista sigue al cambiar a DLTA, se imprime junto y
   cada entrada queda marcada en su inventario; botones a la vista; sin errores ni peticiones de red.
+- ✔ Revisión adversarial (4 revisores + verificadores): restaurar ya no pasa marcas a otra entrada, no se vuelve a juntar
+  una lista vieja, ids y bitácora sin choques, reloj atrasado, ventanas en pantallas angostas y marcas de las dos
+  fuentes en *Del inventario* (pruebas nuevas en `tests/compartidos.test.js` y `tests/etiquetas.test.js`).
 - ☐ Armar una hoja con material de los dos inventarios en el almacén y revisar que cada etiqueta lleve su logo.
 
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha

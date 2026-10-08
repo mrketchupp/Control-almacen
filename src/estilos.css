@@ -5930,3 +5930,24 @@ button.mosaico:hover .mosaico-abrir {
 .etq-compartida {
   margin: -4px 0 8px;
 }
+
+/* Revisión de la Ronda 21. Una ventana nunca es más ancha que la pantalla: sin esto, en la rejilla del fondo
+   la columna crecía hasta el ancho mínimo de la tabla y en pantallas angostas los botones quedaban fuera. */
+.ventana-fondo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ventana {
+  min-width: 0;
+}
+
+/* Las etiquetas de los segmentos (p. ej. «Inventario en la etiqueta») miden lo que su texto. */
+.ventana-etq .segmentos-etiqueta,
+.etq-cabeza .segmentos-etiqueta {
+  width: auto;
+}
+
+/* La lista de entradas se desplaza; el anillo de foco de cada una debe verse completo. */
+.ventana-etq .etq-buscar-entrada .etq-entradas {
+  padding: 3px;
+}

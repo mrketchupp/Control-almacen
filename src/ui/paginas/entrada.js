@@ -11,7 +11,7 @@ import {
   validarEntrada,
 } from "../../servicios/entradas.js";
 import { lugarCorto } from "../../servicios/inventario.js";
-import { impresionesPorVale } from "../../servicios/etiquetas.js";
+import { impresionesPorVale, marcaDe } from "../../servicios/etiquetas.js";
 import { bitacoraDeVale } from "../../servicios/vales.js";
 import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
@@ -102,7 +102,7 @@ export function PaginaEntrada() {
     return u ? html`<span title=${u.hoja_excel.trim()}>${lugarCorto(u)}</span>${e.origen === `ENTRADA ${folioEntrada(vale.folio)}` ? html` <small class="nota">partida nueva</small>` : null}` : "—";
   };
   // Ronda 20: las impresiones de sus etiquetas también van en la bitácora.
-  const impresas = (impresionesPorVale(estado).get(vale.id) ?? []).map((r) => ({ accion: "ETIQUETAS", fecha_hora: r.fecha_hora, usuario: r.usuario, etiquetas: r.etiquetas }));
+  const impresas = (marcaDe(impresionesPorVale(estado), vale) ?? []).map((r) => ({ accion: "ETIQUETAS", fecha_hora: r.fecha_hora, usuario: r.usuario, etiquetas: r.etiquetas }));
   const bitacora = [...bitacoraDeVale(estado, vale.id), ...impresas].sort((a, b) => b.fecha_hora.localeCompare(a.fecha_hora));
   return html`
     <div class="cabeza-vale">
@@ -110,7 +110,7 @@ export function PaginaEntrada() {
         <span class="folio-grande">Entrada ${folioEntrada(vale.folio)}</span>
         <${Insignia} tono="ok">REGISTRADA<//>
         ${vale.modificado_en ? html`<${Insignia}>Corregida<//>` : null}
-        <${EstadoEtiquetas} estado=${estado} valeId=${vale.id} />
+        <${EstadoEtiquetas} estado=${estado} vale=${vale} />
       </div>
       <div class="acciones-linea">
         ${!corrigiendo ? html`<${Boton} onClick=${() => setEtiquetas(true)}>Etiquetas…<//>` : null}

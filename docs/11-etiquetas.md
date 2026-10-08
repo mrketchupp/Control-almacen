@@ -78,15 +78,39 @@ cambio según `cambiado_en` (con milisegundos), así un cambio que no alcanzó a
 bitácora: se juntan las dos por id (nunca se pierde una impresión). Una lista del formato 10 que ya traía etiquetas se
 une la primera vez con la del otro (`juntar`).
 
-## Datos (formatos 10 y 11)
+### Revisión adversarial de la Ronda 21 (corregido)
+
+Una revisión con revisores independientes (sincronización, datos, lectura del otro inventario e interfaz) encontró
+y se corrigió:
+
+- **Restaurar un respaldo regresa las secuencias:** una entrada nueva podía reusar el id de otra y heredar su marca
+  «etiquetas impresas» o «en la lista». Ahora cada marca guarda también **cuándo se registró la entrada**
+  (`emitido_en`) y se busca por `claveDeVale(vale)` = id + huella (`marcaDe`). Las marcas viejas se completan al migrar
+  (formatos 11 y 12: cada inventario completa las de sus propias entradas; mientras el otro no se abre, una marca sin
+  huella se reconoce solo por el id, y al juntar dos copias de la misma impresión se queda la que trae la huella).
+- **Restaurar un respaldo del formato 10 no vuelve a juntar** su lista vieja (sus etiquetas ya se imprimieron o se
+  quitaron): al restaurar gana la lista compartida.
+- **Ids sin choques:** `DLTA-12-mg3k9x2a` (llevan el momento de creación); la bitácora se junta por id + fecha, así dos
+  impresiones distintas con el mismo id viejo se conservan las dos.
+- **Reloj del equipo:** `cambiado_en` nunca va hacia atrás (si el reloj se adelantó y se corrigió, el siguiente cambio
+  sigue ganando).
+- **El otro inventario aún no abierto tras actualizar:** lo que su copia trae impreso o en su lista cuenta al marcar sus
+  entradas (`registroParaLeer`).
+- **Interfaz:** las ventanas ya no rebasan la pantalla en anchos angostos (`.ventana { min-width: 0 }`); *Del
+  inventario* conserva las marcas de cada inventario al cambiar *Datos de* y agrega las de los dos; el aviso de
+  «impresas» muestra los folios (también los de GSM); volver a pulsar el inventario activo no borra lo elegido; títulos
+  con «código AX»; etiqueta *Inventario en la etiqueta* sin encimarse; anillo de foco completo en la lista de entradas.
+
+## Datos (formatos 10 a 12)
 
 - `estado.etiquetas = { material: [...], ax: [...], cambiado_en }`: lo que está por imprimir (de DLTA y GSM). Cada
   etiqueta: `id` (`DLTA-12`), `cantidad` (1–999), `codigo`, `nombre`, `dimension`, `np`, `descripcion`, `area` (las de
-  código AX solo código y nombre), `inventario` (`DLTA` | `GSM`), `origen` (`{ tipo: "ENTRADA", inventario, vale_id, folio,
-  folio_externo, linea_id }`, `{ tipo: "INVENTARIO", inventario, existencia_id, hoja }`, `{ tipo: "MANUAL" }` o
+  código AX solo código y nombre), `inventario` (`DLTA` | `GSM`), `origen` (`{ tipo: "ENTRADA", inventario, vale_id, emitido_en,
+  folio, folio_externo, linea_id }`, `{ tipo: "INVENTARIO", inventario, existencia_id, hoja }`, `{ tipo: "MANUAL" }` o
   `{ tipo: "ARCHIVO", archivo }`) y `agregada_en`. Es una **copia**: si después cambia el inventario, la etiqueta no cambia.
 - `estado.impresiones_etiquetas = [{ id, fecha_hora, usuario, tipo, partidas, etiquetas, vales: [{ inventario, vale_id }] }]`:
-  bitácora. Una entrada «tiene etiquetas» si aparece en `vales` de alguna impresión. **Los vales no se tocan.**
+  bitácora (cada marca con `emitido_en` de la entrada). Una entrada «tiene etiquetas» si aparece en `vales` de alguna
+  impresión con su id y su `emitido_en`. **Los vales no se tocan.**
 - `config.etiquetas = { diseno: { hoja, margen_sup, margen_lat, ancho, alto, sep_x, sep_y, fuente, borde },
   identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: {…} } }`: **compartido** entre DLTA y GSM
   (`VALORES_COMPARTIDOS.etiquetas`), así una etiqueta de GSM lleva el logo de GSM aunque se imprima desde DLTA. En la

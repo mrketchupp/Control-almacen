@@ -7,7 +7,7 @@ import { Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, num, useSesion 
 import { html } from "../html.js";
 import { PastillaAx } from "./base.js";
 import { EstadoEtiquetas } from "./etiquetas.js";
-import { entradasEnLista, impresionesPorVale } from "../../servicios/etiquetas.js";
+import { entradasEnLista, impresionesPorVale, marcaDe } from "../../servicios/etiquetas.js";
 
 const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "", revisar: "" };
 
@@ -36,10 +36,11 @@ function HistorialEntradas() {
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
   const impresas = useMemo(() => impresionesPorVale(sesion.estado), [sesion.estado.impresiones_etiquetas]);
   const enLista = useMemo(() => entradasEnLista(sesion.estado), [sesion.estado.etiquetas]);
+  const valesPorId = useMemo(() => new Map(sesion.estado.vales.filter((v) => v.tipo === "ENTRADA").map((v) => [v.id, v])), [sesion.estado.vales]);
   const visibles = useMemo(() => {
     const pasan = filtrarEntradas(filas, filtros);
     if (!filtros.etiquetas) return pasan;
-    return pasan.filter((f) => (filtros.etiquetas === "impresas") === impresas.has(f.vale_id));
+    return pasan.filter((f) => (filtros.etiquetas === "impresas") === Boolean(marcaDe(impresas, valesPorId.get(f.vale_id))));
   }, [filas, filtros, impresas]);
   const activos = Object.values(filtros).filter(Boolean).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
@@ -73,7 +74,7 @@ function HistorialEntradas() {
         { clave: "clave", titulo: "Clave" },
         { clave: "oc", titulo: "O.C." },
         { titulo: "Entró a", render: (f) => html`<span class="sin-corte" title=${f.hoja}>${f.lugar}</span>` },
-        { titulo: "Etiquetas", render: (f) => html`<${EstadoEtiquetas} estado=${sesion.estado} valeId=${f.vale_id} corto=${true} impresas=${impresas} enLista=${enLista} />` },
+        { titulo: "Etiquetas", render: (f) => html`<${EstadoEtiquetas} estado=${sesion.estado} vale=${valesPorId.get(f.vale_id)} corto=${true} impresas=${impresas} enLista=${enLista} />` },
       ]}
       vacia=${filas.length ? "Ninguna partida coincide con los filtros." : "Aún no hay entradas. Se registran en Vales de entrada."}
     />

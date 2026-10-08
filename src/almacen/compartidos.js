@@ -115,12 +115,21 @@ export class Compartidos {
     this.soltar = almacen.suscribir((estado, origen) => this._alCambiar(estado, origen));
   }
 
-  /** Al abrir (y tras una primera carga o una restauración): toma lo compartido o, si aún no hay, lo publica. */
-  sincronizar() {
+  /**
+   * Al abrir (y tras una primera carga o una restauración): toma lo compartido o, si aún no hay, lo publica.
+   * `juntar: false` (al restaurar): una lista del formato 10 que trae el respaldo NO se vuelve a juntar con
+   * la compartida (sus etiquetas ya se imprimieron o se quitaron desde entonces); gana la compartida.
+   */
+  sincronizar({ juntar = true } = {}) {
     return this._enCola(async () => {
       if (this.almacen.vacio) return;
       const guardados = (await this.backend.leerAjuste(CLAVE)) ?? {};
       this.guardados = guardados;
+      if (!juntar && this.almacen.estado?.etiquetas?.juntar && guardados.etiquetas_por_imprimir) {
+        await this.almacen.modificar((e) => {
+          delete e.etiquetas.juntar;
+        });
+      }
       // Si algo difiere se adopta; lo que aquí es más nuevo (la lista) o tiene de más (la bitácora) se publica
       // después, en _alCambiar.
       if (COMPARTIDOS.some((k) => guardados[k] && !igual(guardados[k].valor, publicableDe(this.almacen.estado, k)))) {
@@ -150,7 +159,7 @@ export class Compartidos {
   _alCambiar(estado, origen) {
     if (!estado || this.almacen.vacio) return;
     if (origen === "carga" || origen === "restaurar") {
-      this.sincronizar();
+      this.sincronizar({ juntar: origen !== "restaurar" });
       return;
     }
     if (origen !== "cambio" || this.guardados === undefined) return;

@@ -5,8 +5,11 @@ import { test } from "node:test";
 import { Almacen } from "../src/almacen/almacen.js";
 import { BackendMemoria } from "../src/almacen/bd.js";
 import { Compartidos, adoptarCompartidos } from "../src/almacen/compartidos.js";
+import { crearRespaldo, leerRespaldo } from "../src/almacen/respaldos.js";
 import { fijarAjuste } from "../src/servicios/catalogos.js";
 import { guardarPersonalizacion, guardarPreferenciasVale, personalizacion, preferenciasVale, restablecerPreferenciasVale } from "../src/servicios/preferencias.js";
+import { Indices } from "../src/nucleo/estado.js";
+import * as en from "../src/servicios/entradas.js";
 import * as et from "../src/servicios/etiquetas.js";
 import * as v from "../src/servicios/vales.js";
 import { bytesInventario, bytesVales, cargaSintetica } from "./ayuda.js";
@@ -211,4 +214,64 @@ test("Ronda 21: las listas de antes de compartir (formato 10) se juntan una vez 
   const c3 = new Compartidos(dlta, comun);
   await c3.sincronizar();
   assert.deepEqual(dlta.estado.etiquetas.material.map((e) => e.id), ["GSM-1"]);
+});
+
+/** Registra en el almacén una entrada sintética (una partida del primer renglón con existencia). */
+async function registrarEntrada(almacen, folioBase) {
+  return almacen.modificar((e) => {
+    const indices = new Indices(e);
+    const b = en.nuevoBorradorEntrada(e, { usuario: USUARIO, fecha: "2026-10-08" });
+    Object.assign(b, { folio_externo: folioBase, origen: "BASE PRUEBA", depto_origen: "ALMACEN GENERAL" });
+    b.lineas = [{ ...en.conRenglonExistente(e, en.lineaEntradaVacia(), e.existencias[0].id, indices), cantidad: "2" }];
+    return en.confirmarEntrada(e, b.id, { usuario: USUARIO });
+  });
+}
+
+test("Ronda 21 (revisión): tras restaurar, una entrada nueva que reusa el id de otra no hereda sus marcas", async () => {
+  const comun = new BackendMemoria();
+  const dlta = await abrir("DLTA");
+  await cargar(dlta);
+  const c = new Compartidos(dlta, comun);
+  await c.sincronizar();
+  const antes = await dlta.respaldo("manual");
+  // Entrada A: una etiqueta se imprime y otra queda en la lista.
+  const a = await registrarEntrada(dlta, "B-100");
+  await new Promise((r) => setTimeout(r, 1100)); // la huella (emitido_en) va por segundo
+  const ids = await dlta.modificar((e) => et.agregarEtiquetas(e, "material", et.etiquetasDeEntrada(e, a.id).map((p) => p.etiqueta)));
+  const pendiente = await dlta.modificar((e) => et.agregarEtiquetas(e, "ax", et.etiquetasDeEntrada(e, a.id).map((p) => p.etiqueta)));
+  await dlta.modificar((e) => et.registrarImpresion(e, "material", ids, { usuario: USUARIO }));
+  await c.terminar();
+  // Se restaura el respaldo de antes de A y se registra otra entrada: recibe el mismo id.
+  await dlta.restaurar(antes.datos);
+  await c.terminar();
+  const b = await registrarEntrada(dlta, "B-555");
+  assert.equal(b.id, a.id);
+  assert.equal(dlta.estado.impresiones_etiquetas.length, 1); // la impresión de A no se pierde…
+  assert.equal(et.impresionesPorVale(dlta.estado).has(et.claveDeVale(b)), false); // …pero no es de B
+  assert.equal(et.entradasEnLista(dlta.estado).has(et.claveDeVale(b)), false);
+  assert.deepEqual(et.entradasSinEtiquetas(dlta.estado).map((v) => v.id), [b.id]);
+  assert.deepEqual(dlta.estado.etiquetas.ax.map((e) => e.id), pendiente); // la pendiente de A sigue (es de A)
+});
+
+test("Ronda 21 (revisión): restaurar un respaldo del formato 10 no vuelve a juntar su lista", async () => {
+  const comun = new BackendMemoria();
+  const dlta = await abrir("DLTA");
+  await cargar(dlta);
+  const c = new Compartidos(dlta, comun);
+  await c.sincronizar();
+  // Un respaldo «del formato 10» con una etiqueta en su lista (la que luego se imprimió).
+  const { estado: leido, plantillas } = leerRespaldo((await dlta.respaldo("manual")).datos);
+  leido.formato = 10;
+  leido.etiquetas = { material: [{ id: 1, codigo: "701", nombre: "BALEROS", cantidad: 1, inventario: "DLTA", origen: { tipo: "MANUAL" } }], ax: [] };
+  delete leido.impresiones_etiquetas;
+  const viejo = crearRespaldo(leido, plantillas).datos;
+  // Hoy la lista compartida tiene otra.
+  await dlta.modificar((e) => et.agregarEtiquetas(e, "material", [{ codigo: "708", nombre: "GRASA" }]));
+  await c.terminar();
+  const compartida = dlta.estado.etiquetas.material.map((e) => e.id);
+  await dlta.restaurar(viejo);
+  await c.terminar();
+  assert.deepEqual(dlta.estado.etiquetas.material.map((e) => e.id), compartida);
+  assert.equal(dlta.estado.etiquetas.juntar, undefined);
+  assert.deepEqual((await comun.leerAjuste("compartidos")).etiquetas_por_imprimir.valor.material.map((e) => e.id), compartida);
 });

@@ -18,7 +18,8 @@ import { claveEstricta } from "./normalizar.js";
 // Formato 9: dos inventarios (DLTA y GSM), cada uno con su estado; `config.inventario` dice de cuál es.
 // Formato 10 (Ronda 20): etiquetas por imprimir y la bitácora de las impresas.
 // Formato 11 (Ronda 21): esa lista y esa bitácora son las mismas en DLTA y GSM: ids con el inventario.
-export const FORMATO_ESTADO = 11;
+// Formato 12 (revisión de la Ronda 21): cada marca de etiquetas guarda cuándo se registró su entrada.
+export const FORMATO_ESTADO = 12;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -132,13 +133,20 @@ export function migrarEstado(estado) {
   if (estado.formato < 11) {
     // La lista y la bitácora de etiquetas se comparten con el otro inventario: los ids llevan el de este
     // (no chocan), el origen dice de cuál es, y una lista que ya traía etiquetas se junta con la del otro.
+    // Cada marca lleva además cuándo se registró su entrada (el id se repite si se restaura un respaldo).
+    // Aquí todavía es la entrada correcta: en el formato 10 la lista y la bitácora iban en este estado.
     const inventario = inventarioPorId(estado.config?.inventario).id;
+    const huella = (id) => {
+      const vale = (estado.vales ?? []).find((v) => v.id === id && v.tipo === "ENTRADA");
+      return vale ? (vale.emitido_en ?? vale.creado_en ?? null) : null;
+    };
     const etiquetas = estado.etiquetas ?? { material: [], ax: [] };
     for (const tipo of ["material", "ax"]) {
       etiquetas[tipo] ??= [];
       for (const e of etiquetas[tipo]) {
         if (typeof e.id === "number") e.id = `${inventario}-${e.id}`;
         if (e.origen?.tipo === "ENTRADA" || e.origen?.tipo === "INVENTARIO") e.origen.inventario ??= inventario;
+        if (e.origen?.tipo === "ENTRADA" && e.origen.emitido_en === undefined) e.origen.emitido_en = huella(e.origen.vale_id);
       }
     }
     etiquetas.cambiado_en ??= null;
@@ -146,10 +154,34 @@ export function migrarEstado(estado) {
     estado.etiquetas = etiquetas;
     for (const r of estado.impresiones_etiquetas ?? []) {
       if (typeof r.id === "number") r.id = `${inventario}-${r.id}`;
-      r.vales = (r.vales ?? []).map((v) => (typeof v === "object" && v !== null ? v : { inventario, vale_id: v }));
+      r.vales = (r.vales ?? []).map((v) => {
+        const marca = typeof v === "object" && v !== null ? v : { inventario, vale_id: v };
+        if (marca.emitido_en === undefined) marca.emitido_en = inventarioPorId(marca.inventario).id === inventario ? huella(marca.vale_id) : null;
+        return marca;
+      });
     }
     estado.impresiones_etiquetas ??= [];
     estado.formato = 11;
+  }
+  if (estado.formato < 12) {
+    // Los estados que ya estaban en el formato 11 (sin esta revisión) no traían `emitido_en` en las marcas de
+    // sus propias entradas: se completa con la entrada de este estado. Las del otro inventario las completa
+    // el otro al abrirse (mientras tanto se reconocen solo por el id).
+    const inventario = inventarioPorId(estado.config?.inventario).id;
+    const huella = (id) => {
+      const vale = (estado.vales ?? []).find((v) => v.id === id && v.tipo === "ENTRADA");
+      return vale ? (vale.emitido_en ?? vale.creado_en ?? null) : null;
+    };
+    const propio = (inv) => inventarioPorId(inv ?? inventario).id === inventario;
+    for (const tipo of ["material", "ax"]) {
+      for (const e of estado.etiquetas?.[tipo] ?? []) {
+        if (e.origen?.tipo === "ENTRADA" && e.origen.emitido_en === undefined && propio(e.origen.inventario)) e.origen.emitido_en = huella(e.origen.vale_id);
+      }
+    }
+    for (const r of estado.impresiones_etiquetas ?? []) {
+      for (const m of r.vales ?? []) if (m && typeof m === "object" && m.emitido_en === undefined && propio(m.inventario)) m.emitido_en = huella(m.vale_id);
+    }
+    estado.formato = 12;
   }
   return estado;
 }

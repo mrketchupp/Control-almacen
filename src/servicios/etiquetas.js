@@ -208,7 +208,14 @@ export function buscarEntradas(estado, consulta, { limite = 12 } = {}) {
 export function etiquetasDeEntrada(estado, valeId, { indices = new Indices(estado), nombres = nombresAx(estado), inventario = inventarioDe(estado).id } = {}) {
   const vale = estado.vales.find((v) => v.id === valeId && esEntrada(v));
   if (!vale) throw new ErrorEtiquetas("No se encontró esa entrada.");
-  const origen = { tipo: "ENTRADA", inventario: inventarioDe(estado).id, vale_id: vale.id, folio: folioEntrada(vale.folio), folio_externo: texto(vale.folio_externo) || null };
+  const origen = {
+    tipo: "ENTRADA",
+    inventario: inventarioDe(estado).id,
+    vale_id: vale.id,
+    emitido_en: huellaVale(vale),
+    folio: folioEntrada(vale.folio),
+    folio_externo: texto(vale.folio_externo) || null,
+  };
   return vale.lineas.map((l) => {
     const e = hay(l.existencia_id) ? indices.existencia(l.existencia_id) : null;
     const v = e ? indices.variante(e.variante_id) : hay(l.variante_id) ? indices.variante(l.variante_id) : null;
@@ -283,23 +290,52 @@ function lista(estado, tipo) {
   return estado.etiquetas[tipo];
 }
 
-/** Marca de tiempo del último cambio de la lista (con milisegundos: decide cuál gana entre DLTA y GSM). */
-const marca = () => new Date().toISOString();
-
-/** La lista cambió aquí: desde ahora es la más reciente (y ya no está «por juntar»). */
-function tocar(estado) {
-  estado.etiquetas.cambiado_en = marca();
-  delete estado.etiquetas.juntar;
+/**
+ * Marca de tiempo del último cambio de la lista (con milisegundos: decide cuál gana entre DLTA y GSM).
+ * Nunca es anterior a las `previas`: si el reloj del equipo se atrasa, el orden sigue a los cambios.
+ */
+function marca(...previas) {
+  let ms = Date.now();
+  for (const p of previas) {
+    const t = Date.parse(p ?? "");
+    if (Number.isFinite(t) && t >= ms) ms = t + 1;
+  }
+  return new Date(ms).toISOString();
 }
+
+/** La lista cambió aquí: desde ahora es la más reciente. */
+function tocar(estado) {
+  estado.etiquetas.cambiado_en = marca(estado.etiquetas.cambiado_en);
+}
+
+/**
+ * Qué distingue a una entrada aunque su id interno se repita (al restaurar un respaldo o empezar de
+ * nuevo, las secuencias regresan): cuándo se registró.
+ */
+export const huellaVale = (vale) => vale?.emitido_en ?? vale?.creado_en ?? null;
+
+/** Llave de una entrada en las marcas de etiquetas: id + huella. */
+export const claveDeVale = (vale) => `${vale?.id}|${huellaVale(vale) ?? ""}`;
+// Una marca sin huella conocida (`undefined`: del otro inventario que aún no se abre tras actualizar) se
+// reconoce solo por el id; `null` = la entrada ya no existía al migrar (no es de ninguna).
+const claveDeMarca = (m) => (m.emitido_en === undefined ? `${m.vale_id}|?` : `${m.vale_id}|${m.emitido_en ?? ""}`);
+
+/** Lo que un mapa de `impresionesPorVale` / `entradasEnLista` tiene para la entrada `vale`. */
+export const marcaDe = (mapa, vale) => (vale ? (mapa.get(claveDeVale(vale)) ?? mapa.get(`${vale.id}|?`)) : undefined);
 
 /** De qué inventario es el origen de una etiqueta (las anteriores a la Ronda 21, del abierto). */
 const inventarioDelOrigen = (estado, origen) => inventarioPorId(origen?.inventario ?? inventarioDe(estado).id).id;
 
-/** Id nuevo que no choca con los del otro inventario ni con uno ya usado: `DLTA-12`. */
+/**
+ * Id nuevo que no choca con los del otro inventario ni con uno ya usado: `DLTA-12-mg3k9x2a`. Lleva el
+ * momento en que se creó porque la secuencia regresa al restaurar un respaldo y la lista y la bitácora
+ * compartidas pueden traer ids que este estado ya no conoce.
+ */
 function nuevoId(estado, coleccion, usados) {
   const inventario = inventarioDe(estado).id;
+  const momento = Date.now().toString(36);
   let id;
-  do id = `${inventario}-${siguienteId(estado, coleccion)}`;
+  do id = `${inventario}-${siguienteId(estado, coleccion)}-${momento}`;
   while (usados.has(id));
   usados.add(id);
   return id;
@@ -388,8 +424,8 @@ export function registrarImpresion(estado, tipo, ids, { usuario = null, quitar =
   const vistas = new Set();
   for (const e of impresas) {
     if (e.origen?.tipo !== "ENTRADA") continue;
-    const marcaVale = { inventario: inventarioDelOrigen(estado, e.origen), vale_id: e.origen.vale_id };
-    const clave = `${marcaVale.inventario}:${marcaVale.vale_id}`;
+    const marcaVale = { inventario: inventarioDelOrigen(estado, e.origen), vale_id: e.origen.vale_id, emitido_en: e.origen.emitido_en ?? null };
+    const clave = `${marcaVale.inventario}:${claveDeMarca(marcaVale)}`;
     if (vistas.has(clave)) continue;
     vistas.add(clave);
     vales.push(marcaVale);
@@ -410,8 +446,10 @@ export function registrarImpresion(estado, tipo, ids, { usuario = null, quitar =
 }
 
 /**
- * Impresiones de etiquetas de cada entrada del `inventario` (el del estado, si no se dice): vale_id →
- * [registros], del más reciente al más viejo. La bitácora es la misma en DLTA y GSM.
+ * Impresiones de etiquetas de cada entrada del `inventario` (el del estado, si no se dice):
+ * `claveDeVale(vale)` → [registros], del más reciente al más viejo. La bitácora es la misma en DLTA y GSM.
+ * La llave lleva la huella de la entrada: una entrada nueva que reusa el id de otra (tras restaurar) no
+ * hereda sus marcas.
  */
 export function impresionesPorVale(estado, inventario = inventarioDe(estado).id) {
   const porVale = new Map();
@@ -419,23 +457,36 @@ export function impresionesPorVale(estado, inventario = inventarioDe(estado).id)
     for (const v of r.vales ?? []) {
       const deVale = typeof v === "object" && v !== null ? v : { inventario: inventarioDe(estado).id, vale_id: v };
       if (inventarioPorId(deVale.inventario).id !== inventario) continue;
-      if (!porVale.has(deVale.vale_id)) porVale.set(deVale.vale_id, []);
-      porVale.get(deVale.vale_id).push(r);
+      const clave = claveDeMarca(deVale);
+      if (!porVale.has(clave)) porVale.set(clave, []);
+      porVale.get(clave).push(r);
     }
   }
   return porVale;
 }
 
-/** Entradas del `inventario` que tienen etiquetas en la lista por imprimir: vale_id → cuántas partidas. */
+/** Entradas del `inventario` con etiquetas en la lista por imprimir: `claveDeVale(vale)` → cuántas partidas. */
 export function entradasEnLista(estado, inventario = inventarioDe(estado).id) {
   const enLista = new Map();
   for (const tipo of Object.keys(TIPOS_ETIQUETA)) {
     for (const e of etiquetasPorImprimir(estado, tipo)) {
       if (e.origen?.tipo !== "ENTRADA" || inventarioDelOrigen(estado, e.origen) !== inventario) continue;
-      enLista.set(e.origen.vale_id, (enLista.get(e.origen.vale_id) ?? 0) + 1);
+      const clave = claveDeMarca(e.origen);
+      enLista.set(clave, (enLista.get(clave) ?? 0) + 1);
     }
   }
   return enLista;
+}
+
+/**
+ * Con qué se revisan las marcas de las entradas de `copia` (el otro inventario, leído de su base): la
+ * lista y la bitácora del abierto (`registro`) más lo que la copia trae y aún no se compartió (si el
+ * otro no se ha abierto desde que se actualizó la herramienta). Si `copia` es el abierto, el registro.
+ */
+export function registroParaLeer(registro, copia) {
+  if (!copia || copia === registro) return registro;
+  const lista = copia.etiquetas?.juntar ? adoptarListaEtiquetas(copia.etiquetas, registro.etiquetas) : registro.etiquetas;
+  return { ...registro, etiquetas: lista, impresiones_etiquetas: juntarImpresiones(registro.impresiones_etiquetas, copia.impresiones_etiquetas) };
 }
 
 /**
@@ -445,10 +496,11 @@ export function entradasEnLista(estado, inventario = inventarioDe(estado).id) {
  */
 export function entradasSinEtiquetas(estado, { limite = 6, registro = estado } = {}) {
   const inventario = inventarioDe(estado).id;
-  const impresas = impresionesPorVale(registro, inventario);
-  const enLista = entradasEnLista(registro, inventario);
+  const r = registroParaLeer(registro, estado);
+  const impresas = impresionesPorVale(r, inventario);
+  const enLista = entradasEnLista(r, inventario);
   return estado.vales
-    .filter((v) => esEntrada(v) && !impresas.has(v.id) && !enLista.has(v.id))
+    .filter((v) => esEntrada(v) && !marcaDe(impresas, v) && !marcaDe(enLista, v))
     .sort((a, b) => (b.folio ?? 0) - (a.folio ?? 0))
     .slice(0, limite);
 }
@@ -473,15 +525,29 @@ export function adoptarListaEtiquetas(local, otra) {
   if (aqui.juntar) {
     const ids = new Set([...alla.material, ...alla.ax].map((e) => e.id));
     const faltan = (tipo) => (aqui[tipo] ?? []).filter((e) => !ids.has(e.id));
-    return { material: [...alla.material, ...faltan("material")], ax: [...alla.ax, ...faltan("ax")], cambiado_en: marca() };
+    return { material: [...alla.material, ...faltan("material")], ax: [...alla.ax, ...faltan("ax")], cambiado_en: marca(aqui.cambiado_en, alla.cambiado_en) };
   }
   return (aqui.cambiado_en ?? "") > (alla.cambiado_en ?? "") ? listaPublicable(aqui) : alla;
 }
 
-/** Las dos bitácoras de impresiones juntas, sin repetir (por id) y en orden: nunca se pierde una. */
+/**
+ * Las dos bitácoras de impresiones juntas, sin repetir y en orden: nunca se pierde una. Se reconoce la
+ * misma por id y fecha (dos impresiones distintas con el mismo id —ids de antes de la Ronda 21 tras
+ * restaurar— se conservan las dos).
+ */
 export function juntarImpresiones(a, b) {
   const porId = new Map();
-  for (const r of [...(a ?? []), ...(b ?? [])]) if (r && !porId.has(r.id)) porId.set(r.id, r);
+  for (const r of [...(a ?? []), ...(b ?? [])]) {
+    if (!r) continue;
+    const clave = `${r.id}|${r.fecha_hora}`;
+    const previo = porId.get(clave);
+    if (!previo) porId.set(clave, r);
+    else if ((r.vales ?? []).some((m) => m?.emitido_en !== undefined)) {
+      // La misma impresión en las dos copias: se queda con las marcas que ya saben cuándo se registró su entrada.
+      const conHuella = new Map((r.vales ?? []).filter((m) => m?.emitido_en !== undefined).map((m) => [`${m.inventario}:${m.vale_id}`, m]));
+      porId.set(clave, { ...previo, vales: (previo.vales ?? []).map((m) => (m?.emitido_en === undefined ? (conHuella.get(`${m?.inventario}:${m?.vale_id}`) ?? m) : m)) });
+    }
+  }
   return [...porId.values()].sort((x, y) => String(x.fecha_hora).localeCompare(String(y.fecha_hora)) || String(x.id).localeCompare(String(y.id)));
 }
 
