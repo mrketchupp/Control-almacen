@@ -266,5 +266,6 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
    todo el formato* cambia una parte de varios textos a la vez (p. ej. `DLTA` → `GSM`); cada logo se cambia por otra imagen
    o se quita. Con vista previa por hoja. Valen para **todas las hojas** (todas las áreas). No cambia el Excel ni los vales.
 5. **La etapa de perforación es la misma en los dos** (Ronda 18): si se cambia en uno (Inicio, Ajustes o al emitir un
-   vale con otra etapa), el otro la toma al abrirlo; también al hacer su primera carga o restaurar un respaldo.
+   vale con otra etapa), el otro la toma al abrirlo; también al hacer su primera carga o restaurar un respaldo. Lo mismo
+   (Ronda 19) con la **personalización** (tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales**.
 6. **Color:** en GSM toda la interfaz (botones, enlaces, menú, pestañas) va en morado; en DLTA, en azul.

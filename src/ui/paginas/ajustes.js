@@ -25,6 +25,7 @@ export function Personalizacion() {
   return html`<${Tarjeta} titulo="Personalización">
     <p class="nota">
       ${sesion.usuario ? html`Se guarda para <strong>${sesion.usuario}</strong> y se aplica cuando está en turno.` : "Nadie en turno: se guarda para este equipo."}
+      Es la misma en DLTA y GSM.
     </p>
     <div class="personalizacion">
       <${Segmentos} etiqueta="Tema" valor=${actual.tema} opciones=${TEMAS} alCambiar=${(tema) => cambiar({ tema })} />
@@ -53,6 +54,7 @@ function Captura() {
     });
   };
   return html`<${Tarjeta} titulo="Captura de partidas">
+    <p class="nota">Es la misma en DLTA y GSM.</p>
     <div class="opciones-radio">
       <label>
         <input type="radio" name="captura" checked=${!rapida} onChange=${() => cambiar(false)} />
@@ -135,8 +137,8 @@ function PantallaVales() {
   return html`<${Tarjeta} titulo="Mi pantalla de vales">
     <p class="nota">
       Acomoda los datos del vale a tu gusto: arrastra cada bloque por sus puntitos (o usa ↑ ↓) y elige de qué lado van los datos y las
-      partidas. Se guarda al momento para <strong>${usuario}</strong>, se aplica cuando está en turno y viaja en los respaldos. Los
-      bloques que no apliquen a un área (p. ej. firmas de NOV) no aparecen en ese vale.
+      partidas. Se guarda al momento para <strong>${usuario}</strong>, se aplica cuando está en turno (en DLTA y en GSM) y viaja en los
+      respaldos. Los bloques que no apliquen a un área (p. ej. firmas de NOV) no aparecen en ese vale.
     </p>
     <div class=${`previa-vale ${local.lado}`}>
       <div class="previa-datos">

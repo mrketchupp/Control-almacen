@@ -221,6 +221,11 @@ con su grosor (1 px fino, 2 px el marco) y sin rendijas entre celdas de color al
 sobre el nombre y el puesto (en el formato era una celda suelta alineada a la izquierda); las filas espaciadoras no
 imprimen su texto.
 - ☐ Imprimir un vale y revisar bordes y títulos de firma contra el de papel.
+
+**Ronda 19 (aplicada):** **quitar áreas** en *Áreas y personas*: *Quitar…* borra el área que ningún vale ni borrador usa
+(con *Deshacer*) y descarta la que tiene vales (deja de salir al hacer vales; se recupera desde *Áreas descartadas*).
+**Personalización, captura de partidas y Mi pantalla de vales** son las mismas en DLTA y GSM (como la etapa): el tema
+oscuro elegido en GSM también queda en DLTA.
 - ☐ Revisar el vale impreso de GSM (textos y logo) contra uno en papel.
 
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha

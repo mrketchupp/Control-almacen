@@ -9,7 +9,8 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Fase 3 (entradas, conteos, reacomodos) **entregada**; el usuario dio luz verde para F4 tras las rondas 5–8 — ver "Avance de la Fase 3" abajo.
 - Fase 4 (conciliación contra AX) **entregada, en aceptación** — ver "Avance de la Fase 4". Rondas 9 a 15 de comentarios aplicadas (ver abajo).
 - Ronda 17: **dos inventarios, DLTA y GSM, por separado** — ver "Dos inventarios" abajo. Ronda 18: color de GSM en
-  toda la interfaz, etapa de perforación compartida y vale impreso más fiel (bordes, rendijas, títulos de firma).
+  toda la interfaz, etapa de perforación compartida y vale impreso más fiel (bordes, rendijas, títulos de firma). Ronda 19:
+  quitar áreas (borrar si nadie la usa, descartar si tiene vales) y personalización / captura / Mi pantalla compartidas.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 9` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir).
@@ -109,10 +110,15 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   Valen para todas las hojas (la UI lo dice).
 - **Ronda 18:** en GSM `:root[data-inventario="GSM"]` redefine también `--primario`, `--primario-hover`,
   `--primario-suave` y `--sobre-primario` (claro y oscuro): toda la interfaz en morado. **Etapa compartida:**
-  `almacen/compartidos.js` (`Compartidos`, `adoptarCompartidos`, `BD_COMUN = "control-almacen-comun"`); `Almacen._avisar(origen)`
+  `almacen/compartidos.js` (`Compartidos`, `adoptarCompartidos`, `BD_COMUN = "control-almacen-comun"`; Ronda 19:
+  `VALORES_COMPARTIDOS` = etapa_perforacion, personalizacion, captura_rapida, preferencias_vale; gana el último cambio
+  completo); `Almacen._avisar(origen)`
   con `cambio` / `carga` / `restaurar` / `borrar`; `Sesion` lo crea con `{ comun }` y `main.js` espera `compartidos.terminar()`
   antes de cambiar de inventario. **Impresión:** `enRejilla`, `grosorEscalado`, `capaFondos` (`impresion/vale.js`) y
   `centrarTitulosFirma` (`impresion/formulario.js`, celdas virtuales en `combinadaEn`, `modelo.centradas`, `estiloTextoDe`).
+- **Ronda 19 — áreas:** `usosDeArea`, `descartarArea` (`activo: false`), `borrarArea` (solo sin vales ni borradores) y
+  `reponerArea` (Deshacer) en `servicios/catalogos.js`; UI `useQuitarArea` en `ui/paginas/areas.js`. Un área en uso nunca se
+  borra (sus vales la necesitan para imprimirse).
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.

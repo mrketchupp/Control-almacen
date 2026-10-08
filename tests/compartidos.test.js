@@ -6,6 +6,7 @@ import { Almacen } from "../src/almacen/almacen.js";
 import { BackendMemoria } from "../src/almacen/bd.js";
 import { Compartidos, adoptarCompartidos } from "../src/almacen/compartidos.js";
 import { fijarAjuste } from "../src/servicios/catalogos.js";
+import { guardarPersonalizacion, guardarPreferenciasVale, personalizacion, preferenciasVale, restablecerPreferenciasVale } from "../src/servicios/preferencias.js";
 import * as v from "../src/servicios/vales.js";
 import { bytesInventario, bytesVales, cargaSintetica } from "./ayuda.js";
 
@@ -92,4 +93,40 @@ test("adoptar: también los borradores que traían la etapa anterior (los cambia
     ['26"', '26"', "ESCRITA A MANO"],
   );
   assert.deepEqual(adoptarCompartidos(estado, { etapa_perforacion: { valor: '26"' } }), []); // ya es la misma
+});
+
+test("personalización, captura de partidas y Mi pantalla de vales son las mismas en DLTA y GSM", async () => {
+  const comun = new BackendMemoria();
+  const dlta = await abrir("DLTA");
+  await cargar(dlta);
+  const c1 = new Compartidos(dlta, comun);
+  await c1.sincronizar();
+  const gsm = await abrir("GSM");
+  await cargar(gsm);
+  const c2 = new Compartidos(gsm, comun);
+  await c2.sincronizar();
+
+  // En GSM: tema oscuro, captura con búsqueda rápida y partidas a la izquierda.
+  await gsm.modificar((e) => {
+    guardarPersonalizacion(e, USUARIO, { tema: "oscuro", avisos: "abajo" });
+    fijarAjuste(e, "captura_rapida", true, USUARIO);
+    guardarPreferenciasVale(e, USUARIO, { orden: preferenciasVale(e, USUARIO).orden, lado: "partidas-izquierda" });
+  });
+  await c2.terminar();
+
+  // DLTA, al abrirse otra vez, queda igual.
+  await new Compartidos(dlta, comun).sincronizar();
+  assert.equal(personalizacion(dlta.estado, USUARIO).tema, "oscuro");
+  assert.equal(personalizacion(dlta.estado, USUARIO).avisos, "abajo");
+  assert.equal(dlta.estado.config.captura_rapida, true);
+  assert.equal(preferenciasVale(dlta.estado, USUARIO).lado, "partidas-izquierda");
+
+  // Restablecer la pantalla en DLTA también llega a GSM (gana el último cambio, completo).
+  const c3 = new Compartidos(dlta, comun);
+  await c3.sincronizar();
+  await dlta.modificar((e) => restablecerPreferenciasVale(e, USUARIO));
+  await c3.terminar();
+  await new Compartidos(gsm, comun).sincronizar();
+  assert.notEqual(preferenciasVale(gsm.estado, USUARIO).lado, "partidas-izquierda");
+  assert.equal(personalizacion(gsm.estado, USUARIO).tema, "oscuro");
 });

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { TIPOS_AREA, etiquetasFirmasExtra, tipoDeArea } from "../../nucleo/areas.js";
-import { areaVacia, guardarArea, guardarPersona } from "../../servicios/catalogos.js";
+import { areaVacia, borrarArea, descartarArea, guardarArea, guardarPersona, reponerArea, usosDeArea } from "../../servicios/catalogos.js";
 import { aliasDe, marcarDistintas, personasRepetidas, unificarPersonas, usosPorNombre } from "../../servicios/personas.js";
-import { Aviso, Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, Tarjeta, Ventana, useFiltroTexto, useSesion } from "../componentes.js";
+import { Aviso, Boton, Buscador, CampoSugerido, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 function EditorArea({ area, hojas, alTerminar }) {
@@ -306,6 +306,44 @@ function Personas() {
   <//>`;
 }
 
+const TIPO = { INTERNO: "Interna", EXTERNO: "Externa", TRANSFERENCIA: "Transferencia" };
+const usosEnTexto = (u) => [u.vales ? `${u.vales} ${u.vales === 1 ? "vale" : "vales"}` : "", u.borradores ? `${u.borradores} ${u.borradores === 1 ? "borrador" : "borradores"}` : ""].filter(Boolean).join(" y ");
+
+/**
+ * Quitar, descartar, recuperar y borrar áreas. Un área que ningún vale ni borrador usa se borra; la que
+ * se usa se descarta (deja de salir al hacer vales y se puede recuperar) para no perder cómo se imprimen.
+ */
+function useQuitarArea(alQuitar) {
+  const sesion = useSesion();
+  const deshacer = (alHacer) => ({ etiqueta: "↶ Deshacer", alHacer });
+  const borrar = (area) => {
+    if (!confirmar(`¿Borrar el área ${area.nombre}? Ningún vale ni borrador la usa.`)) return;
+    return sesion.tarea("Borrando…", async () => {
+      const borrada = await sesion.almacen.modificar((e) => borrarArea(e, area.id, sesion.usuario));
+      alQuitar(area);
+      sesion.avisar("exito", `Área ${area.nombre} borrada.`, 8000, deshacer(() => sesion.almacen.modificar((e) => reponerArea(e, borrada, sesion.usuario))));
+    });
+  };
+  const descartar = (area, usos) => {
+    if (!confirmar(`${area.nombre} la usan ${usosEnTexto(usos)}. Para no perder cómo se imprimen, no se borra: se descarta (deja de salir al hacer vales y la recuperas cuando quieras). ¿Descartarla?`)) return;
+    return sesion.tarea("Descartando…", async () => {
+      await sesion.almacen.modificar((e) => descartarArea(e, area.id, true, sesion.usuario));
+      alQuitar(area);
+      sesion.avisar("exito", `Área ${area.nombre} descartada.`, 8000, deshacer(() => sesion.almacen.modificar((e) => descartarArea(e, area.id, false, sesion.usuario))));
+    });
+  };
+  const quitar = (area) => {
+    const usos = usosDeArea(sesion.estado, area.id);
+    return usos.vales || usos.borradores ? descartar(area, usos) : borrar(area);
+  };
+  const recuperar = (area) =>
+    sesion.tarea("Recuperando…", async () => {
+      await sesion.almacen.modificar((e) => descartarArea(e, area.id, false, sesion.usuario));
+      sesion.avisar("exito", `Área ${area.nombre} recuperada: vuelve a salir al hacer vales.`);
+    });
+  return { quitar, borrar, recuperar };
+}
+
 export function PaginaAreas() {
   const sesion = useSesion();
   const [editando, setEditando] = useState(null);
@@ -313,22 +351,61 @@ export function PaginaAreas() {
   useEffect(() => {
     sesion.hojasFormato().then(setHojas).catch(() => setHojas([]));
   }, []);
-  const areas = [...sesion.estado.plantillas_area].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const todas = [...sesion.estado.plantillas_area].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  const activas = todas.filter((a) => a.activo !== false);
+  const descartadas = todas.filter((a) => a.activo === false);
+  const usos = new Map(todas.map((a) => [a.id, usosDeArea(sesion.estado, a.id)]));
+  const { quitar, borrar, recuperar } = useQuitarArea((area) => editando?.id === area.id && setEditando(null));
+  const enUso = (a) => {
+    const u = usos.get(a.id);
+    return u.vales + u.borradores;
+  };
   return html`
     ${editando ? html`<${EditorArea} area=${editando} hojas=${hojas} alTerminar=${() => setEditando(null)} />` : null}
     <${Tarjeta} titulo="Áreas (plantillas del vale)" acciones=${html`<${Boton} onClick=${() => setEditando(areaVacia())}>＋ Nueva área<//>`}>
-      <p class="nota">Sustituyen a las hojas del libro de vales: al elegir el área, el vale se llena con estos datos.</p>
+      <p class="nota">
+        Sustituyen a las hojas del libro de vales: al elegir el área, el vale se llena con estos datos. <em>Quitar…</em> borra un área que
+        ningún vale usa; si ya tiene vales, la descarta (deja de salir al hacer vales y se puede recuperar).
+      </p>
       <${Tabla}
-        filas=${areas.map((a) => ({ ...a, _clase: a.activo === false ? "fila-inactiva" : "" }))}
+        filas=${activas}
+        vacia="No hay áreas activas: agrega una o recupera una descartada."
         columnas=${[
           { clave: "nombre", titulo: "Área" },
           { titulo: "Destino", render: (a) => a.depto_destino || "—" },
           { titulo: "Recibe", render: (a) => a.recibe_nombre || "—" },
-          { titulo: "Tipo", render: (a) => ({ INTERNO: "Interna", EXTERNO: "Externa", TRANSFERENCIA: "Transferencia" })[tipoDeArea(a)] },
+          { titulo: "Tipo", render: (a) => TIPO[tipoDeArea(a)] },
           { titulo: "Formato", render: (a) => (a.hoja_excel || "según depto.").trim() },
-          { titulo: "", render: (a) => html`<${Boton} tamano="chico" onClick=${() => setEditando(a)}>Editar<//>` },
+          { titulo: "Vales", numero: true, render: (a) => usos.get(a.id).vales || "—" },
+          {
+            titulo: "",
+            render: (a) => html`<div class="acciones-fila">
+              <${Boton} tamano="chico" onClick=${() => setEditando(a)}>Editar<//>
+              <${Boton} tamano="chico" tipo="texto" title=${enUso(a) ? `La usan ${usosEnTexto(usos.get(a.id))}: se descarta` : "Nadie la usa: se borra"} onClick=${() => quitar(a)}>Quitar…<//>
+            </div>`,
+          },
         ]}
       />
+      ${descartadas.length
+        ? html`<${Detalles} resumen=${`Áreas descartadas (${descartadas.length})`}>
+            <p class="nota">No salen al hacer vales; los vales que ya las usan se siguen imprimiendo igual.</p>
+            <${Tabla}
+              filas=${descartadas}
+              columnas=${[
+                { clave: "nombre", titulo: "Área" },
+                { titulo: "Tipo", render: (a) => TIPO[tipoDeArea(a)] },
+                { titulo: "Usada en", render: (a) => usosEnTexto(usos.get(a.id)) || "ningún vale" },
+                {
+                  titulo: "",
+                  render: (a) => html`<div class="acciones-fila">
+                    <${Boton} tamano="chico" onClick=${() => recuperar(a)}>Recuperar<//>
+                    ${enUso(a) ? null : html`<${Boton} tamano="chico" tipo="texto" onClick=${() => borrar(a)}>Borrar…<//>`}
+                  </div>`,
+                },
+              ]}
+            />
+          <//>`
+        : null}
     <//>
     <${Repetidas} />
     <${Personas} />

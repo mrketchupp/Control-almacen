@@ -60,8 +60,9 @@ leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 **Dos inventarios:** arriba, junto al nombre, eliges **DLTA** (azul) o **GSM** (morado). Cada uno tiene sus datos por
 separado; la primera vez GSM está vacío y se hace su *Primera carga* con los archivos de GSM. Al abrir, entra al último
 que usaste. Si el libro de vales de GSM trae los textos o el logo de DLTA, se corrigen en *Ajustes → Vale impreso de GSM*
-(valen para todas las hojas). En GSM toda la interfaz va en morado. La **etapa de perforación es la misma en los dos**:
-si la cambias en uno, el otro la toma al abrirlo.
+(valen para todas las hojas). En GSM toda la interfaz va en morado. La **etapa de perforación**, la **personalización**
+(tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales** son las mismas en los dos: si cambias
+algo en uno, el otro lo toma al abrirlo.
 
 ## 2. Carpeta de respaldos (una sola vez)
 
@@ -209,7 +210,7 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
   *duplicada de la N*; *Quitar duplicadas…* abre la corrección sin ellas y con el motivo escrito.
 
 ### Áreas y personas
-- **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir).
+- **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir). *Quitar…* borra un área que ningún vale usa (con *Deshacer*); si ya tiene vales, la **descarta** (deja de salir al hacer vales, sus vales se imprimen igual) y se recupera en *Áreas descartadas*.
 - **Personas:** marca quién es almacenista (aparece en "En turno"), corrige puestos y desactiva a quien ya no está (deja de sugerirse, pero su historial queda).
 - **Nombres repetidos:** si una persona aparece escrita de varias formas (p. ej. `FULANO MENGANO ZUTANO`, `MENGANO ZUTANO FULANO`, `F. MENGANA ZUTANO`), la tarjeta *Nombres repetidos* lo propone: elige el nombre que se queda y pulsa **Unificar** (los otros quedan como "también:" de esa persona). También puedes marcar personas en la columna *Unir* y pulsar **Unificar…**. **Los vales ya hechos no cambian**; el aviso trae *Deshacer*. Si no son la misma, *No son la misma persona* y ya no se vuelve a sugerir.
 

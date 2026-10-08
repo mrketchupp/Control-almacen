@@ -106,11 +106,12 @@ y de los últimos 12 meses.
 **Restauración:** valida el respaldo (formato, folios únicos, plantillas completas, **que sea del inventario abierto**),
 guarda una copia interna del estado actual y reemplaza todo en una sola transacción de IndexedDB.
 
-**Lo que comparten (Ronda 18):** la **etapa de perforación** es del pozo, no de un inventario. Vive además en una base
-aparte, `control-almacen-comun` (solo su almacén `ajustes`, clave `compartidos` = `{ etapa_perforacion: { valor, en,
-desde } }`). `almacen/compartidos.js` (`Compartidos`): al editarla (Ajustes, Inicio o al emitir un vale con otra etapa)
-se publica; al abrir un inventario, tras su primera carga o al restaurar un respaldo, se adopta la compartida (también
-en los borradores que traían la anterior) con auditoría `SINCRONIZAR`. El `Almacen` avisa el origen de cada cambio
+**Lo que comparten (Rondas 18 y 19):** la **etapa de perforación** (es del pozo) y los ajustes de la persona:
+**personalización** (tema, avisos, animaciones), **captura de partidas** y **"Mi pantalla de vales"**. Viven además en una
+base aparte, `control-almacen-comun` (solo su almacén `ajustes`, clave `compartidos` = `{ <clave de config>: { valor, en,
+desde } }`; claves en `VALORES_COMPARTIDOS`). `almacen/compartidos.js` (`Compartidos`): al cambiar uno se publica completo
+(gana el último cambio); al abrir un inventario, tras su primera carga o al restaurar un respaldo, se adopta lo compartido
+(la etapa también en los borradores que traían la anterior) con auditoría `SINCRONIZAR`. El `Almacen` avisa el origen de cada cambio
 (`cambio`, `carga`, `restaurar`, `borrar`). Antes de cambiar de inventario se espera a que quede guardada.
 
 **Dos inventarios (Ronda 17):** DLTA y GSM usan el mismo formato de archivos pero van **por separado**: cada uno tiene su
