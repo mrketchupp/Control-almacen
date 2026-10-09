@@ -50,8 +50,8 @@ function HistorialEntradas() {
       <label class="filtro"><span>Folio de la base</span><input value=${filtros.folio} onInput=${poner("folio")} placeholder="Ej. 12345" /></label>
       <label class="filtro"><span>Código AX</span><input inputmode="numeric" value=${filtros.codigo} onInput=${poner("codigo")} placeholder="Ej. 701" /></label>
       <label class="filtro"><span>O.C.</span><input value=${filtros.oc} onInput=${poner("oc")} placeholder="Orden de compra" /></label>
-      <label class="filtro"><span>Desde</span><input type="date" value=${filtros.desde} onChange=${poner("desde")} /></label>
-      <label class="filtro"><span>Hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} /></label>
+      <label class="filtro" title="Por la fecha de recibido (el día en que entró al inventario)"><span>Recibido desde</span><input type="date" value=${filtros.desde} onChange=${poner("desde")} aria-label="Recibido desde" /></label>
+      <label class="filtro" title="Por la fecha de recibido (el día en que entró al inventario)"><span>Recibido hasta</span><input type="date" value=${filtros.hasta} onChange=${poner("hasta")} aria-label="Recibido hasta" /></label>
       <div class="filtro">
         <span>Etiquetas</span>
         <${Lista} valor=${filtros.etiquetas} alCambiar=${(etiquetas) => setFiltros({ ...filtros, etiquetas })} ariaLabel="Etiquetas" opciones=${FILTRO_ETIQUETAS} />
@@ -65,7 +65,8 @@ function HistorialEntradas() {
       columnas=${[
         { titulo: "Folio", render: (f) => html`<a class="enlace-folio" href=${`#entrada/${f.vale_id}`} title="Ver entrada">${f.folio_texto}</a>` },
         { clave: "folio_externo", titulo: "Folio base" },
-        { clave: "fecha", titulo: "Fecha" },
+        { clave: "fecha", titulo: "Fecha del vale" },
+        { titulo: "Recibido", render: (f) => html`<span class=${f.recibido !== f.fecha ? "recibido-distinto" : ""} title=${f.recibido !== f.fecha ? "Se recibió otro día que el del vale" : ""}>${f.recibido}</span>` },
         { clave: "origen", titulo: "Viene de" },
         { titulo: "Cant.", numero: true, render: (f) => num(f.cantidad) },
         { clave: "um", titulo: "UM" },

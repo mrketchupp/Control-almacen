@@ -29,6 +29,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 |---|---|---|
 | P-05 | En el historial de entradas, ¿"No. folio" debe ser el folio de la base o uno propio? | B = folio de la base; columna extra U = folio interno `E-0001`. **Aplicado en F3.** |
 | P-06 | ¿Alguien más necesita el historial de entradas (la base, auditoría)? | Exportable en `VALES DE ENTRADA DLTA.xlsx`; se envía solo si lo piden. **Aplicado en F3.** |
+| P-25 | **Ronda 22:** la entrada tiene fecha del vale y fecha de recibido (la de recibido cuenta en el inventario del día y en el reporte diario). ¿Con cuál se decide lo que está **en tránsito** en la conciliación con AX? | Con la **fecha del vale**: la base mueve el material en AX cuando lo envía, así que lo que va en camino ya está en AX. **Aplicado en la Ronda 22; falta que el usuario lo confirme.** |
 
 ## Inventario y conciliación
 

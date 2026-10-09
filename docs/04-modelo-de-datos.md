@@ -257,8 +257,9 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **12**; del 6 al 12 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*;
-el 12 completa `emitido_en` en las marcas de etiquetas de las entradas propias). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **13**; del 6 al 12 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*;
+el 12 completa `emitido_en` en las marcas de etiquetas de las entradas propias; el 13 agrega `fecha_recibido` a las
+entradas y a sus borradores, ver *Vales de entrada*). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
@@ -287,6 +288,21 @@ del inventario al que entra; si era una variante o un contenedor nuevos, se crea
 **`borradores_entrada`**: entradas en captura, con el mismo encabezado y renglones que además pueden traer
 `ubicacion_id` + `variante_id` (otro contenedor) o `ubicacion_id` + `dimension`/`np` (variante nueva).
 
+**Dos fechas en las entradas (formato 13, Ronda 22):** `fecha` = la **del vale** (cuando la base lo envió; la trae el
+papel y la llena la captura con Copilot) y `fecha_recibido` = cuándo **llegó** el material y se registra (por omisión,
+hoy). La de recibido decide el **día** de la entrada: la vista diaria del inventario (`calcularSaldos(…, { dia })`), el
+reporte diario (`estadoAlCierre`, `reporteDelDia`), los contadores del inicio y los filtros del historial de entradas.
+Un solo ayudante, `fechaDelDia(vale)` (`nucleo/fechas.js`): `fecha_recibido ?? fecha` en las entradas, `fecha` en las
+salidas. La **conciliación con AX** (`transitoDesde`/`enTransito`), el archivo de la base y la justificación siguen con la
+fecha del vale: la base mueve el material en AX cuando lo envía. Se valida en el servicio: obligatoria, no futura y no
+posterior al día en que se registra la entrada (al corregir, el día de `emitido_en`); avisa sin bloquear si es anterior a
+la del vale o a un conteo físico posterior de los renglones de destino que la entrada todavía suma
+(`conteosDespuesDeRecibir`: si ya se contó, sumaría dos veces). Es editable con *Corregir* (motivo y bitácora:
+«Recibido: … → …»). Migración: las entradas ya registradas toman `fecha_recibido = fecha` (no cambia ningún reporte ya
+subido); los borradores, **hoy** (un día pasado podría cambiar un reporte ya subido, y queda a la vista para cambiarlo
+antes de registrar; no se usa la fecha del borrador porque puede ser la del vale, que puso Copilot). El corte por folio
+de cada conteo **no cambia**.
+
 `config.preferencias_vale` guarda, por nombre de almacenista, cómo quiere ver la pantalla del vale:
 `{ "<ALMACENISTA>": { "orden": ["area", "fecha", …], "lado": "datos-izquierda" | "partidas-izquierda" } }`
 (`src/servicios/preferencias.js`). Es opcional y se completa al leerla (bloques desconocidos o repetidos se quitan y los
@@ -309,13 +325,14 @@ El corte se hace **por folio, no por fecha**. Así no hay ambigüedad cuando un 
 hoy, el inventario exportado y el del reporte diario con `D` = su fecha) reparte lo mismo de otra forma:
 
 ```
-CANTIDAD (al empezar D) = cantidad_conteo − salidas de días anteriores a D + entradas de días anteriores a D
+CANTIDAD (al empezar D) = cantidad_conteo − salidas de días anteriores a D + entradas recibidas antes de D
 CONSUMO  (de D)         = salidas del día D (y posteriores)
-INGRESO  (de D)         = entradas del día D (y posteriores)
+INGRESO  (de D)         = entradas recibidas el día D (y después)
 TOTAL                   = el mismo de arriba
 ```
 
-Así, como en el Excel, CONSUMO e INGRESO "se limpian" al pasar el día: lo de ayer ya está en la CANTIDAD. Solo los vales
+Así, como en el Excel, CONSUMO e INGRESO "se limpian" al pasar el día: lo de ayer ya está en la CANTIDAD (el día de una
+entrada es el de recibido, Ronda 22; `fechaDelDia`). Solo los vales
 posteriores al conteo de cada renglón cuentan (el corte por folio no cambia) y nada de esto se guarda
 (`calcularSaldos(estado, ids, { dia })`; el saldo trae `conteo` = lo contado y `cantidad` = al empezar el día).
 

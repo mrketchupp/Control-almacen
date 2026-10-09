@@ -11,12 +11,15 @@
 // El LOTE de cada partida es quien solicita el material (así lo anota la base); no se llena con el NP.
 // Nada toca el inventario hasta confirmar, y la entrada confirmada recibe su folio interno
 // consecutivo (E-0001), independiente del folio de la base. Ver docs/05-flujos.md §2.
+//
+// Dos fechas (Ronda 22): `fecha` = la del vale (cuando la base lo envió; la usa la conciliación con AX) y
+// `fecha_recibido` = cuando llegó y se registra: el día en que suma al inventario y cuenta en el reporte diario.
 
 import { DEPTO_ALMACEN, ORIGEN_EQUIPO } from "../nucleo/areas.js";
 import { CERO, dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
-import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { ahoraIso, fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
 import { crearRenglon, lugarCorto, renglonDe, ubicacionesSugeridas } from "./inventario.js";
 import { SIN_DIMENSION, claveDeRenglon, disponibles, loteDeRenglon, siguienteFolio } from "./vales.js";
@@ -69,7 +72,11 @@ function ultimaDeLaBase(estado) {
   return ultima;
 }
 
-export function nuevoBorradorEntrada(estado, { usuario = null, fecha = hoyIso() } = {}) {
+/**
+ * @param fecha          la del vale (hoy si no se dice; la captura con Copilot la cambia por la del papel)
+ * @param fechaRecibido  cuándo se recibió: la misma del vale si no se dice (al capturar, las dos son hoy)
+ */
+export function nuevoBorradorEntrada(estado, { usuario = null, fecha = hoyIso(), fechaRecibido = fecha } = {}) {
   const ultima = ultimaDeLaBase(estado);
   const b = {
     id: siguienteId(estado, "borrador_entrada"),
@@ -84,6 +91,7 @@ export function nuevoBorradorEntrada(estado, { usuario = null, fecha = hoyIso() 
     folio_repetido: false,
     devolucion_folio: null,
     fecha,
+    fecha_recibido: fechaRecibido,
     origen: ultima?.origen ?? "",
     depto_origen: DEPTO_ALMACEN,
     destino: ORIGEN_EQUIPO,
@@ -440,15 +448,69 @@ export function valeDeSalida(estado, folio) {
   return estado.vales.find((v) => v.tipo === "SALIDA" && v.folio === n && v.estado === "EMITIDO") ?? null;
 }
 
+const esFecha = (v) => /^\d{4}-\d{2}-\d{2}$/.test(texto(v));
+
 /**
- * @returns {{ errores: [{renglon, campo, mensaje}], avisos: [{renglon, campo, mensaje}] }}
- * No se puede confirmar con renglones sin destino (RF-32).
+ * Conteos físicos que pudieron contar ya el material de la entrada: los de los renglones de destino con
+ * fecha posterior a la de recibido, si la entrada todavía suma sobre ellos (registrada después del conteo).
+ * Un reacomodo no cuenta (su cantidad sale del sistema): se busca el conteo físico del que viene.
+ * @returns {[{ conteo, partidas: [n] }]}
  */
-export function validarEntrada(estado, datos, { excluirValeId = null } = {}) {
+export function conteosDespuesDeRecibir(estado, datos, { excluirValeId = null, indices = new Indices(estado) } = {}) {
+  const recibido = texto(datos.fecha_recibido);
+  if (!esFecha(recibido)) return [];
+  const folio = excluirValeId !== null ? (estado.vales.find((v) => v.id === excluirValeId)?.folio ?? null) : null;
+  const conteos = new Map(estado.conteos.map((c) => [c.id, c]));
+  const porConteo = new Map();
+  lineasEntradaCapturadas(datos.lineas).forEach((l, i) => {
+    const d = destinoDe(estado, l, indices);
+    if (d.tipo !== "renglon") return;
+    const actual = conteos.get(d.existencia.conteo_id);
+    // Ya dentro del conteo vigente (registrada antes de contar): no suma otra vez.
+    if (!actual || (folio !== null && folio <= (actual.ultimo_folio_entrada ?? 0))) return;
+    let fisico = actual;
+    const vistos = new Set();
+    while (fisico?.tipo === "REACOMODO" && !vistos.has(fisico.id)) {
+      vistos.add(fisico.id);
+      const linea = (fisico.lineas ?? []).find((x) => x.existencia_id === d.existencia.id);
+      fisico = linea && hay(linea.conteo_anterior_id) ? conteos.get(linea.conteo_anterior_id) : null;
+    }
+    if (!fisico || fisico.tipo === "REACOMODO" || !(texto(fisico.fecha) > recibido)) return;
+    if (!porConteo.has(fisico.id)) porConteo.set(fisico.id, { conteo: fisico, partidas: [] });
+    porConteo.get(fisico.id).partidas.push(i + 1);
+  });
+  return [...porConteo.values()];
+}
+
+const enumerar = (numeros) => (numeros.length === 1 ? `${numeros[0]}` : `${numeros.slice(0, -1).join(", ")} y ${numeros.at(-1)}`);
+
+/**
+ * @param hoy  para las pruebas
+ * @returns {{ errores: [{renglon, campo, mensaje}], avisos: [{renglon, campo, mensaje}] }}
+ * No se puede confirmar con renglones sin destino (RF-32). La fecha de recibido es obligatoria, no puede ser
+ * futura ni posterior al día en que se registra la entrada (al capturar, hoy; al corregir, el día en que se
+ * registró): no se registra lo que aún no llega. Avisa (sin bloquear) si es anterior a la del vale o a un
+ * conteo que ya pudo contar ese material.
+ */
+export function validarEntrada(estado, datos, { excluirValeId = null, hoy = hoyIso() } = {}) {
   const errores = [];
   const avisos = [];
   const error = (renglon, campo, mensaje) => errores.push({ renglon, campo, mensaje });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(datos.fecha))) error(null, "fecha", "Falta la fecha.");
+  const aviso = (renglon, campo, mensaje) => avisos.push({ renglon, campo, mensaje });
+  if (!esFecha(datos.fecha)) error(null, "fecha", "Falta la fecha del vale.");
+  const recibido = texto(datos.fecha_recibido);
+  if (!esFecha(recibido)) error(null, "fecha_recibido", "Falta la fecha de recibido.");
+  else {
+    const registrada = excluirValeId !== null ? estado.vales.find((v) => v.id === excluirValeId) : null;
+    const diaRegistro = registrada ? texto(registrada.emitido_en ?? registrada.creado_en).slice(0, 10) : "";
+    if (recibido > hoy) error(null, "fecha_recibido", "La fecha de recibido no puede ser futura.");
+    else if (esFecha(diaRegistro) && recibido > diaRegistro) {
+      error(null, "fecha_recibido", `La fecha de recibido no puede ser posterior al día en que se registró la entrada (${fmtFecha(diaRegistro)}): no se registra antes de recibir.`);
+    }
+    if (esFecha(datos.fecha) && recibido < texto(datos.fecha)) {
+      aviso(null, "fecha_recibido", `Se recibió (${fmtFecha(recibido)}) antes de la fecha del vale (${fmtFecha(datos.fecha)}): revisa las dos.`);
+    }
+  }
   if (!texto(datos.folio_externo)) error(null, "folio_externo", "Falta el folio del vale que llega con el material.");
   if (texto(datos.devolucion_folio) && !valeDeSalida(estado, datos.devolucion_folio)) {
     error(null, "devolucion_folio", `No hay un vale de salida con el folio ${texto(datos.devolucion_folio)}.`);
@@ -456,7 +518,7 @@ export function validarEntrada(estado, datos, { excluirValeId = null } = {}) {
   if (!texto(datos.origen)) error(null, "origen", "Falta de dónde viene el material.");
   const repetida = entradaConFolioBase(estado, datos.folio_externo, excluirValeId);
   if (repetida) {
-    const mensaje = `El folio ${texto(datos.folio_externo)} ya se registró en la entrada ${folioEntrada(repetida.folio)} (${fmtFecha(repetida.fecha)}).`;
+    const mensaje = `El folio ${texto(datos.folio_externo)} ya se registró en la entrada ${folioEntrada(repetida.folio)} (recibida el ${fmtFecha(fechaDelDia(repetida))}).`;
     avisos.push({ renglon: null, campo: "folio_externo", mensaje });
     if (!datos.folio_repetido) error(null, "folio_externo", `${mensaje} Si es otro vale con el mismo folio, márcalo para continuar.`);
   }
@@ -475,6 +537,12 @@ export function validarEntrada(estado, datos, { excluirValeId = null } = {}) {
     if (destino.tipo === "pendiente") error(n, "destino", `Partida ${n}: elige a qué partida del inventario o contenedor entra.`);
     if (destino.tipo === "invalido") error(n, "destino", `Partida ${n}: la partida o contenedor elegido ya no existe.`);
   });
+  if (!errores.some((e) => e.campo === "fecha_recibido")) {
+    for (const { conteo, partidas } of conteosDespuesDeRecibir(estado, datos, { excluirValeId, indices })) {
+      const cuales = partidas.length === 1 ? `la partida ${partidas[0]}` : `las partidas ${enumerar(partidas)}`;
+      aviso(null, "fecha_recibido", `Hubo un conteo el ${fmtFecha(conteo.fecha)} después de esa fecha (${cuales}): si ya se contó, la entrada lo sumaría dos veces.`);
+    }
+  }
   if (excluirValeId !== null && !errores.length) {
     for (const fila of vistaPreviaEntrada(estado, datos, { excluirValeId })) {
       if (fila.queda && fila.queda.lt(0)) {
@@ -496,6 +564,7 @@ function encabezadoEntrada(datos) {
     folio_externo: textoONulo(datos.folio_externo),
     devolucion_folio: devolucion ? Number(texto(datos.devolucion_folio)) : null,
     fecha: texto(datos.fecha),
+    fecha_recibido: texto(datos.fecha_recibido),
     origen: mayus(datos.origen),
     depto_origen: DEPTO_ALMACEN,
     destino: mayus(datos.destino) ?? ORIGEN_EQUIPO,
@@ -627,9 +696,10 @@ export function datosDeDevolucion(estado, folio) {
 export function datosParaCorregirEntrada(estado, valeId) {
   const vale = estado.vales.find((v) => v.id === valeId && v.tipo === "ENTRADA");
   if (!vale) throw new ErrorEntrada("No existe la entrada.");
-  const campos = ["fecha", "origen", "depto_origen", "destino", "depto_destino", "entrego_nombre", "entrego_puesto", "recibio_nombre", "recibio_puesto", "observaciones"];
+  const campos = ["fecha", "fecha_recibido", "origen", "depto_origen", "destino", "depto_destino", "entrego_nombre", "entrego_puesto", "recibio_nombre", "recibio_puesto", "observaciones"];
   return {
     ...Object.fromEntries(campos.map((c) => [c, vale[c] ?? ""])),
+    fecha_recibido: fechaDelDia(vale) ?? "",
     motivo: vale.motivo ?? "BASE",
     folio_externo: vale.folio_externo ?? "",
     folio_repetido: Boolean(entradaConFolioBase(estado, vale.folio_externo, vale.id)),
@@ -652,7 +722,8 @@ export function datosParaCorregirEntrada(estado, valeId) {
 }
 
 const ETIQUETAS = {
-  fecha: "Fecha",
+  fecha: "Fecha del vale",
+  fecha_recibido: "Recibido",
   folio_externo: "Folio del vale",
   devolucion_folio: "Partidas copiadas del vale",
   origen: "Viene de",
@@ -671,10 +742,10 @@ const conUm = (l) => `${decTexto(dec(l.cantidad)) ?? texto(l.cantidad)} ${texto(
 export function resumenCambiosEntrada(estado, vale, datos) {
   const cambios = [];
   const indices = new Indices(estado);
-  const valor = (campo, v) => (campo === "fecha" ? (v ? fmtFecha(v) : "") : texto(v).toUpperCase());
+  const valor = (campo, v) => (campo === "fecha" || campo === "fecha_recibido" ? (v ? fmtFecha(v) : "") : texto(v).toUpperCase());
   const nuevo = encabezadoEntrada(datos);
   for (const [campo, etiqueta] of Object.entries(ETIQUETAS)) {
-    const a = valor(campo, vale[campo]);
+    const a = valor(campo, campo === "fecha_recibido" ? fechaDelDia(vale) : vale[campo]);
     const b = valor(campo, nuevo[campo]);
     if (a !== b) cambios.push(campo === "observaciones" ? "Se cambiaron las observaciones" : `${etiqueta}: ${a || "—"} → ${b || "—"}`);
   }
@@ -786,6 +857,8 @@ export function filasEntradas(estado) {
         motivo: vale.motivo ?? "BASE",
         fecha: fmtFecha(vale.fecha),
         fecha_iso: vale.fecha || "",
+        recibido: fmtFecha(fechaDelDia(vale)),
+        recibido_iso: fechaDelDia(vale) || "",
         origen: vale.origen || "",
         cantidad: dec(l.cantidad) ? Number(dec(l.cantidad).toFixed()) : null,
         um: l.um || "",
@@ -801,15 +874,15 @@ export function filasEntradas(estado) {
   return filas;
 }
 
-/** Filtros del historial de entradas: fecha, folio de la base, código, O.C. y texto libre. */
+/** Filtros del historial de entradas: fecha de recibido (desde / hasta), folio de la base, código, O.C. y texto libre. */
 export function filtrarEntradas(filas, { texto: libre = "", folio = "", codigo = "", oc = "", desde = "", hasta = "" } = {}) {
   const t = texto(libre).toUpperCase();
   const f = claveEstricta(folio);
   const c = texto(codigo);
   const o = texto(oc).toUpperCase();
   return filas.filter((r) => {
-    if (desde && r.fecha_iso < desde) return false;
-    if (hasta && r.fecha_iso > hasta) return false;
+    if (desde && r.recibido_iso < desde) return false;
+    if (hasta && r.recibido_iso > hasta) return false;
     if (c && String(r.codigo ?? "") !== c.replace(/^0+/, "")) return false;
     if (f && !claveEstricta(r.folio_externo).includes(f) && !claveEstricta(r.folio_texto).includes(f)) return false;
     if (o && !String(r.oc).toUpperCase().includes(o)) return false;

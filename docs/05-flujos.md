@@ -40,7 +40,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Llega material + vale de la base] --> B[Nuevo vale de entrada<br/>folio base, fecha, O.C.]
+    A[Llega material + vale de la base] --> B[Nuevo vale de entrada<br/>folio base, fecha del vale, recibido, O.C.]
     B --> C{¿Vale de la base en Excel?}
     C -->|"Sí"| D[Importar renglones del archivo]
     C -->|"No"| E[Capturar renglones]
@@ -53,7 +53,7 @@ flowchart TD
     K --> L{¿Todo resuelto?}
     L -->|"No"| F
     L -->|"Sí"| M[CONFIRMAR<br/>folio interno E-0001]
-    M --> N[Suma a INGRESO de cada ubicación<br/>y queda en historial de entradas]
+    M --> N[Suma a INGRESO de cada ubicación el día de recibido<br/>y queda en historial de entradas]
 ```
 
 **Así se evita meter material al contenedor equivocado:**
@@ -67,6 +67,14 @@ flowchart TD
 6. Nada se aplica hasta confirmar, y una entrada confirmada se puede **corregir** con motivo (como los vales de salida,
    sin cancelar folios; el motivo se llena solo con los cambios).
 
+**Dos fechas (Ronda 22):** *Fecha del vale* (cuando la base lo envió; la llena Copilot) y **Recibido** (cuando llegó; por
+omisión, hoy). La de **recibido** decide en qué día suma al inventario, en qué *reporte diario* cuenta, las entradas de
+hoy del inicio y los filtros *Recibido desde / hasta* del historial (que muestra las dos columnas). No puede ser futura
+ni posterior al día en que se registra (al corregir, el día en que se registró): no se registra lo que aún no llega.
+Avisa sin bloquear si es anterior a la del vale o si hubo un **conteo físico después** en las partidas de destino («si ya
+se contó, la entrada lo sumaría dos veces»). Se cambia con *Corregir* (queda en la bitácora: «Recibido: … → …»). La
+conciliación con AX sigue con la fecha del vale.
+
 En la herramienta el vale de la base se **captura** (llega en papel, P-04), a mano o desde su foto/PDF con Copilot;
 leerlo directo de un Excel queda como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran con *Sin existencia* (no suman).
 
@@ -77,7 +85,7 @@ El vale de entrada solo pide **de dónde viene** (la base o un equipo); el depar
 **Pantalla (ronda 6):** una barra fija arriba con el folio interno, el número de partidas, las que están *por revisar*,
 los *datos pendientes* (al pulsarlos se ve la lista y cada uno lleva a su campo) y los botones **Copilot**,
 **Descartar** y **Registrar entrada**, siempre a la vista. Debajo, los datos del vale en un renglón (folio, viene de,
-fecha, entregó; lo automático en una línea). Cada partida es una tarjeta de dos líneas: lo del vale (código,
+fecha del vale, recibido, entregó; lo automático en una línea). Cada partida es una tarjeta de dos líneas: lo del vale (código,
 descripción, clave / dimensión, cantidad, U.M.) y abajo **Entra a** (el contenedor, con *hay → queda*), **Solicita**
 (va en la columna LOTE) y la O.C. Si la clave escrita no existe en el inventario, la partida es una **variante nueva**
 con esa misma dimensión (no se escribe dos veces) y va al contenedor donde ya vive el código (se cambia en *Entra a*);
@@ -173,7 +181,7 @@ flowchart LR
   el Color trae algo (`S/D` + `X00489`, un NP), se empareja normal.
 - **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante (o de todas las
   variantes de la fila, cuando AX no trae dimensión).
-- **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
+- **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). En las entradas cuenta la **fecha del vale**, no la de recibido (Ronda 22): la base mueve el material en AX cuando lo envía. Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
 - **Con el archivo de vales de la base (Rondas 12 y 13)** lo único que importa es si la partida tiene **folio de AX**:
   - Con folio IN / TR ya está en AX (CANTIDAD vacía = todo): no justifica diferencias.
   - **Sin folio IN / TR** está en tránsito aunque el vale sea anterior al corte: `INV` sin folio (o `PENDIENTE`), sin
@@ -226,6 +234,10 @@ página: entrega los dos libros **como estaban al cierre de ese día**
 - **Inventario de refaccionamiento** (`.xlsx`, con esa fecha en el nombre): CONSUMO e INGRESO solo con los vales y
   entradas hasta ese corte; los conteos y movimientos posteriores se deshacen (cada línea de conteo guarda la cantidad
   y el conteo anteriores) y no aparecen los renglones creados después. Las correcciones se toman como están hoy.
+- **Entradas por su fecha de recibido** (Ronda 22), no por folio: como se puede corregir, E-0002 pudo recibirse antes
+  que E-0001. Entran las recibidas hasta ese día; un renglón que creó una entrada recibida después no aparece (salvo que
+  otra que sí entra también llegue a él). La página lo dice: «entradas recibidas hasta el 08/10/2026: hasta E-0002 (menos
+  E-0001, recibida después)», y en *Material recibido* lista lo que llegó ese día (con la fecha de su vale si es otra).
 
 También muestra los vales y entradas del día y *Subir al SharePoint* limitado a ese corte: **✓ Ya lo subí** marca solo
 los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendientes para el reporte de su día.

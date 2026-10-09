@@ -124,7 +124,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
    - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
+5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores; las entradas cuentan el día en que se **recibieron**). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
 **Inventario del día.** Igual que el Excel: *Cantidad* es lo que había al empezar el día, *Consumo* e *Ingreso* solo los
@@ -134,7 +134,10 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
 ### Entradas, conteos y movimientos
 - **Entrada de material** (*Vales de entrada → Nueva entrada*): elige **Captura manual** o **Desde foto o PDF**.
   Arriba quedan siempre a la vista el folio, los pendientes y los botones **Registrar entrada** y **Descartar**.
-  Escribe el folio del vale, de dónde viene y quién lo entrega; el departamento siempre es ALMACEN. Por partida:
+  Escribe el folio del vale, de dónde viene, la **fecha del vale** (la del papel) y quién lo entrega; el departamento
+  siempre es ALMACEN. **Recibido** es el día en que llegó el material (por omisión, hoy): ese día suma al inventario y
+  cuenta en el reporte diario. No puede ser futura; si es anterior a la del vale o hubo un conteo después en esas
+  partidas, te avisa (sin bloquear). Se cambia después con *Corregir* (queda en la bitácora). Por partida:
   código → `Enter` → clave (★ = el contenedor donde hay más) → **NP** → cantidad. Si la clave trae el NP (`… NP: 123`),
   se pasa solo a su campo. Arriba, los botones *⚠ pendientes*, *por revisar* y *con clave nueva* muestran solo esas
   partidas. Abajo de cada partida: **Entra a** (cambia
@@ -155,7 +158,9 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   Color: juntos son la dimensión; AX no trae NP) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
   cantidades no cambian y el aviso trae *Deshacer*.
 - **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
-- **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.
+- **Historial de entradas:** *Historial de vales → Vales de entrada*, con las columnas *Fecha del vale* y *Recibido*; los
+  filtros *Recibido desde / hasta* van por la de recibido. Se exporta en *Exportar y enviar → Vales de entrada* (FECHA = la
+  del vale; al final, FECHA RECIBIDO).
 
 ### Etiquetas
 - **Al registrar una entrada** aparece *¿Le hacemos sus etiquetas?* → **Hacer etiquetas**: marca las partidas, ajusta

@@ -3432,6 +3432,42 @@ body.con-ventana {
   margin-top: 10px;
 }
 
+/* Ronda 22 — fecha de recibido: «Fecha del vale» y «Recibido» lado a lado; la nota y los avisos debajo. */
+.encabezado-campos {
+  grid-template-columns: minmax(120px, 0.8fr) minmax(190px, 1.3fr) minmax(140px, 0.75fr) minmax(140px, 0.75fr) minmax(190px, 1.3fr);
+}
+
+.recibido-nota {
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+.recibido-nota:empty {
+  display: none;
+}
+
+.recibido-nota p {
+  margin: 4px 0 0;
+}
+
+.recibido-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.recibido-aviso {
+  padding: 6px 10px;
+  border-left: 3px solid var(--alerta);
+  border-radius: 4px;
+  background: var(--alerta-suave);
+  color: var(--texto);
+}
+
+/* Historial y reporte: recibido otro día que el del vale. */
+.recibido-distinto {
+  font-weight: 600;
+}
+
 .encabezado-pie {
   display: flex;
   flex-wrap: wrap;

@@ -220,7 +220,7 @@ test("formato 10: los estados anteriores se migran con la lista de etiquetas vac
   delete estado.impresiones_etiquetas;
   estado.formato = 9;
   migrarEstado(estado);
-  assert.deepEqual([estado.formato, estado.etiquetas, estado.impresiones_etiquetas], [12, { material: [], ax: [], cambiado_en: null }, []]);
+  assert.deepEqual([estado.formato, estado.etiquetas, estado.impresiones_etiquetas], [13, { material: [], ax: [], cambiado_en: null }, []]);
 });
 
 test("formato 11: ids con el inventario, origen con su inventario y la lista que ya traía etiquetas se junta", () => {
@@ -232,7 +232,7 @@ test("formato 11: ids con el inventario, origen con su inventario y la lista que
   };
   estado.impresiones_etiquetas = [{ id: 1, fecha_hora: "2026-10-08T10:00:00", vales: [7] }];
   migrarEstado(estado);
-  assert.equal(estado.formato, 12);
+  assert.equal(estado.formato, 13);
   assert.deepEqual(estado.etiquetas.material.map((e) => [e.id, e.origen.inventario]), [["GSM-3", "GSM"]]);
   assert.deepEqual(estado.etiquetas.ax.map((e) => [e.id, e.origen.inventario]), [["GSM-4", undefined]]);
   assert.equal(estado.etiquetas.juntar, true);
@@ -380,7 +380,7 @@ test("formato 12: las marcas sin huella (del formato 11 anterior) se completan; 
   ];
   dlta.etiquetas.material = [{ id: "DLTA-2", codigo: "701", inventario: "DLTA", origen: { tipo: "ENTRADA", inventario: "DLTA", vale_id: vale.id } }];
   migrarEstado(dlta);
-  assert.equal(dlta.formato, 12);
+  assert.equal(dlta.formato, 13);
   const [propia, ajena] = dlta.impresiones_etiquetas[0].vales;
   assert.equal(propia.emitido_en, vale.emitido_en);
   assert.equal(ajena.emitido_en, undefined); // la completa GSM al abrirse

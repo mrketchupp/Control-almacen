@@ -84,7 +84,7 @@ test("los libros exportados al cierre no traen lo posterior", () => {
   for (let r = 2; r <= hoja.maxFila; r++) if (hoja.valor(r, 2) === 701 && hoja.valor(r, 4) === "6309-2Z/C3") consumo = hoja.valor(r, 8);
   assert.equal(String(consumo), "1"); // solo el vale del 01
   const c2 = libro.hoja("CONTENEDOR #2 CONSUMIBLE");
-  for (let r = 2; r <= c2.maxFila; r++) assert.notEqual(c2.valor(r, 4), "7777");
+  for (let r = 2; r <= c2.maxFila; r++) assert.notEqual(String(c2.valor(r, 4)), "7777");
   assert.ok(balero1);
 });
 
