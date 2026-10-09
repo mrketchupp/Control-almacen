@@ -116,18 +116,20 @@ export function VistaPreviaEtiquetas({ tipo, ids, alCerrar }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const { diseno, identidad } = et.configEtiquetas(estado);
+  // Ronda 22: el diseño (modelo) que usa esta lista.
+  const modelo = et.modeloDe(estado, tipo);
   const elegidas = useMemo(() => {
     const quiero = new Set(ids);
     return et.etiquetasPorImprimir(estado, tipo).filter((e) => quiero.has(e.id));
   }, [estado, tipo, ids]);
-  const vista = useMemo(() => documentoEtiquetas(elegidas, { tipo, diseno, identidad, vista: true }), [elegidas, tipo, JSON.stringify(diseno), identidad]);
+  const vista = useMemo(() => documentoEtiquetas(elegidas, { tipo, diseno, identidad, modelo, vista: true }), [elegidas, tipo, JSON.stringify(diseno), identidad, JSON.stringify(modelo)]);
   const [hojasRef, zoom] = useZoom(vista.cuadricula.hoja.ancho);
   const [impreso, setImpreso] = useState(false);
   const c = vista.cuadricula;
   const demasiadas = vista.etiquetas > MAXIMO_ETIQUETAS;
   const imprimir = () =>
     sesion.tarea("Preparando impresión…", async () => {
-      await sesion.imprimirDocumento(documentoEtiquetas(elegidas, { tipo, diseno, identidad }));
+      await sesion.imprimirDocumento(documentoEtiquetas(elegidas, { tipo, diseno, identidad, modelo }));
       setImpreso(true);
     });
   const registrar = (quitar) =>
@@ -695,6 +697,7 @@ function VentanaDiseno({ tipo, alCerrar }) {
     return () => (vigente = false);
   }, []);
   const diseno = config.diseno;
+  const modelo = et.modeloDe(sesion.estado, tipo);
   const c = cuadricula(diseno);
   const plantilla = plantillaDe(diseno);
   const fijar = (cambios) => guardar((e) => et.fijarDiseno(e, { ...diseno, ...cambios }, sesion.usuario));
@@ -715,11 +718,11 @@ function VentanaDiseno({ tipo, alCerrar }) {
   };
   const muestra = useMemo(() => {
     const etiquetas = Array.from({ length: Math.max(1, c.porHoja) }, (_, i) => ({ ...MUESTRA, inventario: i % 2 && INVENTARIOS[1] ? INVENTARIOS[1].id : INVENTARIOS[0].id }));
-    return documentoEtiquetas(etiquetas, { tipo, diseno, identidad: config.identidad, vista: true, ambito: "etq-muestra" });
-  }, [JSON.stringify(diseno), config.identidad, tipo]);
+    return documentoEtiquetas(etiquetas, { tipo, diseno, identidad: config.identidad, modelo, vista: true, ambito: "etq-muestra" });
+  }, [JSON.stringify(diseno), config.identidad, tipo, JSON.stringify(modelo)]);
   const sola = useMemo(
-    () => documentoEtiquetas([{ ...MUESTRA, inventario: sesion.inventario.id }], { tipo, diseno: { ...diseno, margen_sup: 0, margen_lat: 0 }, identidad: config.identidad, vista: true, ambito: "etq-sola" }),
-    [JSON.stringify(diseno), config.identidad, tipo],
+    () => documentoEtiquetas([{ ...MUESTRA, inventario: sesion.inventario.id }], { tipo, diseno: { ...diseno, margen_sup: 0, margen_lat: 0 }, identidad: config.identidad, modelo, vista: true, ambito: "etq-sola" }),
+    [JSON.stringify(diseno), config.identidad, tipo, JSON.stringify(modelo)],
   );
   const [hojaRef, zoom] = useZoom(c.hoja.ancho, 0.6);
   return html`<${Ventana} titulo="Diseño de las etiquetas" alCerrar=${alCerrar} clase="ventana-ancha ventana-etq-diseno">

@@ -10,6 +10,10 @@
 // Ronda 21: también dos colecciones del estado (no de `config`): la **lista de etiquetas por imprimir**
 // (gana la del último cambio según su `cambiado_en`; la de antes de compartirse se junta) y la **bitácora
 // de impresiones** (se juntan las dos: nunca se pierde una). No van en la auditoría: no son ajustes.
+//
+// Ronda 22: los diseños de etiqueta (`config.etiquetas.modelos`) y cuál usa cada lista
+// (`config.etiquetas.modelo_por_tipo`) van dentro de `etiquetas`: se comparten igual, sin nada aparte. En la
+// bitácora de sincronización cada diseño se anota por su nombre y cuántos elementos tiene.
 
 import { auditar } from "../nucleo/estado.js";
 import { ahoraIso } from "../nucleo/fechas.js";
@@ -81,6 +85,15 @@ export function sinImagenes(valor) {
   return valor;
 }
 
+/** Lo que se anota en la bitácora: sin imágenes y cada diseño de etiqueta por su nombre y su número de elementos. */
+function paraBitacora(clave, valor) {
+  let v = valor;
+  if (clave === "etiquetas" && v && typeof v === "object" && Array.isArray(v.modelos)) {
+    v = { ...v, modelos: v.modelos.map((m) => ({ id: m?.id ?? null, nombre: m?.nombre ?? null, elementos: Array.isArray(m?.elementos) ? m.elementos.length : 0 })) };
+  }
+  return sinImagenes(v);
+}
+
 /**
  * Pasa al estado lo compartido que difiere: `config` y los borradores de vale que aún traían el valor
  * anterior (los que se cambiaron a mano se respetan). @returns las claves que cambiaron
@@ -98,7 +111,7 @@ export function adoptarCompartidos(estado, compartidos, usuario = null) {
     // Solo la etapa va también en los borradores de vale.
     if (clave === "etapa_perforacion") for (const b of estado.borradores ?? []) if ((b[clave] ?? "") === antes) b[clave] = nuevo;
     if (acceso.bitacora) {
-      auditar(estado, { usuario, entidad: "config", entidadId: clave, accion: "SINCRONIZAR", antes: sinImagenes(antes), despues: { valor: sinImagenes(otro.valor), desde: otro.desde ?? null, en: otro.en ?? null } });
+      auditar(estado, { usuario, entidad: "config", entidadId: clave, accion: "SINCRONIZAR", antes: paraBitacora(clave, antes), despues: { valor: paraBitacora(clave, otro.valor), desde: otro.desde ?? null, en: otro.en ?? null } });
     }
     cambiadas.push(clave);
   }

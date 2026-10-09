@@ -120,6 +120,43 @@ y se corrigió:
   cuadrícula, HTML/CSS escapado; `vista: true` para la pantalla), `ui/paginas/etiquetas.js` (página, ventanas, vista
   previa; `EtiquetasDeEntrada` y `EstadoEtiquetas` se usan en *Vales de entrada*, el detalle y el historial).
 
+## Diseños de etiqueta (Ronda 22, núcleo)
+
+En el código se llaman **modelos** (`impresion/modelos.js`) para no confundirlos con el «diseño» de la hoja
+(`diseno`: papel, márgenes, tamaño, separaciones y borde); el usuario los ve como **diseños**.
+
+- `config.etiquetas.modelos = [{ id, nombre, elementos, creado_en, cambiado_en }]` y
+  `config.etiquetas.modelo_por_tipo = { material: id, ax: id }`: van dentro de `config.etiquetas`, así que se comparten
+  entre DLTA y GSM sin nada aparte (gana el último cambio completo de `config.etiquetas`, como el diseño y los logos).
+  **No cambia `FORMATO_ESTADO`.** En la bitácora de sincronización cada diseño se anota por su nombre y su número de
+  elementos.
+- Dos de fábrica, **constantes de solo lectura** que no se guardan: `fabrica-material` y `fabrica-ax` (lo que se imprimía
+  en las Rondas 20–21). Sin elegir, o con un id que ya no existe, cada lista usa el suyo.
+- Elemento: `{ id, tipo, x, y, w, h }` en **% de la etiqueta** (x + w ≤ 100, y + h ≤ 100, w y h ≥ 1) y, según el tipo
+  (`PROPIEDADES`): `campo`, `etiqueta` (título del campo; vacío = solo el valor), `vacio` (lo que sale si el campo viene
+  vacío; «N/A» por omisión), `texto` (título y texto libre; el libre admite `{codigo} {nombre} {dimension} {np}
+  {descripcion} {area} {inventario}`), `letra` (% del **alto** de la etiqueta; 6.78 ≈ 10 px en 39 mm), `negrita`,
+  `alinear`, `vertical`, `linea_abajo`, `varias_lineas` (si no, un renglón con «…»), `espaciado` (em), `datos` (QR y
+  barras; `{codigo}` por omisión) y `texto_visible` (barras). Tipos: `logo_izq`, `logo_der`, `titulo`, `texto_almacen`,
+  `campo`, `texto`, `qr` (`impresion/qr.js`), `barras` (Code 128, `impresion/barras.js`).
+- **Entrada no confiable** (llega del otro inventario y de los respaldos): `normalizarModelo` / `normalizarElemento`
+  dejan solo números finitos y acotados, valores conocidos, textos sin controles y recortados, 40 elementos como máximo e
+  ids únicos; el render vuelve a normalizar y escapa todo texto.
+- Render único (`impresion/etiquetas.js`): `.etq` con `position: relative` y cada elemento absoluto en %; la letra en mm =
+  `letra / 100 × alto`. En el documento la caja de cada elemento va una vez en el CSS (`.etq-n<n>`); en el editor,
+  `htmlElemento` la pone en `style` con el mismo HTML. El borde de la plantilla se dibuja encima (`::after`), así las
+  posiciones son de la etiqueta completa con o sin borde. La *Letra (px)* de la plantilla (`diseno.fuente`) ya no se usa
+  (se conserva en los datos).
+- Servicio (`servicios/etiquetas.js`): `modelosEtiqueta`, `modeloDe`, `guardarModeloEtiqueta` (nombre obligatorio y único
+  sin distinguir mayúsculas; los de fábrica no se cambian), `borrarModeloEtiqueta` (la lista que lo usaba vuelve al de
+  fábrica) / `reponerModeloEtiqueta` (Deshacer), `usarModelo` y `nombreParaCopia`, con bitácora (nombre y número de
+  elementos).
+- Diferencias que quedan con la etiqueta de antes (plantilla estándar): si el inventario **no tiene texto de almacén**,
+  el título queda donde está (antes se centraba en el encabezado; ~1.3 mm más arriba); en *Código AX* con un nombre de
+  **dos renglones** el código queda ~1.9 mm más abajo que antes (centrado para un nombre de un renglón, el caso común).
+  En las otras plantillas todo crece o se encoge en proporción (antes el encabezado medía siempre 17 × 8.5 mm y la letra
+  la decía la plantilla).
+
 ## Impresión
 
 Igual que el generador: cada hoja mide exactamente el papel (`@page { size: …mm; margin: 0 }`) con los márgenes como

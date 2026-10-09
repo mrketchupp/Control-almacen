@@ -14,6 +14,10 @@
 // partida o la entrada (`origen.inventario`), la bitácora marca `{ inventario, vale_id }` y la lista lleva
 // `cambiado_en` (gana el último cambio; la bitácora se junta y nunca pierde una impresión).
 //
+// Ronda 22: los **diseños** de etiqueta (en el código, `modelos`: impresion/modelos.js) también van en
+// `config.etiquetas` (`modelos` y `modelo_por_tipo`), compartidos entre DLTA y GSM: Material y Código AX
+// pueden usar cada una el suyo; sin elegir (o si el elegido ya no existe), el de fábrica de la lista.
+//
 // Las etiquetas nunca cambian el inventario ni los vales.
 
 import { dec } from "../nucleo/decimal.js";
@@ -22,6 +26,7 @@ import { ahoraIso } from "../nucleo/fechas.js";
 import { INVENTARIOS, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
 import { claveEstricta, sinAcentos, sinDimension, unidad } from "../nucleo/normalizar.js";
 import { normalizarDiseno } from "../impresion/etiquetas.js";
+import { FABRICA_POR_TIPO, LARGOS, MAXIMO_MODELOS, MODELOS_FABRICA, esModeloDeFabrica, idValido, modeloDeFabrica, normalizarModelo } from "../impresion/modelos.js";
 import { folioEntrada } from "./entradas.js";
 import { MAXIMO_LOGO } from "./valeImpreso.js";
 
@@ -55,7 +60,29 @@ const entero = (v) => {
 
 // ---------------------------------------------------------------- configuración
 
-/** Diseño de la hoja y, por inventario, sus logos (izquierdo / derecho) y su texto de almacén. */
+/** Los modelos guardados tal como están en config (lo que no es lista se toma como vacío). */
+const modelosCrudos = (guardada) => (Array.isArray(guardada?.modelos) ? guardada.modelos : []);
+
+/** Los modelos guardados, limpios: sin los que no sirven, sin ids de fábrica y sin ids repetidos. */
+function modelosGuardados(guardada) {
+  const vistos = new Set();
+  const modelos = [];
+  for (const crudo of modelosCrudos(guardada)) {
+    const m = normalizarModelo(crudo);
+    if (!m?.id || esModeloDeFabrica(m.id) || vistos.has(m.id)) continue;
+    vistos.add(m.id);
+    modelos.push(m);
+    if (modelos.length >= MAXIMO_MODELOS) break;
+  }
+  return modelos;
+}
+
+/**
+ * Diseño de la hoja; por inventario, sus logos (izquierdo / derecho) y su texto de almacén; los modelos
+ * guardados (limpios, sin los de fábrica) y el id del modelo de cada lista (el de fábrica si no se eligió
+ * o si el elegido ya no existe).
+ * @returns {{ diseno, identidad, modelos, modelo_por_tipo: { material, ax } }}
+ */
 export function configEtiquetas(estado) {
   const guardada = estado?.config?.etiquetas ?? {};
   const identidad = {};
@@ -63,7 +90,12 @@ export function configEtiquetas(estado) {
     const g = guardada.identidad?.[id] ?? {};
     identidad[id] = { logo_izq: g.logo_izq ?? null, logo_der: g.logo_der ?? null, texto: texto(g.texto) };
   }
-  return { diseno: normalizarDiseno(guardada.diseno), identidad };
+  const modelos = modelosGuardados(guardada);
+  const existe = new Set([...Object.keys(MODELOS_FABRICA), ...modelos.map((m) => m.id)]);
+  const elegidos = elegidosDe(guardada);
+  const modelo_por_tipo = {};
+  for (const tipo of Object.keys(TIPOS_ETIQUETA)) modelo_por_tipo[tipo] = existe.has(elegidos[tipo]) ? elegidos[tipo] : FABRICA_POR_TIPO[tipo];
+  return { diseno: normalizarDiseno(guardada.diseno), identidad, modelos, modelo_por_tipo };
 }
 
 function guardarConfig(estado, cambio) {
@@ -112,6 +144,149 @@ export function fijarIdentidad(estado, inventario, cambios, usuario = null) {
   });
   const resumen = (x) => ({ logo_izq: describirLogo(x.logo_izq), logo_der: describirLogo(x.logo_der), texto: x.texto });
   auditar(estado, { usuario, entidad: "config", entidadId: `etiquetas.${id}`, accion: "EDITAR", antes: resumen(antes), despues: resumen(despues) });
+  return true;
+}
+
+// ---------------------------------------------------------------- diseños de etiqueta (modelos)
+
+/** Los de fábrica (de solo lectura, `fabrica: true`) y luego los guardados, limpios. */
+export function modelosEtiqueta(estado) {
+  return [...Object.values(MODELOS_FABRICA), ...configEtiquetas(estado).modelos];
+}
+
+/** El modelo con que se imprime la lista `tipo` ("material" | "ax"). */
+export function modeloDe(estado, tipo) {
+  const config = configEtiquetas(estado);
+  const id = config.modelo_por_tipo[tipo];
+  return MODELOS_FABRICA[id] ?? config.modelos.find((m) => m.id === id) ?? modeloDeFabrica(tipo);
+}
+
+/** Para comparar nombres: sin distinguir mayúsculas ni espacios repetidos. */
+const claveNombre = (nombre) => texto(nombre).replace(/\s+/g, " ").toLocaleUpperCase("es");
+
+function nombreOcupado(estado, nombre, salvo = null) {
+  const clave = claveNombre(nombre);
+  return modelosEtiqueta(estado).some((m) => m.id !== salvo && claveNombre(m.nombre) === clave);
+}
+
+/** Lo elegido por lista tal como se guarda: solo tipos conocidos con un id de texto. */
+function elegidosDe(config) {
+  const crudo = config?.modelo_por_tipo && typeof config.modelo_por_tipo === "object" ? config.modelo_por_tipo : {};
+  return Object.fromEntries(Object.keys(TIPOS_ETIQUETA).filter((t) => Object.hasOwn(crudo, t) && typeof crudo[t] === "string").map((t) => [t, crudo[t]]));
+}
+
+/** Lo que va en la bitácora: nombre y cuántos elementos (sin los elementos ni imágenes). */
+const resumenModelo = (m) => ({ nombre: m.nombre, elementos: m.elementos.length });
+
+/** `modelo-<n>-<momento>`: no choca con los del otro inventario aunque la secuencia regrese al restaurar. */
+function nuevoIdModelo(estado, usados) {
+  const momento = Date.now().toString(36);
+  let id;
+  do id = `modelo-${siguienteId(estado, "modelo_etiqueta")}-${momento}`;
+  while (usados.has(id));
+  return id;
+}
+
+/** Un nombre libre para la copia de un modelo: «Material (copia)», «Material (copia 2)»… */
+export function nombreParaCopia(estado, nombre) {
+  const base = texto(nombre) || "Diseño";
+  for (let n = 1; ; n++) {
+    const sufijo = n === 1 ? " (copia)" : ` (copia ${n})`;
+    const candidato = `${Array.from(base).slice(0, LARGOS.nombre - sufijo.length).join("").trim()}${sufijo}`;
+    if (!nombreOcupado(estado, candidato)) return candidato;
+  }
+}
+
+/**
+ * Guarda un modelo: lo crea si no trae id (o si el suyo ya no existe: p. ej. se borró en el otro
+ * inventario mientras se editaba) o lo actualiza. Se guarda limpio (normalizarModelo). Los de fábrica no
+ * se cambian; el nombre es obligatorio y único (sin distinguir mayúsculas). Sin cambios no hace nada.
+ * @returns el id del modelo
+ */
+export function guardarModeloEtiqueta(estado, modelo, usuario = null) {
+  const limpio = normalizarModelo(modelo);
+  if (!limpio) throw new ErrorEtiquetas("El diseño no es válido.");
+  if (esModeloDeFabrica(limpio.id) || esModeloDeFabrica(modelo?.id)) throw new ErrorEtiquetas("Los diseños de fábrica no se cambian: duplícalo y edita la copia.");
+  if (!limpio.nombre) throw new ErrorEtiquetas("Ponle un nombre al diseño.");
+  const guardada = estado?.config?.etiquetas ?? {};
+  const crudos = modelosCrudos(guardada);
+  const actual = limpio.id ? modelosGuardados(guardada).find((m) => m.id === limpio.id) : null;
+  if (nombreOcupado(estado, limpio.nombre, actual?.id ?? null)) throw new ErrorEtiquetas(`Ya hay un diseño llamado «${limpio.nombre}»: usa otro nombre.`);
+  if (actual && igual([actual.nombre, actual.elementos], [limpio.nombre, limpio.elementos])) return actual.id;
+  if (!actual && modelosGuardados(guardada).length >= MAXIMO_MODELOS) throw new ErrorEtiquetas(`Ya hay ${MAXIMO_MODELOS} diseños guardados: borra alguno antes de crear otro.`);
+  const ahora = ahoraIso();
+  const id = actual?.id ?? nuevoIdModelo(estado, new Set(crudos.map((m) => m?.id)));
+  const guardado = { id, nombre: limpio.nombre, elementos: limpio.elementos, creado_en: actual?.creado_en ?? ahora, cambiado_en: ahora };
+  guardarConfig(estado, (c) => {
+    // Los demás se quedan como estaban (aunque esta versión no los entienda del todo).
+    const otros = modelosCrudos(c);
+    const i = otros.findIndex((m) => m?.id === id);
+    c.modelos = i < 0 ? [...otros, guardado] : otros.map((m, j) => (j === i ? guardado : m)).filter((m, j) => j === i || m?.id !== id);
+  });
+  auditar(estado, { usuario, entidad: "config", entidadId: `etiquetas.modelo.${id}`, accion: actual ? "EDITAR" : "ALTA", antes: actual ? resumenModelo(actual) : null, despues: resumenModelo(guardado) });
+  return id;
+}
+
+/**
+ * Borra un modelo guardado. Las listas que lo usaban vuelven al de fábrica.
+ * @returns {{ modelo, indice, tipos }} para reponerlo (Deshacer)
+ */
+export function borrarModeloEtiqueta(estado, id, usuario = null) {
+  if (esModeloDeFabrica(id)) throw new ErrorEtiquetas("Los diseños de fábrica no se borran.");
+  const guardada = estado?.config?.etiquetas ?? {};
+  const crudos = modelosCrudos(guardada);
+  const indice = crudos.findIndex((m) => m?.id === id && idValido(m.id));
+  if (indice < 0) throw new ErrorEtiquetas("Ese diseño ya no existe.");
+  const modelo = structuredClone(crudos[indice]);
+  const elegidos = elegidosDe(guardada);
+  const tipos = Object.keys(TIPOS_ETIQUETA).filter((t) => elegidos[t] === id);
+  guardarConfig(estado, (c) => {
+    c.modelos = modelosCrudos(c).filter((m) => m?.id !== id);
+    if (tipos.length) {
+      c.modelo_por_tipo = elegidosDe(c);
+      for (const t of tipos) delete c.modelo_por_tipo[t];
+    }
+  });
+  const limpio = normalizarModelo(modelo);
+  auditar(estado, { usuario, entidad: "config", entidadId: `etiquetas.modelo.${id}`, accion: "BORRAR", antes: { ...resumenModelo(limpio), usado_en: tipos }, despues: null });
+  return { modelo, indice, tipos };
+}
+
+/**
+ * Vuelve a poner un modelo borrado en su lugar (Deshacer) y, en las listas que lo usaban y no se han
+ * cambiado desde entonces, otra vez como el elegido. @returns false si ya estaba
+ */
+export function reponerModeloEtiqueta(estado, { modelo, indice = Infinity, tipos = [] } = {}, usuario = null) {
+  const limpio = normalizarModelo(modelo);
+  if (!limpio?.id || esModeloDeFabrica(limpio.id)) throw new ErrorEtiquetas("No hay diseño que reponer.");
+  const guardada = estado?.config?.etiquetas ?? {};
+  if (modelosCrudos(guardada).some((m) => m?.id === limpio.id)) return false;
+  if (nombreOcupado(estado, limpio.nombre)) throw new ErrorEtiquetas(`Ya hay otro diseño llamado «${limpio.nombre}».`);
+  const elegidos = elegidosDe(guardada);
+  const devolver = (Array.isArray(tipos) ? tipos : []).filter((t) => Object.hasOwn(TIPOS_ETIQUETA, t) && !elegidos[t]);
+  guardarConfig(estado, (c) => {
+    const lista = [...modelosCrudos(c)];
+    lista.splice(Math.min(Math.max(0, Number(indice) || 0), lista.length), 0, structuredClone(modelo));
+    c.modelos = lista;
+    if (devolver.length) c.modelo_por_tipo = { ...elegidosDe(c), ...Object.fromEntries(devolver.map((t) => [t, limpio.id])) };
+  });
+  auditar(estado, { usuario, entidad: "config", entidadId: `etiquetas.modelo.${limpio.id}`, accion: "REPONER", antes: null, despues: { ...resumenModelo(limpio), usado_en: devolver } });
+  return true;
+}
+
+/** La lista `tipo` se imprime con el modelo `id` (de fábrica o guardado). @returns true si cambió */
+export function usarModelo(estado, tipo, id, usuario = null) {
+  if (!Object.hasOwn(TIPOS_ETIQUETA, tipo)) throw new ErrorEtiquetas(`Tipo de etiqueta desconocido: ${tipo}.`);
+  const modelos = modelosEtiqueta(estado);
+  const elegido = modelos.find((m) => m.id === id);
+  if (!elegido) throw new ErrorEtiquetas("Ese diseño ya no existe.");
+  const antes = configEtiquetas(estado).modelo_por_tipo[tipo];
+  if (antes === id) return false;
+  guardarConfig(estado, (c) => {
+    c.modelo_por_tipo = { ...elegidosDe(c), [tipo]: id };
+  });
+  const nombre = (x) => modelos.find((m) => m.id === x)?.nombre ?? x;
+  auditar(estado, { usuario, entidad: "config", entidadId: "etiquetas.modelo_por_tipo", accion: "EDITAR", antes: { tipo, modelo: nombre(antes) }, despues: { tipo, modelo: elegido.nombre } });
   return true;
 }
 

@@ -275,3 +275,50 @@ test("Ronda 21 (revisión): restaurar un respaldo del formato 10 no vuelve a jun
   assert.equal(dlta.estado.etiquetas.juntar, undefined);
   assert.deepEqual((await comun.leerAjuste("compartidos")).etiquetas_por_imprimir.valor.material.map((e) => e.id), compartida);
 });
+
+test("Ronda 22: un diseño de etiqueta guardado en DLTA (y la lista que lo usa) aparece en GSM", async () => {
+  const comun = new BackendMemoria();
+  const dlta = await abrir("DLTA");
+  await cargar(dlta);
+  const c1 = new Compartidos(dlta, comun);
+  await c1.sincronizar();
+  const modelo = {
+    nombre: "Con código QR",
+    elementos: [
+      { tipo: "campo", campo: "codigo", x: 2, y: 5, w: 60, h: 15 },
+      { tipo: "qr", datos: "{codigo} {dimension}", x: 70, y: 5, w: 28, h: 60 },
+    ],
+  };
+  const id = await dlta.modificar((e) => {
+    const nuevo = et.guardarModeloEtiqueta(e, modelo, USUARIO);
+    et.usarModelo(e, "ax", nuevo, USUARIO);
+    return nuevo;
+  });
+  await c1.terminar();
+  c1.cerrar();
+  const publicado = (await comun.leerAjuste("compartidos")).etiquetas;
+  assert.equal(publicado.desde, "DLTA");
+  assert.deepEqual(publicado.valor.modelos.map((m) => m.id), [id]);
+
+  // GSM: su primera carga toma el diseño y la elección de la lista de código AX, tal cual.
+  const gsm = await abrir("GSM");
+  const c2 = new Compartidos(gsm, comun);
+  await cargar(gsm);
+  await c2.terminar();
+  assert.deepEqual(gsm.estado.config.etiquetas.modelos, dlta.estado.config.etiquetas.modelos);
+  assert.deepEqual(et.modelosEtiqueta(gsm.estado).map((m) => m.nombre), ["Material (de fábrica)", "Código AX (de fábrica)", "Con código QR"]);
+  assert.equal(et.modeloDe(gsm.estado, "ax").id, id);
+  assert.equal(et.modeloDe(gsm.estado, "material").id, "fabrica-material");
+  // En la bitácora de GSM el diseño va por su nombre y cuántos elementos tiene (no completo).
+  const sincronizado = gsm.estado.auditoria.findLast((a) => a.accion === "SINCRONIZAR" && a.entidad_id === "etiquetas");
+  assert.deepEqual(sincronizado.despues.valor.modelos, [{ id, nombre: "Con código QR", elementos: 2 }]);
+  assert.deepEqual(sincronizado.despues.valor.modelo_por_tipo, { ax: id });
+
+  // En GSM se borra: DLTA, al abrirse, tampoco lo tiene y su lista vuelve al de fábrica.
+  await gsm.modificar((e) => et.borrarModeloEtiqueta(e, id, USUARIO));
+  await c2.terminar();
+  c2.cerrar();
+  await new Compartidos(dlta, comun).sincronizar();
+  assert.deepEqual(et.configEtiquetas(dlta.estado).modelos, []);
+  assert.equal(et.modeloDe(dlta.estado, "ax").id, "fabrica-ax");
+});

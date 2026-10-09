@@ -326,12 +326,13 @@ test("documento impreso: se repite por cantidad, cada una con la identidad de su
   assert.doesNotMatch(doc.html, /fuera\.com/);
   assert.match(doc.html, /<b>INVENTARIO:<\/b><span>GSM<\/span>/);
   assert.match(doc.html, /<b>ÁREA:<\/b><span>N\/A<\/span>/);
-  // GSM sin texto de almacén: el título va solo.
-  assert.match(doc.html, /<b>ETIQUETADO ALMACEN<\/b><\/div>/);
+  // GSM sin texto de almacén: esa línea no se dibuja (las 13 de DLTA sí la llevan).
+  assert.equal((doc.html.match(/<span>BRONCO RIG-91<\/span>/g) ?? []).length, 13);
+  assert.equal((doc.html.match(/<span>ETIQUETADO ALMACEN<\/span>/g) ?? []).length, 14);
   const vista = documentoEtiquetas(etiquetas, { tipo: "ax", diseno: DISENO_DEFECTO, identidad, vista: true });
   assert.doesNotMatch(vista.css, /@page/);
   assert.match(vista.html, /^<div class="etq-pantalla"><div class="etq-hojas">/);
-  assert.match(vista.html, /class="etq-codigo">701</);
+  assert.match(vista.html, /<div class="etq-t"><span class="etq-b">701<\/span><\/div>/);
   // En pantalla cada regla va dentro de su ámbito: no toca el documento que se imprime.
   assert.ok(vista.css.split("}").filter(Boolean).every((regla) => regla.startsWith(".etq-pantalla ")));
   assert.match(documentoEtiquetas(etiquetas, { vista: true, ambito: "etq-sola" }).css, /^\.etq-sola \.etq-hojas\{/);
