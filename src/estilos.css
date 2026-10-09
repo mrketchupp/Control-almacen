@@ -1371,6 +1371,44 @@ select.con-error {
   overflow-wrap: anywhere;
 }
 
+.ventana.ventana-correccion-lote {
+  width: min(900px, 100%);
+}
+
+.correccion-lote-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px 18px;
+}
+
+.correccion-lote-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.correccion-lote-seleccion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.correccion-lote-campo textarea {
+  font: inherit;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--texto);
+  background: var(--superficie);
+  resize: vertical;
+}
+
+.ventana-correccion-lote .tabla td {
+  overflow-wrap: anywhere;
+}
+
 .vista-previa {
   position: fixed;
   inset: 0;

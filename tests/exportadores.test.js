@@ -11,6 +11,7 @@ import { exportarInventario, fechaEnTexto } from "../src/exportadores/inventario
 import { exportarVales } from "../src/exportadores/vales.js";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
 import { Indices } from "../src/nucleo/estado.js";
+import { corregirDatosGeneralesLote } from "../src/servicios/correccionLotes.js";
 import { desplazarFormula } from "../src/xlsx/celdas.js";
 import { letraColumna } from "../src/xlsx/celdas.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
@@ -100,6 +101,59 @@ test("vales: un vale cancelado aparece con su folio", () => {
   const filas = filasDiario(exportarVales(estado, bytesVales()).datos);
   const ultimo = filas[filas.length - 1];
   assert.deepEqual([ultimo[1], ultimo[9], ultimo[11]], [9, 0, "CANCELADO – Captura duplicada"]);
+});
+
+test("la corrección general se exporta sin alterar partidas ni encabezados que no se eligieron", () => {
+  const { estado } = cargaSintetica();
+  const vale = estado.vales.find((v) => v.folio === 1 && v.tipo === "SALIDA");
+  vale.lineas.forEach((linea, i) => {
+    linea.encabezado_original = {
+      ...linea.encabezado_original,
+      fecha: "2026-09-01", entrego: "PERSONA ORIGINAL",
+      origen: `ORIGEN ORIGINAL ${i + 1}`,
+    };
+  });
+  const partidas = JSON.stringify(vale.lineas);
+  const anteriores = filasDiario(exportarVales(estado, bytesVales()).datos).filter((fila) => fila[1] === vale.folio);
+  corregirDatosGeneralesLote(estado, [vale.id], { fecha: "2026-10-09", entrego_nombre: "PERSONA CORREGIDA" }, "Corregir datos generales");
+  assert.equal(JSON.stringify(vale.lineas), partidas);
+  const resultado = exportarVales(estado, bytesVales());
+  const nuevas = filasDiario(resultado.datos).filter((fila) => fila[1] === vale.folio);
+  nuevas.forEach((fila, i) => {
+    assert.equal(isoDesdeSerial(fila[0].serial), "2026-10-09");
+    assert.equal(fila[15], "PERSONA CORREGIDA");
+    assert.equal(fila[4], anteriores[i][4], "El origen propio de la partida se conserva");
+    assert.deepEqual(fila.slice(8, 15), anteriores[i].slice(8, 15), "O.C., cantidad, material, clave, UM y lote se conservan");
+    assert.deepEqual(fila.slice(16), anteriores[i].slice(16));
+  });
+  assert.ok([...partesDistintas(bytesVales(), resultado.datos)].every((parte) =>
+    ["xl/worksheets/sheet1.xml", "xl/workbook.xml"].includes(parte),
+  ));
+});
+
+test("las entradas exportan el encabezado corregido y conservan sus folios y material", () => {
+  const { estado } = cargaSintetica();
+  const vale = {
+    ...structuredClone(estado.vales[0]), tipo: "ENTRADA", folio: 1,
+    folio_externo: "BASE-PRUEBA", motivo: "BASE",
+  };
+  estado.vales = [vale];
+  vale.lineas.forEach((linea) => {
+    linea.encabezado_original = { ...linea.encabezado_original, fecha: "2026-09-01", recibio: "PERSONA ORIGINAL" };
+  });
+  const anteriores = new LibroLeido(exportarEntradas(estado).datos).hoja("DIARIO");
+  const partidas = JSON.stringify(vale.lineas);
+  corregirDatosGeneralesLote(estado, [vale.id], { fecha: "2026-10-09", recibio_nombre: "PERSONA CORREGIDA" }, "Corregir datos generales");
+  assert.equal(JSON.stringify(vale.lineas), partidas);
+  const nuevas = new LibroLeido(exportarEntradas(estado).datos).hoja("DIARIO");
+  for (let r = 2; r <= nuevas.maxFila; r++) {
+    const antes = anteriores.fila(r, 1, 21), despues = nuevas.fila(r, 1, 21);
+    assert.equal(isoDesdeSerial(despues[0].serial), "2026-10-09");
+    assert.equal(despues[16], "PERSONA CORREGIDA");
+    assert.deepEqual(despues.slice(1, 16), antes.slice(1, 16));
+    assert.deepEqual(despues.slice(17), antes.slice(17));
+    assert.deepEqual([despues[1], despues[20]], ["BASE-PRUEBA", "E-0001"]);
+  }
 });
 
 // ---------------------------------------------------------------- inventario

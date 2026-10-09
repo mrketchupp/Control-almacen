@@ -4,13 +4,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
 import { analizarFormulario, hojasFormulario, seccionesPie } from "../src/impresion/formulario.js";
-import { capaFondos, documentoImpresion, enRejilla, grosorEscalado, observacionesDeHoja, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
+import { ajustarAlturasClaves, capaFondos, documentoImpresion, enRejilla, grosorEscalado, observacionesDeHoja, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
 import * as v from "../src/servicios/vales.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
+import { Sesion } from "../src/ui/sesion.js";
 import { bytesVales, cargaSintetica } from "./ayuda.js";
 
 const libro = new LibroLeido(bytesVales());
 const ref = (celda) => `${String.fromCharCode(64 + celda.c)}${celda.r}`;
+const refClave = ({ r, c }) => `${r},${c}`;
 
 function valeDePrueba(estado, hoja = "MECANICO", renglones = 2) {
   const area = estado.plantillas_area.find((p) => p.nombre === hoja);
@@ -181,6 +183,91 @@ test("NOV migrado del DIARIO: al reimprimir, las firmas respetan su posición", 
   assert.deepEqual([valores.get("52,4"), valores.get("52,9")], ["QUIMICO DOS", "ALMACENISTA UNO"]);
   const nuevo = valoresDeVale(m, { ...migrado, migrado: false, entrego_nombre: "ALMACENISTA UNO", recibio_nombre: "QUIMICO DOS" });
   assert.deepEqual([nuevo.get("52,4"), nuevo.get("52,9")], ["QUIMICO DOS", "ALMACENISTA UNO"]);
+});
+
+test("el marcador de firmas conserva su significado al imprimir en otro departamento", () => {
+  const nov = analizarFormulario(libro, "NOV");
+  const soldador = analizarFormulario(libro, "SOLDADOR");
+  const vale = { migrado: true, firmas_por_posicion: true, lineas: [], entrego_nombre: "QUIMICO DOS", recibio_nombre: "ALMACENISTA UNO" };
+  const posiciones = valoresDeVale(soldador, vale);
+  assert.deepEqual([posiciones.get(refClave(soldador.campos.entrega_nombre)), posiciones.get(refClave(soldador.campos.recibe_nombre))], ["ALMACENISTA UNO", "QUIMICO DOS"]);
+  const porPapel = valoresDeVale(nov, { ...vale, firmas_por_posicion: false });
+  assert.deepEqual([porPapel.get(refClave(nov.campos.entrega_nombre)), porPapel.get(refClave(nov.campos.recibe_nombre))], ["QUIMICO DOS", "ALMACENISTA UNO"]);
+});
+
+test("puestos y observaciones borrados expresamente no reaparecen desde la hoja ni el catálogo", () => {
+  const modelo = analizarFormulario(libro, "NOV");
+  const vale = {
+    migrado: true, firmas_por_posicion: true, lineas: [], observaciones: null,
+    entrego_nombre: modelo.valor(modelo.campos.recibe_nombre.r, modelo.campos.recibe_nombre.c),
+    recibio_nombre: modelo.valor(modelo.campos.entrega_nombre.r, modelo.campos.entrega_nombre.c),
+    entrego_puesto: null, recibio_puesto: null,
+  };
+  const heredado = valoresDeVale(modelo, vale);
+  assert.ok(!heredado.has(refClave(modelo.campos.entrega_puesto)), "Un vale antiguo conserva el puesto de la plantilla");
+  assert.ok(!heredado.has(refClave(modelo.campos.recibe_puesto)));
+  const corregido = { ...vale, campos_encabezado_corregidos: ["entrego_puesto", "recibio_puesto", "observaciones"] };
+  const valores = valoresDeVale(modelo, corregido);
+  assert.equal(valores.get(refClave(modelo.campos.entrega_puesto)), null);
+  assert.equal(valores.get(refClave(modelo.campos.recibe_puesto)), null);
+  for (const r of modelo.campos.observaciones.filas) assert.equal(valores.get(`${r},${modelo.campos.observaciones.columna}`), null);
+  const sesion = { estado: { personas: [{ nombre: vale.entrego_nombre, puesto: "PUESTO DEL CATÁLOGO" }] } };
+  assert.equal(Sesion.prototype._paraImprimir.call(sesion, corregido).entrego_puesto, null);
+  const sinPuestoGuardado = { ...vale };
+  delete sinPuestoGuardado.entrego_puesto;
+  assert.equal(Sesion.prototype._paraImprimir.call(sesion, sinPuestoGuardado).entrego_puesto, "PUESTO DEL CATÁLOGO");
+});
+
+const clavesLargas = [
+  "Manija Sintetica Centro DP Slip ZZ 12345",
+  'Valvula de Prueba 5 1/4 10K Ajuste Estandar 6 5/8 FH Conexiones 8" OD X 3 1/16 ID 19.56" Longitud',
+];
+
+test("las claves completas ganan altura usando filas vacías sin cambiar el modelo ni las partidas", () => {
+  const modelo = analizarFormulario(libro, "SOLDADOR");
+  const filasAntes = modelo.filas.map((fila) => ({ ...fila }));
+  const lineas = clavesLargas.map((clave) => ({ cantidad: "1", codigo: 701, descripcion: "REPUESTO SINTÉTICO", clave, um: "PZA" }));
+  const vale = { lineas, observaciones: null };
+  const valores = valoresDeVale(modelo, vale);
+  const ajustado = ajustarAlturasClaves(modelo, valores);
+  for (const r of modelo.campos.lineas.filas.slice(0, 2)) {
+    assert.ok(ajustado.filas.find((fila) => fila.r === r).px > modelo.filas.find((fila) => fila.r === r).px);
+  }
+  const total = (filas) => filas.reduce((s, fila) => s + fila.px, 0);
+  assert.ok(Math.abs(total(ajustado.filas) - total(modelo.filas)) < 1e-6, "El espacio de las filas vacías mantiene la altura de la hoja");
+  assert.deepEqual(modelo.filas, filasAntes);
+  assert.deepEqual(vale.lineas.map((linea) => linea.clave), clavesLargas);
+  const html = paginaHtml(modelo, valores);
+  for (const clave of clavesLargas) {
+    const celda = [...html.matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)].find(([, , contenido]) => contenido.includes(clave.replaceAll('"', "&quot;")));
+    assert.match(celda[1], /text-align:center/);
+    assert.match(celda[1], /vertical-align:middle/);
+    assert.match(celda[1], /white-space:pre-wrap/);
+  }
+});
+
+test("sin filas vacías se ajusta la hoja completa y las fotos conservan sus anclas", () => {
+  const modelo = analizarFormulario(libro, "NOV");
+  const fotosAntes = modelo.fotos.map((foto) => ({ ...foto }));
+  const lineas = modelo.campos.lineas.filas.slice(0, modelo.capacidad).map(() => ({ cantidad: "1", codigo: 701, descripcion: "REPUESTO", clave: clavesLargas[1], um: "PZA" }));
+  const valores = valoresDeVale(modelo, { lineas, observaciones: null });
+  const ajustado = ajustarAlturasClaves(modelo, valores);
+  const desplazamiento = ajustado.filas.reduce((s, fila, i) => s + fila.px - modelo.filas[i].px, 0);
+  assert.ok(desplazamiento > 0);
+  assert.deepEqual(modelo.fotos, fotosAntes);
+  ajustado.fotos.forEach((foto, i) => {
+    assert.ok(Math.abs(foto.y - fotosAntes[i].y - desplazamiento) < 0.001);
+    assert.ok(Math.abs(foto.alto - fotosAntes[i].alto) < 0.001);
+  });
+  const html = paginaHtml(modelo, valores, ["data:image/png;base64,AAAA"]);
+  const original = Number(paginaHtml(modelo, valoresDeVale(modelo, { lineas: [] })).match(/zoom:([\d.]+)/)[1]);
+  const escala = Number(html.match(/zoom:([\d.]+)/)[1]);
+  assert.ok(escala <= original, "La escala conserva todo el formato en una hoja");
+  assert.equal((html.match(/class="vale-pagina"/g) ?? []).length, 1);
+  const lleno = analizarFormulario(libro, "SOLDADOR");
+  const valoresLlenos = valoresDeVale(lleno, { lineas: Array.from({ length: lleno.capacidad }, () => lineas[0]) });
+  const escalaLlena = Number(paginaHtml(lleno, valoresLlenos).match(/zoom:([\d.]+)/)[1]);
+  assert.ok(escalaLlena < lleno.pagina.escala, "Al ocupar todas las partidas, la escala disminuye para que ninguna salga de la hoja");
 });
 
 test("los títulos de firma se centran sobre las columnas de su nombre y puesto", () => {

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { exportarVales } from "../src/exportadores/vales.js";
-import { Indices, migrarEstado } from "../src/nucleo/estado.js";
+import { FORMATO_ESTADO, Indices, migrarEstado } from "../src/nucleo/estado.js";
 import { calcularSaldos } from "../src/nucleo/existencias.js";
 import { lineasPorUbicar } from "../src/servicios/consultas.js";
 import { importarValesNuevos, revisarValesNuevos } from "../src/servicios/sincronizar.js";
@@ -37,7 +37,7 @@ test("el estado de la versión anterior se migra", () => {
   estado.plantillas_area.find((a) => a.nombre === "MECANICO").depto_origen = "MANTENIMIENTO";
   delete estado.config.etapa_perforacion;
   migrarEstado(estado);
-  assert.equal(estado.formato, 9);
+  assert.equal(estado.formato, FORMATO_ESTADO);
   assert.deepEqual([estado.borradores, estado.envios], [[], []]);
   assert.deepEqual([estado.borradores_entrada, estado.conteo_en_curso, estado.reacomodos], [[], null, []]);
   assert.ok(estado.conteos.every((c) => c.alcance === "TOTAL"));

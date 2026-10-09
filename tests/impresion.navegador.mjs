@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { analizarFormulario } from "../src/impresion/formulario.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
@@ -102,8 +103,9 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
 
   await t.test("texto ajustado, rowspan y filas cortas conservan la rejilla completa", async () => {
     await cargar();
+    const modeloAjustado = impresion.ajustarAlturasClaves(caso.modelo, caso.valores);
     const escala = await page.locator(".vale-lienzo").evaluate((el) => Number(el.style.zoom));
-    const altos = impresion.enRejilla(caso.modelo.filas.map((fila) => fila.px), escala).map((alto) => alto * escala);
+    const altos = impresion.enRejilla(modeloAjustado.filas.map((fila) => fila.px), escala).map((alto) => alto * escala);
     const anchos = impresion.enRejilla(caso.modelo.columnas.map((col) => col.px), escala).map((ancho) => ancho * escala);
     const medidas = await page.evaluate(() => {
       const tabla = document.querySelector(".vale-tabla");
@@ -260,5 +262,91 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     }, titulo);
     const sinTitulo = await page.screenshot({ clip, animations: "disabled" });
     assert.deepEqual(conTitulo, sinTitulo, "El título no invade la celda vecina que tiene texto en la fila visible");
+  });
+
+  await t.test("claves largas completas y centradas, con partidas llenas y fotos, mantienen una hoja por vale", async () => {
+    const { build } = await import("esbuild");
+    const compilado = await build({
+      stdin: {
+        resolveDir: fileURLToPath(new URL("..", import.meta.url)),
+        contents: `import { Sesion } from "./src/ui/sesion.js";
+          import { LibroLeido } from "./src/xlsx/leer.js";
+          import { analizarFormulario } from "./src/impresion/formulario.js";
+          globalThis.documentoClaves = async (bytes, claves) => {
+            const libro = new LibroLeido(new Uint8Array(bytes));
+            const paginas = ["SOLDADOR", "MECANICO ", "TRANSFERENCIAS", "NOV"].map((hoja, i) => {
+              const modelo = analizarFormulario(libro, hoja);
+              const cantidad = i ? modelo.capacidad : 2;
+              const vale = { folio: 1200 + i, tipo: "SALIDA", fecha: "2026-10-09", observaciones: null,
+                entrego_nombre: "ALMACENISTA DE PRUEBA", recibio_nombre: "USUARIO DE PRUEBA",
+                lineas: Array.from({ length: cantidad }, (_, n) => ({ cantidad: "1", codigo: 701, oc: "S/OC",
+                  descripcion: "REPUESTO SINTÉTICO", clave: claves[n % claves.length], um: "PZA" })) };
+              const fotos = hoja === "NOV" ? modelo.fotos.map(() => "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="lightblue"/></svg>')) : [];
+              return { modelo, vale, fotos };
+            });
+            const antes = paginas.map(({ modelo }) => JSON.stringify({ filas: modelo.filas, fotos: modelo.fotos }));
+            const documento = await Sesion.prototype._documentoImpresion.call({}, paginas, null);
+            const sinCambios = paginas.every(({ modelo }, i) => JSON.stringify({ filas: modelo.filas, fotos: modelo.fotos }) === antes[i]);
+            const medidorEliminado = ![...document.querySelectorAll("div")].some(el => el.style.left === "-10000px");
+            return { documento, sinCambios, medidorEliminado, clavesPorPagina: paginas.map(p => p.vale.lineas.map(l => l.clave)) };
+          };`,
+      },
+      bundle: true, write: false, format: "iife", platform: "browser", logLevel: "silent",
+    });
+    await page.setContent("<!doctype html><meta charset='utf-8'>");
+    await page.addScriptTag({ content: compilado.outputFiles[0].text });
+    const claves = ["Manija Sintetica Centro DP Slip ZZ 12345", 'Valvula de Prueba 5 1/4 10K Ajuste Estandar 6 5/8 FH Conexiones 8" OD X 3 1/16 ID 19.56" Longitud'];
+    const resultado = await page.evaluate(([bytes, claves]) => globalThis.documentoClaves(bytes, claves), [Array.from(bytesVales()), claves]);
+    assert.ok(resultado.sinCambios, "El Excel y sus anclas conservan el modelo original");
+    assert.ok(resultado.medidorEliminado, "El medidor temporal se elimina después de generar el documento");
+    await page.setViewportSize({ width: 1100, height: 5000 });
+    await page.setContent(`<!doctype html><meta charset="utf-8"><style>body{margin:0}${resultado.documento.css}</style>${resultado.documento.html}`);
+    await page.evaluate(() => document.fonts.ready);
+    const paginas = await page.evaluate((claves) => [...document.querySelectorAll(".vale-pagina")].map((pagina) => {
+      const lienzo = pagina.querySelector(".vale-lienzo");
+      const tabla = pagina.querySelector(".vale-tabla");
+      const marco = lienzo.getBoundingClientRect();
+      const hoja = pagina.getBoundingClientRect();
+      const rectTabla = tabla.getBoundingClientRect();
+      const escala = Number(lienzo.style.zoom);
+      return {
+        escala, dentro: marco.bottom <= hoja.bottom + 1 && rectTabla.bottom <= marco.bottom + 1,
+        filasAlineadas: [...tabla.rows].every(tr => Math.abs(tr.getBoundingClientRect().height - Number.parseFloat(tr.style.height) * escala) < 1),
+        observaciones: [...tabla.querySelectorAll("td")].filter(td => td.textContent === "OBSERVACION").length,
+        firmas: [...tabla.querySelectorAll("td")].filter(td => ["ALMACENISTA DE PRUEBA", "USUARIO DE PRUEBA"].includes(td.textContent)).length,
+        fotos: [...lienzo.querySelectorAll(".vale-foto")].map(foto => {
+          const rect = foto.getBoundingClientRect();
+          const finPartidas = Math.max(...[...tabla.querySelectorAll("td")].filter(td => claves.includes(td.textContent)).map(td => td.getBoundingClientRect().bottom));
+          return rect.top >= finPartidas - 1 && rect.bottom <= marco.bottom + 1;
+        }),
+        claves: [...tabla.querySelectorAll("td")].filter(td => claves.includes(td.textContent)).map(td => {
+          const celda = td.getBoundingClientRect();
+          const texto = td.querySelector(".vale-texto>div").getBoundingClientRect();
+          const rango = document.createRange();
+          rango.selectNodeContents(td.querySelector(".vale-texto>div"));
+          return { texto: td.textContent, alto: celda.height, ajuste: getComputedStyle(td).textAlign,
+            centrado: Math.abs((texto.top + texto.bottom) / 2 - (celda.top + celda.bottom) / 2) < 1,
+            completo: [...rango.getClientRects()].every(rect => rect.top >= celda.top - 0.5 && rect.bottom <= celda.bottom + 0.5 && rect.left >= celda.left - 0.5 && rect.right <= celda.right + 0.5) };
+        }),
+      };
+    }), claves);
+    assert.equal(paginas.length, 4);
+    for (const [i, pagina] of paginas.entries()) {
+      assert.deepEqual(pagina.claves.map(celda => celda.texto), resultado.clavesPorPagina[i], `Página ${i + 1}: todas las claves conservan su texto y orden`);
+      assert.ok(pagina.dentro && pagina.filasAlineadas, `Página ${i + 1}: tabla y capas conservan la geometría dentro de la hoja`);
+      assert.equal(pagina.observaciones, 1);
+      assert.equal(pagina.firmas, 2);
+      for (const celda of pagina.claves) {
+        assert.ok(celda.completo, `Página ${i + 1}: clave sin recorte ${celda.texto}`);
+        assert.ok(celda.centrado && celda.ajuste === "center", `Página ${i + 1}: clave centrada en ambos ejes`);
+        assert.ok(celda.alto > 20 * pagina.escala, "La fila es más alta que la original");
+      }
+      assert.ok(pagina.fotos.every(Boolean), "Las fotos siguen dentro de la hoja y debajo de las partidas");
+    }
+    assert.equal(paginas[3].fotos.length, 3);
+    assert.ok(paginas[1].escala < paginas[0].escala, "La hoja llena reduce su escala para conservar todas las partidas");
+    const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    assert.equal((pdf.toString("latin1").match(/\/Type\s*\/Page\b/g) ?? []).length, 4, "El PDF contiene exactamente una página por vale");
+    await page.setViewportSize({ width: 1100, height: 1200 });
   });
 });

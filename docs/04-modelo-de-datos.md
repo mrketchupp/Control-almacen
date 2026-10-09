@@ -118,7 +118,7 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 | estado | `EMITIDO` (o `CANCELADO` en vales de versiones anteriores: ya no se cancela) | |
 | fecha | fecha | |
 | origen, depto_origen, destino, depto_destino | texto | Copia al momento de emitir |
-| entrego_nombre, entrego_puesto, recibio_nombre, recibio_puesto, autorizo_nombre, autorizo_puesto | texto | Copia (el historial no cambia si luego se edita la persona). En los **migrados** de áreas con el almacenista a la derecha (NOV) vienen **por posición**, como los guardaba la macro: entregó = quien firma a la izquierda |
+| entrego_nombre, entrego_puesto, recibio_nombre, recibio_puesto, autorizo_nombre, autorizo_puesto | texto | Copia al emitir. Desde Personas se puede confirmar la actualización del puesto en los vales existentes, con bitácora. En los **migrados** de áreas con el almacenista a la derecha (NOV) vienen **por posición**, como los guardaba la macro: entregó = quien firma a la izquierda |
 | firma_extra_izq_nombre/puesto, firma_extra_der_nombre/puesto | texto | Segunda fila de firmas del formato (NOV: personal de la compañía a la izquierda, patrimonial a la derecha) |
 | fotos | lista de claves | Una por espacio de foto del formato (`null` = vacío); el archivo está en IndexedDB y en los respaldos |
 | almacenista_derecha | bool | El área firma con el almacenista a la derecha: al exportar, P = izquierda y Q = derecha, como la macro |
@@ -132,6 +132,8 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 | enviado_en | fecha-hora nula | Primera vez que se marcó como enviado a la base |
 | ruta_escaneo | texto | Enlace o ruta del PDF escaneado (opcional) |
 | migrado, fila_diario_origen | | Trazabilidad de la migración |
+| campos_encabezado_corregidos | lista de texto opcional | Formato 10: campos generales corregidos. Las claves del DIARIO (`fecha`, `entrego`, `recibio`…) prevalecen sobre `encabezado_original`; los puestos y observaciones marcados respetan también un vacío explícito al imprimir |
+| firmas_por_posicion | bool opcional | Conserva la interpretación de las firmas de un vale migrado aunque se corrija su departamento; `false` también es un valor válido |
 
 **`vale_linea`**
 | Campo | Tipo | Notas |
@@ -151,7 +153,7 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 | no_inventariado | bool | Diésel, gases, servicios o artículos sin existencia: no descuentan |
 | familia, transferencia_consumo | texto | Columnas S y T del DIARIO (vacías en vales nuevos, como en los recientes del Excel, P-13) |
 | justificacion | texto | Obligatoria si la cantidad supera la existencia del renglón elegido |
-| encabezado_original | JSON | Migración: encabezado del renglón cuando difería del del vale (se exporta tal cual) |
+| encabezado_original | JSON | Migración: encabezado del renglón cuando difería del del vale. Se conserva intacto; al exportar sólo se reemplazan los campos incluidos en `vale.campos_encabezado_corregidos` |
 
 **`conteo`**: id, fecha, `alcance` (`TOTAL` / `PARCIAL`), `ubicaciones` (ids contados), usuario, observaciones,
 `ultimo_folio_salida` y `ultimo_folio_entrada` (corte: vales ya reflejados en lo contado), `lineas` y `nuevos`.
@@ -242,7 +244,7 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **9**; del 6 al 9 se describen arriba en *Conciliación* y *Dos inventarios*). Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **10**; del 6 al 9 se describen arriba en *Conciliación* y *Dos inventarios*). El 10 agrega los marcadores de correcciones generales sin modificar las partidas ni reinterpretar firmas antiguas. Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario

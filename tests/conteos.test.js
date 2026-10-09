@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { exportarInventario } from "../src/exportadores/inventario.js";
-import { migrarEstado } from "../src/nucleo/estado.js";
+import { FORMATO_ESTADO, migrarEstado } from "../src/nucleo/estado.js";
 import { calcularSaldos, cortesVigentes } from "../src/nucleo/existencias.js";
 import { lineasPorUbicar, resumen } from "../src/servicios/consultas.js";
 import * as co from "../src/servicios/conteos.js";
@@ -167,7 +167,7 @@ test("renglones por ubicar respetan el corte de cada renglón; un respaldo del f
   delete viejo.reacomodos;
   delete viejo.conteos[0].alcance;
   migrarEstado(viejo);
-  assert.equal(viejo.formato, 9);
+  assert.equal(viejo.formato, FORMATO_ESTADO);
   assert.deepEqual(viejo.seguimientos_base, []);
   assert.equal(viejo.conteos[0].alcance, "TOTAL");
   // Entradas y conteos funcionan sobre un estado migrado.

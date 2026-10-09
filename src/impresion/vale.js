@@ -30,6 +30,7 @@ export function observacionesDeHoja(modelo) {
  */
 export function valoresDeVale(modelo, vale) {
   const { campos } = modelo;
+  const corregidos = new Set(vale.campos_encabezado_corregidos ?? []);
   const valores = new Map();
   const poner = (celda, valor) => {
     if (celda) valores.set(clave(celda), valor === "" || valor === undefined ? null : valor);
@@ -65,8 +66,8 @@ export function valoresDeVale(modelo, vale) {
   const obs = campos.observaciones;
   const propias = (vale.observaciones ?? "").trim();
   // Sin observaciones propias (vales migrados) se imprimen las de la hoja.
-  if (vale.observaciones !== null && vale.observaciones !== undefined && propias !== observacionesDeHoja(modelo).trim()) {
-    for (const t of obs.textos) valores.set(`${t.r},${obs.columna}`, null);
+  if (corregidos.has("observaciones") || vale.observaciones !== null && vale.observaciones !== undefined && propias !== observacionesDeHoja(modelo).trim()) {
+    for (const r of obs.filas) valores.set(`${r},${obs.columna}`, null);
     const inicio = obs.textos.length ? obs.filas.indexOf(obs.textos[0].r) : 0;
     const renglones = propias ? propias.split("\n") : [];
     renglones.forEach((texto, i) => {
@@ -76,18 +77,20 @@ export function valoresDeVale(modelo, vale) {
   }
 
   // El puesto: el del vale; si no trae y es la misma persona que la hoja, el de la hoja.
-  const firma = (celdaNombre, celdaPuesto, nombre, puesto) => {
+  const firma = (celdaNombre, celdaPuesto, nombre, puesto, campoPuesto) => {
     const nombreHoja = celdaNombre ? String(modelo.valor(celdaNombre.r, celdaNombre.c) ?? "").trim().toUpperCase() : "";
     poner(celdaNombre, nombre);
-    if (puesto || !nombre || nombreHoja !== String(nombre).trim().toUpperCase()) poner(celdaPuesto, puesto);
+    if (corregidos.has(campoPuesto) || puesto || !nombre || nombreHoja !== String(nombre).trim().toUpperCase()) poner(celdaPuesto, puesto);
   };
   // Los vales migrados del DIARIO traen las firmas por posición (así las guardaba la macro).
-  const porPosicion = vale.migrado && campos.almacenistaALaDerecha;
+  const porPosicion = typeof vale.firmas_por_posicion === "boolean"
+    ? vale.firmas_por_posicion
+    : Boolean(vale.migrado && campos.almacenistaALaDerecha);
   const entrega = porPosicion ? [vale.recibio_nombre, vale.recibio_puesto] : [vale.entrego_nombre, vale.entrego_puesto];
   const recibe = porPosicion ? [vale.entrego_nombre, vale.entrego_puesto] : [vale.recibio_nombre, vale.recibio_puesto];
-  firma(campos.entrega_nombre, campos.entrega_puesto, ...entrega);
-  firma(campos.recibe_nombre, campos.recibe_puesto, ...recibe);
-  if (campos.autoriza) firma(campos.autoriza, campos.autoriza_puesto, vale.autorizo_nombre, vale.autorizo_puesto);
+  firma(campos.entrega_nombre, campos.entrega_puesto, ...entrega, porPosicion ? "recibio_puesto" : "entrego_puesto");
+  firma(campos.recibe_nombre, campos.recibe_puesto, ...recibe, porPosicion ? "entrego_puesto" : "recibio_puesto");
+  if (campos.autoriza) firma(campos.autoriza, campos.autoriza_puesto, vale.autorizo_nombre, vale.autorizo_puesto, "autorizo_puesto");
   // Segunda fila de firmas (NOV): lo que trae el vale; en blanco si no trae (no los nombres del ejemplo).
   const extra = campos.firmas_extra;
   if (extra) {
@@ -145,12 +148,99 @@ function cssEnLinea(objeto) {
     .join(";");
 }
 
+// Respaldo para Node: el navegador entrega la altura medida con su fuente real.
+function alturaEstimada(texto, css, ancho) {
+  const fuente = (Number.parseFloat(css["font-size"]) || 11) * (96 / 72);
+  const anchoLetra = (letra) => fuente * (letra.codePointAt(0) > 255 ? 1.2 : /[ilI.,' ]/.test(letra) ? 0.4 : /[MW@]/.test(letra) ? 1 : 0.75);
+  let lineas = 0;
+  for (const parrafo of texto.split("\n")) {
+    let ocupado = 0;
+    lineas++;
+    for (const palabra of parrafo.match(/\S+|[ \t]+/g) ?? []) {
+      const largo = [...palabra].reduce((s, letra) => s + anchoLetra(letra), 0);
+      if (ocupado && ocupado + largo > ancho && palabra.trim()) { lineas++; ocupado = 0; }
+      for (const letra of palabra) {
+        const largoLetra = anchoLetra(letra);
+        if (ocupado && ocupado + largoLetra > ancho) { lineas++; ocupado = 0; }
+        ocupado += largoLetra;
+      }
+    }
+  }
+  return lineas * fuente * 1.1;
+}
+
+/** Geometría derivada para mostrar completas las claves; no cambia el Excel ni las partidas. */
+export function ajustarAlturasClaves(modelo, valores, medirTexto = alturaEstimada) {
+  const { columnas } = modelo.campos.lineas;
+  // NOV conserva filas de la rejilla debajo de las partidas para sus fotos.
+  const partidas = modelo.campos.lineas.filas.slice(0, modelo.capacidad);
+  if (columnas.clave === undefined) return modelo;
+  const valorEn = (r, c) => valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : modelo.valor(r, c);
+  const claves = new Map();
+  for (const r of partidas) {
+    const rango = modelo.combinadaEn.get(`${r},${columnas.clave}`) ?? { r1: r, r2: r, c1: columnas.clave, c2: columnas.clave };
+    const texto = formatearValor(valorEn(rango.r1, rango.c1), modelo.estilos.codigoFormato(modelo.estiloDe(rango.r1, rango.c1)));
+    if (texto.trim()) claves.set(`${rango.r1},${rango.c1}`, { rango, texto });
+  }
+  if (!claves.size) return modelo;
+  const vacias = modelo.filas.filter(({ r }) => partidas.includes(r) && modelo.columnas.every(({ c }) => {
+    const rango = modelo.combinadaEn.get(`${r},${c}`);
+    return !String(valorEn(rango?.r1 ?? r, rango?.c1 ?? c) ?? "").trim();
+  }));
+  let filas = modelo.filas;
+  let escala = medidas(modelo).escala;
+  // Los bordes conservan su grosor al escalar; se vuelve a medir si cambia el espacio interior.
+  for (let intento = 0; intento < 8; intento++) {
+    const anchos = enRejilla(modelo.columnas.map((c) => c.px), escala);
+    const altos = new Map(modelo.filas.map(({ r, px }) => [r, px]));
+    for (const { rango, texto } of claves.values()) {
+      const visibles = modelo.filas.filter(({ r }) => r >= rango.r1 && r <= rango.r2);
+      if (!visibles.length) continue;
+      const css = modelo.estilos.css(modelo.estiloTextoDe?.(rango.r1, rango.c1) ?? modelo.estiloDe(rango.r1, rango.c1)).css;
+      const bordes = modelo.estilos.bordesCss(modelo.estiloDe(rango.r1, rango.c1));
+      const fin = modelo.estilos.bordesCss(modelo.estiloDe(rango.r2, rango.c2));
+      const borde = (lado, objeto = bordes) => Number.parseFloat(objeto[lado]) || 0;
+      const ancho = modelo.columnas.reduce((s, { c }, i) => s + (c >= rango.c1 && c <= rango.c2 ? anchos[i] : 0), 0);
+      const interior = Math.max(1, ancho - 4 - (borde("border-left") + borde("border-right", fin)) / (2 * escala) - 1 / escala);
+      const requerido = Math.ceil(medirTexto(texto, css, interior) + (borde("border-top") + borde("border-bottom", fin)) / (2 * escala) + 1 / escala);
+      const actual = visibles.reduce((s, { r }) => s + altos.get(r), 0);
+      if (requerido > actual) altos.set(visibles[0].r, altos.get(visibles[0].r) + requerido - actual);
+    }
+    const extra = modelo.filas.reduce((s, { r, px }) => s + altos.get(r) - px, 0);
+    const espacios = vacias.map(({ r, px }) => ({ r, disponible: Math.max(0, px - 4 / escala) }));
+    const disponible = espacios.reduce((s, fila) => s + fila.disponible, 0);
+    const recuperar = disponible ? Math.min(1, extra / disponible) : 0;
+    for (const { r, disponible } of espacios) altos.set(r, altos.get(r) - disponible * recuperar);
+    filas = modelo.filas.map((fila) => ({ ...fila, px: altos.get(fila.r) }));
+    const nuevaEscala = medidas({ ...modelo, filas }).escala;
+    if (nuevaEscala === escala) break;
+    escala = nuevaEscala;
+  }
+  if (filas.every((fila, i) => fila.px === modelo.filas[i].px)) return modelo;
+  // Las fotos y los logos conservan sus anclas respecto a las filas de la hoja.
+  const trasladarY = (y) => {
+    let antes = 0;
+    let despues = 0;
+    for (let i = 0; i < filas.length; i++) {
+      const alto = modelo.filas[i].px;
+      if (y <= antes + alto) return despues + (y - antes) * filas[i].px / alto;
+      antes += alto;
+      despues += filas[i].px;
+    }
+    return despues + y - antes;
+  };
+  const trasladarImagen = (imagen) => ({ ...imagen, y: trasladarY(imagen.y), alto: trasladarY(imagen.y + imagen.alto) - trasladarY(imagen.y) });
+  return { ...modelo, filas, imagenes: modelo.imagenes.map(trasladarImagen), fotos: modelo.fotos?.map(trasladarImagen) };
+}
+
 /**
  * HTML de una página con el vale sobre la hoja-formulario.
  * @param fotos      src (data:/blob:) de las fotos del vale, en el orden de los espacios de la hoja
  * @param identidad  logos y textos del inventario (`identidadDe`): cambian solo lo fijo del formato
+ * @param medirTexto altura del texto con su CSS y ancho interior, en píxeles antes del zoom
  */
-export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = null) {
+export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = null, medirTexto = alturaEstimada) {
+  modelo = ajustarAlturasClaves(modelo, valores, medirTexto);
   const { estilos } = modelo;
   const { escala, paginaAlto } = medidas(modelo);
   // Todo en la rejilla de píxeles ya escalada (ver enRejilla).
@@ -262,10 +352,18 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         const siguiente = (rango ? rango.c2 : c) + 1;
         css.overflow = siguiente <= modelo.area.c2 && textoEn(r, siguiente) ? "hidden" : "visible";
       }
+      if (modelo.campos.lineas.filas.includes(filaFuente) && colFuente === modelo.campos.lineas.columnas.clave) {
+        css["white-space"] = "pre-wrap";
+        css["overflow-wrap"] = "anywhere";
+        css["text-align"] = "center";
+        css["vertical-align"] = "middle";
+        css.overflow = "hidden";
+        delete css["padding-left"];
+      }
       const atributos = `${colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan > 1 ? ` rowspan="${rowspan}"` : ""}`;
       // El texto se dibuja fuera del flujo de la tabla: height en un <tr> solo es un mínimo.
-      // Si una partida se ajusta a varias líneas, no debe crecer la fila ni desplazar los fondos,
-      // observaciones, fotos y firmas respecto a las medidas de Excel.
+      // Las alturas necesarias para las claves ya están en el modelo derivado; el navegador
+      // no debe crecer la fila ni desplazar fondos, observaciones, fotos y firmas por su cuenta.
       let contenido = escaparHtml(texto);
       if (texto !== "") {
         let altura = 0;
@@ -376,11 +474,12 @@ export function cssImpresion(modelo) {
  * Documento para imprimir varios vales (uno por hoja).
  * @param paginas    [{ modelo, vale }]
  * @param identidad  logos y textos del inventario (`identidadDe(estado)`)
+ * @param medirTexto medidor opcional con la fuente del navegador; sin él se estima la altura en Node
  */
-export function documentoImpresion(paginas, identidad = null) {
+export function documentoImpresion(paginas, identidad = null, medirTexto = alturaEstimada) {
   if (!paginas.length) return { css: "", html: "" };
   return {
     css: cssImpresion(paginas[0].modelo),
-    html: paginas.map(({ modelo, vale, fotos = [] }) => paginaHtml(modelo, valoresDeVale(modelo, vale), fotos, identidad)).join(""),
+    html: paginas.map(({ modelo, vale, fotos = [] }) => paginaHtml(modelo, valoresDeVale(modelo, vale), fotos, identidad, medirTexto)).join(""),
   };
 }

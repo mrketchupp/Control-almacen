@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Almacen, BaseNoVacia, SinPlantilla, nombreConFecha } from "../src/almacen/almacen.js";
 import { BackendMemoria } from "../src/almacen/bd.js";
+import { FORMATO_ESTADO } from "../src/nucleo/estado.js";
 import { ErrorRespaldo, crearRespaldo, infoDeNombre, leerRespaldo, respaldosABorrar } from "../src/almacen/respaldos.js";
 import { ubicarLinea, lineasPorUbicar } from "../src/servicios/consultas.js";
 import { ErrorVale, emitirBorrador, lineaNoInventariada, nuevoBorrador, siguienteFolio } from "../src/servicios/vales.js";
@@ -189,7 +190,7 @@ test("al abrir datos de una versión anterior, las áreas se completan desde la 
   assert.equal(otro.estado.plantillas_area.find((a) => a.nombre === "TRANSFERENCIAS").autoriza_puesto, "RIG MANAGER");
   assert.equal(otro.estado.config.completar_areas, undefined);
   assert.equal(otro.estado.vales.at(-1).almacenista_derecha, true);
-  assert.equal((await almacen.backend.leerEstado()).formato, 9);
+  assert.equal((await almacen.backend.leerEstado()).formato, FORMATO_ESTADO);
 });
 
 test("respaldos inválidos se rechazan con un mensaje claro", () => {

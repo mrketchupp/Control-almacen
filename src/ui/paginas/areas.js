@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { TIPOS_AREA, etiquetasFirmasExtra, tipoDeArea } from "../../nucleo/areas.js";
 import { areaVacia, borrarArea, descartarArea, guardarArea, guardarPersona, reponerArea, usosDeArea } from "../../servicios/catalogos.js";
-import { aliasDe, marcarDistintas, personasRepetidas, unificarPersonas, usosPorNombre } from "../../servicios/personas.js";
+import { aliasDe, marcarDistintas, personasRepetidas, previaActualizacionPuesto, unificarPersonas, usosPorNombre } from "../../servicios/personas.js";
 import { Aviso, Boton, Buscador, CampoSugerido, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
@@ -238,13 +238,29 @@ function Personas() {
   const personas = [...sesion.estado.personas].sort((a, b) => Number(b.es_almacenista) - Number(a.es_almacenista) || a.nombre.localeCompare(b.nombre, "es"));
   const conAlias = personas.map((p) => ({ ...p, alias: aliasDe(sesion.estado, p.id).join(" · ") }));
   const visibles = useFiltroTexto(conAlias, texto, ["nombre", "puesto", "alias"]);
-  const cambiar = (persona, cambios) =>
-    sesion.tarea("Guardando…", () => sesion.almacen.modificar((e) => guardarPersona(e, { ...persona, ...cambios }, sesion.usuario)));
+  const guardar = (datos, revisarPuesto) =>
+    sesion.tarea("Guardando…", async () => {
+      const previa = revisarPuesto ? previaActualizacionPuesto(sesion.estado, datos) : null;
+      const actualizarVales = Boolean(previa?.total && confirmar(
+        `El puesto de ${datos.nombre} quedará como ${previa.puesto ? `«${previa.puesto}»` : "sin puesto"}. ` +
+        `¿Actualizarlo también en ${previa.total} ${previa.total === 1 ? "vale existente" : "vales existentes"} ` +
+        `(${previa.salidas} de salida y ${previa.entradas} de entrada)?\n\n` +
+        `Aceptar actualiza el historial. Cancelar guarda solamente la persona.`,
+      ));
+      const resultado = await sesion.almacen.modificar((e) => {
+        const persona = guardarPersona(e, datos, sesion.usuario, { actualizarVales });
+        return persona.nombre;
+      });
+      if (revisarPuesto) sesion.avisar("exito", actualizarVales
+        ? `Persona ${resultado} guardada. Puesto actualizado en ${previa.total} ${previa.total === 1 ? "vale" : "vales"}.`
+        : `Persona ${resultado} guardada.${previa?.total ? " El historial conserva los puestos anteriores." : ""}`);
+    });
+  const cambiar = (persona, cambios) => guardar({ ...persona, ...cambios }, Object.hasOwn(cambios, "puesto"));
   const agregar = () => {
     const nombre = (window.prompt("Nombre completo (como firma):") || "").trim();
     if (!nombre) return;
     const puesto = (window.prompt("Puesto:") || "").trim();
-    return sesion.tarea("Guardando…", () => sesion.almacen.modificar((e) => guardarPersona(e, { nombre, puesto }, sesion.usuario)));
+    return guardar({ nombre, puesto }, true);
   };
   const marcar = (id, si) => {
     const nuevo = new Set(marcadas);
@@ -257,6 +273,7 @@ function Personas() {
     <p class="nota">
       Los almacenistas aparecen en "En turno". Las personas inactivas no se sugieren en los vales. Para juntar a una persona
       escrita de varias formas, márcalas en <em>Unir</em> y pulsa <em>Unificar</em>.
+      Al agregar o editar un puesto, puedes confirmar su actualización en los vales existentes.
     </p>
     <div class="filtros">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Buscar persona, puesto u otro nombre…" />
@@ -282,7 +299,7 @@ function Personas() {
         },
         {
           titulo: "Puesto",
-          render: (p) => html`<input class="entrada-tabla" value=${p.puesto ?? ""} onChange=${(e) => cambiar(p, { puesto: e.currentTarget.value })} />`,
+          render: (p) => html`<input class="entrada-tabla" value=${p.puesto ?? ""} onChange=${(e) => cambiar(p, { puesto: e.currentTarget.value })} aria-label=${`Puesto: ${p.nombre}`} />`,
         },
         {
           titulo: "Almacenista",

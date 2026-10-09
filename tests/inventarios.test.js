@@ -10,7 +10,7 @@ import { delAlmacen, leerReporteAx } from "../src/importadores/ax.js";
 import { analizarFormulario } from "../src/impresion/formulario.js";
 import { coincidencias, encabezadoDelFormato, identidadDe, logosDelFormato, reemplazarTextos, textosDelFormato } from "../src/impresion/identidad.js";
 import { documentoImpresion, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
-import { estadoVacio, migrarEstado } from "../src/nucleo/estado.js";
+import { FORMATO_ESTADO, estadoVacio, migrarEstado } from "../src/nucleo/estado.js";
 import { deOtroInventario, inventarioDe, inventarioDelNombre, inventarioPorId, otrosInventarios } from "../src/nucleo/inventarios.js";
 import { registrarCorteAx } from "../src/servicios/conciliacion.js";
 import { ErrorValeImpreso, fijarLogoVale, guardarTextosVale } from "../src/servicios/valeImpreso.js";
@@ -58,7 +58,7 @@ test("formato 9: los estados anteriores son de DLTA; uno nuevo dice de qué inve
   delete viejo.config.inventario;
   viejo.formato = 8;
   migrarEstado(viejo);
-  assert.deepEqual([viejo.formato, viejo.config.inventario], [9, "DLTA"]);
+  assert.deepEqual([viejo.formato, viejo.config.inventario], [FORMATO_ESTADO, "DLTA"]);
   assert.equal(estadoVacio("GSM").config.inventario, "GSM");
   const gsm = cargaSintetica({ idInventario: "GSM" }).estado;
   assert.deepEqual([inventarioDe(gsm).id, gsm.config.almacen_ax], ["GSM", null]);

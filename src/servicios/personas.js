@@ -3,12 +3,12 @@
 // nombre en la lista y los demás quedan como alias de esa persona (`estado.alias`), así las
 // sugerencias y los conteos de firmas los juntan.
 //
-// El historial NO cambia: los vales emitidos conservan el nombre tal como se escribió. Solo se
-// actualizan la lista de personas, las plantillas de área (datos por defecto) y la configuración
-// por almacenista (en turno, preferencias, personalización).
+// Unificar conserva el historial. Al guardar un puesto desde Personas, el usuario puede confirmar
+// que ese puesto se corrija también en las firmas de los vales existentes, conservando sus nombres.
 
-import { auditar } from "../nucleo/estado.js";
+import { auditar, siguienteId } from "../nucleo/estado.js";
 import { ratio } from "../nucleo/difflib.js";
+import { ahoraIso } from "../nucleo/fechas.js";
 
 export class ErrorPersonas extends Error {}
 
@@ -119,6 +119,98 @@ export function aliasDe(estado, personaId) {
     .filter(([, id]) => id === personaId)
     .map(([nombre]) => nombre)
     .sort((a, b) => a.localeCompare(b, "es"));
+}
+
+const puestoLimpio = (puesto) => String(puesto ?? "").trim().toUpperCase() || null;
+const FIRMAS = ["entrego", "recibio", "autorizo", "firma_extra_izq", "firma_extra_der"];
+
+/** Coincidencias exactas del nombre normalizado y los alias ya unificados; no usa parecidos. */
+function nombresDePersona(estado, datos) {
+  const previa = estado.personas.find((p) => p.id === datos.id);
+  return new Set([datos.nombre, previa?.nombre, datos.nombre_anterior, ...aliasDe(estado, datos.id)]
+    .map(nombreBase).filter(Boolean));
+}
+
+function puestosPorCorregir(vale, nombres, puesto) {
+  const campos = [];
+  const corregidos = new Set(vale.campos_encabezado_corregidos ?? []);
+  for (const firma of FIRMAS) {
+    const campo = `${firma}_puesto`;
+    if (nombres.has(nombreBase(vale[`${firma}_nombre`])) && (
+      !Object.hasOwn(vale, campo) || (vale[campo] ?? null) !== puesto || (puesto === null && !corregidos.has(campo))
+    )) {
+      campos.push({ campo, antes: vale[campo] ?? null });
+    }
+  }
+  // También se conservan las firmas adicionales de los estados antiguos, si las hay.
+  for (const lado of ["izq", "der"]) {
+    const firma = vale.firmas_extra?.[lado];
+    const campo = `firmas_extra.${lado}.puesto`;
+    if (firma && nombres.has(nombreBase(firma.nombre)) && (
+      !Object.hasOwn(firma, "puesto") || (firma.puesto ?? null) !== puesto || (puesto === null && !corregidos.has(campo))
+    )) {
+      campos.push({ campo, lado, antes: firma.puesto ?? null });
+    }
+  }
+  return campos;
+}
+
+/** Vista previa sin cambios: cuántos vales y firmas cambiarían al confirmar el nuevo puesto. */
+export function previaActualizacionPuesto(estado, datos) {
+  const nombres = nombresDePersona(estado, datos);
+  const puesto = puestoLimpio(datos.puesto);
+  const vales = [];
+  for (const vale of estado.vales) {
+    if (vale.tipo !== "SALIDA" && vale.tipo !== "ENTRADA") continue;
+    const campos = puestosPorCorregir(vale, nombres, puesto);
+    if (campos.length) vales.push({ id: vale.id, tipo: vale.tipo, folio: vale.folio, campos });
+  }
+  return {
+    puesto,
+    vales,
+    total: vales.length,
+    firmas: vales.reduce((n, v) => n + v.campos.length, 0),
+    salidas: vales.filter((v) => v.tipo === "SALIDA").length,
+    entradas: vales.filter((v) => v.tipo === "ENTRADA").length,
+  };
+}
+
+/**
+ * Aplica solo el puesto, tras la confirmación del usuario. Incluye vales antiguos y cancelados:
+ * conserva su estado, nombres, folios y todas las partidas. Se llama dentro de Almacen.modificar.
+ */
+export function actualizarPuestoEnVales(estado, personaId, usuario = null, { nombreAnterior = null } = {}) {
+  const persona = estado.personas.find((p) => p.id === personaId);
+  if (!persona) throw new ErrorPersonas("La persona ya no existe.");
+  const previa = previaActualizacionPuesto(estado, { ...persona, nombre_anterior: nombreAnterior });
+  const porId = new Map(estado.vales.map((v) => [v.id, v]));
+  const motivo = `Actualización confirmada del puesto de ${persona.nombre} desde Personas: ${previa.puesto || "sin puesto"}.`;
+  for (const corregido of previa.vales) {
+    const vale = porId.get(corregido.id);
+    const antes = structuredClone(vale);
+    for (const { campo, lado } of corregido.campos) {
+      if (lado) vale.firmas_extra[lado].puesto = previa.puesto;
+      else vale[campo] = previa.puesto;
+    }
+    // Un puesto vacío confirmado también debe prevalecer sobre el texto de la plantilla.
+    vale.campos_encabezado_corregidos = [...new Set([
+      ...(vale.campos_encabezado_corregidos ?? []), ...corregido.campos.map(({ campo }) => campo),
+    ])];
+    vale.modificado_en = ahoraIso();
+    if (vale.tipo === "SALIDA") vale.cambio = siguienteId(estado, "cambio");
+    const cambios = corregido.campos.map(({ campo, antes: anterior }) => `${campo}: ${anterior || "—"} → ${previa.puesto || "—"}`);
+    // En entradas, el motivo del movimiento es distinto al motivo de su corrección.
+    const { motivo: motivoEntrada, ...resto } = antes;
+    auditar(estado, {
+      usuario,
+      entidad: "vale",
+      entidadId: vale.id,
+      accion: "CORREGIR",
+      antes: { ...resto, ...(vale.tipo === "ENTRADA" ? { motivo_entrada: motivoEntrada } : {}), motivo, cambios },
+      despues: structuredClone(vale),
+    });
+  }
+  return previa;
 }
 
 /**

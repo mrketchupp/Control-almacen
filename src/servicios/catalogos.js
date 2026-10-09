@@ -3,6 +3,7 @@
 import { normalizarArea, tipoDeArea } from "../nucleo/areas.js";
 import { auditar, siguienteId } from "../nucleo/estado.js";
 import { nombrePersona } from "../nucleo/normalizar.js";
+import { actualizarPuestoEnVales } from "./personas.js";
 
 export class ErrorCatalogo extends Error {}
 
@@ -139,8 +140,11 @@ export function reponerArea(estado, { area, indice }, usuario = null) {
   auditar(estado, { usuario, entidad: "plantilla_area", entidadId: area.id, accion: "REPONER", antes: null, despues: { ...area } });
 }
 
-/** Crea o actualiza una persona (nombre, puesto, almacenista, activa). */
-export function guardarPersona(estado, datos, usuario = null) {
+/**
+ * Crea o actualiza una persona. `actualizarVales` solo se habilita después de confirmar
+ * la propagación del puesto; los demás usos del catálogo conservan el historial.
+ */
+export function guardarPersona(estado, datos, usuario = null, { actualizarVales = false } = {}) {
   const nombre = nombrePersona(datos.nombre);
   if (!nombre) throw new ErrorCatalogo("Falta el nombre.");
   if (estado.personas.some((p) => p.id !== datos.id && p.nombre === nombre)) throw new ErrorCatalogo(`Ya existe ${nombre}.`);
@@ -160,6 +164,7 @@ export function guardarPersona(estado, datos, usuario = null) {
     estado.personas.push(persona);
   }
   auditar(estado, { usuario, entidad: "persona", entidadId: persona.id, accion: antes ? "EDITAR" : "ALTA", antes, despues: { ...persona } });
+  if (actualizarVales) actualizarPuestoEnVales(estado, persona.id, usuario, { nombreAnterior: antes?.nombre });
   return persona;
 }
 

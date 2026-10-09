@@ -30,7 +30,14 @@ export function valoresRenglon(vale, linea) {
   };
   // Como la macro: con el almacenista a la derecha (NOV), "Entrego" es quien firma a la izquierda.
   if (vale.almacenista_derecha && !vale.migrado) [encabezado.entrego, encabezado.recibio] = [encabezado.recibio, encabezado.entrego];
-  if (linea && linea.encabezado_original) Object.assign(encabezado, linea.encabezado_original);
+  if (linea?.encabezado_original) {
+    // Una corrección general aplica el encabezado vigente a todas las partidas,
+    // conservando intactos los datos originales y los campos que no se corrigieron.
+    const corregidos = new Set(vale.campos_encabezado_corregidos ?? []);
+    for (const [campo, valor] of Object.entries(linea.encabezado_original)) {
+      if (!corregidos.has(campo)) encabezado[campo] = valor;
+    }
+  }
   const esEntrada = vale.tipo === "ENTRADA";
   let cantidad, codigo, descripcion, oc, clave, um, lote, familia, transferencia;
   if (!linea) {

@@ -6,7 +6,7 @@ import { HOJA_AJUSTE, HOJA_LEYENDA, HOJA_VALES, exportarSolicitudAjuste } from "
 import { leerArchivoBase } from "../src/importadores/base.js";
 import { delAlmacen, leerReporteAx } from "../src/importadores/ax.js";
 import { dec } from "../src/nucleo/decimal.js";
-import { migrarEstado, siguienteId } from "../src/nucleo/estado.js";
+import { FORMATO_ESTADO, migrarEstado, siguienteId } from "../src/nucleo/estado.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import * as c from "../src/servicios/conciliacion.js";
 import * as j from "../src/servicios/justificacion.js";
@@ -147,5 +147,5 @@ test("formato 8: los cortes anteriores se migran con la lista de asignaciones va
   delete corte.asignaciones;
   estado.formato = 7;
   migrarEstado(estado);
-  assert.deepEqual([estado.formato, estado.cortes_ax[0].asignaciones], [9, []]);
+  assert.deepEqual([estado.formato, estado.cortes_ax[0].asignaciones], [FORMATO_ESTADO, []]);
 });

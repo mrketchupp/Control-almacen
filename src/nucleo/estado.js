@@ -16,7 +16,10 @@ import { claveEstricta } from "./normalizar.js";
 // Formato 5 (Fase 3): vales de entrada en borrador, conteo en curso y reacomodos entre
 // contenedores. Cada conteo guarda su alcance y sus renglones contados.
 // Formato 9: dos inventarios (DLTA y GSM), cada uno con su estado; `config.inventario` dice de cuál es.
-export const FORMATO_ESTADO = 9;
+// Formato 10: correcciones de encabezado sin reescribir las partidas migradas; se guardan
+// los campos que prevalecen sobre `encabezado_original` y, cuando hace falta, si las firmas
+// del vale se conservaron por posición en lugar de por papel.
+export const FORMATO_ESTADO = 10;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -118,6 +121,13 @@ export function migrarEstado(estado) {
     estado.config ??= {};
     estado.config.inventario ??= INVENTARIO_DEFECTO;
     estado.formato = 9;
+  }
+  if (estado.formato < 10) {
+    // Sin correcciones previas, las diferencias originales de cada partida siguen vigentes.
+    // No se modifican las líneas ni se deduce aquí la posición de las firmas: necesita el
+    // área original y se fija en el vale antes de su primera corrección de encabezado.
+    for (const vale of estado.vales) vale.campos_encabezado_corregidos ??= [];
+    estado.formato = 10;
   }
   return estado;
 }

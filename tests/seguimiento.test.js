@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ErrorArchivoBase, guardadoEl, leerArchivoBase } from "../src/importadores/base.js";
 import { delAlmacen, leerReporteAx } from "../src/importadores/ax.js";
-import { migrarEstado } from "../src/nucleo/estado.js";
+import { FORMATO_ESTADO, migrarEstado } from "../src/nucleo/estado.js";
 import { ahoraIso } from "../src/nucleo/fechas.js";
 import * as c from "../src/servicios/conciliacion.js";
 import * as s from "../src/servicios/seguimiento.js";
@@ -120,7 +120,7 @@ test("formato 7: los estados anteriores se migran con la lista de archivos de la
   estado.formato = 6;
   delete estado.seguimientos_base;
   migrarEstado(estado);
-  assert.deepEqual([estado.formato, estado.seguimientos_base, s.seguimientoVigente(estado), s.estadoAxDeVales(estado)], [9, [], null, null]);
+  assert.deepEqual([estado.formato, estado.seguimientos_base, s.seguimientoVigente(estado), s.estadoAxDeVales(estado)], [FORMATO_ESTADO, [], null, null]);
   assert.throws(() => s.registrarSeguimiento(estado, { archivo: "VACIO.xlsm", partidas: [] }), s.ErrorSeguimiento);
 });
 

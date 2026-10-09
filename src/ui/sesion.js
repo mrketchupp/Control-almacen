@@ -323,7 +323,7 @@ export class Sesion {
   /** HTML y CSS de un vale de muestra con `identidad` (logos y textos aún sin guardar). */
   async documentoMuestra(identidad, hoja = null) {
     const { vale, hoja: nombre, modelo } = await this.muestraVale(hoja);
-    return { vale, hoja: nombre, ...documentoImpresion([{ modelo, vale: this._paraImprimir(vale) }], identidad) };
+    return { vale, hoja: nombre, ...await this._documentoImpresion([{ modelo, vale: this._paraImprimir(vale) }], identidad) };
   }
 
   /**
@@ -410,12 +410,14 @@ export class Sesion {
 
   /** Completa los puestos con el catálogo de personas cuando el vale no los trae. */
   _paraImprimir(vale) {
-    const puesto = (nombre) => this.estado.personas.find((p) => p.nombre === nombre)?.puesto ?? null;
+    const puesto = (campoNombre, campoPuesto) => Object.hasOwn(vale, campoPuesto)
+      ? vale[campoPuesto]
+      : this.estado.personas.find((p) => p.nombre === vale[campoNombre])?.puesto ?? null;
     return {
       ...vale,
-      entrego_puesto: vale.entrego_puesto || puesto(vale.entrego_nombre),
-      recibio_puesto: vale.recibio_puesto || puesto(vale.recibio_nombre),
-      autorizo_puesto: vale.autorizo_puesto || puesto(vale.autorizo_nombre),
+      entrego_puesto: puesto("entrego_nombre", "entrego_puesto"),
+      recibio_puesto: puesto("recibio_nombre", "recibio_puesto"),
+      autorizo_puesto: puesto("autorizo_nombre", "autorizo_puesto"),
     };
   }
 
@@ -427,7 +429,27 @@ export class Sesion {
       for (const clave of vale.fotos ?? []) fotos.push(clave ? await this.urlFoto(clave) : null);
       paginas.push({ modelo: await this.formulario(await this.hojaParaVale(vale)), vale: this._paraImprimir(vale), fotos });
     }
-    return documentoImpresion(paginas, identidadDe(this.estado));
+    return this._documentoImpresion(paginas, identidadDe(this.estado));
+  }
+
+  /** Mide el texto con la fuente disponible en este equipo antes de fijar las alturas de impresión. */
+  async _documentoImpresion(paginas, identidad) {
+    await document.fonts.ready;
+    const medidor = document.createElement("div");
+    medidor.style.cssText = "position:fixed;left:-10000px;top:0;visibility:hidden;margin:0;padding:0;border:0;box-sizing:content-box;line-height:1.1;white-space:pre-wrap;overflow-wrap:anywhere";
+    medidor.style.setProperty("display", "block", "important");
+    document.body.appendChild(medidor);
+    const fuentes = ["font-family", "font-size", "font-weight", "font-style", "font-variant", "letter-spacing", "word-spacing"];
+    try {
+      return documentoImpresion(paginas, identidad, (texto, css, ancho) => {
+        for (const propiedad of fuentes) medidor.style.setProperty(propiedad, css[propiedad] ?? "initial");
+        medidor.style.width = `${ancho}px`;
+        medidor.textContent = texto;
+        return medidor.getBoundingClientRect().height;
+      });
+    } finally {
+      medidor.remove();
+    }
   }
 
   /** Abre el cuadro de impresión del navegador (desde ahí también se guarda en PDF). */

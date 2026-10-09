@@ -263,7 +263,15 @@ export function areaDeVale(estado, vale) {
  * la derecha (NOV) traen en "entregó" a quien firma a la izquierda (el químico).
  */
 export function firmasPorPosicion(estado, vale) {
-  return Boolean(vale?.migrado && areaDeVale(estado, vale)?.almacenista_derecha);
+  if (!vale?.migrado) return false;
+  if (typeof vale.firmas_por_posicion === "boolean") return vale.firmas_por_posicion;
+  const depto = texto(vale.depto_destino).toUpperCase();
+  // La impresión también reconoce el nombre de la hoja cuando no hay un área por
+  // plantilla o departamento: "NOV" puede usar la hoja NOV aunque el área diga NOV ENERGY.
+  const area = areaDeVale(estado, vale) ?? (depto
+    ? estado.plantillas_area.find((a) => texto(a.hoja_excel).toUpperCase() === depto)
+    : null);
+  return Boolean(area?.almacenista_derecha);
 }
 
 /** El vale con entregó/recibió según su papel (no por posición). */

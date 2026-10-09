@@ -7,6 +7,7 @@ import { resolverLoteVales } from "../../servicios/lotesVales.js";
 import { Aviso, Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, Ventana, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { PastillaAx } from "./base.js";
+import { CorreccionPorLotes } from "./correccionLotes.js";
 
 const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "", revisar: "" };
 
@@ -23,6 +24,7 @@ const SIN_FILTROS_ENTRADAS = { texto: "", folio: "", codigo: "", oc: "", desde: 
 
 function HistorialEntradas() {
   const sesion = useSesion();
+  const [corrigiendoLote, setCorrigiendoLote] = useState(false);
   const filas = useMemo(() => filasEntradas(sesion.estado), [sesion.estado]);
   const [filtros, setFiltros] = useState(SIN_FILTROS_ENTRADAS);
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
@@ -30,6 +32,10 @@ function HistorialEntradas() {
   const activos = Object.values(filtros).filter(Boolean).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
   return html`
+    <div class="acciones-linea">
+      <${Boton} onClick=${() => setCorrigiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>Corregir por lotes<//>
+    </div>
+    ${corrigiendoLote ? html`<${CorreccionPorLotes} tipo="ENTRADA" alCerrar=${() => setCorrigiendoLote(false)} />` : null}
     <div class="filtros filtros-historial">
       <${Buscador} valor=${filtros.texto} alCambiar=${(texto) => setFiltros({ ...filtros, texto })} placeholder="Buscar en todo: folio, descripción, clave, origen…" />
       <label class="filtro"><span>Folio de la base</span><input value=${filtros.folio} onInput=${poner("folio")} placeholder="Ej. 12345" /></label>
@@ -81,6 +87,7 @@ export function PaginaHistorial() {
 function HistorialSalidas() {
   const sesion = useSesion();
   const [imprimiendoLote, setImprimiendoLote] = useState(false);
+  const [corrigiendoLote, setCorrigiendoLote] = useState(false);
   const ax = useMemo(() => estadoAxDeVales(sesion.estado), [sesion.estado]);
   const filas = useMemo(() => {
     const duplicadas = duplicadasEnVales(sesion.estado);
@@ -109,8 +116,10 @@ function HistorialSalidas() {
   return html`
     <div class="acciones-linea">
       <${Boton} onClick=${() => setImprimiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>🖨 Imprimir por lotes<//>
+      <${Boton} onClick=${() => setCorrigiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>Corregir por lotes<//>
     </div>
     ${imprimiendoLote ? html`<${ImpresionPorLotes} alCerrar=${() => setImprimiendoLote(false)} />` : null}
+    ${corrigiendoLote ? html`<${CorreccionPorLotes} tipo="SALIDA" alCerrar=${() => setCorrigiendoLote(false)} />` : null}
     <div class="filtros filtros-historial">
       <${Buscador} valor=${filtros.texto} alCambiar=${(texto) => setFiltros({ ...filtros, texto })} placeholder="Buscar en todo: folio, descripción, clave, O.C.…" />
       <label class="filtro">
