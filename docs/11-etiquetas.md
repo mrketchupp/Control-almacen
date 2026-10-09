@@ -38,9 +38,12 @@ aquí.
    fuera de esta impresión. *Vista previa e imprimir* → hojas exactas → *Imprimir* → **¿Salieron bien?** *Sí, quitarlas de
    la lista* / *Sí, pero dejarlas* / *No, volver a intentar*. Solo al decir *sí* se anota en la bitácora y se marcan las
    entradas.
-4. **Diseño y logos:** plantilla (las del generador, incluida la precortada **J-5163 / Avery 5163**), hoja Carta / A4,
-   márgenes, tamaño, separaciones (mm, cm o `4in`), letra y borde. Muestra una etiqueta a tamaño real y la hoja completa.
-   El diseño es **el mismo en DLTA y GSM**; logos y texto, **por inventario**.
+4. **Hoja y logos** (ventana *Hoja, medidas y logos*; hasta la Ronda 21 se llamaba *Diseño y logos*): plantilla (las del
+   generador, incluida la precortada **J-5163 / Avery 5163**), hoja Carta / A4, márgenes, tamaño, separaciones (mm, cm o
+   `4in`) y borde. Muestra una etiqueta a tamaño real y la hoja completa. La hoja es **la misma en DLTA y GSM**; logos y
+   texto, **por inventario**. Desde la Ronda 22 la letra ya no está aquí: va en el **diseño** (ver abajo).
+5. **Diseño de cada lista** (Ronda 22): en la tarjeta *Por imprimir*, *Diseño: …* dice con cuál se imprime la lista y lo
+   cambia ahí mismo; *Editor de diseños* abre el editor.
 
 ## Del generador a Control de Almacén
 
@@ -156,6 +159,58 @@ En el código se llaman **modelos** (`impresion/modelos.js`) para no confundirlo
   **dos renglones** el código queda ~1.9 mm más abajo que antes (centrado para un nombre de un renglón, el caso común).
   En las otras plantillas todo crece o se encoge en proporción (antes el encabezado medía siempre 17 × 8.5 mm y la letra
   la decía la plantilla).
+
+## Diseños (Ronda 22): el editor
+
+Pedido: «un editor de etiquetas, para crear o “diseñarlas” y guardar ese diseño, muy independiente de la plantilla de las
+dimensiones ya existentes; que use el espacio requerido para que sea cómodo». `ui/paginas/editorEtiquetas.js`
+(`EditorDisenos`), en primer plano **a pantalla completa** (portal sobre `body` como `Ventana`, con el foco y Escape
+propios). Tres zonas:
+
+- **Izquierda — diseños:** los de fábrica con candado (**solo lectura**), los guardados, *+ Nuevo* (en blanco o a partir del
+  abierto), *Duplicar*, *Renombrar*, *Borrar* (con *Deshacer* en el aviso) y *Usar para Material* / *Usar para Código AX*
+  con pastillas de qué lista usa cada uno (vale para DLTA y GSM). La copia de «Material (de fábrica)» se llama «Material
+  (copia)».
+- **Centro — la etiqueta grande** al tamaño de la plantilla actual (mm reales escalados para llenar el espacio; *Ajustar*,
+  −/+ y *Tamaño real*), siempre en blanco aunque el tema sea oscuro. Datos: la primera etiqueta de la lista del tipo o la
+  muestra del núcleo (`muestraEtiqueta`); *Ver como* Material / Código AX y DLTA / GSM (logos y texto de almacén de cada
+  uno). Cada elemento es **el mismo HTML que se imprime** (`htmlElemento`, en una envoltura `display: contents`) y encima va
+  una capa con su marco, las 8 asas, la cuadrícula (1, 2 o 5 %) y las guías. Lo que con esos datos no se dibuja (logo sin
+  imagen, texto de almacén vacío, QR sin datos) lleva un marco propio que dice por qué.
+- **Derecha — agregar y propiedades:** *Título, Texto de almacén, Logo izq., Logo der., Campo…, Texto libre, Código QR,
+  Código de barras*; del elegido: x / y / ancho / alto en % (con su medida en mm), letra (% del alto, con mm y px en esta
+  plantilla), negritas, alinear, vertical, línea abajo, varias líneas, espacio entre letras, campo y su título, texto si
+  viene vacío, texto libre con los `{campos}` (botones que los insertan), datos del QR / barras (*Código*, *Código +
+  dimensión* o *Libre*, y lo que lleva con estos datos), texto visible de las barras, *Al frente* / *Atrás*, *Duplicar*,
+  *Quitar*; abajo, la lista de elementos (el de arriba se dibuja encima).
+- **Ratón:** arrastrar mueve (pointer events con `setPointerCapture`), las asas cambian el tamaño; el borde contrario se
+  queda fijo y nada sale de la etiqueta. Imán: primero las **guías** (orillas y centros de los demás elementos y de la
+  etiqueta, a 6 px), si no la **cuadrícula** (si *Imán* está activo); con **Alt**, libre. Clic en vacío deja de elegir.
+- **Teclado** (no actúa mientras se escribe en un campo; Supr, flechas y Ctrl+D solo con el foco en la etiqueta): flechas
+  0.5 % (Shift 5 %), Supr / Retroceso quita, Ctrl+D duplica, Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, Ctrl+S guarda, Escape deja de
+  elegir (sin nada elegido, cierra). Tab recorre los elementos de la etiqueta.
+- **De fábrica:** cualquier intento de cambiarlos (arrastrar, flechas, un campo, agregar) no cambia nada y la franja de
+  arriba ofrece **Duplicar para editar**; nunca se edita en silencio.
+- **Guardar** (botón y Ctrl+S) con `guardarModeloEtiqueta`; *Cambios sin guardar* en la cabecera. Al cerrar, abrir otro
+  diseño, duplicar o *Usar para…* con cambios: **Guardar / Descartar los cambios / Seguir editando**. Recargar con cambios
+  pide confirmación al navegador. Los errores del servicio (nombre repetido, 50 diseños…) salen en un aviso arriba. Si el
+  diseño abierto cambia por fuera (sincronización con el otro inventario, *Deshacer*) y no había cambios, se toma el nuevo;
+  si se borró, se abre el de la lista (y si había cambios, al guardar se crea de nuevo).
+- **Avisos en el lienzo** (marco ámbar y **!**; *⚠ N avisos* en la cabecera salta al siguiente): texto que **no cabe** (se
+  mide en el DOM: se corta o se sale de su caja), QR que no cabe por largo o con cuadritos de menos de 0.3 mm, barras con
+  caracteres quitados o de menos de 0.19 mm (los de `avisosElemento`), y para leerse con cualquier lector (`avisosLectura`):
+  QR de menos de **12 mm** de lado, barras más delgadas que **0.25 mm** o de menos de **5 mm** de alto; campos que la
+  etiqueta de código AX no trae.
+- **Responsivo:** 236 / flexible / 330 px a 1366, más anchos desde 1600; en menos de 900 px una zona a la vez con pestañas
+  *Diseños / Etiqueta / Propiedades* (sin scroll horizontal). Tokens de color del tema y de GSM; la selección, la
+  cuadrícula y las guías tienen colores fijos (van sobre la etiqueta blanca): azul en DLTA, morado en GSM.
+- Preferencias del editor (cuadrícula, imán y paso) en `localStorage` (solo comodidad de quien lo usa).
+- **Lógica sin DOM** en `impresion/lienzo.js` (pruebas `tests/lienzo.test.js`): `pxAPorciento`, `porcientoAMm`,
+  `letraEnMedidas`, `zoomParaAjustar`, `imantar`, `moverCaja`, `fijarCaja`, `redimensionar` (8 asas), `lineasGuia`,
+  `moverArrastrando` / `redimensionarArrastrando` (guías + imán), `moverConTecla`, `historial` / `empujar` (cambios seguidos
+  con la misma clave = un paso) / `deshacer` / `rehacer`, `agregarElemento`, `duplicarElemento`, `quitarElemento`,
+  `alFrente` / `alFondo`, `cambiarElemento` (el título del campo sigue al campo si era el de fábrica), `nombreLibre`,
+  `datosPredefinidos` y `avisosLectura`.
 
 ## Impresión
 

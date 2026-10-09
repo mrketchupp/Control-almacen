@@ -17,6 +17,7 @@ import { MAXIMO_LOGO } from "../../servicios/valeImpreso.js";
 import { Aviso, Boton, Buscador, CampoSugerido, Combo, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
+import { EditorDisenos } from "./editorEtiquetas.js";
 
 const OPCIONES_INVENTARIO = Object.fromEntries(INVENTARIOS.map((i) => [i.id, i.id]));
 const OPCIONES_TIPO = { material: "Material", ax: "Código AX" };
@@ -683,7 +684,7 @@ const CAMPOS_DISENO = [
 
 const MUESTRA = { cantidad: 1, codigo: "1739", nombre: "BANDA", dimension: "3VX900", np: "", descripcion: "OC: 4500123", area: "" };
 
-function VentanaDiseno({ tipo, alCerrar }) {
+function VentanaDiseno({ tipo, alCerrar, alEditor }) {
   const sesion = useSesion();
   const guardar = useGuardar();
   const config = et.configEtiquetas(sesion.estado);
@@ -725,10 +726,10 @@ function VentanaDiseno({ tipo, alCerrar }) {
     [JSON.stringify(diseno), config.identidad, tipo, JSON.stringify(modelo)],
   );
   const [hojaRef, zoom] = useZoom(c.hoja.ancho, 0.6);
-  return html`<${Ventana} titulo="Diseño de las etiquetas" alCerrar=${alCerrar} clase="ventana-ancha ventana-etq-diseno">
+  return html`<${Ventana} titulo="Hoja, medidas y logos" alCerrar=${alCerrar} clase="ventana-ancha ventana-etq-diseno">
     <div class="etq-diseno">
       <div class="etq-diseno-campos">
-        <p class="nota">El diseño es el mismo para DLTA y GSM. Las filas y columnas se calculan con lo que cabe en la hoja.</p>
+        <p class="nota">La hoja es la misma para DLTA y GSM. Las filas y columnas se calculan con lo que cabe en la hoja.</p>
         <div class="campo">
           <span>Plantilla</span>
           <${Lista}
@@ -758,27 +759,17 @@ function VentanaDiseno({ tipo, alCerrar }) {
               />
             </label>`,
           )}
-          <label class="campo">
-            <span>Letra (px)</span>
-            <input
-              type="number"
-              min="5"
-              max="40"
-              step="0.5"
-              value=${diseno.fuente}
-              onChange=${(e) => {
-                const fuente = Number(e.currentTarget.value);
-                if (e.currentTarget.value !== "" && fuente >= 5 && fuente <= 40) fijar({ fuente });
-                else e.currentTarget.value = String(diseno.fuente);
-              }}
-            />
-          </label>
           <label class="casilla"><input type="checkbox" checked=${diseno.borde} onChange=${(e) => fijar({ borde: e.currentTarget.checked })} /> Imprimir el borde (quítalo en hojas precortadas)</label>
         </div>
         <p class=${c.porHoja ? "nota" : "alerta"}>
           ${c.porHoja ? `Caben ${c.columnas} × ${c.filas} = ${c.porHoja} por hoja.` : c.avisos.join(" ")} Medidas en mm; también acepta cm o pulgadas («4in»).
         </p>
-        <${Boton} tamano="chico" tipo="texto" onClick=${() => usarPlantilla(PLANTILLAS[0].id)}>Volver al diseño estándar<//>
+        <p class="nota etq-nota-letra">
+          La letra y lo que lleva cada etiqueta (y dónde) van en su <strong>diseño</strong>, en proporción a la etiqueta: con otra
+          plantilla todo crece o se encoge junto.
+          ${alEditor ? html` <${Boton} tamano="chico" tipo="texto" onClick=${alEditor}>Abrir el editor de diseños<//>` : null}
+        </p>
+        <${Boton} tamano="chico" tipo="texto" onClick=${() => usarPlantilla(PLANTILLAS[0].id)}>Volver a la plantilla estándar<//>
         <h3>Logos y texto de cada inventario</h3>
         <p class="nota">Cada etiqueta lleva los de su inventario. ${delVale === null ? "Leyendo los logos del vale…" : delVale.length ? "«Del vale…» ofrece los logos del libro de vales de este inventario." : "El libro de vales no tiene logos: súbelos de un archivo."}</p>
         ${INVENTARIOS.map((i) => html`<${IdentidadInventario} key=${i.id} inventario=${i.id} identidad=${config.identidad[i.id]} delVale=${delVale} />`)}
@@ -795,6 +786,38 @@ function VentanaDiseno({ tipo, alCerrar }) {
       </figure>
     </div>
   <//>`;
+}
+
+// ---------------------------------------------------------------- diseño de cada lista (Ronda 22)
+
+/**
+ * Con qué diseño se imprime la lista `tipo` y cambiarlo ahí mismo (vale para DLTA y GSM), o abrir el
+ * editor de diseños.
+ */
+function DisenoDeLista({ tipo, alEditor }) {
+  const sesion = useSesion();
+  const guardar = useGuardar();
+  const modelos = et.modelosEtiqueta(sesion.estado);
+  const actual = et.modeloDe(sesion.estado, tipo);
+  const usar = async (id) => {
+    const cambio = await guardar((e) => et.usarModelo(e, tipo, id, sesion.usuario));
+    if (cambio) sesion.avisar("exito", `La lista de ${OPCIONES_TIPO[tipo]} se imprime con «${modelos.find((m) => m.id === id)?.nombre ?? id}» (en DLTA y GSM).`, 5000);
+  };
+  return html`<div class="etq-diseno-lista">
+    <span class="etq-diseno-titulo">Diseño:</span>
+    <${Lista}
+      valor=${actual.id}
+      ariaLabel=${`Diseño de las etiquetas de ${OPCIONES_TIPO[tipo]}`}
+      titulo="Cambiar el diseño de esta lista"
+      clase="etq-diseno-elegir"
+      mostrar=${(o) => html`<span class="lista-valor"><strong>${o?.etiqueta ?? actual.nombre}</strong></span>`}
+      opciones=${modelos.map((m) => ({ valor: m.id, etiqueta: m.nombre, detalle: m.fabrica ? "de fábrica" : `${num(m.elementos.length)} ${m.elementos.length === 1 ? "elemento" : "elementos"}` }))}
+      alCambiar=${usar}
+    />
+    <${Boton} tamano="chico" onClick=${alEditor} title="Crear o cambiar diseños: qué lleva cada etiqueta y dónde">
+      <${Icono} nombre="lapiz" tam=${15} /> Editor de diseños
+    <//>
+  </div>`;
 }
 
 // ---------------------------------------------------------------- lista por imprimir
@@ -859,7 +882,7 @@ export function PaginaEtiquetas() {
   const guardar = useGuardar();
   const agregar = useAgregar();
   const [tipo, setTipoActual] = useState(tipoRecordado);
-  const [ventana, setVentana] = useState(null); // inventario | entrada | manual | diseno | { editar } | { previa } | { entrada: id }
+  const [ventana, setVentana] = useState(null); // inventario | entrada | manual | diseno | editor | { editar } | { previa } | { entrada: id }
   const [fuera, setFuera] = useState(() => new Set()); // las que no se imprimen esta vez
   const setTipo = (t) => {
     setTipoActual(t);
@@ -954,9 +977,10 @@ export function PaginaEtiquetas() {
       : null}
     <${Tarjeta}
       titulo=${`Por imprimir · ${OPCIONES_TIPO[tipo]}`}
-      acciones=${html`<${Boton} tamano="chico" onClick=${() => setVentana("diseno")}>Diseño y logos<//>
+      acciones=${html`<${Boton} tamano="chico" onClick=${() => setVentana("diseno")} title="Plantilla, medidas, borde y logos de cada inventario">Hoja y logos<//>
         ${lista.length ? html`<${Boton} tamano="chico" tipo="texto" onClick=${vaciar}>Vaciar<//>` : null}`}
     >
+      <${DisenoDeLista} tipo=${tipo} alEditor=${() => setVentana("editor")} />
       <p class="nota etq-compartida">La lista es la misma en DLTA y GSM: agrega de los dos (también sin cambiar de inventario) e imprime junto.</p>
       ${lista.length
         ? html`<ul class="etq-lista">
@@ -990,7 +1014,8 @@ export function PaginaEtiquetas() {
     ${ventana === "inventario" ? html`<${VentanaInventario} tipo=${tipo} alCerrar=${cerrar} />` : null}
     ${ventana === "entrada" ? html`<${EtiquetasDeEntrada} tipo=${tipo} alCerrar=${cerrar} />` : null}
     ${ventana?.entrada ? html`<${EtiquetasDeEntrada} valeId=${ventana.entrada} inventario=${ventana.inventario} tipo=${tipo} alCerrar=${cerrar} />` : null}
-    ${ventana === "diseno" ? html`<${VentanaDiseno} tipo=${tipo} alCerrar=${cerrar} />` : null}
+    ${ventana === "diseno" ? html`<${VentanaDiseno} tipo=${tipo} alCerrar=${cerrar} alEditor=${() => setVentana("editor")} />` : null}
+    ${ventana === "editor" ? html`<${EditorDisenos} tipo=${tipo} alCerrar=${cerrar} />` : null}
     ${ventana?.previa ? html`<${VistaPreviaEtiquetas} tipo=${tipo} ids=${ventana.previa} alCerrar=${cerrar} />` : null}
     ${ventana === "manual"
       ? html`<${EditorEtiqueta}

@@ -164,9 +164,13 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   base), **del inventario** (busca y marca), **a mano** o la **lista del generador** (el `.json` que exportas en el
   teléfono). Revisa la lista (cantidad, *Editar*, *Duplicar*, ×) y **Vista previa e imprimir**. En el cuadro de impresión:
   escala 100 % y sin *Encabezados y pies de página*. Al terminar contesta **¿Salieron bien?**: así la entrada queda marcada.
-- **Diseño y logos** (en la lista): plantilla (estándar 2 × 6, precortada J-5163…), medidas en mm / cm / `4in`, letra y
+- **Hoja y logos** (en la lista): plantilla (estándar 2 × 6, precortada J-5163…), medidas en mm / cm / `4in` y
   borde (quítalo en hojas precortadas). Logos: *Del vale…* toma los del libro de vales del inventario abierto; *Subir…*
   de un archivo. Cada etiqueta lleva los logos de su **inventario** (DLTA o GSM, se cambia por etiqueta).
+- **Editor de diseños** (en la lista; Ronda 22): qué lleva cada etiqueta y dónde, a pantalla completa. Duplica uno de
+  fábrica, arrastra y cambia el tamaño de cada elemento (cuadrícula, imán y guías), agrega texto libre con `{codigo}`…,
+  código QR o código de barras, guarda (Ctrl+S) y elige *Usar para Material* / *Usar para Código AX* (para DLTA y GSM).
+  En la tarjeta, *Diseño: …* cambia el de la lista sin abrir el editor.
 - *Historial de vales → Vales de entrada* tiene la columna y el filtro **Etiquetas** (sin imprimir / impresas).
 - **DLTA y GSM juntos:** la lista por imprimir es la misma en los dos. En *Del inventario* y *De un vale de entrada*,
   **Datos de: DLTA | GSM** trae material o entradas del otro sin cambiar de inventario (solo se leen). La marca *Etiquetas

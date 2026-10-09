@@ -103,9 +103,21 @@ export function PaginaAyuda() {
         <dd>
           Al registrar una entrada, la herramienta pregunta <em>¿Le hacemos sus etiquetas?</em>: marca las partidas y ajusta cuántas
           (una por pieza). También en <a href="#etiquetas">Etiquetas</a>: de un vale de entrada (su folio E-0005 o el de la base), del
-          inventario, a mano o con la lista <code>.json</code> que exportas del generador en el teléfono. En <em>Diseño y logos</em>
+          inventario, a mano o con la lista <code>.json</code> que exportas del generador en el teléfono. En <em>Hoja y logos</em>
           eliges la hoja (por ejemplo la precortada J-5163) y los logos de cada inventario. Al imprimir deja la escala al 100 % y,
           al terminar, contesta <em>¿Salieron bien?</em> para que la entrada quede marcada.
+        </dd>
+        <dt>¿Cómo cambio lo que lleva la etiqueta y dónde (diseños)?</dt>
+        <dd>
+          En <a href="#etiquetas">Etiquetas</a> → <em>Editor de diseños</em> (a pantalla completa). Los dos de fábrica (Material y
+          Código AX) no se cambian: <em>Duplicar para editar</em> hace una copia. Arrastra cada elemento para moverlo y usa las asas para
+          cambiar su tamaño (con cuadrícula, imán y guías; <kbd>Alt</kbd> mueve libre); las flechas lo mueven poco a poco,
+          <kbd>Supr</kbd> lo quita y <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshace. A la derecha agregas título, texto de almacén, logos, campos,
+          <em>texto libre</em> (con <code>{codigo}</code>, <code>{dimension}</code>… que se llenan con cada etiqueta), <em>código QR</em> y
+          <em>código de barras</em>, y cambias letra, alineación o el título de cada campo. Lo que no cabe o un código muy chico para leerse
+          se marca con <strong>!</strong>. Guarda (<kbd>Ctrl</kbd>+<kbd>S</kbd>) y elige <em>Usar para Material</em> o <em>Usar para Código
+          AX</em>: vale para DLTA y GSM. Todo va en proporción a la etiqueta, así que el diseño sirve con cualquier plantilla de
+          <em>Hoja y logos</em>. En la tarjeta de la lista, <em>Diseño</em> cambia el de esa lista sin abrir el editor.
         </dd>
         <dt>¿Qué es el reporte diario?</dt>
         <dd>
