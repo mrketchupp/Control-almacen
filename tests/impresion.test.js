@@ -119,6 +119,32 @@ test("el texto de una fila espaciadora de 1 px no se imprime (en Excel no se ve)
   assert.ok(!m.campos.observaciones.textos.some((t) => t.r === 47), "el número no es una observación");
 });
 
+test("una combinación conserva su texto cuando el origen está oculto o fuera del área de impresión", () => {
+  for (const caso of ["fila oculta", "columna oculta", "fuera del área"]) {
+    const m = analizarFormulario(libro, "SOLDADOR");
+    const rango = { r1: 40, r2: 41, c1: 3, c2: 11 };
+    for (let r = rango.r1; r <= rango.r2; r++) {
+      for (let c = rango.c1; c <= rango.c2; c++) m.combinadaEn.set(`${r},${c}`, rango);
+    }
+    const valorOriginal = m.valor;
+    m.valor = (r, c) => (r === 40 && c === 3 ? "TÍTULO DEL FORMATO" : valorOriginal(r, c));
+    if (caso === "fila oculta") m.filas = m.filas.filter((f) => f.r !== 40);
+    else if (caso === "columna oculta") m.columnas = m.columnas.filter((c) => c.c !== 3);
+    else {
+      m.area = { ...m.area, r1: 41, c1: 4 };
+      m.filas = m.filas.filter((f) => f.r >= 41);
+      m.columnas = m.columnas.filter((c) => c.c >= 4);
+    }
+    const html = paginaHtml(m);
+    const celdas = [...html.matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)];
+    const titulos = celdas.filter(([, , contenido]) => contenido.replace(/<[^>]+>/g, "") === "TÍTULO DEL FORMATO");
+    assert.equal(titulos.length, 1, `el título aparece una vez: ${caso}`);
+    assert.match(titulos[0][1], caso === "fila oculta" ? /colspan="9"/ : /colspan="8"/);
+    if (caso === "columna oculta") assert.match(titulos[0][1], /rowspan="2"/);
+    else assert.doesNotMatch(titulos[0][1], /rowspan=/);
+  }
+});
+
 test("NOV: cuatro firmas, espacios para 3 fotos y partidas solo arriba de las fotos", () => {
   const { estado } = cargaSintetica();
   const m = analizarFormulario(libro, "NOV");
@@ -166,8 +192,13 @@ test("los títulos de firma se centran sobre las columnas de su nombre y puesto"
   assert.deepEqual([m.valor(50, 9), m.valor(50, 10)], ["RECIBIO/ENTREGO", null]);
   assert.ok(m.centradas.has("50,9"));
   const html = paginaHtml(m);
-  assert.match(html, /<td colspan="3" style="[^"]*text-align:center[^"]*">RECIBIO\/ENTREGO<\/td>/);
-  assert.match(html, /<td colspan="3" style="[^"]*">ENTREGO\/RECIBIO<\/td>/);
+  const celdas = [...html.matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)];
+  for (const titulo of ["RECIBIO/ENTREGO", "ENTREGO/RECIBIO"]) {
+    const celda = celdas.find(([, , contenido]) => contenido.replace(/<[^>]+>/g, "") === titulo);
+    assert.ok(celda, `se conserva el título ${titulo}`);
+    assert.match(celda[1], /colspan="3"/);
+    assert.match(celda[1], /text-align:center/);
+  }
 });
 
 test("bordes nítidos y sin rendijas: rejilla de píxeles, grosor escalado y capa de rellenos", () => {

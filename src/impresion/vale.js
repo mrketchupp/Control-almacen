@@ -168,6 +168,14 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
   const fondos = []; // rellenos de color de cada celda, para la capa de abajo (sin rendijas)
   const colVisible = new Set(modelo.columnas.map((c) => c.c));
   const filaVisible = new Set(modelo.filas.map((f) => f.r));
+  // Una combinación puede empezar en una fila/columna oculta o fuera del área imprimible.
+  // Se dibuja desde su primera celda visible, conservando el texto y estilo del origen de Excel.
+  const anclasVisibles = new Map();
+  for (const rango of new Set(modelo.combinadaEn.values())) {
+    const r = modelo.filas.find((f) => f.r >= rango.r1 && f.r <= rango.r2)?.r;
+    const c = modelo.columnas.find((col) => col.c >= rango.c1 && col.c <= rango.c2)?.c;
+    if (r !== undefined && c !== undefined) anclasVisibles.set(rango, { r, c });
+  }
   const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
   const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : fijo(modelo.valor(r, c)));
   const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
@@ -182,10 +190,13 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
     const celdas = [];
     for (const { c } of modelo.columnas) {
       const rango = modelo.combinadaEn.get(`${r},${c}`);
-      if (rango && (rango.r1 !== r || rango.c1 !== c)) continue;
+      const ancla = rango && anclasVisibles.get(rango);
+      if (rango && (ancla?.r !== r || ancla?.c !== c)) continue;
+      const filaFuente = rango?.r1 ?? r;
+      const colFuente = rango?.c1 ?? c;
       let colspan = 1;
       let rowspan = 1;
-      let bordes = estilos.bordesCss(modelo.estiloDe(r, c));
+      let bordes = estilos.bordesCss(modelo.estiloDe(filaFuente, colFuente));
       const finCol = rango ? rango.c2 : c;
       const finFila = rango ? rango.r2 : r;
       if (rango) {
@@ -216,12 +227,12 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         if (v) bordes["border-bottom"] = v;
       }
       for (const lado of Object.keys(bordes)) bordes[lado] = grosorEscalado(bordes[lado], escala);
-      const estilo = estilos.css(modelo.estiloTextoDe?.(r, c) ?? modelo.estiloDe(r, c));
-      const valor = valorEn(r, c);
-      const texto = textoEn(r, c);
+      const estilo = estilos.css(modelo.estiloTextoDe?.(filaFuente, colFuente) ?? modelo.estiloDe(filaFuente, colFuente));
+      const valor = valorEn(filaFuente, colFuente);
+      const texto = textoEn(filaFuente, colFuente);
       const css = { ...estilo.css, ...bordes };
-      if (modelo.centradas?.has(`${r},${c}`)) css["text-align"] = "center";
-      const fondo = estilos.css(modelo.estiloDe(r, c)).css.background;
+      if (modelo.centradas?.has(`${filaFuente},${colFuente}`)) css["text-align"] = "center";
+      const fondo = estilos.css(modelo.estiloDe(filaFuente, colFuente)).css.background;
       if (fondo && !/^#?(fff|ffffff)$/i.test(fondo.replace("#", ""))) {
         let w = 0;
         for (const x of colVisible) if (x >= c && x <= finCol) w += wCol.get(x);
@@ -236,8 +247,9 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         css.overflow = siguiente <= modelo.area.c2 && textoEn(r, siguiente) ? "hidden" : "visible";
       }
       const atributos = `${colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan > 1 ? ` rowspan="${rowspan}"` : ""}`;
-      // Excel recorta el texto que no cabe en la altura de la fila (filas espaciadoras de 1-2 px);
-      // en HTML la fila crecería, así que se recorta igual.
+      // El texto se dibuja fuera del flujo de la tabla: height en un <tr> solo es un mínimo.
+      // Si una partida se ajusta a varias líneas, no debe crecer la fila ni desplazar los fondos,
+      // observaciones, fotos y firmas respecto a las medidas de Excel.
       let contenido = escaparHtml(texto);
       if (texto !== "") {
         let altura = 0;
@@ -246,7 +258,17 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         const linea = puntos * (96 / 72);
         // En una fila espaciadora (1–2 px) Excel no deja ver nada del texto: no se imprime.
         if (altura < linea * 0.3) contenido = "";
-        else if (altura < linea * 1.1) contenido = `<div style="height:${+altura.toFixed(3)}px;overflow:hidden">${contenido}</div>`;
+      }
+      if (contenido) {
+        const caja = {
+          "justify-content": css["vertical-align"] === "top" ? "flex-start" : css["vertical-align"] === "middle" ? "center" : "flex-end",
+        };
+        if (css["padding-left"]) {
+          caja["padding-left"] = css["padding-left"];
+          delete css["padding-left"];
+        }
+        if (css.overflow === "hidden") caja.overflow = "hidden";
+        contenido = `<div class="vale-texto" style="${escaparHtml(cssEnLinea(caja))}"><div>${contenido}</div></div>`;
       }
       celdas.push(`<td${atributos} style="${escaparHtml(cssEnLinea(css))}">${contenido}</td>`);
     }
@@ -328,7 +350,8 @@ export function cssImpresion(modelo) {
     ".vale-lienzo{position:relative;overflow:hidden;box-sizing:border-box;background:#fff;color:#000}" +
     ".vale-tabla{position:relative;table-layout:fixed;border-collapse:collapse;color:#000}" +
     ".vale-fondo{position:absolute}" +
-    ".vale-tabla td{padding:0 2px;line-height:1.1;box-sizing:border-box}" +
+    ".vale-tabla td{position:relative;padding:0;line-height:1.1;box-sizing:border-box}" +
+    ".vale-texto{position:absolute;inset:0;display:flex;flex-direction:column;padding:0 2px;box-sizing:border-box;clip-path:inset(0 -10000px);overflow:visible}.vale-texto>div{flex:none;min-width:0}" +
     ".vale-lienzo img{position:absolute}.vale-lienzo img.vale-foto{object-fit:cover}"
   );
 }
