@@ -120,6 +120,11 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
      derecha. Se guarda al momento para el almacenista en turno: cada quien ve su propio acomodo. *Restablecer como venía*
      regresa al de fábrica.
 3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
+   - **Imprimir varios vales:** *Historial de vales → Vales de salida → Imprimir por lotes*. Pega tu lista de folios
+     (por ejemplo, una columna de Excel o 88 folios separados por saltos de línea, espacios, comas o punto y coma).
+     Revisa el conteo y pulsa **Imprimir**: se abre un solo diálogo de impresión o PDF, con una hoja por vale en el
+     orden pegado. Los repetidos se imprimen una sola vez. Si hay folios inválidos o que no existen en el inventario
+     abierto, corrige la lista antes de imprimir. Los filtros del historial no limitan la búsqueda del lote.
    - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
    - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.

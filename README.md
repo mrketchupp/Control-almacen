@@ -20,6 +20,8 @@ AX), y exportar la solicitud de ajuste. Fases 1 (primera carga y exportación
 idéntica) y 2 (vales de salida) aceptadas; fase 3 (entradas, conteos y movimientos) entregada.
 Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
+También hay una [versión lista para descargar](versiones/ControlAlmacen.html), con impresión por lotes desde el historial.
+En GitHub, abre ese archivo y usa **Download raw file** (icono de descarga).
 
 ```bash
 npm ci && npm test && npm run build   # → dist/ControlAlmacen.html

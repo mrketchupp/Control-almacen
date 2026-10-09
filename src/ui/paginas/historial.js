@@ -3,7 +3,8 @@ import { filasHistorial, filtrarHistorial } from "../../servicios/consultas.js";
 import { filasEntradas, filtrarEntradas } from "../../servicios/entradas.js";
 import { estadoAxDeVales, etiquetaAx, sinAplicar } from "../../servicios/seguimiento.js";
 import { duplicadasEnVales } from "../../servicios/vales.js";
-import { Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, num, useSesion } from "../componentes.js";
+import { resolverLoteVales } from "../../servicios/lotesVales.js";
+import { Aviso, Boton, Buscador, CampoSugerido, Lista, Pastilla, Tabla, Ventana, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { PastillaAx } from "./base.js";
 
@@ -79,6 +80,7 @@ export function PaginaHistorial() {
 
 function HistorialSalidas() {
   const sesion = useSesion();
+  const [imprimiendoLote, setImprimiendoLote] = useState(false);
   const ax = useMemo(() => estadoAxDeVales(sesion.estado), [sesion.estado]);
   const filas = useMemo(() => {
     const duplicadas = duplicadasEnVales(sesion.estado);
@@ -105,6 +107,10 @@ function HistorialSalidas() {
   const activos = Object.entries(filtros).filter(([, v]) => v).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
   return html`
+    <div class="acciones-linea">
+      <${Boton} onClick=${() => setImprimiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>🖨 Imprimir por lotes<//>
+    </div>
+    ${imprimiendoLote ? html`<${ImpresionPorLotes} alCerrar=${() => setImprimiendoLote(false)} />` : null}
     <div class="filtros filtros-historial">
       <${Buscador} valor=${filtros.texto} alCambiar=${(texto) => setFiltros({ ...filtros, texto })} placeholder="Buscar en todo: folio, descripción, clave, O.C.…" />
       <label class="filtro">
@@ -174,4 +180,39 @@ function HistorialSalidas() {
       vacia="Ninguna partida coincide con los filtros."
     />
   `;
+}
+
+function ImpresionPorLotes({ alCerrar }) {
+  const sesion = useSesion();
+  const [texto, setTexto] = useState("");
+  const [preparando, setPreparando] = useState(false);
+  const lote = useMemo(() => resolverLoteVales(sesion.estado, texto), [sesion.estado, texto]);
+  const listo = lote.vales.length > 0 && !lote.faltantes.length && !lote.invalidos.length;
+  const imprimir = async () => {
+    if (!listo || preparando || sesion.ocupado) return;
+    setPreparando(true);
+    try {
+      await sesion.tarea("Preparando impresión del lote…", () => sesion.imprimirVales(lote.vales));
+    } finally {
+      setPreparando(false);
+    }
+  };
+  return html`<${Ventana} titulo="Imprimir por lotes" alCerrar=${alCerrar}>
+    <p>Pega los folios de salida del inventario <strong>${sesion.estado.config.inventario}</strong>, uno por línea o separados por espacios, comas o punto y coma. Puedes copiar una columna de Excel.</p>
+    <label class="campo">
+      <span>Folios a imprimir</span>
+      <textarea rows="8" value=${texto} onInput=${(e) => setTexto(e.currentTarget.value)} placeholder=${"12345\n12346\n12350"} spellcheck="false" disabled=${preparando}></textarea>
+    </label>
+    ${lote.invalidos.length ? html`<${Aviso} tipo="error" titulo="Revisa estos folios"><p class="lote-folios">${lote.invalidos.join(", ")}</p>Escribe solo números de folio, sin encabezados ni rangos.<//>` : null}
+    ${lote.faltantes.length ? html`<${Aviso} tipo="error" titulo="Folios no encontrados"><p class="lote-folios">${lote.faltantes.join(", ")}</p>No están en los vales de salida de este inventario. Corrige la lista antes de imprimir.<//>` : null}
+    ${lote.repetidos.length ? html`<p class="nota lote-folios">Folios repetidos: ${lote.repetidos.join(", ")}. Cada vale se imprimirá una sola vez.</p>` : null}
+    ${lote.cancelados.length ? html`<${Aviso} tipo="advertencia" titulo="El lote incluye vales cancelados de versiones anteriores"><p class="lote-folios">${lote.cancelados.join(", ")}</p>Se imprimirán igual que al abrirlos en detalle.<//>` : null}
+    <p class="conteo" aria-live="polite">${num(lote.vales.length)} ${lote.vales.length === 1 ? "vale encontrado" : "vales encontrados"} · una hoja por vale, en el orden de tu lista.</p>
+    ${lote.vales.length ? html`<p class="nota lote-folios">Orden de impresión: ${lote.vales.map((v) => v.folio).join(", ")}</p>` : null}
+    <div class="acciones-linea">
+      <${Boton} tipo="primario" onClick=${imprimir} disabled=${!listo || preparando || Boolean(sesion.ocupado)}>${preparando ? "Preparando…" : `🖨 Imprimir ${num(lote.vales.length)} ${lote.vales.length === 1 ? "vale" : "vales"}`}<//>
+      <${Boton} onClick=${alCerrar}>Cerrar<//>
+    </div>
+    <p class="nota">Se abre un solo diálogo para elegir la impresora o Guardar como PDF. La lista se busca en todo el historial, aunque tengas filtros activos.</p>
+  <//>`;
 }

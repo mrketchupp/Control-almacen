@@ -1367,6 +1367,10 @@ select.con-error {
 
 /* ---------------------------------------------------------------- vista previa e impresión */
 
+.lote-folios {
+  overflow-wrap: anywhere;
+}
+
 .vista-previa {
   position: fixed;
   inset: 0;
