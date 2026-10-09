@@ -13,14 +13,16 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
   quitar áreas (borrar si nadie la usa, descartar si tiene vales) y personalización / captura / Mi pantalla compartidas.
 - Ronda 20: **etiquetas de almacén** (el generador aparte, ahora dentro) — ver "Etiquetas" abajo y `docs/11-etiquetas.md`.
   Ronda 21: lista y bitácora de etiquetas **compartidas entre DLTA y GSM**, leer el otro inventario sin cambiar y ventanas sin scroll.
-- **Ronda 22 planeada, SIN implementar** (el usuario pidió dejar solo el plan): fecha de recibido en entradas y editor de
-  diseños de etiquetas — decisiones y pasos en `docs/12-ronda-22-plan.md`. Retomar desde ahí.
+- Ronda 22: **fecha de recibido** en los vales de entrada (manda en el inventario y el reporte diario) y **editor de
+  diseños de etiqueta** a pantalla completa con QR y código de barras propios — ver "Ronda 22" abajo y
+  `docs/12-ronda-22-plan.md`. Entregada, en aceptación.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 12` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
+- Formato del estado: `FORMATO_ESTADO = 13` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
 `etiquetas` (`{ material, ax }` por imprimir) e `impresiones_etiquetas` (bitácora); el 11, ids `INV-n`, `origen.inventario`,
 `vales: [{ inventario, vale_id, emitido_en }]`, `origen.emitido_en`, `etiquetas.cambiado_en` y `juntar` (Ronda 21); el 12
-completa `emitido_en` de las marcas propias que no lo traían (una marca con `emitido_en` sin definir se reconoce por id: `marcaDe`).
+completa `emitido_en` de las marcas propias que no lo traían (una marca con `emitido_en` sin definir se reconoce por id: `marcaDe`); el 13,
+`vale.fecha_recibido` en las entradas (las registradas = su `fecha`; los borradores = hoy).
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -153,6 +155,28 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   del otro aún no compartió; `entradasSinEtiquetas(estado, { registro })`. **Leer el otro inventario:** `main.js` `leerOtroInventario` (no crea la base
   si no existe) → `Sesion.estadoDeInventario(id)` (copia migrada; nunca se escribe) → hook `useEstadoDe` y selector
   `DeInventario` en las ventanas. Ventanas `.ventana-etq` (alto casi completo, tabla flexible, pie sticky).
+
+## Ronda 22
+- **Fecha de recibido (A):** `vale.fecha_recibido` en entradas (formato 13); `fecha` sigue siendo la **del vale** (la llena
+  Copilot). `fechaDelDia(vale)` (`nucleo/fechas.js`) = recibido en entradas, `fecha` en salidas: la usan `calcularSaldos({ dia })`,
+  `estadoAlCierre` / `entradasAlCierre` (las entradas se filtran por recibido, ya no por E-folio: `entrada` = folio más alto
+  incluido y `fuera` = los menores recibidos después), `reporteDelDia`, `resumen.entradas_hoy`, `filasEntradas` /
+  `filtrarEntradas` (columnas *Fecha del vale* y *Recibido*; filtros por recibido). **La conciliación AX, el tránsito, la
+  justificación y la base siguen con la fecha del vale** (P-25 en docs/09). Validación en `servicios/entradas.js`: recibido
+  obligatoria, no futura y no posterior al día del registro (bloquean); avisos: anterior al vale y conteo físico posterior
+  que pudo contarla. Se corrige con motivo (ETIQUETAS «Recibido»). El libro VALES DE ENTRADA lleva FECHA RECIBIDO al final (V).
+- **Diseños de etiqueta (B):** en el código se llaman **modelos** (`diseno` sigue siendo la hoja y las medidas). Datos en
+  `config.etiquetas` (compartida DLTA/GSM): `modelos: [{ id, nombre, elementos, … }]` y `modelo_por_tipo: { material, ax }`;
+  sin elegir = el de fábrica (`fabrica-material`, `fabrica-ax`, constantes en `impresion/modelos.js`, nunca en el estado).
+  Elementos en % de la etiqueta (`normalizarElemento` / `normalizarModelo` estrictos: el modelo llega del otro inventario y
+  de respaldos, es entrada no confiable); letra = % del alto. Render único en `impresion/etiquetas.js` (`documentoEtiquetas`
+  con `modelo`, `htmlElemento`, `cssEtiqueta`, `muestraEtiqueta`, `llenarPlantilla` con `{campo}`, `avisosElemento`; borde con
+  `.etq::after`; `diseno.fuente` ya no cambia el tamaño). QR propio `impresion/qr.js` (modo byte, M, v1–10) y Code 128 propio
+  `impresion/barras.js` (B/C), probados contra referencias de `qrcode` / `python-barcode` generadas una vez
+  (`tests/fixtures/qr_referencia.py`, `barras_referencia.py`; esas bibliotecas NO son dependencias). Servicio:
+  `modelosEtiqueta`, `modeloDe`, `guardarModeloEtiqueta`, `borrarModeloEtiqueta` / `reponerModeloEtiqueta`, `usarModelo`,
+  `nombreParaCopia`. Editor `ui/paginas/editorEtiquetas.js` (`EditorDisenos`, pantalla completa) con la lógica sin DOM en
+  `impresion/lienzo.js` (zoom, imán, guías, deshacer). En la página: *Hoja y logos* (medidas) y *Editor de diseños*.
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
