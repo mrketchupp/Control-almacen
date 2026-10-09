@@ -5,7 +5,7 @@
 // VALE_IMPRESION_MODULE puede apuntar a una versión anterior del módulo imprimible.
 
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -66,7 +66,7 @@ function casoConTextoLargo() {
   const valores = impresion.valoresDeVale(modelo, vale);
   valores.set("30,6", desbordado);
   return {
-    modelo, descripcion, desbordado, entrego, recibio,
+    modelo, valores, descripcion, desbordado, entrego, recibio,
     html: `<!doctype html><meta charset="utf-8"><style>body{margin:0}${impresion.cssImpresion(modelo)}</style>${impresion.paginaHtml(modelo, valores)}`,
   };
 }
@@ -174,6 +174,61 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     });
     const sinEtiqueta = await page.screenshot({ clip, animations: "disabled" });
     assert.notDeepEqual(conEtiqueta, sinEtiqueta, "OBSERVACION debe verse, no solo estar presente en el HTML");
+  });
+
+  await t.test("las bandas de observaciones siguen a sus celdas aunque cambie una altura en el lote", async () => {
+    const casoLote = casoConTextoLargo();
+    const estiloDe = casoLote.modelo.estiloDe.bind(casoLote.modelo);
+    casoLote.modelo.estiloDe = (r, c) => (r === 49 ? 1002 : estiloDe(r, c));
+    const inferior = { r1: 49, r2: 49, c1: 3, c2: 11 };
+    for (let c = 3; c <= 11; c++) casoLote.modelo.combinadaEn.set(`49,${c}`, inferior);
+    const cssOriginal = casoLote.modelo.estilos.css.bind(casoLote.modelo.estilos);
+    casoLote.modelo.estilos.css = (indice) => {
+      const estilo = cssOriginal(indice === 1002 ? 1001 : indice);
+      return indice === 1001 || indice === 1002 ? { ...estilo, css: { ...estilo.css, background: "#7030A0", "text-align": "center", "vertical-align": "middle" } } : estilo;
+    };
+    const cssAplicacion = await readFile(new URL("../src/estilos.css", import.meta.url), "utf8");
+    const pagina = impresion.paginaHtml(casoLote.modelo, casoLote.valores);
+    await page.setViewportSize({ width: 1100, height: 5000 });
+    await page.setContent(`<!doctype html><meta charset="utf-8"><style>${cssAplicacion}${impresion.cssImpresion(casoLote.modelo)}</style><body class="imprimiendo"><div id="area-impresion">${pagina.repeat(4)}</div></body>`);
+    await page.evaluate(() => document.fonts.ready);
+    const regiones = await page.evaluate((crecimientos) => [...document.querySelectorAll(".vale-pagina")].map((seccion, indice) => {
+      const tabla = seccion.querySelector(".vale-tabla");
+      const celda = [...tabla.querySelectorAll("td")].find((td) => td.textContent === "OBSERVACION");
+      const celdas = [celda, tabla.rows[44].cells[0]]; // La banda inferior está en la fila 49.
+      const iniciales = celdas.map((celda) => celda.getBoundingClientRect());
+      const escala = Number(seccion.querySelector(".vale-lienzo").style.zoom);
+      const partida = tabla.rows[16]; // La fila 21 del formulario, cuya área empieza en la 5.
+      partida.style.height = `${Number.parseFloat(partida.style.height) + crecimientos[indice] / escala}px`;
+      const primera = partida.cells[0].getBoundingClientRect();
+      return celdas.map((celda, banda) => {
+        const inicial = iniciales[banda];
+        const actual = celda.getBoundingClientRect();
+        return {
+          x: Math.ceil(primera.left + 3), y: Math.ceil(inicial.top),
+          width: Math.floor(primera.width - 6), height: Math.max(1, Math.floor(actual.top - inicial.top - 1)),
+          tituloY: actual.top, crecimiento: actual.top - inicial.top,
+        };
+      });
+    }), [26, 21, 12, 2]);
+    assert.equal(await page.locator("td").filter({ hasText: /^OBSERVACION$/ }).count(), 4);
+    assert.equal(await page.locator("td").filter({ hasText: casoLote.entrego }).count(), 4);
+    assert.equal(await page.locator("td").filter({ hasText: casoLote.recibio }).count(), 4);
+    for (const [indice, bandas] of regiones.entries()) {
+      for (const [banda, region] of bandas.entries()) {
+        assert.ok(region.crecimiento > 1, "La prueba reproduce una variación de altura visible");
+        const clip = { x: region.x, y: region.y, width: region.width, height: region.height };
+        const antes = await page.screenshot({ clip, animations: "disabled" });
+        await page.locator(".vale-pagina").nth(indice).evaluate((seccion, limite) => {
+          for (const fondo of seccion.querySelectorAll(".vale-fondo")) {
+            if (getComputedStyle(fondo).backgroundColor === "rgb(112, 48, 160)" && fondo.getBoundingClientRect().top < limite - 1) fondo.remove();
+          }
+        }, region.tituloY);
+        const sinCopiaAbsoluta = await page.screenshot({ clip, animations: "disabled" });
+        assert.deepEqual(antes, sinCopiaAbsoluta, `Página ${indice + 1}, banda ${banda + 1}: ninguna copia morada invade las filas antes de la celda`);
+      }
+    }
+    await page.setViewportSize({ width: 1100, height: 1200 });
   });
 
   await t.test("una combinación con origen oculto conserva su título sin tapar al vecino visible", async () => {

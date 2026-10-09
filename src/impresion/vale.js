@@ -176,6 +176,20 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
     const c = modelo.columnas.find((col) => col.c >= rango.c1 && col.c <= rango.c2)?.c;
     if (r !== undefined && c !== undefined) anclasVisibles.set(rango, { r, c });
   }
+  // En observaciones basta el relleno de las propias celdas. Su copia absoluta puede
+  // aparecer como una segunda banda entre las partidas si el navegador cambia una altura.
+  // La etiqueta no está en campos.observaciones.filas; también se incluye, aun con origen oculto.
+  const filasObservaciones = new Set();
+  for (const { r } of modelo.filas) {
+    const c = modelo.campos.observaciones.columna;
+    const rango = modelo.combinadaEn.get(`${r},${c}`);
+    const texto = String(modelo.valor(rango?.r1 ?? r, rango?.c1 ?? c) ?? "").trim();
+    if (/^OBSERVACI[OÓ]N/i.test(texto)) filasObservaciones.add(r);
+  }
+  const inicioObservaciones = Math.min(...filasObservaciones);
+  for (const r of modelo.campos.observaciones.filas) {
+    if (r >= inicioObservaciones) filasObservaciones.add(r);
+  }
   const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
   const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : fijo(modelo.valor(r, c)));
   const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
@@ -233,7 +247,9 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
       const css = { ...estilo.css, ...bordes };
       if (modelo.centradas?.has(`${filaFuente},${colFuente}`)) css["text-align"] = "center";
       const fondo = estilos.css(modelo.estiloDe(filaFuente, colFuente)).css.background;
-      if (fondo && !/^#?(fff|ffffff)$/i.test(fondo.replace("#", ""))) {
+      const tocaObservaciones = [...filasObservaciones].some((fila) => fila >= r && fila <= finFila);
+      if (tocaObservaciones && fondo) css.background = fondo;
+      if (fondo && !/^#?(fff|ffffff)$/i.test(fondo.replace("#", "")) && !tocaObservaciones) {
         let w = 0;
         for (const x of colVisible) if (x >= c && x <= finCol) w += wCol.get(x);
         let h = 0;
