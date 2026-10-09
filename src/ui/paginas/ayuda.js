@@ -88,6 +88,16 @@ export function PaginaAyuda() {
           Si ya está en un contenedor, se sugiere ese (si está en varios, el que tiene más, con ★). Si es una dimensión nueva, eliges el
           contenedor y se agrega una partida al final de esa hoja. Antes de registrar ves cuánto había, cuánto entra y cuánto queda.
         </dd>
+        <dt>¿Qué fecha cuenta en una entrada: la del vale o la de recibido?</dt>
+        <dd>
+          Un vale de entrada tiene dos: la <strong>fecha del vale</strong> (cuando la base lo envió; la trae el papel y la lee Copilot) y la
+          de <strong>recibido</strong> (cuando llegó el material; por omisión, hoy). La de <strong>recibido</strong> decide en qué día suma al
+          inventario, en qué reporte diario cuenta y cómo se filtra el historial de entradas. No puede ser futura ni posterior al día en
+          que se registra la entrada; si es anterior a la del vale o a un conteo de esas partidas, la herramienta avisa (si el conteo ya
+          contó ese material, la entrada lo sumaría dos veces). Se cambia con <em>Corregir</em> en la entrada (con motivo, queda en la
+          bitácora). La conciliación con AX sigue usando la fecha del vale: AX mueve el material cuando la base lo envía. El libro
+          exportado trae las dos (FECHA y, al final, FECHA RECIBIDO).
+        </dd>
         <dt>¿Qué hace un conteo parcial?</dt>
         <dd>
           Solo cambia las partidas que capturas: su CANTIDAD pasa a ser lo contado y CONSUMO / INGRESO vuelven a empezar. Las demás
@@ -111,7 +121,8 @@ export function PaginaAyuda() {
         <dd>
           Desde <a href="#inicio">Inicio</a> → <em>Crear reporte diario</em> eliges un día y descargas el libro de vales de salida y el
           inventario de refaccionamiento <strong>como estaban al cierre de ese día</strong>: el libro llega hasta el último folio de esa
-          fecha y el inventario no trae los vales, entradas, conteos ni movimientos posteriores, aunque ya los hayas hecho. Al subirlo,
+          fecha y el inventario no trae los vales, entradas, conteos ni movimientos posteriores, aunque ya los hayas hecho (las entradas
+          cuentan el día en que se <strong>recibieron</strong>, no el de su vale). Al subirlo,
           <em>Ya lo subí</em> marca solo los vales hasta ese folio; los posteriores siguen pendientes para el reporte de su día.
         </dd>
         <dt>¿Cómo concilio contra AX?</dt>

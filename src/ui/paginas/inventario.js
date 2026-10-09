@@ -157,7 +157,8 @@ export function PaginaInventario() {
     </div>
     <p class="nota nota-inventario-dia">
       Como el Excel diario: <strong>Cantidad</strong> es lo que había al empezar hoy (${fmtFecha(dia)});
-      <strong>Consumo</strong> e <strong>Ingreso</strong> son solo los vales de hoy. Los de días anteriores ya están en la cantidad.
+      <strong>Consumo</strong> e <strong>Ingreso</strong> son solo los vales de hoy (las entradas, por el día en que se recibieron). Los de días
+      anteriores ya están en la cantidad.
     </p>
     <${Tabla}
       limite=${300}

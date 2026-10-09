@@ -58,7 +58,7 @@ test("formato 9: los estados anteriores son de DLTA; uno nuevo dice de qué inve
   delete viejo.config.inventario;
   viejo.formato = 8;
   migrarEstado(viejo);
-  assert.deepEqual([viejo.formato, viejo.config.inventario], [12, "DLTA"]);
+  assert.deepEqual([viejo.formato, viejo.config.inventario], [13, "DLTA"]);
   assert.equal(estadoVacio("GSM").config.inventario, "GSM");
   const gsm = cargaSintetica({ idInventario: "GSM" }).estado;
   assert.deepEqual([inventarioDe(gsm).id, gsm.config.almacen_ax], ["GSM", null]);

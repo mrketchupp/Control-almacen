@@ -1,7 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
 import { aNumero } from "../../nucleo/decimal.js";
 import { Indices } from "../../nucleo/estado.js";
-import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
+import { fechaDelDia, fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
 import {
   ErrorEntrada,
   corregirEntrada,
@@ -32,7 +32,12 @@ function CorreccionEntrada({ vale, alTerminar }) {
   const [motivoPropio, setMotivoPropio] = useState(null);
   const [errores, setErrores] = useState([]);
   const cambios = useMemo(() => resumenCambiosEntrada(sesion.estado, vale, datos), [datos, vale]);
-  const { avisos } = useMemo(() => validarEntrada(sesion.estado, datos, { excluirValeId: vale.id }), [datos, vale]);
+  const vivo = useMemo(() => validarEntrada(sesion.estado, datos, { excluirValeId: vale.id }), [datos, vale]);
+  const { avisos } = vivo;
+  // La fecha de recibido se revisa mientras se escribe (no puede ser futura ni posterior al registro); vacía, al guardar.
+  const intentoRecibido = errores.some((e) => e.campo === "fecha_recibido");
+  const delRecibido = vivo.errores.filter((e) => e.campo === "fecha_recibido" && (datos.fecha_recibido || intentoRecibido));
+  const mostrados = [...errores.filter((e) => e.campo !== "fecha_recibido"), ...delRecibido];
   const motivo = motivoPropio ?? cambios.join("\n");
   const guardar = () =>
     sesion.tarea("Guardando corrección…", async () => {
@@ -54,7 +59,8 @@ function CorreccionEntrada({ vale, alTerminar }) {
     <${EditorEntrada}
       datos=${datos}
       alCambiar=${setDatos}
-      errores=${errores}
+      errores=${mostrados}
+      avisos=${avisos}
       excluirValeId=${vale.id}
       pie=${html`${avisos.filter((a) => a.campo === "cantidad").length
           ? html`<${Aviso} tipo="advertencia" titulo="Revisa la existencia">
@@ -123,7 +129,8 @@ export function PaginaEntrada() {
       ? html`<${CorreccionEntrada} vale=${vale} alTerminar=${() => setCorrigiendo(false)} />`
       : html`
           <div class="datos datos-texto">
-            <${Dato} etiqueta="Fecha" valor=${fmtFecha(vale.fecha)} />
+            <${Dato} etiqueta="Fecha del vale" valor=${fmtFecha(vale.fecha) || "—"} detalle="cuando la base lo envió" />
+            <${Dato} etiqueta="Recibido" valor=${fmtFecha(fechaDelDia(vale)) || "—"} detalle="suma al inventario de ese día" />
             <${Dato} etiqueta="Folio del vale" valor=${vale.folio_externo || "—"} />
             <${Dato} etiqueta="Viene de" valor=${vale.origen || "—"} />
             ${vale.devolucion_folio

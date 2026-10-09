@@ -283,19 +283,23 @@ test("devolución: los renglones regresan al renglón del que salieron", () => {
   assert.throws(() => en.datosDeDevolucion(estado, 999), /No hay un vale de salida/);
 });
 
-test("historial de entradas con filtros por fecha, folio de la base, código y O.C. (RF-34)", () => {
+test("historial de entradas: fecha del vale y recibido; filtros por recibido, folio de la base, código y O.C. (RF-34)", () => {
   const { estado, indices } = preparar();
   const l = (codigo, cantidad, oc = "") => ({ ...en.entradaConArticulo(estado, en.lineaEntradaVacia(), codigo, { indices }), cantidad, oc });
   en.confirmarEntrada(estado, borrador(estado, [l(708, "2", "4500123")]).id, { usuario: USUARIO });
-  const b = borrador(estado, [l(708, "1"), l(706, "1")], { folio_externo: "B-200" });
-  b.fecha = "2026-10-05";
+  // Vale del 02 que llegó el 05: el historial filtra por el día en que se recibió.
+  const b = borrador(estado, [l(708, "1"), l(706, "1")], { folio_externo: "B-200", fecha_recibido: "2026-10-05" });
   en.confirmarEntrada(estado, b.id, { usuario: USUARIO });
   const filas = en.filasEntradas(estado);
   assert.equal(filas.length, 3);
   assert.equal(filas[0].folio_texto, "E-0002");
+  assert.deepEqual([filas[0].fecha, filas[0].recibido, filas[0].recibido_iso], ["02/10/2026", "05/10/2026", "2026-10-05"]);
+  assert.deepEqual([filas[2].fecha, filas[2].recibido], ["02/10/2026", "02/10/2026"]);
   assert.equal(en.filtrarEntradas(filas, { folio: "b200" }).length, 2);
   assert.equal(en.filtrarEntradas(filas, { codigo: "708" }).length, 2);
   assert.equal(en.filtrarEntradas(filas, { oc: "4500" }).length, 1);
   assert.equal(en.filtrarEntradas(filas, { desde: "2026-10-03" }).length, 2);
+  assert.equal(en.filtrarEntradas(filas, { hasta: "2026-10-02" }).length, 1);
+  assert.equal(en.filtrarEntradas(filas, { desde: "2026-10-05", hasta: "2026-10-05" }).length, 2);
   assert.equal(en.filtrarEntradas(filas, { texto: "E-0001" }).length, 1);
 });

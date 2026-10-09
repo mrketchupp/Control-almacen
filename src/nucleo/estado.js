@@ -5,7 +5,7 @@
 // Cantidades como texto decimal ("12.5"); fechas como texto ISO.
 
 import { esInterna, etapaDe, normalizarArea, tieneDatosFijos } from "./areas.js";
-import { ahoraIso } from "./fechas.js";
+import { ahoraIso, hoyIso } from "./fechas.js";
 import { INVENTARIO_DEFECTO, inventarioPorId } from "./inventarios.js";
 import { claveEstricta } from "./normalizar.js";
 
@@ -19,7 +19,9 @@ import { claveEstricta } from "./normalizar.js";
 // Formato 10 (Ronda 20): etiquetas por imprimir y la bitácora de las impresas.
 // Formato 11 (Ronda 21): esa lista y esa bitácora son las mismas en DLTA y GSM: ids con el inventario.
 // Formato 12 (revisión de la Ronda 21): cada marca de etiquetas guarda cuándo se registró su entrada.
-export const FORMATO_ESTADO = 12;
+// Formato 13 (Ronda 22): los vales de entrada (y sus borradores) traen `fecha_recibido`, el día en que entra al
+// inventario y al reporte diario; `fecha` sigue siendo la del vale (cuando la base lo envió).
+export const FORMATO_ESTADO = 13;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -182,6 +184,16 @@ export function migrarEstado(estado) {
       for (const m of r.vales ?? []) if (m && typeof m === "object" && m.emitido_en === undefined && propio(m.inventario)) m.emitido_en = huella(m.vale_id);
     }
     estado.formato = 12;
+  }
+  if (estado.formato < 13) {
+    // Fecha de recibido de las entradas. Las ya registradas se recibieron el día que dicen (así no cambia ningún
+    // reporte diario ya subido). Los borradores, hoy: un día pasado podría cambiar un reporte que ya se subió, y
+    // queda a la vista para cambiarlo antes de registrar (no se toma su fecha: puede ser la del vale, que puso
+    // Copilot).
+    for (const v of estado.vales ?? []) if (v.tipo === "ENTRADA" && v.fecha_recibido === undefined) v.fecha_recibido = v.fecha ?? null;
+    const hoy = hoyIso();
+    for (const b of estado.borradores_entrada ?? []) b.fecha_recibido ??= hoy;
+    estado.formato = 13;
   }
   return estado;
 }

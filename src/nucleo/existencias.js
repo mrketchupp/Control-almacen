@@ -5,9 +5,10 @@
 //   TOTAL   = CANTIDAD + INGRESO − CONSUMO.
 // Vista DIARIA (como el Excel del almacén, Ronda 16): con `dia`, CANTIDAD = lo que había al empezar ese
 // día (conteo + movimientos de días anteriores) y CONSUMO / INGRESO = solo los vales de ese día. El TOTAL
-// es el mismo; nada de esto se guarda.
+// es el mismo; nada de esto se guarda. El día de una entrada es el de recibido (`fechaDelDia`, Ronda 22).
 
 import { CERO, dec } from "./decimal.js";
+import { fechaDelDia } from "./fechas.js";
 
 export class Saldo {
   constructor(existenciaId, cantidad) {
@@ -54,7 +55,8 @@ export const corteDe = (cortes, tipo) => (tipo === "ENTRADA" ? cortes.entrada : 
 
 /**
  * Map id de existencia → Saldo.
- * @param dia  AAAA-MM-DD (opcional): vista diaria; los vales de días anteriores pasan a la CANTIDAD.
+ * @param dia  AAAA-MM-DD (opcional): vista diaria; los vales de días anteriores pasan a la CANTIDAD (las
+ *             entradas, por su día de recibido). El corte de cada conteo sigue siendo por folio.
  */
 export function calcularSaldos(estado, idsExistencia = null, { dia = null } = {}) {
   const filtro = idsExistencia ? new Set(idsExistencia) : null;
@@ -67,6 +69,7 @@ export function calcularSaldos(estado, idsExistencia = null, { dia = null } = {}
     saldos.set(e.id, new Saldo(e.id, dec(e.cantidad_conteo) ?? CERO));
   }
   for (const vale of estado.vales) {
+    const delDia = dia ? fechaDelDia(vale) : null;
     for (const linea of vale.lineas) {
       if (linea.existencia_id === null || linea.existencia_id === undefined) continue;
       const existencia = existencias.get(linea.existencia_id);
@@ -74,7 +77,7 @@ export function calcularSaldos(estado, idsExistencia = null, { dia = null } = {}
       const cantidad = dec(linea.cantidad);
       if (cantidad === null || !cuentaParaSaldo(conteos.get(existencia.conteo_id), vale)) continue;
       const saldo = saldos.get(existencia.id);
-      if (dia && vale.fecha && vale.fecha < dia) {
+      if (delDia && delDia < dia) {
         // Día anterior: ya está en lo que había al empezar el día.
         saldo.cantidad = vale.tipo === "SALIDA" ? saldo.cantidad.minus(cantidad) : saldo.cantidad.plus(cantidad);
         continue;

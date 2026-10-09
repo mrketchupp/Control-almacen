@@ -160,10 +160,14 @@ export function PaginaReporte() {
         ${reporte.entradas.length
           ? html`<ul class="lista-simple">
               ${reporte.entradas.map(
-                (e) => html`<li><a href=${`#entrada/${e.vale.id}`}>${e.folio}</a> · vale ${e.folio_externo || "—"}${e.origen ? ` de ${e.origen}` : ""} · ${e.partidas} partidas</li>`,
+                (e) => html`<li>
+                  <a href=${`#entrada/${e.vale.id}`}>${e.folio}</a> · vale ${e.folio_externo || "—"}${e.origen ? ` de ${e.origen}` : ""} · ${e.partidas} partidas
+                  ${e.fecha_vale && e.fecha_vale !== fecha ? html` · <span class="recibido-distinto" title="Fecha del vale: cuando lo envió la base">vale del ${fmtFecha(e.fecha_vale)}</span>` : null}
+                </li>`,
               )}
-            </ul>`
-          : html`<p class="nota">Sin entradas este día.</p>`}
+            </ul>
+            <p class="nota">Por su fecha de recibido: lo que llegó este día, aunque el vale sea de otro.</p>`
+          : html`<p class="nota">Sin entradas recibidas este día.</p>`}
       </section>
     <//>
   `;
