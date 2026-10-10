@@ -11,11 +11,23 @@ Herramienta **web** para el almacén del RIG 91 que **guarda todo en el equipo d
 - Ronda 17: **dos inventarios, DLTA y GSM, por separado** — ver "Dos inventarios" abajo. Ronda 18: color de GSM en
   toda la interfaz, etapa de perforación compartida y vale impreso más fiel (bordes, rendijas, títulos de firma). Ronda 19:
   quitar áreas (borrar si nadie la usa, descartar si tiene vales) y personalización / captura / Mi pantalla compartidas.
+- Ronda 20: **etiquetas de almacén** (el generador aparte, ahora dentro) — ver "Etiquetas" abajo y `docs/11-etiquetas.md`.
+  Ronda 21: lista y bitácora de etiquetas **compartidas entre DLTA y GSM**, leer el otro inventario sin cambiar y ventanas sin scroll.
+- Ronda 22: **fecha de recibido** en los vales de entrada (manda en el inventario y el reporte diario) y **editor de
+  diseños de etiqueta** a pantalla completa con QR y código de barras propios — ver "Ronda 22" abajo y
+  `docs/12-ronda-22-plan.md`. Entregada, en aceptación.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 10` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
-`config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir).
-- El 10 agrega `vale.campos_encabezado_corregidos` y el marcador opcional `firmas_por_posicion`: las correcciones generales conservan las partidas y sus `encabezado_original`; la exportación aplica el encabezado vigente sólo a los campos elegidos. Los puestos y observaciones vacíos marcados tampoco heredan texto al imprimir.
+- Formato del estado: `FORMATO_ESTADO = 14` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
+`config.inventario` (`DLTA` | `GSM`; los anteriores son DLTA) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
+`etiquetas` (`{ material, ax }` por imprimir) e `impresiones_etiquetas` (bitácora); el 11, ids `INV-n`, `origen.inventario`,
+`vales: [{ inventario, vale_id, emitido_en }]`, `origen.emitido_en`, `etiquetas.cambiado_en` y `juntar` (Ronda 21); el 12
+completa `emitido_en` de las marcas propias que no lo traían (una marca con `emitido_en` sin definir se reconoce por id: `marcaDe`); el 13,
+`vale.fecha_recibido` en las entradas (las registradas = su `fecha`; los borradores = hoy).
+- El 14 reúne ambas ramas: conserva los marcadores de correcciones generales y agrega la fecha mínima de justificantes de cada corte AX. Los estados 10 de la rama de vales también reciben la lista de etiquetas y las migraciones posteriores.
+- La rama de vales incorporó en su formato 10 `vale.campos_encabezado_corregidos` y el marcador opcional `firmas_por_posicion`: las correcciones generales conservan las partidas y sus `encabezado_original`; la exportación aplica el encabezado vigente sólo a los campos elegidos. Los puestos y observaciones vacíos marcados tampoco heredan texto al imprimir.
 - Historial: `servicios/correccionLotes.js` permite corregir datos generales de entradas y salidas en un solo `Almacen.modificar`, con revisión y motivo. Personas propaga puestos sólo tras confirmación (`guardarPersona` con `{ actualizarVales: true }`). La impresión mide las claves largas, amplía sus filas y recupera espacio de filas vacías sin cambiar la plantilla guardada.
+- Fusión con etiquetas: `corregirInventarioParaAx` prepara una etiqueta de Material por partida física modificada al emparejar con AX (individual, seguras o solo en físico). `useCorreccion` retira esas etiquetas al deshacer y conserva el resto de la lista.
+- Justificantes AX: `corte.fecha_minima_vales`, propuesta = 1 de noviembre del año anterior al reporte, editable por corte en *Justificar faltantes*. `nucleo/justificantes.js` aplica el mismo límite a sugerencias, asignación manual, tránsito y exportación. Las asignaciones antiguas fuera del periodo se conservan para revisión y no cuentan. Auditoría `CAMBIAR_FECHA_MINIMA_VALES`; no modifica los vales ni el inventario.
 - Comandos: `npm ci` · `npm test` · `npm run build` (→ `dist/ControlAlmacen.html`). Las pruebas necesitan Python 3 con `openpyxl` (`tests/fixtures/requirements.txt`) para generar los Excel sintéticos.
 
 ## Avance de la Fase 3 (para retomar sin depender de la conversación)
@@ -122,6 +134,55 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   `reponerArea` (Deshacer) en `servicios/catalogos.js`; UI `useQuitarArea` en `ui/paginas/areas.js`. Un área en uso nunca se
   borra (sus vales la necesitan para imprimirse).
 
+## Etiquetas (Ronda 20)
+- Decisiones del usuario: el generador (`generador-etiquetas-almacen`) **se queda** para el teléfono y aquí se importa su
+  `.json` (`leerListaGenerador`, formato `etiquetas-almacen`; no se cambia el generador). Entrada = **una por pieza**,
+  inventario = **una por partida**, unidades continuas o decimales = 1 (`cantidadPropuesta`). NOMBRE = **AX** (`nombresAx`,
+  reporte más reciente) o la descripción del inventario. ÁREA **vacía**. **CONDICIÓN → INVENTARIO** (DLTA / GSM, el
+  abierto, editable por etiqueta; lleva el logo de su inventario). DESCRIPCIÓN = `OC: …` en entradas. Logos propuestos
+  **del libro de vales** del inventario abierto. Al imprimir, **¿Salieron bien?** → `registrarImpresion` (bitácora y
+  marca de la entrada; opcionalmente quita de la lista).
+- `src/servicios/etiquetas.js` (propuestas `etiquetaDeExistencia` / `etiquetasDeEntrada`, `buscarEntradas` por folio
+  interno o de la base, lista `agregarEtiquetas`…`reponerEtiquetas`, `impresionesPorVale`, `entradasSinEtiquetas`,
+  `configEtiquetas`, `fijarDiseno`, `fijarIdentidad`), `src/impresion/etiquetas.js` (`cuadricula` = la del generador,
+  `PLANTILLAS` con J-5163, `documentoEtiquetas` escapado, `vista: true` sin `@page`; al imprimir, hojas en bloque, no
+  flex), `ui/paginas/etiquetas.js` (`PaginaEtiquetas`, `EtiquetasDeEntrada`, `VistaPreviaEtiquetas`, `EstadoEtiquetas`).
+- `config.etiquetas` (diseño + identidad por inventario) está en `VALORES_COMPARTIDOS`; la bitácora de sincronización
+  anota las imágenes por tamaño (`sinImagenes`). Las etiquetas son copias: nunca cambian el inventario ni los vales.
+- **Ronda 21 — DLTA y GSM juntos:** `estado.etiquetas` y `estado.impresiones_etiquetas` también son compartidos
+  (`EN_ESTADO` en `almacen/compartidos.js`: claves `etiquetas_por_imprimir` / `impresiones_etiquetas`, sin auditoría; cada
+  clave con `leer` / `poner` / `adoptar` / `publicable`). Lista: gana `cambiado_en` más nuevo (`adoptarListaEtiquetas`,
+  `tocar` en cada cambio, `marca()` nunca baja; `juntar` une una vez la del formato 10, nunca al restaurar:
+  `sincronizar({ juntar: false })`); bitácora: `juntarImpresiones` (unión por id + fecha). Ids `nuevoId` =
+  `<inv>-<n>-<momento>`; `origen.inventario` y `origen.emitido_en`. **Las marcas se buscan por `claveDeVale(vale)`
+  (id + `emitido_en`)**: los ids de vale se repiten tras restaurar. `impresionesPorVale(estado, inv)` /
+  `entradasEnLista(estado, inv)` devuelven mapas con esa llave; `registroParaLeer(abierto, copia)` suma lo que la copia
+  del otro aún no compartió; `entradasSinEtiquetas(estado, { registro })`. **Leer el otro inventario:** `main.js` `leerOtroInventario` (no crea la base
+  si no existe) → `Sesion.estadoDeInventario(id)` (copia migrada; nunca se escribe) → hook `useEstadoDe` y selector
+  `DeInventario` en las ventanas. Ventanas `.ventana-etq` (alto casi completo, tabla flexible, pie sticky).
+
+## Ronda 22
+- **Fecha de recibido (A):** `vale.fecha_recibido` en entradas (formato 13); `fecha` sigue siendo la **del vale** (la llena
+  Copilot). `fechaDelDia(vale)` (`nucleo/fechas.js`) = recibido en entradas, `fecha` en salidas: la usan `calcularSaldos({ dia })`,
+  `estadoAlCierre` / `entradasAlCierre` (las entradas se filtran por recibido, ya no por E-folio: `entrada` = folio más alto
+  incluido y `fuera` = los menores recibidos después), `reporteDelDia`, `resumen.entradas_hoy`, `filasEntradas` /
+  `filtrarEntradas` (columnas *Fecha del vale* y *Recibido*; filtros por recibido). **La conciliación AX, el tránsito, la
+  justificación y la base siguen con la fecha del vale** (P-25 en docs/09). Validación en `servicios/entradas.js`: recibido
+  obligatoria, no futura y no posterior al día del registro (bloquean); avisos: anterior al vale y conteo físico posterior
+  que pudo contarla. Se corrige con motivo (ETIQUETAS «Recibido»). El libro VALES DE ENTRADA lleva FECHA RECIBIDO al final (V).
+- **Diseños de etiqueta (B):** en el código se llaman **modelos** (`diseno` sigue siendo la hoja y las medidas). Datos en
+  `config.etiquetas` (compartida DLTA/GSM): `modelos: [{ id, nombre, elementos, … }]` y `modelo_por_tipo: { material, ax }`;
+  sin elegir = el de fábrica (`fabrica-material`, `fabrica-ax`, constantes en `impresion/modelos.js`, nunca en el estado).
+  Elementos en % de la etiqueta (`normalizarElemento` / `normalizarModelo` estrictos: el modelo llega del otro inventario y
+  de respaldos, es entrada no confiable); letra = % del alto. Render único en `impresion/etiquetas.js` (`documentoEtiquetas`
+  con `modelo`, `htmlElemento`, `cssEtiqueta`, `muestraEtiqueta`, `llenarPlantilla` con `{campo}`, `avisosElemento`; borde con
+  `.etq::after`; `diseno.fuente` ya no cambia el tamaño). QR propio `impresion/qr.js` (modo byte, M, v1–10) y Code 128 propio
+  `impresion/barras.js` (B/C), probados contra referencias de `qrcode` / `python-barcode` generadas una vez
+  (`tests/fixtures/qr_referencia.py`, `barras_referencia.py`; esas bibliotecas NO son dependencias). Servicio:
+  `modelosEtiqueta`, `modeloDe`, `guardarModeloEtiqueta`, `borrarModeloEtiqueta` / `reponerModeloEtiqueta`, `usarModelo`,
+  `nombreParaCopia`. Editor `ui/paginas/editorEtiquetas.js` (`EditorDisenos`, pantalla completa) con la lógica sin DOM en
+  `impresion/lienzo.js` (zoom, imán, guías, deshacer). En la página: *Hoja y logos* (medidas) y *Editor de diseños*.
+
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
 2. **Los datos no salen del equipo.** Nada de servidores, APIs, analítica, CDNs ni fuentes externas. La página lleva CSP `default-src 'none'; connect-src 'none'` y todo va dentro del HTML. No agregues dependencias que necesiten red o `eval`.
@@ -141,6 +202,8 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 
 ## Verificación antes de cada commit
 - `npm test && npm run build`
+- **Al terminar cada cambio, adjunta `dist/ControlAlmacen.html` en la conversación** (pedido del usuario): recién
+  compilado, del mismo commit que se subió.
 - En cambios a exportadores: prueba de "partes intactas" (las partes que no se debían tocar deben ser idénticas byte a byte a la plantilla).
 - En cambios a importadores: el total por hoja y el número de renglones deben coincidir con la fixture.
 - En cambios de interfaz: abrir `dist/ControlAlmacen.html` en Chromium (Playwright) y recorrer primera carga → nuevo vale → emitir → imprimir → exportar → respaldo sin errores en consola ni peticiones de red. En headless, sustituye `window.print` para que dispare `afterprint`.

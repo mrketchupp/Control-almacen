@@ -3,6 +3,7 @@ import { leerArchivoSubido } from "../../almacen/archivos.js";
 import { sha256 } from "../../almacen/almacen.js";
 import { aNumero } from "../../nucleo/decimal.js";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
+import { fechaMinimaJustificantes } from "../../nucleo/justificantes.js";
 import { ErrorReporteAx, delAlmacen, leerReporteAx } from "../../importadores/ax.js";
 import {
   ErrorConciliacion,
@@ -10,6 +11,7 @@ import {
   conciliar,
   confirmarPareja,
   confirmarSeguras,
+  corregirInventarioParaAx,
   corteAx,
   corteConHuella,
   etiquetaEstado,
@@ -23,7 +25,6 @@ import {
   textoVariante,
   valoresAx,
 } from "../../servicios/conciliacion.js";
-import { corregirDimensionNp } from "../../servicios/inventario.js";
 import { COLORES_ESTADO, filasSolicitud, valesPorAplicar } from "../../exportadores/ajuste.js";
 import { sugerencias as sugerenciasDeVales } from "../../servicios/justificacion.js";
 import { Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
@@ -560,7 +561,7 @@ function ListaFisicoSinAx({ r }) {
                     actual=${{ dimension: x.variante.dimension, np: x.variante.np, um: x.variante.um }}
                     alAplicar=${({ dimension, np, cual }) =>
                       corregir(
-                        (e) => corregirDimensionNp(e, cual, { dimension, np }, { usuario: sesion.usuario, motivo: "Conciliación con AX" }),
+                        (e) => corregirInventarioParaAx(e, { corteId: r.corte.id, cual, dimension, np }, sesion.usuario),
                         (res) => `Listo: ${x.codigo} quedó como ${res.despues}${res.unida ? " (se juntó con la variante igual)" : ""}.`,
                       ).then((res) => res && setEditando(null))}
                     alCancelar=${() => setEditando(null)}
@@ -718,6 +719,7 @@ export function PaginaConciliacion() {
       ${botonImportar}
       <${Boton} tipo="peligro-texto" tamano="chico" onClick=${quitar}>Quitar corte<//>
     </div>
+    <p class="nota">Los vales que justifican este corte deben tener fecha desde el <strong>${fmtFecha(fechaMinimaJustificantes(corte))}</strong>. Puedes cambiar el límite en <strong>Justificar faltantes</strong>.</p>
 
     <div class="concilia-layout">
       <${Bento} clase="bento-concilia" etiqueta="Qué hacer con la conciliación">

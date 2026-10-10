@@ -5,6 +5,7 @@ import { useMemo, useState } from "preact/hooks";
 import { Indices, auditar } from "../../nucleo/estado.js";
 import { ErrorConciliacion, cuadraConAx } from "../../servicios/conciliacion.js";
 import { ErrorCorreccion, lugarCorto, previaCorreccion, sugerenciasClave } from "../../servicios/inventario.js";
+import { quitarEtiquetas } from "../../servicios/etiquetas.js";
 import { Boton, Combo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
@@ -123,8 +124,14 @@ export function useCorreccion() {
         cortes: (e0.cortes_ax ?? []).map((c) => ({ id: c.id, sin_pareja: c.sin_pareja ?? [] })),
       });
       let resultado;
+      let etiquetas = [];
+      const idsPrevios = new Set((e0.etiquetas?.material ?? []).map((e) => e.id));
       try {
-        resultado = await sesion.almacen.modificar((e) => accion(e));
+        resultado = await sesion.almacen.modificar((e) => {
+          const res = accion(e);
+          etiquetas = (e.etiquetas?.material ?? []).filter((etiqueta) => !idsPrevios.has(etiqueta.id)).map((etiqueta) => etiqueta.id);
+          return res;
+        });
       } catch (error) {
         if (error instanceof ErrorCorreccion || error instanceof ErrorConciliacion) {
           sesion.avisar("error", error.message);
@@ -132,7 +139,8 @@ export function useCorreccion() {
         }
         throw error;
       }
-      sesion.avisar("exito", mensaje(resultado), 12000, {
+      const avisoEtiquetas = etiquetas.length ? ` ${etiquetas.length === 1 ? "1 etiqueta agregada" : `${etiquetas.length} etiquetas agregadas`} a Etiquetas → Material.` : "";
+      sesion.avisar("exito", mensaje(resultado) + avisoEtiquetas, 12000, {
         etiqueta: "↶ Deshacer",
         alHacer: () =>
           sesion.almacen.modificar((e) => {
@@ -154,6 +162,7 @@ export function useCorreccion() {
               const x = copia.cortes.find((y) => y.id === c.id);
               if (x) c.sin_pareja = x.sin_pareja;
             }
+            if (etiquetas.length) quitarEtiquetas(e, "material", etiquetas);
             auditar(e, { usuario: sesion.usuario, entidad: "variante", accion: "DESHACER_CORRECCION" });
           }),
       });

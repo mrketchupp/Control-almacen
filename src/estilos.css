@@ -1375,6 +1375,23 @@ select.con-error {
   width: min(900px, 100%);
 }
 
+.limite-justificantes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+.limite-justificantes .campo {
+  max-width: 16rem;
+}
+.limite-justificantes p {
+  flex-basis: 100%;
+  margin: 0;
+}
 .correccion-lote-campos {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
@@ -3474,6 +3491,42 @@ body.con-ventana {
   margin-top: 10px;
 }
 
+/* Ronda 22 — fecha de recibido: «Fecha del vale» y «Recibido» lado a lado; la nota y los avisos debajo. */
+.encabezado-campos {
+  grid-template-columns: minmax(120px, 0.8fr) minmax(190px, 1.3fr) minmax(140px, 0.75fr) minmax(140px, 0.75fr) minmax(190px, 1.3fr);
+}
+
+.recibido-nota {
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+.recibido-nota:empty {
+  display: none;
+}
+
+.recibido-nota p {
+  margin: 4px 0 0;
+}
+
+.recibido-error {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.recibido-aviso {
+  padding: 6px 10px;
+  border-left: 3px solid var(--alerta);
+  border-radius: 4px;
+  background: var(--alerta-suave);
+  color: var(--texto);
+}
+
+/* Historial y reporte: recibido otro día que el del vale. */
+.recibido-distinto {
+  font-weight: 600;
+}
+
 .encabezado-pie {
   display: flex;
   flex-wrap: wrap;
@@ -5445,5 +5498,1400 @@ button.mosaico:hover .mosaico-abrir {
 @container (max-width: 620px) {
   .texto-archivo {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------- etiquetas (Ronda 20) */
+
+/* DLTA en azul y GSM en morado, sea cual sea el inventario abierto. */
+.pastilla-inv-dlta {
+  background: #e6eef8;
+  color: #1f4e8c;
+}
+
+.pastilla-inv-gsm {
+  background: #f1eafa;
+  color: #6b3fa0;
+}
+
+:root[data-tema="oscuro"] .pastilla-inv-dlta {
+  background: #1d3150;
+  color: #6ea3e8;
+}
+
+:root[data-tema="oscuro"] .pastilla-inv-gsm {
+  background: #2c2240;
+  color: #b99df0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .pastilla-inv-dlta {
+    background: #1d3150;
+    color: #6ea3e8;
+  }
+
+  :root:not([data-tema="claro"]) .pastilla-inv-gsm {
+    background: #2c2240;
+    color: #b99df0;
+  }
+}
+
+.sugerencia-etiquetas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 12px;
+  padding: 10px 14px;
+  border: 1px dashed var(--ok);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.sugerencia-etiquetas .icono {
+  flex: none;
+  color: var(--ok);
+}
+
+.sugerencia-etiquetas > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.sugerencia-etiquetas small {
+  color: var(--texto-suave);
+}
+
+.etq-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-bottom: 14px;
+}
+
+.etq-cabeza .nota {
+  margin: 0;
+}
+
+.etq-fuentes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.etq-fuente {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--sombra);
+  transition: border-color var(--dur-corta), background var(--dur-corta);
+}
+
+.etq-fuente:hover {
+  border-color: var(--primario);
+  background: var(--primario-suave);
+}
+
+.etq-fuente:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.etq-fuente .icono {
+  grid-row: 1 / 3;
+  color: var(--primario);
+}
+
+.etq-fuente small {
+  color: var(--texto-suave);
+}
+
+.etq-entradas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etq-entradas-fila {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.etq-entrada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.etq-entrada:hover {
+  border-color: var(--primario);
+}
+
+.etq-entrada:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.etq-entradas-fila .etq-entrada {
+  width: auto;
+}
+
+.etq-buscar-entrada .campo {
+  margin-bottom: 10px;
+}
+
+.etq-entrada-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.etq-entrada-cabeza .pastilla {
+  margin-left: 8px;
+}
+
+.etq-lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etq-fila {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.etq-fila:last-child {
+  border-bottom: none;
+}
+
+.etq-fuera .etq-fila-texto,
+.etq-fuera .etq-cantidad {
+  opacity: 0.45;
+}
+
+.etq-cantidad {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.etq-cantidad input {
+  width: 64px;
+  text-align: right;
+}
+
+.etq-fila-texto {
+  min-width: 0;
+}
+
+.etq-fila-texto > div:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etq-fila-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 3px;
+}
+
+.etq-origen {
+  font-size: 0.78rem;
+}
+
+.etq-fila-acciones {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ventana.ventana-ancha {
+  width: min(1100px, 100%);
+}
+
+.ventana.ventana-etiqueta {
+  width: min(640px, 100%);
+}
+
+.etq-editor {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px 14px;
+}
+
+.etq-editor .campo-ancho {
+  grid-column: 1 / -1;
+}
+
+.etq-editor .campo input,
+.etq-editor .combo {
+  width: 100%;
+}
+
+/* Diseño: campos a la izquierda; una etiqueta a tamaño real y la hoja a la derecha. */
+.etq-diseno {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.etq-diseno-campos {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.etq-diseno-campos h3 {
+  margin: 10px 0 0;
+}
+
+.etq-medidas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.etq-medidas .casilla {
+  grid-column: 1 / -1;
+}
+
+.etq-identidad {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.etq-identidad legend {
+  padding: 0 6px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.etq-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.etq-logo-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.etq-logo-titulo {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.etq-logo-campo .logo-marco {
+  width: 150px;
+  height: 56px;
+}
+
+.etq-logo-campo .logo-marco img {
+  max-height: 46px;
+}
+
+.etq-logos-vale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.etq-logos-vale .logo-marco {
+  width: 96px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.etq-logos-vale .logo-marco:hover {
+  border-color: var(--primario);
+}
+
+.etq-logos-vale .logo-marco img {
+  max-height: 36px;
+}
+
+.etq-diseno-previa {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  margin: 0;
+}
+
+.etq-diseno-previa figcaption {
+  margin: 0 0 6px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.etq-previa-sola {
+  max-width: 100%;
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+/* Una sola etiqueta: sin el tamaño ni la sombra de la hoja. */
+.etq-previa-sola .etq-sola .etq-hoja {
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.etq-previa-marco {
+  overflow: hidden;
+  padding: 4px;
+  border-radius: var(--radio);
+  background: var(--neutro-suave);
+}
+
+.etq-previa-sola .etq-sola .etq-hojas {
+  align-items: flex-start;
+}
+
+.etq-consejo {
+  max-width: 760px;
+  margin: 0 auto 12px;
+  color: #e3e9f0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.etq-salieron > span {
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .etq-diseno {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .etq-diseno-previa {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .etq-fila {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .etq-fila-acciones {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .etq-editor,
+  .etq-medidas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.vista-previa.vista-etiquetas {
+  background: rgba(15, 22, 32, 0.92);
+}
+
+.etq-cabeza .segmentos-etiqueta,
+.ventana-etq-entrada .segmentos-etiqueta {
+  white-space: nowrap;
+}
+
+/* Ronda 21: las ventanas de etiquetas (inventario y vale de entrada) ocupan casi toda la pantalla; la
+   tabla toma el espacio que queda y los botones de abajo siempre están a la vista. */
+.ventana.ventana-etq {
+  height: min(92vh, 1000px);
+  max-height: none;
+}
+
+.ventana-etq .ventana-cuerpo {
+  display: flex;
+  flex-direction: column;
+}
+
+.ventana-etq .ventana-cuerpo > *,
+.ventana-etq .etq-buscar-entrada > * {
+  flex: none;
+}
+
+.ventana-etq .tabla-contenedor {
+  flex: 1 1 auto;
+  min-height: 160px;
+  max-height: none;
+}
+
+.ventana-etq .etq-buscar-entrada {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ventana-etq .etq-buscar-entrada .etq-entradas {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow: auto;
+}
+
+.ventana-etq .pie-editor {
+  position: sticky;
+  bottom: -20px;
+  z-index: 2;
+  margin-top: auto;
+  margin-bottom: -20px;
+  padding-top: 12px;
+  padding-bottom: 16px;
+  background: var(--superficie);
+}
+
+.ventana-etq .filtros,
+.ventana-etq .etq-de-inventario {
+  margin-bottom: 10px;
+}
+
+.etq-de-inventario {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.etq-de-inventario .nota {
+  margin: 0;
+}
+
+.etq-sin-datos,
+.ventana-etq .etq-sin-datos {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.etq-entrada .pastilla-inv {
+  margin-right: -4px;
+}
+
+.etq-compartida {
+  margin: -4px 0 8px;
+}
+
+/* Revisión de la Ronda 21. Una ventana nunca es más ancha que la pantalla: sin esto, en la rejilla del fondo
+   la columna crecía hasta el ancho mínimo de la tabla y en pantallas angostas los botones quedaban fuera. */
+.ventana-fondo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ventana {
+  min-width: 0;
+}
+
+/* Las etiquetas de los segmentos (p. ej. «Inventario en la etiqueta») miden lo que su texto. */
+.ventana-etq .segmentos-etiqueta,
+.etq-cabeza .segmentos-etiqueta {
+  width: auto;
+}
+
+/* La lista de entradas se desplaza; el anillo de foco de cada una debe verse completo. */
+.ventana-etq .etq-buscar-entrada .etq-entradas {
+  padding: 3px;
+}
+
+/* ---------------------------------------------------------------- Ronda 22 — editor de diseños
+   A pantalla completa: diseños a la izquierda, la etiqueta grande al centro (siempre en blanco, como sale
+   impresa, aunque el tema sea oscuro) y agregar / propiedades a la derecha. En angosto, una zona a la vez
+   con pestañas. La selección, las asas, la cuadrícula y las guías van sobre la etiqueta en blanco: sus
+   colores son fijos (azul en DLTA, morado en GSM). */
+
+.ventana-fondo.edd-fondo {
+  padding: 0;
+  background: var(--fondo);
+  backdrop-filter: none;
+}
+
+.ventana.edd {
+  --edd-sel: #1f5fbf;
+  --edd-sel-suave: rgba(31, 95, 191, 0.45);
+  --edd-cuad: rgba(31, 95, 191, 0.12);
+  --edd-cuad-10: rgba(31, 95, 191, 0.26);
+  --edd-guia: #d6246e;
+  --edd-aviso: #b45309;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root[data-inventario="GSM"] .ventana.edd {
+  --edd-sel: #6b3fa0;
+  --edd-sel-suave: rgba(107, 63, 160, 0.45);
+  --edd-cuad: rgba(107, 63, 160, 0.12);
+  --edd-cuad-10: rgba(107, 63, 160, 0.26);
+}
+
+.edd-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--borde);
+  background: var(--superficie);
+}
+
+.edd-cabeza > .icono {
+  color: var(--primario);
+}
+
+.edd-cabeza h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.edd-nombre {
+  overflow: hidden;
+  max-width: min(40ch, 50vw);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edd-cabeza .pastilla .icono {
+  margin-right: 3px;
+}
+
+.edd-sucio {
+  color: var(--alerta);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.edd-guardado {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.edd-franja {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--borde);
+  background: var(--primario-suave);
+  font-size: 0.9rem;
+}
+
+.edd-franja > .icono {
+  flex: none;
+  color: var(--primario);
+}
+
+.edd-franja > span {
+  flex: 1 1 260px;
+}
+
+.edd-franja.edd-intento {
+  background: var(--alerta-suave);
+  animation: edd-sacudir 0.35s ease-out;
+}
+
+.edd-franja.edd-intento > .icono {
+  color: var(--alerta);
+}
+
+@keyframes edd-sacudir {
+  20% {
+    transform: translateX(-5px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  80% {
+    transform: translateX(-2px);
+  }
+}
+
+.edd-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 14px 0;
+  background: var(--superficie);
+}
+
+.edd-error .aviso {
+  flex: 1;
+  margin-bottom: 8px;
+}
+
+.edd-pestanas {
+  display: none;
+}
+
+.edd-cuerpo {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 236px minmax(0, 1fr) 330px;
+  min-height: 0;
+}
+
+.edd-disenos,
+.edd-panel {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--superficie);
+}
+
+.edd-disenos {
+  border-right: 1px solid var(--borde);
+}
+
+.edd-panel {
+  border-left: 1px solid var(--borde);
+}
+
+.edd-disenos h3,
+.edd-panel h3 {
+  margin: 2px 0 8px;
+  font-size: 0.95rem;
+}
+
+.edd-panel h3 .nota {
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.edd-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.edd-nuevo .lista-boton {
+  min-width: 0;
+  padding: 5px 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.edd-usar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+}
+
+.edd-usar-titulo {
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.edd-usar-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.edd-usar-fila .nota {
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edd-usar > .nota {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.edd-lista-disenos {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edd-diseno {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.edd-diseno:hover {
+  border-color: var(--primario);
+}
+
+.edd-diseno.abierto {
+  border-color: var(--primario);
+  background: var(--primario-suave);
+  box-shadow: inset 3px 0 0 var(--primario);
+}
+
+.edd-diseno-nombre {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.edd-diseno-nombre .icono {
+  vertical-align: -2px;
+  color: var(--texto-suave);
+}
+
+.edd-diseno-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+}
+
+.edd-centro {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.edd-barra,
+.edd-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  padding: 6px 12px;
+  background: var(--superficie);
+}
+
+.edd-barra {
+  border-bottom: 1px solid var(--borde);
+}
+
+.edd-pie {
+  border-top: 1px solid var(--borde);
+}
+
+.edd-grupo-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.edd-barra .casilla {
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.edd-barra .casilla input {
+  margin-top: 0;
+}
+
+.edd-barra .segmento,
+.edd-pie .segmento {
+  padding: 3px 10px;
+  font-size: 0.85rem;
+}
+
+.edd-barra .segmentos-etiqueta,
+.edd-pie .segmentos-etiqueta,
+.edd-props .segmentos-etiqueta,
+.edd-pestanas .segmentos-etiqueta {
+  width: auto;
+  font-size: 0.85rem;
+}
+
+.edd-pie .segmentos-campo {
+  gap: 4px 8px;
+}
+
+.edd-icono {
+  justify-content: center;
+  min-width: 34px;
+  padding: 5px 8px;
+}
+
+.edd-zoom {
+  min-width: 52px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.edd-avisos-boton {
+  border-color: var(--alerta);
+  background: var(--alerta-suave);
+  color: var(--alerta);
+}
+
+.edd-muestra {
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edd-lienzo {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px;
+  background: var(--neutro-suave);
+  user-select: none;
+}
+
+.edd-marco {
+  position: relative;
+  flex: none;
+  margin: auto;
+  background: #fff;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.22);
+}
+
+.edd-ambito {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.edd-el {
+  display: contents;
+}
+
+.edd-capa {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.edd-capa.con-cuadricula {
+  background-image: linear-gradient(to right, var(--edd-cuad-10) 1px, transparent 1px), linear-gradient(to bottom, var(--edd-cuad-10) 1px, transparent 1px),
+    linear-gradient(to right, var(--edd-cuad) 1px, transparent 1px), linear-gradient(to bottom, var(--edd-cuad) 1px, transparent 1px);
+  background-size: 10% 10%, 10% 10%, var(--edd-paso) var(--edd-paso), var(--edd-paso) var(--edd-paso);
+}
+
+.edd-caja {
+  position: absolute;
+  outline: 1px dashed transparent;
+  cursor: move;
+  touch-action: none;
+}
+
+.edd-capa.solo-lectura .edd-caja {
+  cursor: default;
+}
+
+.edd-caja:hover {
+  outline-color: var(--edd-sel-suave);
+}
+
+.edd-caja.vacia {
+  display: grid;
+  place-items: center;
+  outline: 1px dashed #8a94a3;
+  background: repeating-linear-gradient(45deg, rgba(138, 148, 163, 0.12) 0 6px, transparent 6px 12px);
+}
+
+.edd-vacio-texto {
+  overflow: hidden;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 1px 3px;
+  color: #4a5666;
+  font: 600 11px/1.2 var(--fuente);
+  text-align: center;
+}
+
+.edd-caja.con-aviso {
+  outline: 2px dashed var(--edd-aviso);
+}
+
+.edd-caja.elegida {
+  z-index: 2;
+  outline: 2px solid var(--edd-sel);
+}
+
+.edd-caja:focus-visible {
+  z-index: 2;
+  outline: 2px solid var(--edd-sel);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85);
+}
+
+.edd-alerta {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--edd-aviso);
+  color: #fff;
+  font: 700 12px/18px var(--fuente);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Elegido: sus avisos están en el panel y la marca taparía un asa. */
+.edd-caja.elegida .edd-alerta {
+  display: none;
+}
+
+.edd-asa {
+  position: absolute;
+  z-index: 4;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--edd-sel);
+  border-radius: 2px;
+  background: #fff;
+  touch-action: none;
+}
+
+.edd-asa-no {
+  top: 0;
+  left: 0;
+}
+
+.edd-asa-n {
+  top: 0;
+  left: 50%;
+}
+
+.edd-asa-ne {
+  top: 0;
+  left: 100%;
+}
+
+.edd-asa-e {
+  top: 50%;
+  left: 100%;
+}
+
+.edd-asa-se {
+  top: 100%;
+  left: 100%;
+}
+
+.edd-asa-s {
+  top: 100%;
+  left: 50%;
+}
+
+.edd-asa-so {
+  top: 100%;
+  left: 0;
+}
+
+.edd-asa-o {
+  top: 50%;
+  left: 0;
+}
+
+.edd-guia {
+  position: absolute;
+  z-index: 5;
+  background: var(--edd-guia);
+  pointer-events: none;
+}
+
+.edd-guia-v {
+  top: -12px;
+  bottom: -12px;
+  width: 1px;
+  margin-left: -0.5px;
+}
+
+.edd-guia-h {
+  right: -12px;
+  left: -12px;
+  height: 1px;
+  margin-top: -0.5px;
+}
+
+.edd-agregar {
+  margin-bottom: 14px;
+}
+
+.edd-agregar-botones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.edd-agregar-botones .boton {
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edd-agregar-campo .lista-boton {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.edd-props {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.edd-props-cabeza h3 {
+  margin-bottom: 6px;
+}
+
+.edd-props-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.edd-props .aviso {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.edd-grupo {
+  margin: 0;
+  padding: 6px 10px 10px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.edd-grupo legend {
+  padding: 0 4px;
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.edd-medidas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.edd-num input,
+.edd-texto input {
+  width: 100%;
+  min-width: 0;
+}
+
+.edd-num small {
+  color: var(--texto-suave);
+  font-size: 0.76rem;
+}
+
+.edd-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edd-texto .nota {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.edd-marcadores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.edd-marcador {
+  padding: 1px 7px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie-2);
+  color: var(--texto);
+  font: 600 0.74rem/1.5 var(--mono);
+  cursor: pointer;
+}
+
+.edd-marcador:hover {
+  border-color: var(--primario);
+  color: var(--primario);
+}
+
+.edd-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edd-datos .segmento {
+  padding: 4px 9px;
+  font-size: 0.85rem;
+}
+
+.edd-lleva {
+  margin: 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.edd-casilla {
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.edd-casilla input {
+  margin-top: 0;
+}
+
+.edd-props .segmentos-campo {
+  gap: 4px 10px;
+}
+
+.edd-props .segmento {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.edd-ayuda {
+  margin-bottom: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.edd-teclas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--texto-suave);
+  font-size: 0.84rem;
+}
+
+.edd-capas {
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.edd-capas ul {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edd-capa-boton {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.edd-capa-boton:hover {
+  border-color: var(--borde);
+  background: var(--superficie-2);
+}
+
+.edd-capa-boton.elegida {
+  border-color: var(--primario);
+  background: var(--primario-suave);
+}
+
+.edd-capa-boton > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ventana.ventana-edd-pregunta {
+  width: min(520px, 100%);
+}
+
+/* En la página Etiquetas: con qué diseño se imprime la lista. */
+.etq-diseno-lista {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 10px;
+}
+
+.etq-diseno-titulo {
+  color: var(--texto-suave);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.etq-diseno-elegir {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.etq-diseno-elegir .lista-boton {
+  min-width: 220px;
+  max-width: 100%;
+}
+
+.etq-nota-letra {
+  margin: 0;
+}
+
+@media (min-width: 1600px) {
+  .edd-cuerpo {
+    grid-template-columns: 270px minmax(0, 1fr) 370px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .edd-cuerpo {
+    grid-template-columns: 200px minmax(0, 1fr) 290px;
+  }
+
+  .edd-cabeza h2 {
+    display: none;
+  }
+}
+
+/* Angosto: una zona a la vez. */
+@media (max-width: 899px) {
+  .edd-pestanas {
+    display: flex;
+    justify-content: center;
+    margin: 6px 10px;
+    border-radius: 10px;
+  }
+
+  .edd-pestanas .segmento {
+    flex: 1;
+  }
+
+  .edd-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .edd-cuerpo > .edd-disenos,
+  .edd-cuerpo > .edd-panel,
+  .edd-cuerpo > .edd-centro {
+    display: none;
+    border: 0;
+  }
+
+  .edd-cuerpo[data-pestana="disenos"] > .edd-disenos,
+  .edd-cuerpo[data-pestana="propiedades"] > .edd-panel {
+    display: block;
+  }
+
+  .edd-cuerpo[data-pestana="etiqueta"] > .edd-centro {
+    display: flex;
+  }
+
+  .edd-lienzo {
+    padding: 14px;
+  }
+
+  .edd-nombre {
+    max-width: 52vw;
+  }
+
+  .edd-barra,
+  .edd-pie {
+    gap: 6px 10px;
+    padding: 6px 8px;
   }
 }

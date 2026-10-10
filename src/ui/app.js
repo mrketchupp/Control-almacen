@@ -19,6 +19,7 @@ import { PaginaConciliacion } from "./paginas/conciliacion.js";
 import { PaginaConteo } from "./paginas/conteo.js";
 import { PaginaEntrada } from "./paginas/entrada.js";
 import { PaginaValesEntrada } from "./paginas/entradas.js";
+import { PaginaEtiquetas } from "./paginas/etiquetas.js";
 import { PaginaReporte } from "./paginas/reporte.js";
 import { PaginaVale } from "./paginas/vale.js";
 import { PaginaValesSalida } from "./paginas/vales.js";
@@ -38,6 +39,7 @@ const PAGINAS = {
   entrada: { titulo: "Entrada", componente: PaginaEntrada, requiereDatos: true, oculta: true },
   inventario: { titulo: "Inventario", componente: PaginaInventario, requiereDatos: true, icono: "inventario" },
   conteo: { titulo: "Conteo físico", componente: PaginaConteo, requiereDatos: true, icono: "conteo" },
+  etiquetas: { titulo: "Etiquetas", componente: PaginaEtiquetas, requiereDatos: true, icono: "etiqueta" },
   reporte: { titulo: "Reporte diario", componente: PaginaReporte, requiereDatos: true, icono: "reporte" },
   conciliacion: { titulo: "Conciliación AX", componente: PaginaConciliacion, requiereDatos: true, icono: "balanza" },
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true, icono: "pendientes", soloConAviso: true },
@@ -135,7 +137,7 @@ function Avisos() {
 
 function Insignia({ clave, valor, titulos }) {
   if (!valor) return null;
-  const suaves = new Set(["vales", "entradas", "conteo"]);
+  const suaves = new Set(["vales", "entradas", "conteo", "etiquetas"]);
   return html`<span class=${`contador ${suaves.has(clave) ? "contador-suave" : ""}`} title=${titulos[clave]}>${valor}</span>`;
 }
 
@@ -203,8 +205,16 @@ function useEnlaces(actual) {
   const borradores = sesion.estado?.borradores?.length ?? 0;
   const borradoresEntrada = sesion.estado?.borradores_entrada?.length ?? 0;
   const enlaces = Object.entries(PAGINAS).filter(([, p]) => !p.oculta && (vacia ? !p.requiereDatos : !p.soloVacia));
-  const insignia = { pendientes, exportar: porEnviar, vales: borradores, entradas: borradoresEntrada, conteo: sesion.estado?.conteo_en_curso ? "•" : 0 };
-  const titulos = { vales: "Borradores en captura", entradas: "Entradas en captura", conteo: "Conteo en captura", exportar: "Vales por subir al SharePoint", pendientes: "Partidas por ubicar" };
+  const etiquetas = (sesion.estado?.etiquetas?.material?.length ?? 0) + (sesion.estado?.etiquetas?.ax?.length ?? 0);
+  const insignia = { pendientes, exportar: porEnviar, vales: borradores, entradas: borradoresEntrada, conteo: sesion.estado?.conteo_en_curso ? "•" : 0, etiquetas };
+  const titulos = {
+    vales: "Borradores en captura",
+    entradas: "Entradas en captura",
+    conteo: "Conteo en captura",
+    exportar: "Vales por subir al SharePoint",
+    pendientes: "Partidas por ubicar",
+    etiquetas: "Etiquetas por imprimir",
+  };
   const principales = enlaces.filter(([clave, p]) => p.grupo !== "mas" && (!p.soloConAviso || insignia[clave] || clave === actual));
   const mas = enlaces.filter(([, p]) => p.grupo === "mas");
   return { principales, mas, insignia, titulos };

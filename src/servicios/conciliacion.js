@@ -18,11 +18,13 @@ import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
+import { fechaMinimaPropuesta, valeAdmitido } from "../nucleo/justificantes.js";
 import { claveEstricta, claveLaxa, compactar, mayusculas, sinDimension, unidad } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
 import { ErrorCorreccion, corregirDimensionNp, lugarCorto, previaCorreccion } from "./inventario.js";
 import { estadoAxDeVales, sinAplicar } from "./seguimiento.js";
 import { candidatosExactos, indiceExistencias } from "./primeraCarga.js";
+import { agregarEtiquetas, etiquetaDeExistencia } from "./etiquetas.js";
 
 export class ErrorConciliacion extends Error {}
 
@@ -69,6 +71,7 @@ export function registrarCorteAx(estado, { fecha, almacen, archivo = null, huell
   const corte = {
     id: siguienteId(estado, "corte_ax"),
     fecha,
+    fecha_minima_vales: fechaMinimaPropuesta(fecha),
     almacen,
     archivo,
     huella,
@@ -143,7 +146,7 @@ export function fisicoPorVariante(estado, { indices = new Indices(estado), saldo
 
 /** ¿El vale es posterior al corte? Salidas por folio (si se indicó) o por fecha; entradas por fecha. */
 export function enTransito(corte, vale) {
-  if (vale.estado !== "EMITIDO" || !vale.fecha) return false;
+  if (vale.estado !== "EMITIDO" || !valeAdmitido(corte, vale)) return false;
   if (vale.tipo === "SALIDA") return hay(corte.folio_salida) ? vale.folio > corte.folio_salida : vale.fecha > corte.fecha;
   if (vale.tipo === "ENTRADA") return vale.fecha > corte.fecha;
   return false;
@@ -172,7 +175,7 @@ export const folioDeVale = (v, marca = null) =>
  *  - si es posterior (está en Pendientes, por ubicar), aún no mueve la existencia: no cuenta y se
  *    muestra como pista.
  * Las partidas que el usuario asignó a un faltante (Ronda 14, corte.asignaciones) cuentan para ese
- * faltante, sea cual sea su fecha: "466 (S, asignado)".
+ * faltante, dentro del periodo admitido: "466 (S, asignado)".
  *
  * @returns {{ porVariante, porCodigo, porLineaAx, porUbicar, noSeDescuentan, porLinea }}
  *   cada grupo: { salidas, entradas, folios, partidas: [{ vale, linea, cantidad, marca }] };
@@ -202,7 +205,7 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
   };
   let indice = null;
   const vales = estado.vales
-    .filter((v) => v.estado === "EMITIDO" && v.fecha)
+    .filter((v) => v.estado === "EMITIDO" && valeAdmitido(corte, v))
     .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : a.folio - b.folio));
   for (const vale of vales) {
     const porFecha = enTransito(corte, vale);
@@ -512,10 +515,32 @@ function lineaDelCorte(estado, corteId, lineaId) {
 }
 
 /**
- * Confirma la pareja de un renglón de AX. Con una variante, CORRIGE su dimensión y NP en el
- * inventario (todos sus renglones) a como los escribe AX, o a lo que el usuario ajustó; con
- * varianteId null, anota en el corte que ese renglón no está en físico.
- * @returns el resultado de corregirDimensionNp, o { sinPareja: true }
+ * Corrige la dimensión / NP del inventario durante la conciliación y agrega a Material una
+ * etiqueta con los datos vigentes por cada partida física modificada.
+ * @returns el resultado de corregirDimensionNp y los ids de las etiquetas nuevas
+ */
+export function corregirInventarioParaAx(estado, { corteId, cual, dimension, np, lineaId = null }, usuario = null) {
+  const corte = corteAx(estado, corteId);
+  if (!corte) throw new ErrorConciliacion("El corte ya no existe.");
+  const linea = lineaId === null ? null : lineaDelCorte(estado, corteId, lineaId).linea;
+  const previa = previaCorreccion(estado, cual, { dimension, np });
+  // Una etiqueta por partida física que cambia, incluso si la variante está en varios contenedores.
+  const partidas = previa.renglones.filter((e) => e.activo !== false && (
+    texto(dimensionMostrada(e, previa.variante)) !== texto(dimension) || texto(npMostrado(e, previa.variante)) !== texto(np)
+  )).map((e) => e.id);
+  const resultado = corregirDimensionNp(estado, cual, { dimension, np }, { usuario, motivo: `Conciliación con AX del ${fmtFecha(corte.fecha)}` });
+  const etiquetas = agregarEtiquetas(estado, "material", partidas.map((id) => {
+    const etiqueta = etiquetaDeExistencia(estado, id);
+    etiqueta.nombre = texto(linea?.nombre) || etiqueta.nombre;
+    etiqueta.origen = { ...etiqueta.origen, corte_ax_id: corte.id, linea_ax_id: lineaId };
+    return etiqueta;
+  }));
+  return { ...resultado, etiquetas };
+}
+
+/**
+ * Confirma la pareja de un renglón de AX corrigiendo el inventario y preparando sus etiquetas.
+ * Con varianteId null, anota que ese renglón no está en físico; no genera etiquetas.
  */
 export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimension = null, np = null }, usuario = null) {
   const { corte, linea } = lineaDelCorte(estado, corteId, lineaId);
@@ -532,7 +557,8 @@ export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimensio
   // Una partida del inventario solo puede ser pareja de una partida de AX: ni la elegida ni aquella
   // con la que se juntaría al corregirla pueden ser ya la pareja de otra.
   const otras = emparejar(estado, corte).filter((q) => q.linea.id !== lineaId && q.confirmado && q.variante_id !== null);
-  const destino = previaCorreccion(estado, { varianteId }, valores).otra;
+  const previa = previaCorreccion(estado, { varianteId }, valores);
+  const destino = previa.otra;
   const ocupada = otras.find((q) => (q.grupo ?? [q.variante_id]).some((id) => id === varianteId || id === destino?.id));
   if (ocupada) {
     throw new ErrorConciliacion(
@@ -541,7 +567,7 @@ export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimensio
   }
   corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
   try {
-    return corregirDimensionNp(estado, { varianteId }, valores, { usuario, motivo: `Conciliación con AX del ${fmtFecha(corte.fecha)}` });
+    return corregirInventarioParaAx(estado, { corteId, cual: { varianteId }, ...valores, lineaId }, usuario);
   } catch (error) {
     if (error instanceof ErrorCorreccion) throw new ErrorConciliacion(error.message);
     throw error;

@@ -58,13 +58,29 @@ function marcarInventario(id) {
 let abierta = null; // la sesión del inventario abierto
 let comun = null; // lo que comparten los inventarios (etapa de perforación)
 
+/**
+ * El estado guardado del OTRO inventario, solo para leerlo (etiquetas, Ronda 21): se abre su base, se
+ * lee y se cierra. Si esa base aún no existe no se crea (null).
+ */
+async function leerOtroInventario(id) {
+  const inventario = inventarioPorId(id);
+  const bases = indexedDB.databases ? await indexedDB.databases().catch(() => null) : null;
+  if (bases && !bases.some((b) => b.name === inventario.bd)) return null;
+  const backend = new BackendIndexedDB(inventario.bd);
+  try {
+    return await backend.leerEstado();
+  } finally {
+    backend.cerrar();
+  }
+}
+
 /** Abre un inventario con su propia base y dibuja la herramienta para él. */
 async function abrirInventario(id) {
   const inventario = inventarioPorId(id);
   const backend = new BackendIndexedDB(inventario.bd);
   const almacen = new Almacen(backend, { version: VERSION, inventario: inventario.id });
   comun ??= new BackendIndexedDB(BD_COMUN);
-  const sesion = new Sesion(almacen, backend, { cambiarInventario, comun });
+  const sesion = new Sesion(almacen, backend, { cambiarInventario, comun, leerOtroInventario });
   try {
     await sesion.iniciar();
   } catch (error) {

@@ -47,7 +47,7 @@ Partes modificadas: `xl/worksheets/sheet{1..10}.xml`, `xl/tables/table{1..10}.xm
 | F CANTIDAD | `existencia.cantidad_conteo` |
 | G UM | `variante.um` |
 | H CONSUMO | Suma de salidas desde el conteo (vacío si es 0, como hoy) |
-| I INGRESO | Suma de entradas desde el conteo (vacío si es 0) |
+| I INGRESO | Suma de entradas desde el conteo (vacío si es 0); en la vista diaria, las recibidas ese día (`fecha_recibido`) |
 | J TOTAL | Fórmula de la plantilla: `Tabla…[[#This Row],[INGRESO]]+Tabla…[[#This Row],[CANTIDAD]]-Tabla…[[#This Row],[CONSUMO]]` |
 
 Reglas de la hoja:
@@ -123,7 +123,10 @@ En `sheet1.xml` se reemplazan:
 
 Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se genera desde cero con `src/xlsx/nuevo.js` (Arial y el mismo estilo visual que DIARIO).
 
-- Hoja `DIARIO`, con las mismas columnas A–T del DIARIO de salidas, más una columna **U = Folio interno** (`E-0001`).
+- Hoja `DIARIO`, con las mismas columnas A–T del DIARIO de salidas, más una columna **U = Folio interno** (`E-0001`) y
+  una **V = FECHA RECIBIDO** (Ronda 22).
+- **A = FECHA del vale** (cuando la base lo envió), como en el papel; **V = FECHA RECIBIDO** = el día en que llegó y
+  entró al inventario (el que cuenta en el reporte diario). Las dos con el mismo estilo de fecha.
 - **B = folio de la base** (P-05); en una devolución sin folio de la base, `DEV. <folio de salida>`.
 - **C = `XXXXX`, D = `0`**: marca de entrada, igual que en el formato en papel.
 - E–H: de dónde viene y `RIG 91 · ALMACEN`; P = quien entregó (base), Q = almacenista que recibió; R = `0`.

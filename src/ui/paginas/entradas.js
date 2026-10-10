@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import { aNumero } from "../../nucleo/decimal.js";
 import { Indices } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
-import { ahoraIso, fmtFecha } from "../../nucleo/fechas.js";
+import { ahoraIso, fechaDelDia, fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { aplicarEntradaIA } from "../../servicios/capturaIA.js";
 import {
   ErrorEntrada,
@@ -28,12 +28,14 @@ import {
   vistaPreviaEntrada,
 } from "../../servicios/entradas.js";
 import { variantesParecidas } from "../../servicios/inventario.js";
+import { etiquetasDeEntrada } from "../../servicios/etiquetas.js";
 import { siguienteFolio } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, Ventana, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { hayAnimaciones } from "../tema.js";
 import { PasosCopilot } from "./capturaIA.js";
+import { EtiquetasDeEntrada } from "./etiquetas.js";
 import { CeldaCodigo, indiceArticulos, listas, normal, palabras, partidaConFoco } from "./vales.js";
 
 const hay = (v) => v !== null && v !== undefined;
@@ -148,11 +150,12 @@ function Parecidas({ estado, indices, linea, alUsar }) {
  * Editor de una entrada (borrador nuevo o corrección de una confirmada): datos del vale arriba y
  * cada partida como una tarjeta de dos líneas (lo del vale | a dónde entra, quién solicita y O.C.).
  * @param excluirValeId  en una corrección, la entrada que se corrige
+ * @param avisos   los de validarEntrada: los de la fecha de recibido se muestran junto a ella (no bloquean)
  * @param filtro   { etiqueta, uids, resueltas, alQuitar }: solo esas partidas (lo que requiere atención)
  * @param entrando las partidas aparecen escalonadas (al llegar de la captura con Copilot)
  * @param recientes uids recién cargados (se resaltan un momento)
  */
-export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = null, pie = null, filtro = null, entrando = false, recientes = null }) {
+export function EditorEntrada({ datos, alCambiar, errores = [], avisos = [], excluirValeId = null, pie = null, filtro = null, entrando = false, recientes = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -234,6 +237,11 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
   };
   const capturadas = lineasEntradaCapturadas(datos.lineas).length;
   let numero = 0;
+  // Recibido: no después de hoy (al capturar) ni del día en que se registró (al corregir).
+  const registrada = excluirValeId !== null ? estado.vales.find((v) => v.id === excluirValeId) : null;
+  const maxRecibido = (registrada?.emitido_en ?? registrada?.creado_en ?? "").slice(0, 10) || hoyIso();
+  const errorRecibido = errorEn("fecha_recibido");
+  const avisosRecibido = avisos.filter((a) => a.campo === "fecha_recibido");
 
   let indiceVisible = 0;
 
@@ -248,21 +256,39 @@ export function EditorEntrada({ datos, alCambiar, errores = [], excluirValeId = 
           <span>Viene de</span>
           <${CampoSugerido} id="viene-de" valor=${datos.origen} alCambiar=${(origen) => cambiar({ origen })} sugerencias=${lugares} ariaLabel="Viene de" placeholder="Base o equipo" />
         </label>
-        <label class=${`campo ${errorEn("fecha") ? "con-error" : ""}`}>
-          <span>Fecha</span>
+        <label class=${`campo ${errorEn("fecha") ? "con-error" : ""}`} title="La del vale en papel: cuando lo envió la base">
+          <span>Fecha del vale</span>
           <input id="fecha-entrada" type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
+        </label>
+        <label class=${`campo campo-recibido ${errorRecibido ? "con-error" : ""}`} title="El día en que llegó el material: ese día suma al inventario y cuenta en el reporte diario">
+          <span>Recibido</span>
+          <input
+            id="recibido-entrada"
+            type="date"
+            value=${datos.fecha_recibido ?? ""}
+            max=${maxRecibido}
+            onChange=${(e) => cambiar({ fecha_recibido: e.currentTarget.value })}
+            aria-describedby="recibido-nota"
+          />
         </label>
         <label class="campo campo-ancho">
           <span>Entregó</span>
           <${CampoSugerido} valor=${datos.entrego_nombre} alCambiar=${(entrego_nombre) => cambiar({ entrego_nombre })} sugerencias=${sugerencias.personas} ariaLabel="Entregó" placeholder="Chofer, almacenista de la base…" />
         </label>
       </div>
+      <div id="recibido-nota" class="recibido-nota" aria-live="polite">
+        ${errorRecibido ? html`<p class="recibido-error">⚠ ${errorRecibido.mensaje}</p>` : null}
+        ${avisosRecibido.map((a) => html`<p class="recibido-aviso">${a.mensaje}</p>`)}
+        ${!errorRecibido && !avisosRecibido.length && datos.fecha_recibido
+          ? html`<p class="nota">Suma al inventario del <strong>${fmtFecha(datos.fecha_recibido)}</strong> y cuenta en el reporte diario de ese día.</p>`
+          : null}
+      </div>
       ${repetida
         ? html`<label class="casilla aviso-folio">
             <input type="checkbox" checked=${Boolean(datos.folio_repetido)} onChange=${(e) => cambiar({ folio_repetido: e.currentTarget.checked })} />
             <span>
               El folio ${datos.folio_externo} ya se registró en la entrada <a href=${`#entrada/${repetida.id}`}>${folioEntrada(repetida.folio)}</a>
-              (${fmtFecha(repetida.fecha)}). Márcalo solo si es <strong>otro vale</strong> con el mismo folio.
+              (recibida el ${fmtFecha(fechaDelDia(repetida))}). Márcalo solo si es <strong>otro vale</strong> con el mismo folio.
             </span>
           </label>`
         : null}
@@ -537,16 +563,38 @@ function ElegirModo({ folio, alElegir, alCopiarSalida }) {
 // ---------------------------------------------------------------- página
 
 function ConfirmadaOk({ vale, alNueva }) {
+  const sesion = useSesion();
+  const [etiquetas, setEtiquetas] = useState(false);
   const renglones = vale.lineas.filter((l) => hay(l.existencia_id)).length;
+  // Ronda 20: lo que entró lleva etiqueta; se sugiere hacerlas (una por pieza) sin salir de aquí.
+  const propuestas = useMemo(() => {
+    try {
+      return etiquetasDeEntrada(sesion.estado, vale.id).filter((p) => p.incluir);
+    } catch {
+      return [];
+    }
+  }, [vale.id]);
+  const cuantas = propuestas.reduce((t, p) => t + p.etiqueta.cantidad, 0);
   return html`<${Tarjeta} titulo=${`✓ Entrada ${folioEntrada(vale.folio)} registrada`} clase="tarjeta-exito">
     <p>
       ${vale.folio_externo ? html`Vale <strong>${vale.folio_externo}</strong>${vale.origen ? ` de ${vale.origen}` : ""}.${" "}` : null}Sumó al INGRESO de ${renglones}${" "}
-      ${renglones === 1 ? "partida" : "partidas"} del inventario. Queda en el historial de entradas.
+      ${renglones === 1 ? "partida" : "partidas"} del inventario del <strong>${fmtFecha(fechaDelDia(vale))}</strong> (recibido). Queda en el historial de entradas.
     </p>
+    ${propuestas.length
+      ? html`<div class="sugerencia-etiquetas">
+          <${Icono} nombre="etiqueta" tam=${22} />
+          <span>
+            <strong>¿Le hacemos sus etiquetas?</strong>
+            <small>${propuestas.length} ${propuestas.length === 1 ? "partida" : "partidas"} · ${cuantas} ${cuantas === 1 ? "etiqueta" : "etiquetas"} (una por pieza; se ajusta antes de imprimir)</small>
+          </span>
+          <${Boton} tipo="primario" onClick=${() => setEtiquetas(true)}>Hacer etiquetas<//>
+        </div>`
+      : null}
     <div class="acciones-linea">
       <a class="boton boton-secundario" href=${`#entrada/${vale.id}`}>Ver entrada ${folioEntrada(vale.folio)}</a>
-      <${Boton} tipo="primario" onClick=${alNueva}>＋ Nueva entrada<//>
+      <${Boton} tipo=${propuestas.length ? "secundario" : "primario"} onClick=${alNueva}>＋ Nueva entrada<//>
     </div>
+    ${etiquetas ? html`<${EtiquetasDeEntrada} valeId=${vale.id} alCerrar=${() => setEtiquetas(false)} />` : null}
   <//>`;
 }
 
@@ -578,7 +626,7 @@ function BarraEntrada({ folio, datos, validacion, atencion, filtro, alFiltrar, v
   const lineas = lineasEntradaCapturadas(datos.lineas);
   const faltan = validacion.errores.length;
   const ir = (error) => {
-    const ids = { folio_externo: "folio-base", origen: "viene-de", fecha: "fecha-entrada" };
+    const ids = { folio_externo: "folio-base", origen: "viene-de", fecha: "fecha-entrada", fecha_recibido: "recibido-entrada" };
     const destino = document.getElementById(ids[error.campo]);
     destino?.scrollIntoView?.({ block: "center", behavior: "smooth" });
     destino?.focus?.({ preventScroll: true });
@@ -747,7 +795,8 @@ export function PaginaValesEntrada() {
       }
       const folio = folioEntrada(siguienteFolio(sesion.estado, "ENTRADA"));
       const n = lineasEntradaCapturadas(datos.lineas).length;
-      if (!confirmar(`¿Registrar la entrada ${folio} con ${n} ${n === 1 ? "partida" : "partidas"}? Suma al inventario; después solo se puede corregir (con motivo).`)) return;
+      const dia = fmtFecha(listo.fecha_recibido);
+      if (!confirmar(`¿Registrar la entrada ${folio} con ${n} ${n === 1 ? "partida" : "partidas"}? Suma al inventario del ${dia} (recibido); después solo se puede corregir (con motivo).`)) return;
       clearTimeout(pendiente.current);
       pendiente.current = null;
       try {
@@ -878,7 +927,8 @@ export function PaginaValesEntrada() {
                   key=${datos.id}
                   datos=${datos}
                   alCambiar=${cambiar}
-                  errores=${intentado || filtro?.tipo === "pendientes" ? validacion.errores : []}
+                  errores=${intentado || filtro?.tipo === "pendientes" ? validacion.errores : validacion.errores.filter((e) => e.campo === "fecha_recibido" && texto(datos.fecha_recibido))}
+                  avisos=${validacion.avisos}
                   filtro=${filtroEditor}
                   entrando=${entrando}
                   recientes=${recientes}

@@ -228,6 +228,37 @@ imprimen su texto.
 oscuro elegido en GSM también queda en DLTA.
 - ☐ Revisar el vale impreso de GSM (textos y logo) contra uno en papel.
 
+**Ronda 20 (aplicada, no es de una fase):** el **generador de etiquetas** dentro de la herramienta (menú *Etiquetas*,
+`docs/11-etiquetas.md`). Al registrar una entrada se sugiere hacer sus etiquetas (una por pieza); en la sección se agregan
+de un vale de entrada (por folio interno o de la base), del inventario, a mano o desde la lista `.json` del generador
+(que sigue para el teléfono). *Condición* pasa a *Inventario* (DLTA / GSM, editable); NOMBRE = el de AX si lo trae el
+reporte; ÁREA vacía; DESCRIPCIÓN = la O.C. Logos propuestos del libro de vales. Las impresas quedan en la bitácora y
+marcan la entrada (historial con filtro *Etiquetas*). Estado formato 10.
+- ✔ Propuestas, lista, bitácora, lista del generador, migración y cuadrícula (pruebas `tests/etiquetas.test.js`).
+- ✔ Recorrido en Chromium: entrada → sugerencia → imprimir → *Salieron bien*; inventario, a mano, `.json`, diseño (J-5163),
+  logos del vale y subidos, código AX, historial y detalle; sin errores ni peticiones de red; tema oscuro y pantalla
+  angosta. PDF de cada plantilla con las hojas exactas.
+- ☐ Imprimir una hoja real (carta 2 × 6 y precortada J-5163) y comparar con lo que daba el generador.
+- ☐ Elegir los logos del vale para DLTA y GSM y revisar que se vean bien en la etiqueta.
+- ☐ Contestar P-25 a P-28 (`docs/11`).
+
+**Ronda 21 (aplicada):** etiquetas de **DLTA y GSM en una sola impresión** (`docs/11`): la lista por imprimir y la bitácora
+son las mismas en los dos inventarios; en *Del inventario* y *De un vale de entrada* se eligen los **datos de DLTA o GSM**
+sin cambiar de inventario (el otro solo se lee); las ventanas ya no obligan a hacer scroll para ver los botones. Estado
+formato 11.
+- ✔ Pruebas: compartir la lista y la bitácora con la base común (también atrasada), migración 10 → 11, marcas por
+  inventario e ids sin choques.
+- ✔ Recorrido en Chromium (1366 × 768): GSM trae material de DLTA, la lista sigue al cambiar a DLTA, se imprime junto y
+  cada entrada queda marcada en su inventario; botones a la vista; sin errores ni peticiones de red.
+- ✔ Revisión adversarial (4 revisores + verificadores): restaurar ya no pasa marcas a otra entrada, no se vuelve a juntar
+  una lista vieja, ids y bitácora sin choques, reloj atrasado, ventanas en pantallas angostas y marcas de las dos
+  fuentes en *Del inventario* (pruebas nuevas en `tests/compartidos.test.js` y `tests/etiquetas.test.js`).
+- ☐ Armar una hoja con material de los dos inventarios en el almacén y revisar que cada etiqueta lleve su logo.
+
+**Ronda 22 (planeada, sin implementar):** fecha del vale y **fecha de recibido** en las entradas (la de recibido decide
+el día del inventario y del reporte diario) y **editor libre de diseños de etiquetas** con texto libre, QR y código de
+barras. Decisiones y pasos en `docs/12-ronda-22-plan.md`.
+
 Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

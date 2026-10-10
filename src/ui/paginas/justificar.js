@@ -2,9 +2,10 @@
 // del almacén y que AX aún no descuenta. Se sugieren (código, dimensión y cantidad) y se aprueban una
 // por una o todas; también se eligen a mano. Lo asignado sale en la hoja VALES POR APLICAR.
 
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { aNumero } from "../../nucleo/decimal.js";
 import { fmtFecha } from "../../nucleo/fechas.js";
+import { fechaMinimaJustificantes, valeAdmitido } from "../../nucleo/justificantes.js";
 import { dimensionAx, textoFisico } from "../../servicios/conciliacion.js";
 import {
   ESTADOS_CANDIDATO,
@@ -13,6 +14,7 @@ import {
   asignarVales,
   candidatos,
   destinoDe,
+  fijarFechaMinimaVales,
   justificables,
   quitarAsignaciones,
 } from "../../servicios/justificacion.js";
@@ -82,6 +84,7 @@ function ElegirVales({ r, corte, fila, alTerminar }) {
     return asignar(destinoDe(fila), [{ partida_id: k.linea.id, cantidad: k.cantidad }], "manual", `Vale ${k.vale.folio} asignado a ${fila.codigo} ${enAx(fila)}.`);
   };
   return html`<div class="elegir-vales">
+    <p class="nota">Solo se muestran vales desde el ${fmtFecha(fechaMinimaJustificantes(corte))}.</p>
     <div class="controles-elegir">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Folio, clave, área…" />
       ${ocultas
@@ -172,6 +175,7 @@ function ItemJustificar({ j, sugerencia, r, corte }) {
             return html`<span class="vale-asignado">
               Vale ${vale ? html`<a class="enlace-folio" href=${`#vale/${vale.id}`}>${a.folio}</a>` : a.folio}
               <span class="nota">${linea?.clave || ""}</span>
+              ${!valeAdmitido(corte, vale) ? html`<${Pastilla} tono="error">Fuera del periodo: no justifica<//>` : null}
               <strong>${n(a.cantidad)} ${linea?.um ?? ""}</strong>
               <span class="nota">${a.metodo === "sugerida" ? "sugerido" : "a mano"}</span>
               <button type="button" class="enlace-boton peligro" onClick=${() => quitar(a)} aria-label=${`Quitar el vale ${a.folio}`}>Quitar</button>
@@ -190,6 +194,21 @@ const VISTAS = { sugeridos: "Con sugerencia", faltantes: "Faltantes", asignados:
 /** Ventana para justificar los faltantes con vales. */
 export function VentanaJustificar({ r, corte, sugerencias, alCerrar }) {
   const sesion = useSesion();
+  const minima = fechaMinimaJustificantes(corte);
+  const [fecha, setFecha] = useState(minima);
+  const [errorFecha, setErrorFecha] = useState("");
+  useEffect(() => { setFecha(minima); setErrorFecha(""); }, [corte.id, minima]);
+  const guardarFecha = () => sesion.tarea("Guardando límite anual…", async () => {
+    try {
+      await sesion.almacen.modificar((e) => fijarFechaMinimaVales(e, corte.id, fecha, sesion.usuario));
+      setErrorFecha("");
+      sesion.avisar("exito", `Se aceptan vales desde el ${fmtFecha(fecha)} en este corte.`);
+    } catch (error) {
+      if (error instanceof ErrorJustificacion) setErrorFecha(error.message);
+      else throw error;
+    }
+  });
+  const excluidos = sesion.estado.vales.filter((v) => v.tipo === "SALIDA" && v.estado === "EMITIDO" && !valeAdmitido(corte, v)).length;
   const lista = useMemo(() => justificables(sesion.estado, r), [sesion.estado, r]);
   const cuantas = {
     sugeridos: lista.filter((j) => sugerencias.has(j.clave)).length,
@@ -216,9 +235,16 @@ export function VentanaJustificar({ r, corte, sugerencias, alCerrar }) {
   return html`<${Ventana} titulo="Justificar faltantes" clase="ventana-concilia" alCerrar=${alCerrar}>
     <p class="nota">
       Un faltante se justifica con vales que ya salieron del almacén y que AX aún no descuenta (sin IN / TR). Lo que asignes cuenta para ese
-      faltante sin importar la fecha del vale y sale en la hoja <strong>VALES POR APLICAR</strong> de la solicitud, para que la base lo registre
+      faltante si su fecha pertenece al periodo admitido y sale en la hoja <strong>VALES POR APLICAR</strong> de la solicitud, para que la base lo registre
       como consumo o transferencia. Las cantidades y los vales no cambian.
     </p>
+    <div class="limite-justificantes">
+      <label class="campo"><span>Aceptar vales desde</span><input type="date" value=${fecha ?? ""} max=${corte.fecha} onInput=${(e) => setFecha(e.currentTarget.value)} aria-label="Aceptar vales desde" /></label>
+      <${Boton} tamano="chico" disabled=${fecha === minima || sesion.ocupado} onClick=${guardarFecha}>Guardar límite<//>
+      <p class="nota">Inicio propuesto: 1 de noviembre del año anterior al reporte AX. Ajusta la fecha si el corte anual se retrasa o tiene prórroga. Se guarda por corte; los vales anteriores quedan fuera de las sugerencias, las asignaciones y la solicitud.</p>
+      ${excluidos ? html`<p class="nota">${num(excluidos)} ${excluidos === 1 ? "vale queda" : "vales quedan"} fuera del periodo. Las asignaciones guardadas fuera del periodo se conservan para revisión y no justifican diferencias.</p>` : null}
+      ${errorFecha ? html`<p class="alerta" role="alert">${errorFecha}</p>` : null}
+    </div>
     <div class="controles-concilia">
       <${Segmentos} valor=${vista} opciones=${opciones} alCambiar=${setVista} />
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión…" />

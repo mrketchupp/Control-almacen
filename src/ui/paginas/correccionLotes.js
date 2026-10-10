@@ -139,7 +139,7 @@ export function CorreccionPorLotes({ tipo = "SALIDA", alCerrar }) {
       <p class="conteo">${num(revision.corregidos.length)} ${revision.corregidos.length === 1 ? "vale con cambios" : "vales con cambios"} · ${num(filasPrevia.length)} ${filasPrevia.length === 1 ? "dato a corregir" : "datos a corregir"}</p>
       <p class="lote-folios"><strong>Folios a corregir:</strong> ${revision.corregidos.map((vale) => etiquetaFolio(vale.folio, vale.tipo)).join(", ")}</p>
       ${revision.sinCambios.length ? html`<p class="nota lote-folios">${num(revision.sinCambios.length)} ${revision.sinCambios.length === 1 ? "vale ya coincide y se conserva" : "vales ya coinciden y se conservan"}: ${revision.sinCambios.map((vale) => etiquetaFolio(vale.folio, vale.tipo)).join(", ")}</p>` : null}
-      ${Object.hasOwn(cambios, "fecha") ? html`<p class="nota">La fecha cambia en el historial y en los movimientos de cada día; las cantidades permanecen iguales.</p>` : null}
+      ${Object.hasOwn(cambios, "fecha") ? html`<p class="nota">${entrada ? "Se cambia la fecha del vale; la fecha de recibido que determina su ingreso al inventario se conserva." : "La fecha cambia en el historial y en los movimientos de cada día."} Las cantidades permanecen iguales.</p>` : null}
       <${Tabla}
         filas=${filasPrevia}
         columnas=${[

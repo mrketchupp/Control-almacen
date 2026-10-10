@@ -5,9 +5,10 @@
 // Cantidades como texto decimal ("12.5"); fechas como texto ISO.
 
 import { esInterna, etapaDe, normalizarArea, tieneDatosFijos } from "./areas.js";
-import { ahoraIso } from "./fechas.js";
+import { ahoraIso, hoyIso } from "./fechas.js";
 import { INVENTARIO_DEFECTO, inventarioPorId } from "./inventarios.js";
 import { claveEstricta } from "./normalizar.js";
+import { fechaMinimaPropuesta } from "./justificantes.js";
 
 // Formato 2 (Fase 2): borradores de vales y envíos a la base.
 // Formato 3: tipo de área (interna / externa / transferencia) y etapa de perforación.
@@ -16,10 +17,13 @@ import { claveEstricta } from "./normalizar.js";
 // Formato 5 (Fase 3): vales de entrada en borrador, conteo en curso y reacomodos entre
 // contenedores. Cada conteo guarda su alcance y sus renglones contados.
 // Formato 9: dos inventarios (DLTA y GSM), cada uno con su estado; `config.inventario` dice de cuál es.
-// Formato 10: correcciones de encabezado sin reescribir las partidas migradas; se guardan
-// los campos que prevalecen sobre `encabezado_original` y, cuando hace falta, si las firmas
-// del vale se conservaron por posición en lugar de por papel.
-export const FORMATO_ESTADO = 10;
+// Formato 10 (Ronda 20): etiquetas por imprimir y la bitácora de las impresas.
+// Formato 11 (Ronda 21): esa lista y esa bitácora son las mismas en DLTA y GSM: ids con el inventario.
+// Formato 12 (revisión de la Ronda 21): cada marca de etiquetas guarda cuándo se registró su entrada.
+// Formato 13 (Ronda 22): los vales de entrada (y sus borradores) traen `fecha_recibido`, el día en que entra al
+// inventario y al reporte diario; `fecha` sigue siendo la del vale (cuando la base lo envió).
+// Formato 14: fusiona las correcciones de vales y etiquetas; agrega el límite anual de justificantes AX.
+export const FORMATO_ESTADO = 14;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -47,6 +51,8 @@ export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
     cortes_ax: [], // reportes de inventario de AX importados (conciliación)
     equivalencias_ax: {}, // renglón de AX (código|tamaño|color) → variante, confirmado por el usuario
     seguimientos_base: [], // archivos de vales de la base (qué partidas ya aplicó en AX, con IN / TR)
+    etiquetas: { material: [], ax: [], cambiado_en: null }, // etiquetas por imprimir, de DLTA y GSM (servicios/etiquetas.js)
+    impresiones_etiquetas: [], // cada vez que se imprimieron etiquetas (y de qué entradas)
     config: { inventario: inventarioPorId(inventario).id }, // DLTA o GSM: nunca se mezclan
   };
 }
@@ -123,11 +129,81 @@ export function migrarEstado(estado) {
     estado.formato = 9;
   }
   if (estado.formato < 10) {
-    // Sin correcciones previas, las diferencias originales de cada partida siguen vigentes.
-    // No se modifican las líneas ni se deduce aquí la posición de las firmas: necesita el
-    // área original y se fija en el vale antes de su primera corrección de encabezado.
-    for (const vale of estado.vales) vale.campos_encabezado_corregidos ??= [];
+    // Etiquetas de almacén (antes en el generador aparte): lista por imprimir y bitácora.
+    estado.etiquetas ??= { material: [], ax: [] };
+    estado.impresiones_etiquetas ??= [];
     estado.formato = 10;
+  }
+  if (estado.formato < 11) {
+    // La lista y la bitácora de etiquetas se comparten con el otro inventario: los ids llevan el de este
+    // (no chocan), el origen dice de cuál es, y una lista que ya traía etiquetas se junta con la del otro.
+    // Cada marca lleva además cuándo se registró su entrada (el id se repite si se restaura un respaldo).
+    // Aquí todavía es la entrada correcta: en el formato 10 la lista y la bitácora iban en este estado.
+    const inventario = inventarioPorId(estado.config?.inventario).id;
+    const huella = (id) => {
+      const vale = (estado.vales ?? []).find((v) => v.id === id && v.tipo === "ENTRADA");
+      return vale ? (vale.emitido_en ?? vale.creado_en ?? null) : null;
+    };
+    const etiquetas = estado.etiquetas ?? { material: [], ax: [] };
+    for (const tipo of ["material", "ax"]) {
+      etiquetas[tipo] ??= [];
+      for (const e of etiquetas[tipo]) {
+        if (typeof e.id === "number") e.id = `${inventario}-${e.id}`;
+        if (e.origen?.tipo === "ENTRADA" || e.origen?.tipo === "INVENTARIO") e.origen.inventario ??= inventario;
+        if (e.origen?.tipo === "ENTRADA" && e.origen.emitido_en === undefined) e.origen.emitido_en = huella(e.origen.vale_id);
+      }
+    }
+    etiquetas.cambiado_en ??= null;
+    if (etiquetas.material.length || etiquetas.ax.length) etiquetas.juntar = true;
+    estado.etiquetas = etiquetas;
+    for (const r of estado.impresiones_etiquetas ?? []) {
+      if (typeof r.id === "number") r.id = `${inventario}-${r.id}`;
+      r.vales = (r.vales ?? []).map((v) => {
+        const marca = typeof v === "object" && v !== null ? v : { inventario, vale_id: v };
+        if (marca.emitido_en === undefined) marca.emitido_en = inventarioPorId(marca.inventario).id === inventario ? huella(marca.vale_id) : null;
+        return marca;
+      });
+    }
+    estado.impresiones_etiquetas ??= [];
+    estado.formato = 11;
+  }
+  if (estado.formato < 12) {
+    // Los estados que ya estaban en el formato 11 (sin esta revisión) no traían `emitido_en` en las marcas de
+    // sus propias entradas: se completa con la entrada de este estado. Las del otro inventario las completa
+    // el otro al abrirse (mientras tanto se reconocen solo por el id).
+    const inventario = inventarioPorId(estado.config?.inventario).id;
+    const huella = (id) => {
+      const vale = (estado.vales ?? []).find((v) => v.id === id && v.tipo === "ENTRADA");
+      return vale ? (vale.emitido_en ?? vale.creado_en ?? null) : null;
+    };
+    const propio = (inv) => inventarioPorId(inv ?? inventario).id === inventario;
+    for (const tipo of ["material", "ax"]) {
+      for (const e of estado.etiquetas?.[tipo] ?? []) {
+        if (e.origen?.tipo === "ENTRADA" && e.origen.emitido_en === undefined && propio(e.origen.inventario)) e.origen.emitido_en = huella(e.origen.vale_id);
+      }
+    }
+    for (const r of estado.impresiones_etiquetas ?? []) {
+      for (const m of r.vales ?? []) if (m && typeof m === "object" && m.emitido_en === undefined && propio(m.inventario)) m.emitido_en = huella(m.vale_id);
+    }
+    estado.formato = 12;
+  }
+  if (estado.formato < 13) {
+    // Fecha de recibido de las entradas. Las ya registradas se recibieron el día que dicen (así no cambia ningún
+    // reporte diario ya subido). Los borradores, hoy: un día pasado podría cambiar un reporte que ya se subió, y
+    // queda a la vista para cambiarlo antes de registrar (no se toma su fecha: puede ser la del vale, que puso
+    // Copilot).
+    for (const v of estado.vales ?? []) if (v.tipo === "ENTRADA" && v.fecha_recibido === undefined) v.fecha_recibido = v.fecha ?? null;
+    const hoy = hoyIso();
+    for (const b of estado.borradores_entrada ?? []) b.fecha_recibido ??= hoy;
+    estado.formato = 13;
+  }
+  if (estado.formato < 14) {
+    // El formato 10 existió en ambas ramas: se conservan los campos de cada una.
+    estado.etiquetas ??= { material: [], ax: [], cambiado_en: null };
+    estado.impresiones_etiquetas ??= [];
+    for (const vale of estado.vales ?? []) vale.campos_encabezado_corregidos ??= [];
+    for (const corte of estado.cortes_ax ?? []) corte.fecha_minima_vales ??= fechaMinimaPropuesta(corte.fecha);
+    estado.formato = 14;
   }
   return estado;
 }

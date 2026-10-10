@@ -29,7 +29,7 @@ function valeSintetico(id, tipo = "SALIDA") {
   };
 }
 
-test("formato 10: migra los encabezados sin modificar partidas ni reinterpretar firmas", () => {
+test("formato 14: migra los encabezados sin modificar partidas ni reinterpretar firmas", () => {
   const estado = estadoVacio("GSM");
   estado.formato = 9;
   estado.vales = [valeSintetico(1), valeSintetico(2), valeSintetico(3, "ENTRADA")];
@@ -63,6 +63,10 @@ test("formato 10: migra los encabezados sin modificar partidas ni reinterpretar 
     assert.equal(vale.lineas[0].encabezado_original, original.encabezado);
     const sinMarcadorNuevo = { ...vale };
     if (i !== 1) delete sinMarcadorNuevo.campos_encabezado_corregidos;
+    if (vale.tipo === "ENTRADA") {
+      assert.equal(vale.fecha_recibido, vale.fecha);
+      delete sinMarcadorNuevo.fecha_recibido;
+    }
     assert.equal(JSON.stringify(sinMarcadorNuevo), original.json);
   }
   assert.deepEqual(estado.vales[0].campos_encabezado_corregidos, []);
@@ -108,11 +112,44 @@ function estadoAnterior(formato, inventario = "DLTA") {
   }
   if (formato < 7) delete estado.seguimientos_base;
   if (formato < 9) delete estado.config.inventario;
+  if (formato <= 10) {
+    delete estado.etiquetas;
+    delete estado.impresiones_etiquetas;
+  }
   return estado;
 }
 
-test("los respaldos de formatos 1 a 9 se restauran, migran y sobreviven al volver a abrir", async (t) => {
-  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+test("la fusión conserva los dos formatos 10: vales corregidos y listas de etiquetas con sus diseños", () => {
+  for (const conEtiquetas of [false, true]) {
+    const estado = estadoAnterior(10, "GSM");
+    estado.vales[0].campos_encabezado_corregidos = ["fecha", "recibio_puesto"];
+    estado.vales[0].firmas_por_posicion = false;
+    estado.config.etiquetas = { modelos: [], modelo_por_tipo: { material: "fabrica-material" } };
+    const configuracion = JSON.stringify(estado.config.etiquetas);
+    const lineas = estado.vales.map((v) => JSON.stringify(v.lineas));
+    estado.cortes_ax = [{ id: 1, fecha: "2026-10-02", asignaciones: [] }];
+    if (conEtiquetas) {
+      estado.etiquetas = { material: [{ id: 1, codigo: "701", nombre: "ETIQUETA SINTETICA", origen: { tipo: "INVENTARIO", existencia_id: 1 } }], ax: [] };
+      estado.impresiones_etiquetas = [{ id: 1, vales: [] }];
+    }
+    migrarEstado(estado);
+    assert.equal(estado.formato, FORMATO_ESTADO);
+    assert.deepEqual(estado.vales[0].campos_encabezado_corregidos, ["fecha", "recibio_puesto"]);
+    assert.equal(estado.vales[0].firmas_por_posicion, false);
+    assert.deepEqual(estado.vales.map((v) => JSON.stringify(v.lineas)), lineas);
+    assert.equal(JSON.stringify(estado.config.etiquetas), configuracion);
+    assert.equal(estado.cortes_ax[0].fecha_minima_vales, "2025-11-01");
+    assert.equal(estado.etiquetas.material.length, Number(conEtiquetas));
+    assert.equal(estado.impresiones_etiquetas.length, Number(conEtiquetas));
+    if (conEtiquetas) assert.equal(estado.etiquetas.material[0].id, "GSM-1");
+    const antes = JSON.stringify(estado);
+    migrarEstado(estado);
+    assert.equal(JSON.stringify(estado), antes);
+  }
+});
+
+test("los respaldos de formatos 1 a 13 se restauran, migran y sobreviven al volver a abrir", async (t) => {
+  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) {
     await t.test(`respaldo de formato ${formato}`, async () => {
       const viejo = estadoAnterior(formato);
       const lineas = viejo.vales.map((vale) => JSON.stringify(vale.lineas));

@@ -106,8 +106,9 @@ y de los últimos 12 meses.
 **Restauración:** valida el respaldo (formato, folios únicos, plantillas completas, **que sea del inventario abierto**),
 guarda una copia interna del estado actual y reemplaza todo en una sola transacción de IndexedDB.
 
-**Lo que comparten (Rondas 18 y 19):** la **etapa de perforación** (es del pozo) y los ajustes de la persona:
-**personalización** (tema, avisos, animaciones), **captura de partidas** y **"Mi pantalla de vales"**. Viven además en una
+**Lo que comparten (Rondas 18 a 20):** la **etapa de perforación** (es del pozo), los ajustes de la persona:
+**personalización** (tema, avisos, animaciones), **captura de partidas** y **"Mi pantalla de vales"**, y (Ronda 20) el
+**diseño de las etiquetas** con los logos y el texto de cada inventario (`config.etiquetas`, ver `docs/11`). Viven además en una
 base aparte, `control-almacen-comun` (solo su almacén `ajustes`, clave `compartidos` = `{ <clave de config>: { valor, en,
 desde } }`; claves en `VALORES_COMPARTIDOS`). `almacen/compartidos.js` (`Compartidos`): al cambiar uno se publica completo
 (gana el último cambio); al abrir un inventario, tras su primera carga o al restaurar un respaldo, se adopta lo compartido

@@ -5,7 +5,7 @@ import { aNumero } from "../nucleo/decimal.js";
 import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, corteDe, cortesVigentes } from "../nucleo/existencias.js";
-import { fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveLaxa } from "../nucleo/normalizar.js";
 
 export function resumen(estado) {
@@ -36,7 +36,8 @@ export function resumen(estado) {
     conteo_en_curso: Boolean(estado.conteo_en_curso),
     entradas: entradas.length,
     ultima_entrada: ultimaEntrada ? ultimaEntrada.folio : null,
-    fecha_ultima_entrada: ultimaEntrada ? ultimaEntrada.fecha : null,
+    fecha_ultima_entrada: ultimaEntrada ? fechaDelDia(ultimaEntrada) : null, // recibida
+    entradas_hoy: entradas.filter((v) => fechaDelDia(v) === hoyIso()).length, // recibidas hoy
     borradores_entrada: estado.borradores_entrada?.length ?? 0,
     ultima_exportacion: exportaciones,
     vales_hoy: salidas.filter((v) => !v.migrado && v.fecha === hoyIso() && v.estado === "EMITIDO").length,

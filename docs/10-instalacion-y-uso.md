@@ -10,6 +10,7 @@
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
 | **Conciliación AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado. Con el **archivo de vales de la base** sabe qué partidas ya están en AX (IN / TR) y cuáles siguen pendientes |
+| **Etiquetas** | Etiquetas de material o de código AX (lo que hacía el generador de etiquetas): de un **vale de entrada** (se sugiere al registrarla), del **inventario**, a mano o desde la lista `.json` del generador; plantillas como la precortada J-5163; logos del vale por inventario; las entradas quedan marcadas *Etiquetas impresas* |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
@@ -130,7 +131,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - **Corregir datos generales por lotes:** en *Historial de vales*, elige **Vales de salida** o **Vales de entrada** y pulsa **Corregir por lotes**. Pega los folios (entradas: folio interno como `E-0001` o `1`), marca sólo los campos a cambiar y escribe el nuevo valor común. Pulsa **Revisar corrección**, comprueba el antes y el después y guarda con un motivo. Los materiales y las partidas se conservan. Un campo opcional marcado y vacío queda vacío también al imprimir.
    - Las **claves de almacén largas** se imprimen completas en varias líneas y centradas. Se amplía la fila usando el espacio de partidas vacías; si el formato está lleno, se ajusta la escala para conservar una hoja por vale.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
-5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
+5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores; las entradas cuentan el día en que se **recibieron**). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
 
 **Inventario del día.** Igual que el Excel: *Cantidad* es lo que había al empezar el día, *Consumo* e *Ingreso* solo los
@@ -140,7 +141,10 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
 ### Entradas, conteos y movimientos
 - **Entrada de material** (*Vales de entrada → Nueva entrada*): elige **Captura manual** o **Desde foto o PDF**.
   Arriba quedan siempre a la vista el folio, los pendientes y los botones **Registrar entrada** y **Descartar**.
-  Escribe el folio del vale, de dónde viene y quién lo entrega; el departamento siempre es ALMACEN. Por partida:
+  Escribe el folio del vale, de dónde viene, la **fecha del vale** (la del papel) y quién lo entrega; el departamento
+  siempre es ALMACEN. **Recibido** es el día en que llegó el material (por omisión, hoy): ese día suma al inventario y
+  cuenta en el reporte diario. No puede ser futura; si es anterior a la del vale o hubo un conteo después en esas
+  partidas, te avisa (sin bloquear). Se cambia después con *Corregir* (queda en la bitácora). Por partida:
   código → `Enter` → clave (★ = el contenedor donde hay más) → **NP** → cantidad. Si la clave trae el NP (`… NP: 123`),
   se pasa solo a su campo. Arriba, los botones *⚠ pendientes*, *por revisar* y *con clave nueva* muestran solo esas
   partidas. Abajo de cada partida: **Entra a** (cambia
@@ -161,7 +165,28 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   Color: juntos son la dimensión; AX no trae NP) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
   cantidades no cambian y el aviso trae *Deshacer*.
 - **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
-- **Historial de entradas:** *Historial de vales → Vales de entrada*. Se exporta en *Exportar y enviar → Vales de entrada*.
+- **Historial de entradas:** *Historial de vales → Vales de entrada*, con las columnas *Fecha del vale* y *Recibido*; los
+  filtros *Recibido desde / hasta* van por la de recibido. Se exporta en *Exportar y enviar → Vales de entrada* (FECHA = la
+  del vale; al final, FECHA RECIBIDO).
+
+### Etiquetas
+- **Al registrar una entrada** aparece *¿Le hacemos sus etiquetas?* → **Hacer etiquetas**: marca las partidas, ajusta
+  cuántas (una por pieza; una sola si es metro, litro, kilo o con decimales) y *🖨 Imprimir ahora* o *Agregar a la lista*.
+- **Menú Etiquetas:** elige *Material* o *Código AX* y agrega **de un vale de entrada** (escribe `E-0005` o el folio de la
+  base), **del inventario** (busca y marca), **a mano** o la **lista del generador** (el `.json` que exportas en el
+  teléfono). Revisa la lista (cantidad, *Editar*, *Duplicar*, ×) y **Vista previa e imprimir**. En el cuadro de impresión:
+  escala 100 % y sin *Encabezados y pies de página*. Al terminar contesta **¿Salieron bien?**: así la entrada queda marcada.
+- **Hoja y logos** (en la lista): plantilla (estándar 2 × 6, precortada J-5163…), medidas en mm / cm / `4in` y
+  borde (quítalo en hojas precortadas). Logos: *Del vale…* toma los del libro de vales del inventario abierto; *Subir…*
+  de un archivo. Cada etiqueta lleva los logos de su **inventario** (DLTA o GSM, se cambia por etiqueta).
+- **Editor de diseños** (en la lista; Ronda 22): qué lleva cada etiqueta y dónde, a pantalla completa. Duplica uno de
+  fábrica, arrastra y cambia el tamaño de cada elemento (cuadrícula, imán y guías), agrega texto libre con `{codigo}`…,
+  código QR o código de barras, guarda (Ctrl+S) y elige *Usar para Material* / *Usar para Código AX* (para DLTA y GSM).
+  En la tarjeta, *Diseño: …* cambia el de la lista sin abrir el editor.
+- *Historial de vales → Vales de entrada* tiene la columna y el filtro **Etiquetas** (sin imprimir / impresas).
+- **DLTA y GSM juntos:** la lista por imprimir es la misma en los dos. En *Del inventario* y *De un vale de entrada*,
+  **Datos de: DLTA | GSM** trae material o entradas del otro sin cambiar de inventario (solo se leen). La marca *Etiquetas
+  impresas* aparece en la entrada de su inventario.
 
 ### Conciliación contra AX
 Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera y los vales posteriores al corte, los
@@ -182,12 +207,21 @@ cheques en tránsito.
    elegir otra variante o *No está en el físico* (solo para ese corte). Solo se ofrecen las partidas del inventario
    que aún no son pareja de otra partida de AX: una misma no puede asignarse a dos. La próxima vez empareja sola. El aviso trae
    *Deshacer*; con *Corregir las seguras* van todas las de puntaje alto de una vez.
+   Cada partida física que cambie también agrega **una etiqueta con los datos corregidos** a *Etiquetas → Material*,
+   para reemplazar la del material físico. Aplica a las correcciones individuales, a las seguras y a *Solo en el físico*.
+   *Deshacer* retira esas etiquetas nuevas y conserva las que ya estaban en la lista.
 4. **Diferencias:** cada partida dice si *Cuadra*, si la diferencia la explican los vales en tránsito (con sus folios) o
    si *Sobran* / *Faltan* sin explicar. En la ventana cambias de vista (por artículo, por contenedor para ir a revisar,
    valuada en pesos) y de filtro sin cerrarla. **Reporte AX** abre el kardex completo (también lo *por confirmar*, con
    *Confirmar…*, y lo que no está en el físico) para buscar cualquier código o descripción.
 5. **Por resolver → Justificar faltantes:** a cada faltante le asignas los vales que ya salieron y que AX aún no
-   descuenta (sin IN / TR), aunque sean de antes del reporte de AX. Se **sugieren** los que coinciden en código,
+   descuenta (sin IN / TR), aunque sean de antes del reporte de AX, dentro del periodo admitido.
+   En **Aceptar vales desde** se propone el **1 de noviembre del año anterior al reporte AX**: para un reporte de 2026,
+   el inicio es `01/11/2025` y los vales de octubre de 2025 o anteriores quedan excluidos. Cambia la fecha y pulsa
+   **Guardar límite** si el corte anual se retrasa o tiene prórroga; se guarda para ese corte de AX. Los vales anteriores
+   no se sugieren, no se aceptan manualmente y no justifican diferencias ni salen en la solicitud. Si una asignación
+   guardada queda fuera, se conserva con el aviso *Fuera del periodo: no justifica*. No cambia el contenido de los vales.
+   Se **sugieren** los que coinciden en código,
    dimensión y cantidad (la combinación que cubre el faltante exacto, o lo más cerca sin pasarse): los apruebas uno por
    uno o con *Asignar las N sugerencias*. *Elegir vales…* muestra todos los del código con su estado (sin IN / TR,
    justifica otra, ya en AX, por ubicar) para asignarlos a mano; cada asignación tiene *Deshacer* y *Quitar*. Lo
@@ -204,7 +238,8 @@ lista de cheques que el banco ya cobró. *Importar consumos de la base* → elig
 te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; uno nuevo reemplaza al anterior). Desde ahí:
 - Las partidas con folio **IN / TR** ya están en AX (la *CANTIDAD* de la base es lo aplicado; vacía = todo).
 - Las que **no tienen IN / TR** (INV sin folio, sin revisar, que la base no tiene o posteriores a su archivo) cuentan como
-  tránsito en la conciliación aunque el vale sea anterior al corte (folio `6 (S, sin IN/TR)`); si la base aplicó solo
+  tránsito en la conciliación aunque el vale sea anterior al corte, si alcanza la fecha de *Aceptar vales desde*
+  (folio `6 (S, sin IN/TR)`); si la base aplicó solo
   una parte, cuenta lo que falta.
 - **NO INV, CONPROV, SIN EXISTENCIA** no se descuentan en AX: no justifican diferencias.
 - La fecha que importa es la del **reporte de AX**: lo posterior siempre está en tránsito. Pide el archivo de la base con

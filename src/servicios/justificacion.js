@@ -5,19 +5,36 @@
 // código, dimensión y cantidad, se aprueban (una por una o todas) y también se eligen a mano.
 //
 // Una asignación vive en el corte (corte.asignaciones) y la usa transitoDesde: la partida cuenta para
-// ese faltante, sea cual sea su fecha. Las cantidades del inventario y los vales no cambian. Lo
+// ese faltante, dentro del periodo admitido. Las cantidades del inventario y los vales no cambian. Lo
 // asignado sale en la hoja "VALES POR APLICAR" de la solicitud de ajuste para que la base lo aplique.
 
 import { CERO, dec, decTexto, sumar } from "../nucleo/decimal.js";
 import { clavesDeBusqueda, clavesPropias, hayInterseccion } from "../nucleo/catalogo.js";
 import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { cuentaParaSaldo } from "../nucleo/existencias.js";
-import { ahoraIso } from "../nucleo/fechas.js";
+import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
+import { fechaIsoValida, fechaMinimaJustificantes, valeAdmitido } from "../nucleo/justificantes.js";
 import { claveEstricta, sinDimension } from "../nucleo/normalizar.js";
 import { corteAx, conciliar, dimensionAx, enTransito, varianteVigente } from "./conciliacion.js";
 import { sinAplicar } from "./seguimiento.js";
 
 export class ErrorJustificacion extends Error {}
+
+/** Guarda el límite de este corte; las asignaciones anteriores se conservan para revisar o quitar. */
+export function fijarFechaMinimaVales(estado, corteId, fecha, usuario = null) {
+  const corte = corteAx(estado, corteId);
+  if (!corte) throw new ErrorJustificacion("El corte ya no existe.");
+  if (!fechaIsoValida(fecha)) throw new ErrorJustificacion("Escribe una fecha mínima válida para los vales.");
+  if (fecha > corte.fecha) throw new ErrorJustificacion("La fecha mínima no puede ser posterior al reporte de AX.");
+  const antes = fechaMinimaJustificantes(corte);
+  if (fecha === antes) return fecha;
+  corte.fecha_minima_vales = fecha;
+  auditar(estado, {
+    usuario, entidad: "corte_ax", entidadId: corte.id, accion: "CAMBIAR_FECHA_MINIMA_VALES",
+    antes: { fecha_minima_vales: antes }, despues: { fecha_minima_vales: fecha },
+  });
+  return fecha;
+}
 
 const hay = (v) => v !== null && v !== undefined;
 
@@ -108,7 +125,7 @@ export function candidatos(estado, r, fila, { indices = new Indices(estado), cod
     existenciasDestino.every((e) => !cuentaParaSaldo(hay(e.conteo_id) ? indices.conteos.get(e.conteo_id) : null, vale));
   const salida = [];
   for (const vale of estado.vales) {
-    if (vale.tipo !== "SALIDA" || vale.estado !== "EMITIDO") continue;
+    if (vale.tipo !== "SALIDA" || vale.estado !== "EMITIDO" || !valeAdmitido(r.corte, vale)) continue;
     for (const linea of vale.lineas) {
       if (linea.codigo !== codigo || linea.no_inventariado || asignadas.has(linea.id)) continue;
       const total = dec(linea.cantidad);
@@ -218,16 +235,26 @@ export function asignarVales(estado, { corteId, destino, partidas, metodo = "man
   if (!corte) throw new ErrorJustificacion("El corte ya no existe.");
   if (!partidas?.length) throw new ErrorJustificacion("Elige al menos una partida de vale.");
   if (!hay(destino?.variante_id) && !hay(destino?.linea_ax_id)) throw new ErrorJustificacion("Falta a qué partida se asigna.");
-  corte.asignaciones ??= [];
-  const ya = new Set(corte.asignaciones.map((a) => a.partida_id));
-  const nuevas = [];
+  // Se revisa el lote completo antes de asignar: un vale fuera del periodo rechaza todo el lote.
+  const ya = new Set((corte.asignaciones ?? []).map((a) => a.partida_id));
+  const preparadas = [];
   for (const p of partidas) {
     const vale = estado.vales.find((v) => v.tipo === "SALIDA" && v.lineas.some((l) => l.id === p.partida_id));
     if (!vale) throw new ErrorJustificacion("Esa partida de vale ya no existe.");
+    if (vale.estado !== "EMITIDO") throw new ErrorJustificacion(`El vale ${vale.folio} no está emitido.`);
+    if (!valeAdmitido(corte, vale)) throw new ErrorJustificacion(
+      `El vale ${vale.folio} tiene fecha ${fmtFecha(vale.fecha) || "sin registrar"}. Solo se aceptan vales desde el ${fmtFecha(fechaMinimaJustificantes(corte))}.`,
+    );
     if (ya.has(p.partida_id)) throw new ErrorJustificacion(`Una partida del vale ${vale.folio} ya está asignada en este corte.`);
     const linea = vale.lineas.find((l) => l.id === p.partida_id);
     const cantidad = dec(p.cantidad ?? linea.cantidad);
     if (!cantidad || cantidad.lte(0)) throw new ErrorJustificacion(`La partida del vale ${vale.folio} no tiene cantidad.`);
+    preparadas.push({ vale, linea, cantidad });
+    ya.add(linea.id);
+  }
+  corte.asignaciones ??= [];
+  const nuevas = [];
+  for (const { vale, linea, cantidad } of preparadas) {
     const asignacion = {
       id: siguienteId(estado, "asignacion_ax"),
       partida_id: linea.id,
@@ -242,7 +269,6 @@ export function asignarVales(estado, { corteId, destino, partidas, metodo = "man
       en: ahoraIso(),
     };
     corte.asignaciones.push(asignacion);
-    ya.add(linea.id);
     nuevas.push(asignacion);
   }
   auditar(estado, {

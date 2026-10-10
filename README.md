@@ -17,10 +17,11 @@ internet. Tiene cuatro objetivos:
 renglones con el inventario (con memoria de equivalencias), ver las diferencias por renglón, artículo, contenedor y en
 pesos con los vales en tránsito que las explican (incluido lo que el archivo de vales de la base marca como pendiente en
 AX), y exportar la solicitud de ajuste. Fases 1 (primera carga y exportación
-idéntica) y 2 (vales de salida) aceptadas; fase 3 (entradas, conteos y movimientos) entregada.
+idéntica) y 2 (vales de salida) aceptadas; fase 3 (entradas, conteos y movimientos) entregada. Ronda 20: las
+**etiquetas de almacén** (antes el generador aparte) se hacen aquí, desde los vales de entrada y el inventario.
 Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso.md). El archivo
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
-También hay una [versión lista para descargar](versiones/ControlAlmacen.html), con impresión y corrección de datos generales por lotes desde el historial, claves largas centradas y actualización confirmada de puestos desde Personas.
+También hay una [versión lista para descargar](versiones/ControlAlmacen.html), con etiquetas y editor de diseños integrados, impresión y corrección por lotes y actualización confirmada de puestos. Corregir el inventario desde AX prepara sus etiquetas; los justificantes tienen una fecha mínima editable por corte (propuesta: 1 de noviembre del año anterior al reporte).
 En GitHub, abre ese archivo y usa **Download raw file** (icono de descarga).
 
 ```bash
@@ -39,6 +40,7 @@ npm ci && npm test && npm run build   # → dist/ControlAlmacen.html
 | [08 — Plan de trabajo](docs/08-plan.md) | Fases, entregables y criterios de aceptación |
 | [09 — Pendientes](docs/09-pendientes.md) | Preguntas abiertas y decisiones por confirmar |
 | [10 — Cómo abrirla y usarla](docs/10-instalacion-y-uso.md) | Abrir, carpeta de respaldos, primera carga, uso diario y respaldos |
+| [11 — Etiquetas](docs/11-etiquetas.md) | El generador de etiquetas dentro de la herramienta: decisiones, flujos, datos e impresión |
 
 ## Principios del proyecto
 

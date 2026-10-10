@@ -8,7 +8,9 @@ import { ErrorReporteAx, delAlmacen, fechaDeNombre, leerReporteAx } from "../src
 import * as c from "../src/servicios/conciliacion.js";
 import * as en from "../src/servicios/entradas.js";
 import { candidatosExactos, indiceExistencias } from "../src/servicios/primeraCarga.js";
-import { Indices } from "../src/nucleo/estado.js";
+import { Indices, dimensionMostrada, npMostrado, siguienteId } from "../src/nucleo/estado.js";
+import { calcularSaldos } from "../src/nucleo/existencias.js";
+import { agregarEtiquetas } from "../src/servicios/etiquetas.js";
 import { descomprimirZip } from "../src/xlsx/zip.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import { NOMBRE_AX, bytesAx, bytesInventario, cargaSintetica } from "./ayuda.js";
@@ -328,4 +330,71 @@ test("AX sin dimensión (Tamaño y Color vacíos): junta las variantes sin dimen
 test("sinDimension: vacía, S/D, SIN DIMENSIÓN, S/N… o que empieza así", () => {
   for (const t of ["", null, "S/D", "SIN DIMENSION", "SIN DIMENSIÓN", "Sin dimención", "S/N", "S/D NP: 1/4\"", "S/D CABLE UTP"]) assert.equal(sinDimension(t), true, String(t));
   for (const t of ["MOD:ZX100", "6309-2Z/C3", "SD-12", '1/2"']) assert.equal(sinDimension(t), false, t);
+});
+
+test("corregir contra AX prepara una etiqueta por partida modificada, sin cambiar cantidades ni vales", () => {
+  const { estado, corte } = conCorte();
+  estado.config.inventario = "GSM";
+  const p = c.emparejar(estado, corte).find((p) => p.linea.codigo === 702);
+  const originales = estado.existencias.filter((e) => e.variante_id === p.variante_id && e.activo !== false);
+  estado.existencias.push({ ...structuredClone(originales[0]), id: siguienteId(estado, "existencia"), ubicacion_id: estado.ubicaciones.at(-1).id });
+  const ids = estado.existencias.filter((e) => e.variante_id === p.variante_id && e.activo !== false).map((e) => e.id);
+  agregarEtiquetas(estado, "material", [{ codigo: "999", nombre: "OTRA ETIQUETA SINTETICA", inventario: "DLTA" }]);
+  const previa = structuredClone(estado.etiquetas.material[0]);
+  const vales = JSON.stringify(estado.vales);
+  const cantidades = () => [...calcularSaldos(estado)].map(([id, saldo]) => [id, saldo.total.toFixed()]);
+  const antes = cantidades();
+  const resultado = c.confirmarPareja(estado, { corteId: corte.id, lineaId: p.linea.id, varianteId: p.variante_id }, USUARIO);
+  assert.equal(resultado.etiquetas.length, ids.length);
+  assert.deepEqual(estado.etiquetas.material[0], previa);
+  const etiquetas = estado.etiquetas.material.filter((e) => resultado.etiquetas.includes(e.id));
+  assert.deepEqual(etiquetas.map((e) => e.origen.existencia_id), ids);
+  const indices = new Indices(estado);
+  for (const etiqueta of etiquetas) {
+    const existencia = indices.existencia(etiqueta.origen.existencia_id), variante = indices.variante(existencia.variante_id);
+    assert.equal(etiqueta.dimension, dimensionMostrada(existencia, variante) ?? "");
+    assert.equal(etiqueta.np, npMostrado(existencia, variante) ?? "");
+    assert.equal(etiqueta.nombre, p.linea.nombre);
+    assert.equal(etiqueta.cantidad, 1);
+    assert.equal(etiqueta.inventario, "GSM");
+    assert.equal(etiqueta.origen.inventario, "GSM");
+    assert.equal(etiqueta.origen.corte_ax_id, corte.id);
+    assert.match(etiqueta.id, /^GSM-/);
+  }
+  assert.deepEqual(cantidades(), antes);
+  assert.equal(JSON.stringify(estado.vales), vales);
+  const cantidadEtiquetas = estado.etiquetas.material.length;
+  assert.throws(() => c.confirmarPareja(estado, { corteId: corte.id, lineaId: p.linea.id, varianteId: p.variante_id }, USUARIO), /ya están así/);
+  assert.equal(estado.etiquetas.material.length, cantidadEtiquetas);
+});
+
+test("al unir variantes se etiquetan las partidas que cambiaron y se conserva el NP actualizado", () => {
+  const { estado, corte } = conCorte();
+  const p = c.emparejar(estado, corte).find((p) => p.linea.codigo === 702);
+  const indices = new Indices(estado), original = indices.variante(p.variante_id);
+  const valores = c.valoresAx(p.linea, original);
+  const destino = indices.obtenerOCrearVariante(original.codigo, valores.dimension, valores.np, original.um);
+  const existencia = estado.existencias.find((e) => e.variante_id === original.id);
+  const yaCorregida = { ...structuredClone(existencia), id: siguienteId(estado, "existencia"), variante_id: destino.id };
+  estado.existencias.push(yaCorregida);
+  const resultado = c.confirmarPareja(estado, { corteId: corte.id, lineaId: p.linea.id, varianteId: original.id }, USUARIO);
+  assert.equal(resultado.unida, true);
+  assert.equal(resultado.variante.id, destino.id);
+  assert.ok(estado.etiquetas.material.some((e) => e.origen.existencia_id === existencia.id));
+  assert.ok(!estado.etiquetas.material.some((e) => e.origen.existencia_id === yaCorregida.id));
+  assert.ok(estado.etiquetas.material.every((e) => e.dimension === (destino.dimension ?? "") && e.np === (destino.np ?? "")));
+});
+
+test("correcciones seguras y la pestaña Solo en el físico preparan sus etiquetas; sin físico no agrega", () => {
+  const { estado, corte } = conCorte();
+  const hechas = c.confirmarSeguras(estado, corte.id, USUARIO);
+  assert.ok(hechas > 0 && estado.etiquetas.material.length >= hechas);
+  const etiquetas = estado.etiquetas.material.length;
+  const sinFisico = c.emparejar(estado, corte).find((p) => p.linea.codigo === 709);
+  c.confirmarPareja(estado, { corteId: corte.id, lineaId: sinFisico.linea.id, varianteId: null }, USUARIO);
+  assert.equal(estado.etiquetas.material.length, etiquetas);
+  const otra = estado.variantes.find((v) => v.codigo === 799);
+  const resultado = c.corregirInventarioParaAx(estado, { corteId: corte.id, cual: { varianteId: otra.id }, dimension: "CLAVE SINTETICA CORREGIDA", np: "NP SINTETICO" }, USUARIO);
+  assert.ok(resultado.etiquetas.length > 0);
+  assert.ok(estado.etiquetas.material.filter((e) => resultado.etiquetas.includes(e.id)).every((e) => e.dimension === "CLAVE SINTETICA CORREGIDA" && e.np === "NP SINTETICO"));
 });

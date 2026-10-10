@@ -1,8 +1,21 @@
-# Versión con impresión y corrección por lotes
+# Versión con etiquetas integradas y conciliación AX actualizada
 
 Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
 Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
 Al actualizar tu copia, conserva el nombre y la ubicación habituales del HTML y usa el mismo navegador.
+
+Esta versión reúne la rama de vales y la de etiquetas en la rama predeterminada del proyecto.
+En **Etiquetas → Editor de diseños** puedes duplicar un diseño, mover y editar elementos, agregar QR y
+código de barras, guardarlo y elegirlo para imprimir. Se conservan los diseños y las listas de ambas ramas.
+
+En **Conciliación AX → Emparejar con AX**, corregir dimensión / NP agrega automáticamente una etiqueta
+por cada partida física modificada a **Etiquetas → Material**. Incluye las correcciones individuales,
+las seguras y lo que sólo está en el físico. **Deshacer** retira las etiquetas de esa corrección.
+
+En **Justificar faltantes → Aceptar vales desde**, el inicio propuesto es el **1 de noviembre del año
+anterior al reporte AX**. Cambia la fecha y pulsa **Guardar límite** para una prórroga o retraso; se guarda
+por corte. Los vales anteriores quedan fuera de las sugerencias, la asignación manual y la solicitud.
+Las asignaciones ya guardadas fuera del periodo se conservan con un aviso y dejan de justificar diferencias.
 
 En **Historial de vales → Vales de salida → Imprimir por lotes**, pega los folios de una columna de Excel
 o sepáralos con espacios, comas o punto y coma. Se imprimen una sola vez y en el orden de la lista.
@@ -24,8 +37,10 @@ en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
 Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
 
 Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 250 pruebas, la impresión y los nuevos flujos en Chromium,
-y un lote sintético de 88 vales con las dos claves largas de ejemplo y un PDF de 88 páginas.
+Se validaron 341 pruebas automatizadas y 7 pruebas de impresión en Chromium. Se recorrieron en el navegador
+la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
+el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
+La impresión por lotes conserva la validación anterior de 88 vales y un PDF de 88 páginas.
 El HTML contiene únicamente el programa, estilos y licencias; los datos del almacén permanecen en el navegador.
 
 Para verificar la integridad del archivo:

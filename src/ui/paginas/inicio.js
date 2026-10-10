@@ -174,7 +174,7 @@ export function PaginaInicio() {
   if (!datos) return html`<${Bienvenida} />`;
   const hoy = hoyIso();
   const ahora = new Date();
-  const entradasHoy = estado.vales.filter((v) => v.tipo === "ENTRADA" && v.estado === "EMITIDO" && v.fecha === hoy).length;
+  const entradasHoy = datos.entradas_hoy; // recibidas hoy (fecha de recibido)
   const enCurso = estado.conteo_en_curso;
   const contados = enCurso ? Object.keys(enCurso.capturas ?? {}).length : 0;
   const alertas = [

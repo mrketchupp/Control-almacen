@@ -132,7 +132,7 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 | enviado_en | fecha-hora nula | Primera vez que se marcó como enviado a la base |
 | ruta_escaneo | texto | Enlace o ruta del PDF escaneado (opcional) |
 | migrado, fila_diario_origen | | Trazabilidad de la migración |
-| campos_encabezado_corregidos | lista de texto opcional | Formato 10: campos generales corregidos. Las claves del DIARIO (`fecha`, `entrego`, `recibio`…) prevalecen sobre `encabezado_original`; los puestos y observaciones marcados respetan también un vacío explícito al imprimir |
+| campos_encabezado_corregidos | lista de texto opcional | Desde el formato 10 de la rama de vales, conservado en el formato 14 fusionado: campos generales corregidos. Las claves del DIARIO (`fecha`, `entrego`, `recibio`…) prevalecen sobre `encabezado_original`; los puestos y observaciones marcados respetan también un vacío explícito al imprimir |
 | firmas_por_posicion | bool opcional | Conserva la interpretación de las firmas de un vale migrado aunque se corrija su departamento; `false` también es un valor válido |
 
 **`vale_linea`**
@@ -185,7 +185,7 @@ reciben folio dentro de un cambio atómico y pasan a `vales`. Descartar un borra
 
 | Tabla | Campos |
 |---|---|
-| **`corte_ax`** | fecha_corte, almacen, archivo, hash, importado_en, folio_corte (opcional) |
+| **`corte_ax`** | fecha_corte, almacen, archivo, hash, importado_en, folio_corte (opcional), fecha_minima_vales |
 | **`corte_ax_linea`** | corte_id, las 10 columnas del reporte, variante_id resuelta, método (`exacto` / `equivalencia` / `aproximado` / `manual` / `sin_pareja`), puntaje |
 | **`equivalencia_ax`** | (codigo, tamano, color) → variante_id, confirmado_por, fecha. **Memoria de emparejamientos.** |
 
@@ -193,6 +193,10 @@ En el estado (formato 6, F4): `estado.cortes_ax = [{ id, fecha, almacen, archivo
 importado_por, lineas: [{ id, fila, codigo, codigo_texto, nombre, modelo, um, almacen, tamano, color, disponible,
 valor_financiero, valor_inventario }] }]` (textos tal como vienen del reporte; cantidades y valores como texto decimal)
 y `corte.sin_pareja = [línea…]` (las partidas de AX que el usuario marcó "no está en el físico", **solo en ese corte**).
+Desde el formato 14, `corte.fecha_minima_vales` es una fecha ISO editable por corte. Se propone el **1 de noviembre
+del año anterior a `corte.fecha`**. Las sugerencias, las asignaciones manuales, el tránsito y la solicitud de ajuste
+admiten únicamente vales cuya `fecha` sea válida y esté dentro del periodo. Las asignaciones guardadas que queden fuera
+se conservan para revisión, pero no cuentan. La fecha del vale, y no `fecha_recibido`, determina este límite de AX.
 Desde la Ronda 9 **confirmar una pareja corrige el inventario** (`corregirDimensionNp`: la dimensión y el NP de la
 variante pasan a como los escribe AX) en vez de recordar una equivalencia; `estado.equivalencias_ax` (formato 6) solo
 conserva lo que se confirmó con la versión anterior: esas parejas se vuelven a proponer ("confirmada antes") y, al
@@ -226,6 +230,24 @@ sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia
 `descartarArea`): deja de salir al hacer vales, sus vales se siguen imprimiendo con su formato y se puede recuperar. Los
 vales migrados del DIARIO no apuntan a un área. Auditoría `BORRAR`, `REPONER`, `DESCARTAR`, `RECUPERAR`.
 
+**Etiquetas (formato 10, Ronda 20):** `estado.etiquetas = { material: [...], ax: [...] }` (lo que está por imprimir;
+cada etiqueta es una copia: cantidad 1–999, código, nombre, dimensión, NP, descripción, área, `inventario` DLTA | GSM y su
+`origen` — entrada, inventario, a mano o archivo del generador) y `estado.impresiones_etiquetas = [{ id, fecha_hora,
+usuario, tipo, partidas, etiquetas, vales }]` (bitácora; una entrada tiene etiquetas si su id está en `vales`). Los vales
+no cambian. `config.etiquetas = { diseno, identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: … } }` es compartido entre
+DLTA y GSM. Detalle en `docs/11-etiquetas.md`.
+Al corregir dimensión / NP desde Conciliación AX se agrega a `etiquetas.material` una etiqueta por partida física
+modificada, con los datos corregidos. Su `origen` conserva `existencia_id` e inventario y agrega `corte_ax_id` y
+`linea_ax_id` (null al corregir lo que solo está en el físico). Deshacer la corrección retira solo esas etiquetas nuevas.
+
+**Etiquetas de DLTA y GSM juntas (formato 11, Ronda 21):** la lista por imprimir y la bitácora son **las mismas en los
+dos inventarios** (se sincronizan con la base común como los ajustes compartidos; cada estado guarda su copia, que va en
+sus respaldos). Los ids llevan el inventario que los creó (`DLTA-12`, `GSM-3`) para no chocar; `origen.inventario` dice de
+qué inventario es la partida o la entrada; la bitácora marca `vales: [{ inventario, vale_id, emitido_en }]` (el id de un
+vale se repite si se restaura un respaldo: `emitido_en` dice cuál era); la lista lleva
+`cambiado_en` (gana el último cambio) y, si venía con etiquetas del formato 10, `juntar: true` (la primera vez se une con
+la del otro). La migración convierte los ids numéricos y los `vales` anteriores.
+
 **Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
 cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
 vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese
@@ -244,7 +266,9 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **10**; del 6 al 9 se describen arriba en *Conciliación* y *Dos inventarios*). El 10 agrega los marcadores de correcciones generales sin modificar las partidas ni reinterpretar firmas antiguas. Al abrir un estado o un respaldo de un formato anterior se migra solo
+El estado lleva `formato` (hoy **14**; del 6 al 12 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*;
+el 12 completa `emitido_en` en las marcas de etiquetas de las entradas propias; el 13 agrega `fecha_recibido` a las
+entradas y a sus borradores, ver *Vales de entrada*; el 14 reúne los marcadores de correcciones generales de la rama de vales y la fecha mínima de justificantes AX). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
@@ -273,6 +297,21 @@ del inventario al que entra; si era una variante o un contenedor nuevos, se crea
 **`borradores_entrada`**: entradas en captura, con el mismo encabezado y renglones que además pueden traer
 `ubicacion_id` + `variante_id` (otro contenedor) o `ubicacion_id` + `dimension`/`np` (variante nueva).
 
+**Dos fechas en las entradas (formato 13, Ronda 22):** `fecha` = la **del vale** (cuando la base lo envió; la trae el
+papel y la llena la captura con Copilot) y `fecha_recibido` = cuándo **llegó** el material y se registra (por omisión,
+hoy). La de recibido decide el **día** de la entrada: la vista diaria del inventario (`calcularSaldos(…, { dia })`), el
+reporte diario (`estadoAlCierre`, `reporteDelDia`), los contadores del inicio y los filtros del historial de entradas.
+Un solo ayudante, `fechaDelDia(vale)` (`nucleo/fechas.js`): `fecha_recibido ?? fecha` en las entradas, `fecha` en las
+salidas. La **conciliación con AX** (`transitoDesde`/`enTransito`), el archivo de la base y la justificación siguen con la
+fecha del vale: la base mueve el material en AX cuando lo envía. Se valida en el servicio: obligatoria, no futura y no
+posterior al día en que se registra la entrada (al corregir, el día de `emitido_en`); avisa sin bloquear si es anterior a
+la del vale o a un conteo físico posterior de los renglones de destino que la entrada todavía suma
+(`conteosDespuesDeRecibir`: si ya se contó, sumaría dos veces). Es editable con *Corregir* (motivo y bitácora:
+«Recibido: … → …»). Migración: las entradas ya registradas toman `fecha_recibido = fecha` (no cambia ningún reporte ya
+subido); los borradores, **hoy** (un día pasado podría cambiar un reporte ya subido, y queda a la vista para cambiarlo
+antes de registrar; no se usa la fecha del borrador porque puede ser la del vale, que puso Copilot). El corte por folio
+de cada conteo **no cambia**.
+
 `config.preferencias_vale` guarda, por nombre de almacenista, cómo quiere ver la pantalla del vale:
 `{ "<ALMACENISTA>": { "orden": ["area", "fecha", …], "lado": "datos-izquierda" | "partidas-izquierda" } }`
 (`src/servicios/preferencias.js`). Es opcional y se completa al leerla (bloques desconocidos o repetidos se quitan y los
@@ -295,13 +334,14 @@ El corte se hace **por folio, no por fecha**. Así no hay ambigüedad cuando un 
 hoy, el inventario exportado y el del reporte diario con `D` = su fecha) reparte lo mismo de otra forma:
 
 ```
-CANTIDAD (al empezar D) = cantidad_conteo − salidas de días anteriores a D + entradas de días anteriores a D
+CANTIDAD (al empezar D) = cantidad_conteo − salidas de días anteriores a D + entradas recibidas antes de D
 CONSUMO  (de D)         = salidas del día D (y posteriores)
-INGRESO  (de D)         = entradas del día D (y posteriores)
+INGRESO  (de D)         = entradas recibidas el día D (y después)
 TOTAL                   = el mismo de arriba
 ```
 
-Así, como en el Excel, CONSUMO e INGRESO "se limpian" al pasar el día: lo de ayer ya está en la CANTIDAD. Solo los vales
+Así, como en el Excel, CONSUMO e INGRESO "se limpian" al pasar el día: lo de ayer ya está en la CANTIDAD (el día de una
+entrada es el de recibido, Ronda 22; `fechaDelDia`). Solo los vales
 posteriores al conteo de cada renglón cuentan (el corte por folio no cambia) y nada de esto se guarda
 (`calcularSaldos(estado, ids, { dia })`; el saldo trae `conteo` = lo contado y `cantidad` = al empezar el día).
 

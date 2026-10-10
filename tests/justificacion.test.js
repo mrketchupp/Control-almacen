@@ -8,6 +8,8 @@ import { delAlmacen, leerReporteAx } from "../src/importadores/ax.js";
 import { dec } from "../src/nucleo/decimal.js";
 import { FORMATO_ESTADO, migrarEstado, siguienteId } from "../src/nucleo/estado.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
+import { fechaMinimaJustificantes, fechaMinimaPropuesta } from "../src/nucleo/justificantes.js";
+import { valesPorAplicar } from "../src/exportadores/ajuste.js";
 import * as c from "../src/servicios/conciliacion.js";
 import * as j from "../src/servicios/justificacion.js";
 import { registrarSeguimiento } from "../src/servicios/seguimiento.js";
@@ -148,4 +150,86 @@ test("formato 8: los cortes anteriores se migran con la lista de asignaciones va
   estado.formato = 7;
   migrarEstado(estado);
   assert.deepEqual([estado.formato, estado.cortes_ax[0].asignaciones], [FORMATO_ESTADO, []]);
+});
+
+function cableFechado(estado, fecha, folio) {
+  const nuevo = { ...structuredClone(estado.vales.find((v) => v.folio === 8)), id: siguienteId(estado, "vale"), folio, fecha, lineas: [] };
+  estado.vales.push(nuevo);
+  agregarPartida(estado, nuevo, { codigo: 709, clave: "CABLE 3/4", cantidad: "50", um: "MTS" });
+  return nuevo;
+}
+
+test("límite anual: octubre del año pasado no es candidato ni sugerencia; noviembre sí", () => {
+  const { estado, corte } = escenario();
+  const antiguo = cableFechado(estado, "2025-10-31", 90);
+  const noviembre = cableFechado(estado, "2025-11-01", 91);
+  cableFechado(estado, "2024-12-31", 92);
+  cableFechado(estado, "2026-02-30", 93);
+  cableFechado(estado, null, 94);
+  assert.equal(fechaMinimaJustificantes(corte), "2025-11-01");
+  assert.equal(fechaMinimaPropuesta("2027-02-01"), "2026-11-01");
+  const r = c.conciliar(estado, corte);
+  const candidatos = j.candidatos(estado, r, fila(r, 709));
+  assert.deepEqual(candidatos.map((p) => p.vale.folio), [91, 8, 8]);
+  const sugeridas = j.sugerencias(estado, r).get(j.claveDestino(fila(r, 709)));
+  assert.deepEqual(sugeridas.partidas.map((p) => p.vale.id), [noviembre.id]);
+  assert.ok(!r.transito.porLinea.has(antiguo.lineas[0].id));
+  j.asignarSugeridas(estado, corte.id, USUARIO);
+  assert.ok(corte.asignaciones.some((a) => a.vale_id === noviembre.id));
+  assert.ok(!corte.asignaciones.some((a) => a.vale_id === antiguo.id));
+});
+
+test("asignar a mano no elude el límite y un lote inválido no deja asignaciones parciales", () => {
+  const { estado, corte } = escenario();
+  const antiguo = cableFechado(estado, "2025-10-31", 90);
+  const noviembre = cableFechado(estado, "2025-11-01", 91);
+  const destino = j.destinoDe(fila(c.conciliar(estado, corte), 709));
+  const antes = JSON.stringify(estado);
+  assert.throws(() => j.asignarVales(estado, {
+    corteId: corte.id, destino,
+    partidas: [noviembre, antiguo].map((v) => ({ partida_id: v.lineas[0].id })),
+  }, USUARIO), /Solo se aceptan vales desde el 01\/11\/2025/);
+  assert.equal(JSON.stringify(estado), antes);
+  j.asignarVales(estado, { corteId: corte.id, destino, partidas: [{ partida_id: noviembre.lineas[0].id }] }, USUARIO);
+  assert.equal(corte.asignaciones.length, 1);
+  assert.equal(fila(c.conciliar(estado, corte), 709).estado, "explicada");
+});
+
+test("prórroga editable por corte: cambia sugerencias, cálculo y solicitud sin borrar vales ni asignaciones", () => {
+  const { estado, corte } = escenario();
+  const noviembre = cableFechado(estado, "2025-11-01", 91);
+  const destino = j.destinoDe(fila(c.conciliar(estado, corte), 709));
+  j.asignarVales(estado, { corteId: corte.id, destino, partidas: [{ partida_id: noviembre.lineas[0].id }] }, USUARIO);
+  const vales = JSON.stringify(estado.vales), existencias = JSON.stringify(estado.existencias);
+  const asignadas = JSON.stringify(corte.asignaciones);
+  j.fijarFechaMinimaVales(estado, corte.id, "2025-12-01", USUARIO);
+  const r = c.conciliar(estado, corte);
+  assert.equal(fila(r, 709).estado, "faltante");
+  assert.ok(!r.transito.porLinea.has(noviembre.lineas[0].id));
+  assert.ok(!j.candidatos(estado, r, fila(r, 709)).some((p) => p.vale.id === noviembre.id));
+  assert.ok(!valesPorAplicar(r, corte).some((p) => p.vale.id === noviembre.id));
+  const salida = new LibroLeido(exportarSolicitudAjuste(estado, corte).datos).hoja(HOJA_VALES);
+  for (let f = 2; f <= salida.maxFila; f++) assert.notEqual(salida.valor(f, 1), noviembre.folio);
+  assert.equal(JSON.stringify(corte.asignaciones), asignadas);
+  assert.equal(JSON.stringify(estado.vales), vales);
+  assert.equal(JSON.stringify(estado.existencias), existencias);
+  assert.equal(estado.auditoria.at(-1).accion, "CAMBIAR_FECHA_MINIMA_VALES");
+  j.fijarFechaMinimaVales(estado, corte.id, "2025-11-01", USUARIO);
+  assert.equal(fila(c.conciliar(estado, corte), 709).estado, "explicada");
+  const otro = c.registrarCorteAx(estado, { fecha: "2027-01-03", almacen: corte.almacen, renglones: corte.lineas }, USUARIO);
+  assert.equal(otro.fecha_minima_vales, "2026-11-01");
+  assert.equal(corte.fecha_minima_vales, "2025-11-01");
+});
+
+test("la fecha mínima es válida y nunca posterior al reporte; un folio alto tampoco admite vales antiguos", () => {
+  const { estado, corte } = escenario();
+  const antiguo = cableFechado(estado, "2025-10-31", 9000);
+  corte.folio_salida = 0;
+  assert.equal(c.enTransito(corte, antiguo), false);
+  assert.ok(!c.transitoDesde(estado, corte).porLinea.has(antiguo.lineas[0].id));
+  for (const fecha of ["", "2026-02-30", "2026-09-06", "texto", null]) {
+    const antes = JSON.stringify(estado);
+    assert.throws(() => j.fijarFechaMinimaVales(estado, corte.id, fecha, USUARIO), j.ErrorJustificacion);
+    assert.equal(JSON.stringify(estado), antes);
+  }
 });

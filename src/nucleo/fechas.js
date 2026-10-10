@@ -44,6 +44,17 @@ export function ahoraIso(ahora = new Date()) {
   return `${hoyIso(ahora)}T${dos(ahora.getHours())}:${dos(ahora.getMinutes())}:${dos(ahora.getSeconds())}`;
 }
 
+/**
+ * Día en que un vale mueve el inventario (inventario del día, reporte diario, inicio, historial): en las
+ * entradas, el día en que se **recibió** el material (Ronda 22; editable, así que ya no sigue el orden de los
+ * folios); en las salidas, su fecha. La fecha del vale de entrada (cuando la base lo envió) sigue mandando en
+ * la conciliación con AX y con el archivo de la base.
+ */
+export function fechaDelDia(vale) {
+  if (!vale) return null;
+  return (vale.tipo === "ENTRADA" ? vale.fecha_recibido || vale.fecha : vale.fecha) || null;
+}
+
 /** '2026-09-28' → '28/09/2026' */
 export function fmtFecha(iso) {
   if (!iso) return "";
