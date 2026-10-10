@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "preact/hooks";
 import { Indices } from "../../nucleo/estado.js";
-import { ErrorConciliacion, cuadraConAx, dimensionAx, etiquetaEstado, lineasInv, valoresAx } from "../../servicios/conciliacion.js";
+import { ErrorConciliacion, cuadraConAx, dimensionAx, etiquetaEstado, lineasInv, unidadesCompatibles, valoresAx } from "../../servicios/conciliacion.js";
 import { preverCorreccionAx } from "../../servicios/correccionAx.js";
 import { datosCorreccion, deshacerCorreccion } from "../../servicios/deshacerCorreccion.js";
 import { ErrorCorreccion, lugarCorto, previaCorreccion, sugerenciasClave } from "../../servicios/inventario.js";
@@ -140,7 +140,8 @@ export function EditorClave({ cual, codigo, actual, inicial = actual, linea = nu
     ${corte ? html`<div class="revision-correccion-ax">
       ${destino ? html`<p><strong>Destino en AX:</strong> ${destino.codigo} ${destino.nombre} · <code>${dimensionAx(destino) || "SIN DIMENSIÓN"}</code> · ${num(Number(destino.disponible))} ${destino.um} · Corte ${corte.fecha}</p>`
         : html`<p class="nota">Elige una opción «AX del corte ${corte.fecha}» en Dimensión para ver su resultado. Las opciones «En el inventario» y de otros cortes sólo completan el texto.</p>`}
-      ${resumen?.error ? html`<p class="alerta" role="alert">${resumen.error}</p>` : html`<p><strong>Etiquetas:</strong> ${resumen?.etiquetas ?? 0} nuevas en Etiquetas → Material (una por partida física que cambia).</p>
+      ${resumen?.error ? html`<p class="alerta" role="alert">${resumen.error}</p>
+        ${destino && alVincular && !unidadesCompatibles(actual.um, destino.um) ? html`<p class="nota">Abre «Elegir varias partidas para este AX…» para corregir la unidad e indicar su equivalencia.</p>` : null}` : html`<p><strong>Etiquetas:</strong> ${resumen?.etiquetas ?? 0} nuevas en Etiquetas → Material (una por partida física que cambia).</p>
         ${destino ? html`<${ResultadoCorreccionAx} comparacion=${resumen?.comparacion} />` : null}`}
       <p class="nota">Se corregirán las claves del inventario. AX no trae NP: conserva el actual o ajusta el campo si hace falta.</p>
     </div>` : null}

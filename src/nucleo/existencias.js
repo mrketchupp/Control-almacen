@@ -9,6 +9,7 @@
 
 import { CERO, dec } from "./decimal.js";
 import { fechaDelDia } from "./fechas.js";
+import { cantidadEnInventario } from "./unidades.js";
 
 export class Saldo {
   constructor(existenciaId, cantidad) {
@@ -74,7 +75,7 @@ export function calcularSaldos(estado, idsExistencia = null, { dia = null } = {}
       if (linea.existencia_id === null || linea.existencia_id === undefined) continue;
       const existencia = existencias.get(linea.existencia_id);
       if (!existencia) continue;
-      const cantidad = dec(linea.cantidad);
+      const cantidad = cantidadEnInventario(existencia, linea);
       if (cantidad === null || !cuentaParaSaldo(conteos.get(existencia.conteo_id), vale)) continue;
       const saldo = saldos.get(existencia.id);
       if (delDia && delDia < dia) {

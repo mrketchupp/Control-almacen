@@ -183,6 +183,9 @@ flowchart LR
 - **Misma dimensión y varios NP:** AX no trae NP. Si varias variantes del mismo código coinciden con Tamaño / Color y
   unidad, su físico y su tránsito se suman en una sola fila (*Misma dimensión*). Así, 2 + 2 piezas frente a AX 4 cuadran.
   Una partida con Color específico tiene prioridad sobre otra que sólo trae Tamaño; las unidades distintas no se suman.
+  Las abreviaturas de pieza / unidad (`PZA`, `PZ`, `EA`, `UND`, `UNIDAD`, `PCS`…) se comparan 1 a 1, también con puntos
+  (`PZA.`, `P.Z.A.`), sin reescribir las unidades originales. Caja, juego, kilo, metro y litro requieren su propia medida;
+  no se convierten a piezas. El selector muestra la unidad de AX y, al bloquear una partida, también la unidad física.
   Los duplicados de la misma llave AX comparten grupo y suman su Disponible; el físico sólo se cuenta una vez.
 - **Elegir del inventario** (`servicios/vinculosAx.js`, formato 15): desde *Justificar faltantes*, *Reporte AX* o
   *Diferencias*, seleccionar dimensiones / NP del mismo código, revisar el total y el resultado con los vales existentes,
@@ -193,6 +196,15 @@ flowchart LR
   y una etiqueta por partida modificada; corrige y vincula al confirmar. El NP se conserva salvo si repite el Color de
   AX. Si las claves se unen a una variante existente, se muestra el total conjunto. Deshacer restaura claves, vínculos
   y etiquetas añadidas, y protege ediciones posteriores. Al variar el saldo se recalcula: el vínculo no fuerza que cuadre.
+- **Corrección de unidad y conversión** (formato 16): el selector muestra UM de AX y físico. Las abreviaturas
+  equivalentes de piezas se aceptan automáticamente 1 a 1. Para unidades diferentes se activa **Corregir la unidad
+  del inventario a la de AX**, se eligen las variantes y se indica una equivalencia positiva por variante (p. ej.
+  1 CJA = 12 PZA, o 1 = 1 si la unidad estaba mal anotada). Se revisa cada partida: clave, cantidad y unidad
+  actuales → corregidas, resultado con tránsito y etiquetas. Confirmar convierte el conteo, guarda las equivalencias
+  y factores de movimientos y prepara una etiqueta por partida modificada. Los vales conservan su captura;
+  existencias, justificantes y solicitud se expresan en la unidad vigente. Deshacer protege movimientos posteriores.
+  Las correcciones de dimensión, NP y UM permanecen en inventario y se reconocen automáticamente en futuros cortes
+  con las mismas claves de AX; el vínculo simple sigue siendo exclusivo de su corte.
 - **Revisión de claves AX:** en *Emparejar con AX*, las sugerencias del corte actual muestran dimensión, cantidad,
   unidad y fecha. Elegir una muestra el destino, físico y resultado con tránsito, y cuántas etiquetas se agregarán a
   *Etiquetas → Material*. *Revisar corrección → Confirmar corrección y etiquetas* guarda la acción. Desde ese editor,

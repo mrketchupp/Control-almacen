@@ -80,6 +80,13 @@ erDiagram
 | dimension_hoja, np_hoja, um_hoja | texto | Escritura exacta del renglón cuando difiere de la variante ("0-5,000PSI" vs "0-5000PSI"): se exporta tal cual |
 | activo | bool | En 0 no se borra: el renglón sigue en el Excel con 0, como hoy |
 
+Desde el formato 16, las correcciones de unidad guardan `conversiones_um` (lista de `{desde, hasta,
+equivalencia: {origen, destino}, fecha_hora, usuario}`) y `factores_um_vales` (por id de partida de vale:
+`{um, numerador, denominador}`). La cantidad contada se expresa en la unidad corregida; los vales conservan
+sus cantidades y unidades originales. `calcularSaldos` y la conciliación aplican las fracciones guardadas
+al calcular movimientos. Los nuevos vales usan la unidad del inventario vigente. El respaldo incluye
+estas equivalencias para conservar la corrección al reabrir y en conciliaciones posteriores.
+
 **`persona`** (id, nombre, puesto, área, es_almacenista, activo) y **`persona_alias`** (alias → persona_id): unifican las variantes de nombre del historial.
 En el estado es `estado.alias` (nombre escrito → id de persona). *Áreas y personas → Nombres repetidos* (ronda 8,
 `servicios/personas.js`) lo usa para unificar: la persona que queda conserva su nombre y las demás pasan a ser alias
@@ -204,6 +211,12 @@ confirmarlas, se corrige el inventario y se borran. La pareja de cada partida **
 (`servicios/conciliacion.js`, `emparejar`). Solo se concilian las partidas con **Modelo de Inventario = INV**
 (`lineasInv`); los códigos que en AX solo vienen con otro modelo tampoco se comparan del lado físico.
 `config.almacen_ax` = almacén que se filtra (por defecto `RIG91-IX25`).
+
+Las asignaciones de justificantes creadas desde el formato 16 guardan también `cantidad_vale` en la unidad
+original y `existencia_conversion_id` para resolver una conversión inequívoca de un vale migrado sin partida
+ligada. Su cantidad por aplicar se calcula en la unidad vigente; las asignaciones anteriores se interpretan
+desde su cantidad original. Los vínculos simples permanecen por corte; corregir el inventario modifica sus
+claves y unidad para el emparejamiento automático de futuros reportes con las mismas claves de AX.
 
 **Archivo de vales de la base (formato 7, Rondas 12 y 13):** `estado.seguimientos_base = [{ id, archivo, huella,
 guardado, importado_en, importado_por, ultimo_folio, partidas: [{ fila, fecha, folio, codigo, clave, cantidad, entrada,

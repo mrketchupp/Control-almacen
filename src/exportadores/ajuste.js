@@ -182,7 +182,9 @@ export function valesPorAplicar(c, corte, { todos = false } = {}) {
         : p.marca
           ? "Sin IN / TR en el archivo de la base"
           : "Posterior al reporte de AX";
-      salida.push({ vale: p.vale, linea: p.linea, cantidad: p.cantidad, fila, como, enBase: c.ax ? etiquetaAx(info) || "—" : "Sin archivo de la base" });
+      const um = p.um ?? p.linea.um;
+      const detalle = um !== p.linea.um ? `${como}. Vale original: ${p.linea.cantidad} ${p.linea.um}; cantidad por aplicar expresada en ${um}` : como;
+      salida.push({ vale: p.vale, linea: p.linea, cantidad: p.cantidad, um, fila, como: detalle, enBase: c.ax ? etiquetaAx(info) || "—" : "Sin archivo de la base" });
     }
   }
   return salida.sort((a, b) => a.vale.folio - b.vale.folio || (a.linea.renglon ?? 0) - (b.linea.renglon ?? 0));
@@ -226,7 +228,7 @@ function hojaVales(libro, c, corte, partidas) {
       p.linea.descripcion ?? "",
       p.linea.clave ?? "",
       p.cantidad,
-      p.linea.um ?? "",
+      p.um ?? "",
       justificaEnAx(p.fila),
       etiquetaEstado(p.fila.estado),
       p.como,

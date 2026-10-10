@@ -19,12 +19,15 @@ import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrad
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { fechaMinimaPropuesta, valeAdmitido } from "../nucleo/justificantes.js";
-import { claveEstricta, claveLaxa, compactar, mayusculas, sinDimension, unidad } from "../nucleo/normalizar.js";
+import { claveEstricta, claveLaxa, compactar, mayusculas, sinDimension } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
 import { ErrorCorreccion, corregirDimensionNp, lugarCorto, previaCorreccion } from "./inventario.js";
 import { estadoAxDeVales, sinAplicar } from "./seguimiento.js";
 import { candidatosExactos, indiceExistencias } from "./primeraCarga.js";
 import { agregarEtiquetas, etiquetaDeExistencia } from "./etiquetas.js";
+import { cantidadEnInventario, umComparable, unidadesCompatibles } from "../nucleo/unidades.js";
+import { existenciaParaConversion } from "./unidadesAx.js";
+export { umComparable, unidadesCompatibles } from "../nucleo/unidades.js";
 
 export class ErrorConciliacion extends Error {}
 
@@ -33,28 +36,6 @@ const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
 /** Llave de un renglón de AX (las equivalencias guardadas antes de la Ronda 9 la usan). */
 export const claveAx = (r) => `${r.codigo}|${claveEstricta(r.tamano)}|${claveEstricta(r.color)}`;
-
-// Unidades que AX y el inventario escriben distinto (solo para comparar).
-const UM_IGUALES = [
-  ["PZA", "PZ", "PZAS", "PIEZA", "PIEZAS"],
-  ["M", "MT", "MTS", "METRO", "METROS"],
-  ["L", "LT", "LTS", "LITRO", "LITROS"],
-  ["KG", "KGS", "KILO", "KILOS"],
-  ["CUB", "CUBETA", "CUBETAS"],
-  ["JGO", "JUEGO", "JUEGOS"],
-  ["GAL", "GALON", "GALONES"],
-  ["CJA", "CAJA", "CAJAS"],
-  ["ROL", "ROLLO", "ROLLOS"],
-];
-export function umComparable(um) {
-  const u = unidad(um);
-  return UM_IGUALES.find((g) => g.includes(u))?.[0] ?? u;
-}
-
-export function unidadesCompatibles(a, b) {
-  const una = umComparable(a), otra = umComparable(b);
-  return !una || !otra || una === otra;
-}
 
 // ---------------------------------------------------------------- cortes
 
@@ -197,7 +178,7 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
   const porLinea = new Map();
   const asignadas = new Map((corte.asignaciones ?? []).map((a) => [a.partida_id, a]));
   const lineasAx = new Map(corte.lineas.map((l) => [l.id, l]));
-  const sumarA = (mapa, clave, vale, linea, cantidad, marca) => {
+  const sumarA = (mapa, clave, vale, linea, cantidad, marca, um = linea.um) => {
     let t = mapa.get(clave);
     if (!t) {
       t = { salidas: CERO, entradas: CERO, folios: [], partidas: [] };
@@ -207,7 +188,7 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
     else t.entradas = t.entradas.plus(cantidad);
     const folio = folioDeVale(vale, marca);
     if (!t.folios.includes(folio)) t.folios.push(folio);
-    t.partidas.push({ vale, linea, cantidad, marca });
+    t.partidas.push({ vale, linea, cantidad, marca, um });
   };
   let indice = null;
   const vales = estado.vales
@@ -220,17 +201,28 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
     for (const l of vale.lineas) {
       const asignada = asignadas.get(l.id);
       if (asignada) {
-        const cantidad = dec(asignada.cantidad) ?? CERO;
+        let existencia = indices.existencia(l.existencia_id ?? asignada.existencia_conversion_id);
+        if (!existencia) {
+          const ids = hay(asignada.variante_id) ? [varianteVigente(indices, asignada.variante_id)]
+            : (corte.vinculos_fisicos ?? []).find((v) => v.linea_ax_id === asignada.linea_ax_id)?.variante_ids ?? [];
+          try { existencia = existenciaParaConversion(estado, l, ids); }
+          catch {
+            porLinea.set(l.id, { donde: "ubicar", motivo: "unidad_ambigua", cantidad: dec(asignada.cantidad) ?? CERO, um: l.um });
+            continue;
+          }
+        }
+        const cantidad = cantidadEnInventario(existencia, l, asignada.cantidad_vale ?? asignada.cantidad) ?? CERO;
+        const um = existencia ? umMostrada(existencia, indices.variante(existencia.variante_id)) : l.um;
         if (cantidad.eq(0)) continue;
         if (hay(asignada.variante_id)) {
           const varianteId = varianteVigente(indices, asignada.variante_id);
-          sumarA(porVariante, varianteId, vale, l, cantidad, "asignado");
-          sumarA(porCodigo, indices.variante(varianteId)?.codigo ?? l.codigo, vale, l, cantidad, "asignado");
+          sumarA(porVariante, varianteId, vale, l, cantidad, "asignado", um);
+          sumarA(porCodigo, indices.variante(varianteId)?.codigo ?? l.codigo, vale, l, cantidad, "asignado", um);
         } else {
-          sumarA(porLineaAx, asignada.linea_ax_id, vale, l, cantidad, "asignado");
-          sumarA(porCodigo, lineasAx.get(asignada.linea_ax_id)?.codigo ?? l.codigo, vale, l, cantidad, "asignado");
+          sumarA(porLineaAx, asignada.linea_ax_id, vale, l, cantidad, "asignado", um);
+          sumarA(porCodigo, lineasAx.get(asignada.linea_ax_id)?.codigo ?? l.codigo, vale, l, cantidad, "asignado", um);
         }
-        porLinea.set(l.id, { donde: "asignada", asignacion: asignada, cantidad, marca: "asignado" });
+        porLinea.set(l.id, { donde: "asignada", asignacion: asignada, cantidad, marca: "asignado", um });
         continue;
       }
       if (!porFecha && (vale.tipo !== "SALIDA" || !ax)) continue;
@@ -266,9 +258,11 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
           continue;
         }
       }
-      sumarA(porVariante, existencia.variante_id, vale, l, cantidad, marca);
-      sumarA(porCodigo, l.codigo, vale, l, cantidad, marca);
-      porLinea.set(l.id, { donde: "variante", variante_id: existencia.variante_id, cantidad, marca });
+      cantidad = cantidadEnInventario(existencia, l, cantidad);
+      const um = umMostrada(existencia, indices.variante(existencia.variante_id));
+      sumarA(porVariante, existencia.variante_id, vale, l, cantidad, marca, um);
+      sumarA(porCodigo, l.codigo, vale, l, cantidad, marca, um);
+      porLinea.set(l.id, { donde: "variante", variante_id: existencia.variante_id, cantidad, marca, um });
     }
   }
   return { porVariante, porCodigo, porLineaAx, porUbicar, noSeDescuentan, porLinea };
@@ -565,7 +559,7 @@ function lineaDelCorte(estado, corteId, lineaId) {
  * etiqueta con los datos vigentes por cada partida física modificada.
  * @returns el resultado de corregirDimensionNp y los ids de las etiquetas nuevas
  */
-export function corregirInventarioParaAx(estado, { corteId, cual, dimension, np, lineaId = null }, usuario = null) {
+export function corregirInventarioParaAx(estado, { corteId, cual, dimension, np, lineaId = null, prepararEtiquetas = true }, usuario = null) {
   const corte = corteAx(estado, corteId);
   if (!corte) throw new ErrorConciliacion("El corte ya no existe.");
   const linea = lineaId === null ? null : lineaDelCorte(estado, corteId, lineaId).linea;
@@ -577,12 +571,12 @@ export function corregirInventarioParaAx(estado, { corteId, cual, dimension, np,
     texto(dimensionMostrada(e, previa.variante)) !== texto(dimension) || texto(npMostrado(e, previa.variante)) !== texto(np)
   )).map((e) => e.id);
   const resultado = corregirDimensionNp(estado, cual, { dimension, np }, { usuario, motivo: `Conciliación con AX del ${fmtFecha(corte.fecha)}` });
-  const etiquetas = agregarEtiquetas(estado, "material", partidas.map((id) => {
+  const etiquetas = prepararEtiquetas ? agregarEtiquetas(estado, "material", partidas.map((id) => {
     const etiqueta = etiquetaDeExistencia(estado, id);
     etiqueta.nombre = texto(linea?.nombre) || etiqueta.nombre;
     etiqueta.origen = { ...etiqueta.origen, corte_ax_id: corte.id, linea_ax_id: lineaId };
     return etiqueta;
-  }));
+  })) : [];
   return { ...resultado, etiquetas };
 }
 

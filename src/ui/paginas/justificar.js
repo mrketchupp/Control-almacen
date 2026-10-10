@@ -7,6 +7,8 @@ import { aNumero } from "../../nucleo/decimal.js";
 import { fmtFecha } from "../../nucleo/fechas.js";
 import { fechaMinimaJustificantes, valeAdmitido } from "../../nucleo/justificantes.js";
 import { dimensionAx, textoFisico } from "../../servicios/conciliacion.js";
+import { cantidadActualDeVale } from "../../servicios/unidadesAx.js";
+import { Indices, umMostrada } from "../../nucleo/estado.js";
 import {
   ESTADOS_CANDIDATO,
   ErrorJustificacion,
@@ -104,7 +106,7 @@ function ElegirVales({ r, corte, fila, alTerminar }) {
         { titulo: "Folio", numero: true, render: (k) => html`<a class="enlace-folio" href=${`#vale/${k.vale.id}`}>${k.vale.folio}</a>` },
         { titulo: "Fecha", render: (k) => fmtFecha(k.vale.fecha) },
         { titulo: "Clave", render: (k) => html`${k.linea.clave || "—"}${k.coincide === "exacta" ? html` <${Pastilla} tono="ok" titulo="La clave del vale es la dimensión de esta partida">misma dimensión<//>` : ""}` },
-        { titulo: "Cant.", numero: true, render: (k) => `${n(k.cantidad)} ${k.linea.um ?? ""}` },
+        { titulo: "Cant.", numero: true, render: (k) => `${n(k.cantidad)} ${k.um ?? ""}` },
         { titulo: "En la base", render: (k) => html`<${PastillaAx} info=${k.info} />` },
         {
           titulo: "Estado",
@@ -160,7 +162,7 @@ function ItemJustificar({ j, sugerencia, r, corte }) {
           ${sugerencia.partidas.map(
             (p) => html`<span class="vale-sugerido">
               Vale <a class="enlace-folio" href=${`#vale/${p.vale.id}`}>${p.vale.folio}</a> <span class="nota">${fmtFecha(p.vale.fecha)} · ${p.linea.clave || "—"}</span>
-              <strong>${n(p.cantidad)} ${p.linea.um ?? ""}</strong>
+              <strong>${n(p.cantidad)} ${p.um ?? ""}</strong>
               ${p.coincide === "unica" ? html`<${Pastilla} tono="alerta" titulo="La clave del vale no es la dimensión, pero el código tiene una sola partida">otra clave<//>` : null}
             </span>`,
           )}
@@ -174,11 +176,16 @@ function ItemJustificar({ j, sugerencia, r, corte }) {
           ${j.asignadas.map((a) => {
             const vale = vales.get(a.vale_id);
             const linea = vale?.lineas.find((l) => l.id === a.partida_id);
+            const indices = new Indices(sesion.estado), existencia = linea && indices.existencia(linea.existencia_id ?? a.existencia_conversion_id);
+            const transito = linea && r.transito.porLinea.get(linea.id);
+            const cantidad = transito?.cantidad ?? (linea ? cantidadActualDeVale(sesion.estado, { ...linea, existencia_id: existencia?.id }, a.cantidad_vale ?? a.cantidad) : a.cantidad);
+            const um = transito?.um ?? (existencia ? umMostrada(existencia, indices.variante(existencia.variante_id)) : linea?.um);
             return html`<span class="vale-asignado">
               Vale ${vale ? html`<a class="enlace-folio" href=${`#vale/${vale.id}`}>${a.folio}</a>` : a.folio}
               <span class="nota">${linea?.clave || ""}</span>
               ${!valeAdmitido(corte, vale) ? html`<${Pastilla} tono="error">Fuera del periodo: no justifica<//>` : null}
-              <strong>${n(a.cantidad)} ${linea?.um ?? ""}</strong>
+              ${transito?.motivo === "unidad_ambigua" ? html`<${Pastilla} tono="error">Revisar equivalencia: no justifica<//>` : null}
+              <strong>${n(cantidad)} ${um ?? ""}</strong>
               <span class="nota">${a.metodo === "sugerida" ? "sugerido" : "a mano"}</span>
               <button type="button" class="enlace-boton peligro" onClick=${() => quitar(a)} aria-label=${`Quitar el vale ${a.folio}`}>Quitar</button>
             </span>`;

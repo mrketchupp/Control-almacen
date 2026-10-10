@@ -251,6 +251,11 @@ cheques en tránsito.
    En **Elegir del inventario…**, disponible en *Reporte AX*, *Diferencias* y *Justificar faltantes*, selecciona las
    dimensiones / NP que realmente corresponden cuando las escrituras no coinciden. Cada opción muestra sus partidas,
    contenedores y total; las que ya corresponden a otra dimensión de AX o tienen otra unidad quedan inhabilitadas.
+   La cabecera muestra **Unidad en AX** y el bloqueo indica ambos valores: **AX … · físico …**. Abreviaturas como
+   `EA`, `UND`, `UNIDAD`, `PCS` o `PZA.` se reconocen como piezas, sin cambiar cantidades ni textos originales. Si AX usa
+   caja, juego u otra medida, activa **Corregir la unidad del inventario a la de AX** para poder seleccionarla e indica
+   la equivalencia: por ejemplo, **1 CJA equivale a 12 PZA**. Si sólo estaba mal anotada la unidad y las cantidades
+   están bien, indica **1 = 1**. Cada opción seleccionada tiene su equivalencia; no se adivina el contenido de una caja.
    Pulsa **Revisar vínculo** para ver el total y el resultado con los vales en tránsito, luego **Confirmar vínculo**.
    Se guarda sólo para ese corte y ofrece **Deshacer**. Al volver a abrir puedes **Usar emparejamiento automático**.
    Por defecto conserva dimensiones, NP y etiquetas. Marca **También corregir las claves del inventario a como están
@@ -258,6 +263,11 @@ cheques en tránsito.
    cada clave, el total físico después (incluidas posibles uniones), el resultado con tránsito y las etiquetas que
    se agregarán a **Etiquetas → Material**. Pulsa **Confirmar corrección, vínculo y etiquetas**. Conserva cantidades,
    vales y NP, salvo si el NP repite el Color de AX. **Deshacer** revierte esa operación completa.
+   Cuando corriges unidades, la revisión muestra también cantidad y UM antes → después, y se convierten las
+   existencias y movimientos al calcular. Los vales anteriores mantienen su captura original; los nuevos usan la UM
+   corregida. **Deshacer** se protege si después registras o editas un vale de una partida convertida.
+   Las correcciones quedan guardadas en inventario, también en el respaldo. Al importar futuros reportes con las
+   mismas dimensiones y unidades de AX, esas partidas se reconocen automáticamente sin repetir el vínculo manual.
    En **Emparejar con AX → Solo en el físico → Corregir dimensión / NP**, elegir una sugerencia **AX del corte…**
    muestra el destino, sus cantidades y el efecto previsto. Pulsa **Revisar corrección → Confirmar corrección y
    etiquetas**. **Elegir varias partidas para este AX…** conecta con la selección de varias partidas del mismo código.

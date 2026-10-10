@@ -2,10 +2,12 @@ import { auditar } from "../nucleo/estado.js";
 import { ErrorCorreccion } from "./inventario.js";
 import { quitarEtiquetas } from "./etiquetas.js";
 
-/** Sólo los datos de las claves y de las decisiones AX; las cantidades y los vales quedan aparte. */
+/** Datos necesarios para revertir claves, unidades y decisiones AX sin reescribir vales. */
 export function datosCorreccion(e) {
   return structuredClone({ variantes: e.variantes,
-    existencias: e.existencias.map((x) => ({ id: x.id, variante_id: x.variante_id, dimension_hoja: x.dimension_hoja, np_hoja: x.np_hoja })),
+    existencias: e.existencias.map((x) => ({ id: x.id, variante_id: x.variante_id, dimension_hoja: x.dimension_hoja, np_hoja: x.np_hoja,
+      um_hoja: x.um_hoja, cantidad_conteo: x.cantidad_conteo, conteo_id: x.conteo_id, conversiones_um: x.conversiones_um, factores_um_vales: x.factores_um_vales })),
+    movimientos: e.vales.flatMap((v) => v.lineas.map((l) => ({ id: l.id, existencia_id: l.existencia_id, cantidad: l.cantidad, um: l.um, estado: v.estado }))),
     equivalencias: e.equivalencias_ax ?? {},
     cortes: (e.cortes_ax ?? []).map((c) => ({ id: c.id, sin_pareja: c.sin_pareja ?? [], vinculos_fisicos: c.vinculos_fisicos ?? [] })),
     etiquetas: e.etiquetas?.material ?? [],
@@ -26,10 +28,22 @@ export function deshacerCorreccion(e, antes, despues, usuario = null) {
   const eq = [...new Set([...Object.keys(antes.equivalencias), ...Object.keys(despues.equivalencias)])]
     .filter((k) => !igual(antes.equivalencias[k], despues.equivalencias[k]));
   for (const g of grupos) for (const c of cambios[g]) {
-    if (!igual(actual[g].find((x) => x.id === c.id), c.despues)) throw new ErrorCorreccion("La corrección cambió después. Revisa los datos actuales antes de deshacer.");
+    const vigente = actual[g].find((x) => x.id === c.id);
+    const coincide = c.antes && c.despues && ["existencias", "cortes"].includes(g)
+      ? vigente && Object.keys({ ...c.antes, ...c.despues }).every((campo) => igual(c.antes[campo], c.despues[campo]) || igual(vigente[campo], c.despues[campo]))
+      : igual(vigente, c.despues);
+    if (!coincide) throw new ErrorCorreccion("La corrección cambió después. Revisa los datos actuales antes de deshacer.");
   }
   for (const k of eq) if (!igual(actual.equivalencias[k], despues.equivalencias[k])) throw new ErrorCorreccion("La pareja de AX cambió después. Revisa la conciliación antes de deshacer.");
   const existenciasTocadas = new Set(cambios.existencias.map((c) => c.id));
+  const convertidas = new Set(cambios.existencias.filter((c) => !igual(c.antes.conversiones_um, c.despues.conversiones_um)).map((c) => c.id));
+  if (actual.existencias.some((x) => convertidas.has(x.id) && !igual(x.conteo_id, despues.existencias.find((e) => e.id === x.id).conteo_id))) {
+    throw new ErrorCorreccion("Se realizó un conteo posterior en las partidas convertidas. Revisa su unidad antes de deshacer.");
+  }
+  if (actual.movimientos.some((m) => convertidas.has(m.existencia_id) && !igual(m, despues.movimientos.find((x) => x.id === m.id))) ||
+      despues.movimientos.some((m) => convertidas.has(m.existencia_id) && !igual(m, actual.movimientos.find((x) => x.id === m.id)))) {
+    throw new ErrorCorreccion("Se registraron o editaron vales de las partidas convertidas. Revisa su unidad antes de deshacer.");
+  }
   if (cambios.variantes.some((c) => !c.antes && e.existencias.some((x) => x.variante_id === c.id && !existenciasTocadas.has(x.id)))) {
     throw new ErrorCorreccion("La variante corregida tiene nuevas partidas. Revisa el inventario antes de deshacer.");
   }
@@ -38,9 +52,10 @@ export function deshacerCorreccion(e, antes, despues, usuario = null) {
     .map((v) => variantes.has(v.id) ? structuredClone(variantes.get(v.id).antes) : v);
   for (const c of cambios.existencias) {
     const x = e.existencias.find((x) => x.id === c.id);
-    for (const campo of ["variante_id", "dimension_hoja", "np_hoja"]) {
+    for (const campo of ["variante_id", "dimension_hoja", "np_hoja", "um_hoja", "cantidad_conteo", "conversiones_um", "factores_um_vales"]) {
+      if (igual(c.antes[campo], c.despues[campo])) continue;
       if (c.antes[campo] === undefined) delete x[campo];
-      else x[campo] = c.antes[campo];
+      else x[campo] = structuredClone(c.antes[campo]);
     }
   }
   e.equivalencias_ax ??= {};

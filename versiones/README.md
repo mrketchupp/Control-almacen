@@ -1,4 +1,4 @@
-# Versión con revisión de correcciones AX, vínculos y etiquetas
+# Versión con correcciones permanentes de unidad, conciliación AX y etiquetas
 
 Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
 Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
@@ -7,6 +7,15 @@ Al actualizar tu copia, conserva el nombre y la ubicación habituales del HTML y
 En **Conciliación AX**, una dimensión puede reunir varias partidas físicas con distintos NP: se suman las
 coincidencias del mismo código, dimensión y unidad. **2 + 2 piezas de 150VA contra AX 4 → Cuadra**. Se respetan las
 dimensiones con Color específico y se evita contar dos veces el físico si AX repite su misma partida.
+
+El selector muestra **Unidad en AX** y los bloqueos muestran las unidades de ambos lados. Se reconocen como piezas
+las abreviaturas `EA`, `UND`, `UNIDAD`, `PCS`, `PZA.` y otras equivalentes de conteo 1 a 1; se conservan los datos originales.
+Caja, juego, kilo, metro y litro requieren una equivalencia indicada por el usuario para convertir sus cantidades.
+Activa **Corregir la unidad del inventario a la de AX**, selecciona las opciones e indica, por ejemplo,
+**1 CJA = 12 PZA**. Si sólo estaba mal anotada la unidad, usa **1 = 1**. La revisión muestra cantidades y unidades
+antes → después, el resultado con tránsito y las etiquetas. Al confirmar, se guardan la unidad y la equivalencia;
+los vales conservan su captura original y sus movimientos se calculan en la unidad vigente. Los nuevos vales usan
+la unidad corregida. **Deshacer** se protege si después registras o editas vales de las partidas convertidas.
 
 En **Justificar faltantes**, **Reporte AX** y **Diferencias → Por partida de AX**, pulsa **Elegir del inventario…**
 cuando la escritura no permita reconocerlas. Selecciona las dimensiones / NP correctas, revisa las partidas, el total
@@ -18,6 +27,9 @@ Marca **También corregir las claves del inventario a como están en AX y prepar
 en una misma operación. La revisión muestra las claves de destino, el resultado con tránsito y cuántas etiquetas se
 agregarán a **Etiquetas → Material**. Conserva las cantidades y los vales; el NP sólo se limpia si repite el Color de AX.
 Si una clave se une a otra existente, se muestra el total resultante. **Deshacer** revierte claves, vínculo y etiquetas.
+Las correcciones de dimensión, NP y unidad quedan guardadas en inventario y respaldos. En siguientes cortes con
+las mismas claves de AX se emparejan automáticamente, sin repetir la selección manual. El vínculo simple se guarda
+sólo para su corte: activa la corrección correspondiente para resolver el dato del inventario de forma permanente.
 
 En **Emparejar con AX**, elegir una sugerencia del corte muestra la partida AX, su cantidad, el resultado físico y las
 etiquetas antes de guardar con **Revisar corrección → Confirmar corrección y etiquetas**. **Elegir varias partidas
@@ -66,8 +78,8 @@ en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
 Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
 
 Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 363 pruebas automatizadas, 6 de agrupación, correcciones y vínculos AX y 10 de menús contextuales
-en Chromium. Se conserva la validación de 7 pruebas de impresión. Se recorrieron en el navegador
+Se validaron 378 pruebas automatizadas y 9 de agrupación, unidades, conversiones, correcciones y vínculos AX en Chromium.
+Se conservan las validaciones de 10 pruebas de menús contextuales y 7 de impresión. Se recorrieron en el navegador
 la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
 el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
 La impresión por lotes conserva la validación anterior de 88 vales y un PDF de 88 páginas.

@@ -24,10 +24,10 @@ test("grupos físicos y vínculo manual en la conciliación AX en Chromium", asy
     args: ["--disable-dev-shm-usage", "--disable-crash-reporter", "--disable-breakpad"],
   });
   t.after(async () => { await browser.close(); await new Promise((resolve) => server.close(resolve)); await rm(carpeta, { recursive: true, force: true }); });
-  async function pagina(manual = false) {
+  async function pagina(manual = false, opciones = {}) {
     const almacen = new Almacen(new BackendMemoria());
     await almacen.iniciar();
-    const e = escenarioGruposAx(cargaSintetica().estado, manual ? { segundaDimension: "MODELO SINTETICO" } : {});
+    const e = escenarioGruposAx(cargaSintetica().estado, { ...(manual ? { segundaDimension: "MODELO SINTETICO" } : {}), ...opciones });
     e.estado.config.usuario_en_turno = "ALMACENISTA UNO";
     await almacen.cargarPrimeraVez(e.estado, [
       { tipo: "INVENTARIO", nombre: "INVENTARIO SINTETICO.xlsx", datos: bytesInventario() },
@@ -66,6 +66,7 @@ test("grupos físicos y vínculo manual en la conciliación AX en Chromium", asy
       assert.fail("No se guardó el vínculo esperado");
     };
     await page.goto(origen + "/#conciliacion");
+    await guardado((s) => s.formato === 16);
     const terminar = async () => { assert.deepEqual(errores, []); assert.deepEqual(externas, []); await context.close(); };
     return { page, e, guardado, estado, terminar };
   }
@@ -85,6 +86,73 @@ test("grupos físicos y vínculo manual en la conciliación AX en Chromium", asy
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Justificar", exact: true }).click();
     assert.equal(await page.locator(".item-justificar").filter({ hasText: "8426" }).count(), 0);
+    await terminar();
+  });
+
+  await t.test("el bloqueo por unidades distintas muestra AX y físico sin permitir sumar medidas diferentes", async () => {
+    const { page, terminar } = await pagina(false, { segundaUm: "KG" });
+    await page.getByRole("button", { name: "Justificar", exact: true }).click();
+    await page.locator(".item-justificar").filter({ hasText: "8426" }).getByRole("button", { name: "Elegir del inventario…", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "Elegir partidas del inventario", exact: true });
+    assert.match(await modal.innerText(), /Unidad en AX: PZA/);
+    const fila = modal.locator("tbody tr").filter({ hasText: "NP-SINTETICO-B" });
+    assert.match(await fila.innerText(), /Unidad de medida distinta: AX PZA · físico KG/);
+    assert.equal(await fila.getByRole("checkbox").isDisabled(), true);
+    assert.match(await modal.innerText(), /se necesita una conversión/);
+    await terminar();
+  });
+
+  await t.test("AX en EA admite las partidas PZA y muestra ambas unidades originales", async () => {
+    const { page, e, estado, guardado, terminar } = await pagina(true, { lineas: (l) => [l("150VA", "4", "", "EA"), l("100VA", "4")] });
+    const original = await estado();
+    await page.getByRole("button", { name: "Justificar", exact: true }).click();
+    await page.locator(".item-justificar").filter({ hasText: "8426" }).getByRole("button", { name: "Elegir del inventario…", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "Elegir partidas del inventario", exact: true });
+    assert.match(await modal.innerText(), /Unidad en AX: EA/);
+    const incluir = modal.getByRole("checkbox", { name: /Incluir MODELO SINTETICO/ });
+    assert.equal(await incluir.isDisabled(), false);
+    await incluir.check();
+    await modal.getByRole("button", { name: "Revisar vínculo", exact: true }).click();
+    await page.getByRole("button", { name: "Confirmar vínculo", exact: true }).click();
+    const nuevo = await guardado((s) => s.cortes_ax[0].vinculos_fisicos?.length === 1);
+    assert.equal(nuevo.cortes_ax[0].lineas[0].um, "EA");
+    assert.equal(nuevo.variantes.find((v) => v.id === e.dos.v.id).um, "PZA");
+    for (const clave of ["vales", "existencias", "variantes", "etiquetas"]) assert.deepEqual(nuevo[clave], original[clave]);
+    await terminar();
+  });
+
+  await t.test("corregir caja a pieza exige equivalencia, revisa cantidades, guarda etiquetas y permite Deshacer", async () => {
+    const { page, e, estado, guardado, terminar } = await pagina(true, { segundaUm: "CJA", lineas: (l) => [l("150VA", "26"), l("100VA", "4")] });
+    const original = await estado();
+    await page.getByRole("button", { name: "Justificar", exact: true }).click();
+    await page.locator(".item-justificar").filter({ hasText: "8426" }).getByRole("button", { name: "Elegir del inventario…", exact: true }).click();
+    let modal = page.getByRole("dialog", { name: "Elegir partidas del inventario", exact: true });
+    const incluir = modal.getByRole("checkbox", { name: /Incluir MODELO SINTETICO/ });
+    assert.equal(await incluir.isDisabled(), true);
+    await modal.getByRole("checkbox", { name: "Corregir la unidad del inventario a la de AX", exact: true }).check();
+    await incluir.check();
+    assert.equal(await modal.getByRole("button", { name: "Revisar vínculo", exact: true }).isDisabled(), true);
+    assert.match(await modal.innerText(), /Indica una equivalencia mayor que cero/);
+    await modal.getByRole("textbox", { name: /Equivalencia destino MODELO SINTETICO/ }).fill("12");
+    await modal.getByRole("checkbox", { name: "También corregir las claves del inventario a como están en AX y preparar etiquetas", exact: true }).check();
+    assert.match(await modal.innerText(), /Después: AX 26 · Físico 26 · Resultado: Cuadra/);
+    await modal.getByRole("button", { name: "Revisar vínculo", exact: true }).click();
+    modal = page.getByRole("dialog", { name: "Revisar vínculo del inventario", exact: true });
+    const conversion = modal.locator("tbody tr").filter({ hasText: "NP-SINTETICO-B" });
+    assert.match(await conversion.innerText(), /2 CJA.*24 PZA.*1 CJA = 12 PZA/s);
+    assert.match(await modal.innerText(), /próximas conciliaciones/);
+    assert.deepEqual((await estado()).existencias, original.existencias);
+    assert.deepEqual((await estado()).etiquetas, original.etiquetas);
+    await modal.getByRole("button", { name: "Confirmar corrección, vínculo y etiquetas", exact: true }).click();
+    const nuevo = await guardado((s) => s.existencias.find((x) => x.id === e.dos.e.id).cantidad_conteo === "24");
+    const partida = nuevo.existencias.find((x) => x.id === e.dos.e.id), variante = nuevo.variantes.find((v) => v.id === partida.variante_id);
+    assert.deepEqual([variante.dimension, variante.np, variante.um], ["150VA", "NP-SINTETICO-B", "PZA"]);
+    assert.equal(nuevo.etiquetas.material.length, original.etiquetas.material.length + 1);
+    assert.deepEqual(nuevo.vales, original.vales);
+    await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
+    const deshecho = await guardado((s) => s.existencias.find((x) => x.id === e.dos.e.id).cantidad_conteo === "2");
+    for (const clave of ["variantes", "existencias", "vales"]) assert.deepEqual(deshecho[clave], original[clave]);
+    assert.deepEqual(deshecho.etiquetas.material, original.etiquetas.material);
     await terminar();
   });
 

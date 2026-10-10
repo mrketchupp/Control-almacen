@@ -60,7 +60,7 @@ function aplicar(estado, corte, ids, nuevos, usuario, accion) {
 }
 
 /** Confirma la selección completa para una o varias partidas de AX de la misma fila. */
-export function vincularFisico(estado, { corteId, lineaIds, varianteIds }, usuario = null) {
+export function validarSeleccionFisica(estado, { corteId, lineaIds, varianteIds }, { permitirOtraUnidad = false } = {}) {
   const { corte, ids, lineas } = destino(estado, corteId, lineaIds);
   if (!Array.isArray(varianteIds)) throw new ErrorConciliacion("Falta la selección del inventario.");
   const seleccion = [...new Set(varianteIds)];
@@ -68,9 +68,14 @@ export function vincularFisico(estado, { corteId, lineaIds, varianteIds }, usuar
   for (const id of seleccion) {
     const f = candidatos.find((f) => f.variante.id === id);
     if (!f) throw new ErrorConciliacion("Esa partida ya no existe en el inventario de este código.");
-    if (!f.compatible) throw new ErrorConciliacion("No se pueden sumar cantidades con unidades de medida distintas.");
+    if (!f.compatible && !permitirOtraUnidad) throw new ErrorConciliacion(`No se pueden sumar cantidades con unidades de medida distintas: AX ${[...new Set(lineas.map((l) => l.um || "Sin unidad"))].join(" / ")}; físico ${f.variante.um || "Sin unidad"}. Revisa si son abreviaturas equivalentes o si requieren una conversión.`);
     if (f.ocupada) throw new ErrorConciliacion(`Esa partida ya corresponde a ${f.ocupada.codigo} ${dimensionAx(f.ocupada) || "SIN DIMENSIÓN"} en AX.`);
   }
+  return { corte, ids, lineas, seleccion };
+}
+
+export function vincularFisico(estado, datos, usuario = null) {
+  const { corte, ids, lineas, seleccion } = validarSeleccionFisica(estado, datos);
   const fecha = ahoraIso();
   const nuevos = lineas.map((l) => ({ linea_ax_id: l.id, variante_ids: seleccion, fecha_hora: fecha, usuario }));
   return aplicar(estado, corte, ids, nuevos, usuario, "VINCULAR_FISICO_AX");

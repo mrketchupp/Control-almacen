@@ -161,8 +161,8 @@ test("la fusión conserva los dos formatos 10: vales corregidos y listas de etiq
   }
 });
 
-test("los respaldos de formatos 1 a 14 se restauran, migran y sobreviven al volver a abrir", async (t) => {
-  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
+test("los respaldos de formatos 1 a 15 se restauran, migran y sobreviven al volver a abrir", async (t) => {
+  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
     await t.test(`respaldo de formato ${formato}`, async () => {
       const viejo = estadoAnterior(formato);
       const lineas = viejo.vales.map((vale) => JSON.stringify(vale.lineas));

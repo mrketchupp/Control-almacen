@@ -92,7 +92,7 @@ test("se impiden vínculos a variantes ocupadas, inexistentes o de otra unidad s
     assert.equal(JSON.stringify(e.estado), antes);
   }
   const otraUm = escenarioGruposAx(undefined, { segundaUm: "KG" });
-  assert.throws(() => elegir(otraUm), /unidades de medida distintas/);
+  assert.throws(() => elegir(otraUm), /unidades de medida distintas: AX PZA; físico KG/);
   const cambio = elegir(e);
   elegir(e, [e.uno.v.id]);
   const antes = JSON.stringify(e.estado);

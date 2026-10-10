@@ -10,13 +10,15 @@
 
 import { CERO, dec, decTexto, sumar } from "../nucleo/decimal.js";
 import { clavesDeBusqueda, clavesPropias, hayInterseccion } from "../nucleo/catalogo.js";
-import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
+import { Indices, auditar, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { fechaIsoValida, fechaMinimaJustificantes, valeAdmitido } from "../nucleo/justificantes.js";
 import { claveEstricta, sinDimension } from "../nucleo/normalizar.js";
 import { corteAx, conciliar, dimensionAx, enTransito, varianteVigente } from "./conciliacion.js";
 import { sinAplicar } from "./seguimiento.js";
+import { cantidadActualDeVale, existenciaParaConversion } from "./unidadesAx.js";
+import { fraccionMovimiento } from "../nucleo/unidades.js";
 
 export class ErrorJustificacion extends Error {}
 
@@ -133,7 +135,7 @@ export function candidatos(estado, r, fila, { indices = new Indices(estado), cod
       const info = r.ax?.porLinea.get(linea.id) ?? null;
       if (info?.estado === "no_inv" || (info?.estado === "sin_registro" && info.duplicada)) continue;
       const t = r.transito.porLinea.get(linea.id);
-      const cantidad = t?.cantidad ?? (sinAplicar(info) ? info.pendiente : total);
+      const cantidad = t?.cantidad ?? cantidadActualDeVale(estado, linea, sinAplicar(info) ? info.pendiente : total);
       let estadoCand;
       let otra = null;
       const ligada = hay(linea.existencia_id) ? indices.existencia(linea.existencia_id) : null;
@@ -161,7 +163,8 @@ export function candidatos(estado, r, fila, { indices = new Indices(estado), cod
         estadoCand = "libre";
       }
       const coincide = coincidencia(linea, fila, variantesDelCodigo);
-      salida.push({ vale, linea, cantidad, info, estado: estadoCand, coincide, otra, sugerible: estadoCand === "libre" && coincide !== "" });
+      const um = t?.um ?? (ligada ? umMostrada(ligada, indices.variante(ligada.variante_id)) : linea.um);
+      salida.push({ vale, linea, cantidad, um, info, estado: estadoCand, coincide, otra, sugerible: estadoCand === "libre" && coincide !== "" });
     }
   }
   const orden = { libre: 0, otra: 1, en_ax: 2, sin_base: 3, aqui: 4, posterior_conteo: 5 };
@@ -237,6 +240,9 @@ export function asignarVales(estado, { corteId, destino, partidas, metodo = "man
   if (!hay(destino?.variante_id) && !hay(destino?.linea_ax_id)) throw new ErrorJustificacion("Falta a qué partida se asigna.");
   // Se revisa el lote completo antes de asignar: un vale fuera del periodo rechaza todo el lote.
   const ya = new Set((corte.asignaciones ?? []).map((a) => a.partida_id));
+  const indices = new Indices(estado);
+  const varianteIds = hay(destino.variante_id) ? [varianteVigente(indices, destino.variante_id)]
+    : conciliar(estado, corte).renglones.find((f) => f.lineas.some((l) => l.id === destino.linea_ax_id))?.variante_ids ?? [];
   const preparadas = [];
   for (const p of partidas) {
     const vale = estado.vales.find((v) => v.tipo === "SALIDA" && v.lineas.some((l) => l.id === p.partida_id));
@@ -247,14 +253,19 @@ export function asignarVales(estado, { corteId, destino, partidas, metodo = "man
     );
     if (ya.has(p.partida_id)) throw new ErrorJustificacion(`Una partida del vale ${vale.folio} ya está asignada en este corte.`);
     const linea = vale.lineas.find((l) => l.id === p.partida_id);
-    const cantidad = dec(p.cantidad ?? linea.cantidad);
+    let existencia;
+    try { existencia = existenciaParaConversion(estado, linea, varianteIds); }
+    catch (error) { throw new ErrorJustificacion(error.message); }
+    const f = fraccionMovimiento(existencia, linea);
+    const cantidad = dec(p.cantidad ?? dec(linea.cantidad)?.times(f.numerador).div(f.denominador));
     if (!cantidad || cantidad.lte(0)) throw new ErrorJustificacion(`La partida del vale ${vale.folio} no tiene cantidad.`);
-    preparadas.push({ vale, linea, cantidad });
+    const cantidadVale = cantidad.times(f.denominador).div(f.numerador);
+    preparadas.push({ vale, linea, cantidad, cantidadVale, existencia });
     ya.add(linea.id);
   }
   corte.asignaciones ??= [];
   const nuevas = [];
-  for (const { vale, linea, cantidad } of preparadas) {
+  for (const { vale, linea, cantidad, cantidadVale, existencia } of preparadas) {
     const asignacion = {
       id: siguienteId(estado, "asignacion_ax"),
       partida_id: linea.id,
@@ -262,6 +273,8 @@ export function asignarVales(estado, { corteId, destino, partidas, metodo = "man
       folio: vale.folio,
       codigo: linea.codigo,
       cantidad: decTexto(cantidad),
+      cantidad_vale: decTexto(cantidadVale),
+      existencia_conversion_id: existencia?.id ?? null,
       variante_id: hay(destino.variante_id) ? destino.variante_id : null,
       linea_ax_id: hay(destino.variante_id) ? null : destino.linea_ax_id,
       metodo,

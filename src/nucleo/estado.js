@@ -24,7 +24,8 @@ import { fechaMinimaPropuesta } from "./justificantes.js";
 // inventario y al reporte diario; `fecha` sigue siendo la del vale (cuando la base lo envió).
 // Formato 14: fusiona las correcciones de vales y etiquetas; agrega el límite anual de justificantes AX.
 // Formato 15: vínculos por corte entre una partida de AX y varias variantes físicas.
-export const FORMATO_ESTADO = 15;
+// Formato 16: conversiones de unidad por partida y factores de los vales, sin reescribirlos.
+export const FORMATO_ESTADO = 16;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -209,6 +210,10 @@ export function migrarEstado(estado) {
   if (estado.formato < 15) {
     for (const corte of estado.cortes_ax ?? []) corte.vinculos_fisicos ??= [];
     estado.formato = 15;
+  }
+  if (estado.formato < 16) {
+    for (const e of estado.existencias ?? []) { e.conversiones_um ??= []; e.factores_um_vales ??= {}; }
+    estado.formato = 16;
   }
   return estado;
 }
