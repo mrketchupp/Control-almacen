@@ -51,6 +51,11 @@ export function umComparable(um) {
   return UM_IGUALES.find((g) => g.includes(u))?.[0] ?? u;
 }
 
+export function unidadesCompatibles(a, b) {
+  const una = umComparable(a), otra = umComparable(b);
+  return !una || !otra || una === otra;
+}
+
 // ---------------------------------------------------------------- cortes
 
 /** El corte ya importado con ese archivo (para avisar si se importa dos veces). */
@@ -80,6 +85,7 @@ export function registrarCorteAx(estado, { fecha, almacen, archivo = null, huell
     importado_por: usuario,
     lineas: renglones.map((r, i) => ({ id: i + 1, ...r })),
     asignaciones: [],
+    vinculos_fisicos: [],
   };
   estado.cortes_ax.push(corte);
   auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "IMPORTAR", despues: { fecha, almacen, archivo, renglones: corte.lineas.length } });
@@ -377,7 +383,8 @@ function fisicoComparable(estado, corte, indices, fisico = null) {
 /**
  * Empareja cada renglón INV del corte con una variante del inventario.
  * @returns [{ linea, variante_id, grupo, metodo, puntaje, confirmado, candidatos: [{ variante_id, puntaje }], ocupadas }]
- *   grupo (Ronda 15): las variantes que junta una partida de AX SIN dimensión (Tamaño y Color vacíos, "S/D"…):
+ *   grupo: variantes que AX no distingue por NP, o elegidas manualmente para este corte.
+ *   También las que junta una partida de AX SIN dimensión (Tamaño y Color vacíos, "S/D"…):
  *   AX no las distingue. Si es la única partida del código en AX es el código completo ("todo_el_codigo");
  *   si no, las variantes sin dimensión del código ("sin_dimension"). variante_id = la de más existencia.
  *   candidatos: solo variantes libres (ninguna que ya sea pareja de otra partida de AX);
@@ -397,23 +404,58 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
   const sinPareja = new Set(corte.sin_pareja ?? []);
   const pares = lineasInv(corte).map((linea) => ({ linea, variante_id: null, metodo: null, puntaje: null, confirmado: false, candidatos: [] }));
   const tomadas = new Set();
+  const duenas = new Map();
+  const llave = (l) => `${claveAx(l)}|${umComparable(l.um)}`;
+  const tomar = (id, linea) => { tomadas.add(id); duenas.set(id, llave(linea)); };
+  const ponerGrupo = (p, grupo, metodo) => {
+    const principal = [...grupo].sort((a, b) => b.total.cmp(a.total) || a.variante.id - b.variante.id)[0];
+    Object.assign(p, {
+      variante_id: principal.variante.id,
+      grupo: [principal, ...grupo.filter((r) => r !== principal)].map((r) => r.variante.id),
+      metodo, puntaje: 1, confirmado: true,
+    });
+    for (const r of grupo) tomar(r.variante.id, p.linea);
+  };
   // Sin dimensión en AX: ni Tamaño ni Color dicen nada ("", "S/D"…). Si el Color trae algo (un NP), se empareja normal.
   const axSinDimension = (linea) => sinDimension(linea.tamano) && claveEstricta(linea.color) === "" && claveEstricta(linea.tamano) === "";
   const partidasDelCodigo = new Map();
   for (const p of pares) partidasDelCodigo.set(p.linea.codigo, (partidasDelCodigo.get(p.linea.codigo) ?? 0) + 1);
+  // Las decisiones manuales pertenecen al corte y reservan sus variantes antes de sugerir parejas.
+  for (const p of pares) {
+    const vinculo = (corte.vinculos_fisicos ?? []).find((v) => v.linea_ax_id === p.linea.id);
+    if (!vinculo) continue;
+    p.vinculo_manual = true;
+    const ids = [...new Set(vinculo.variante_ids.map((id) => varianteVigente(indices, id)))];
+    if (!ids.length) { Object.assign(p, { metodo: "sin_pareja", confirmado: true }); continue; }
+    const grupo = ids.map((id) => porVariante.get(id));
+    if (grupo.some((r) => !r || r.variante.codigo !== p.linea.codigo || !unidadesCompatibles(p.linea.um, r.variante.um) ||
+      (tomadas.has(r.variante.id) && duenas.get(r.variante.id) !== llave(p.linea)))) {
+      p.metodo = "vinculo_pendiente";
+      p.aviso = "Revisa el vínculo del inventario: alguna partida cambió o ya corresponde a otra partida de AX.";
+      continue;
+    }
+    ponerGrupo(p, grupo, "vinculo_manual");
+  }
   // Lo que se decidió en este corte: "no está en físico" (y lo que decían las versiones anteriores).
   for (const p of pares) {
-    if (sinPareja.has(p.linea.id) || equivalencias[claveAx(p.linea)]?.variante_id === null) Object.assign(p, { metodo: "sin_pareja", confirmado: true });
+    if (!p.metodo && (sinPareja.has(p.linea.id) || equivalencias[claveAx(p.linea)]?.variante_id === null)) Object.assign(p, { metodo: "sin_pareja", confirmado: true });
   }
   // Exacto tras normalizar (las partidas de AX sin dimensión van después: juntan varias variantes).
-  for (const p of pares.filter((x) => !x.metodo && !axSinDimension(x.linea))) {
+  // Primero las dimensiones más específicas: una partida sin Color no debe quitarle la pareja a
+  // otra que sí distingue ese Color. Los duplicados de la misma llave AX comparten grupo y físico.
+  const exactas = pares.filter((x) => !x.metodo && !axSinDimension(x.linea)).sort((a, b) =>
+    Number(Boolean(formasAx(b.linea).c)) - Number(Boolean(formasAx(a.linea).c)) ||
+    formasAx(b.linea).crudo.length - formasAx(a.linea).crudo.length);
+  for (const p of exactas) {
     const ax = formasAx(p.linea);
-    const exactos = (porCodigo.get(p.linea.codigo) ?? []).filter((r) => esExacto(ax, formasFisico(r.variante)));
+    const exactos = (porCodigo.get(p.linea.codigo) ?? []).filter((r) => esExacto(ax, formasFisico(r.variante)) &&
+      (!tomadas.has(r.variante.id) || duenas.get(r.variante.id) === llave(p.linea)));
     if (!exactos.length) continue;
-    const orden = (r) => (formasFisico(r.variante).um === ax.um ? 0 : 1) + (tomadas.has(r.variante.id) ? 2 : 0);
-    const elegido = [...exactos].sort((a, b) => orden(a) - orden(b))[0];
-    Object.assign(p, { variante_id: elegido.variante.id, metodo: "exacto", puntaje: 1, confirmado: true });
-    tomadas.add(elegido.variante.id);
+    const compatibles = exactos.filter((r) => unidadesCompatibles(p.linea.um, r.variante.um));
+    // AX no trae NP: todas las coincidencias de dimensión y unidad pertenecen a la misma partida.
+    // Si las unidades no coinciden, se conserva la pareja única anterior sin sumar unidades distintas.
+    const grupo = compatibles.length ? compatibles : [exactos[0]];
+    ponerGrupo(p, grupo, grupo.length > 1 ? "misma_dimension" : "exacto");
   }
   // Sin dimensión en AX: AX no distingue entre las variantes que tampoco tienen dimensión (S/D, SIN
   // DIMENSIÓN, S/N… con distintos NP), así que se comparan todas juntas. Si es la única partida del código
@@ -431,7 +473,7 @@ export function emparejar(estado, corte, { indices = new Indices(estado), fisico
       puntaje: 1,
       confirmado: true,
     });
-    for (const r of grupo) tomadas.add(r.variante.id);
+    for (const r of grupo) tomar(r.variante.id, p.linea);
   }
   // Aproximado (sugerencia que el usuario confirma corrigiendo el inventario). Solo con variantes
   // LIBRES: una que ya es la pareja de otra partida de AX (exacta o confirmada) no se ofrece, porque
@@ -484,7 +526,11 @@ export const textoVariante = (v) => (v ? `${v.dimension || "SIN DIMENSIÓN"}${v.
 export function textoFisico(fila) {
   const variantes = fila.variantes ?? (fila.variante ? [fila.variante] : []);
   if (variantes.length <= 1) return textoVariante(fila.variante);
-  return `${fila.metodos?.includes("todo_el_codigo") ? "Todo el código" : "Sin dimensión"} (${variantes.length} variantes)`;
+  const titulo = fila.metodos?.includes("todo_el_codigo") ? "Todo el código"
+    : fila.metodos?.includes("sin_dimension") ? "Sin dimensión"
+    : fila.metodos?.includes("vinculo_manual") ? "Inventario vinculado"
+    : dimensionAx(fila.lineas?.[0] ?? fila.linea ?? {}) || "Misma dimensión";
+  return `${titulo} (${variantes.length} variantes)`;
 }
 
 export const dimensionAx = (linea) => [texto(linea.tamano), texto(linea.color)].filter(Boolean).join(" ");
@@ -546,6 +592,7 @@ export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimensio
   const { corte, linea } = lineaDelCorte(estado, corteId, lineaId);
   if (estado.equivalencias_ax?.[claveAx(linea)]) delete estado.equivalencias_ax[claveAx(linea)];
   if (varianteId === null || varianteId === undefined) {
+    corte.vinculos_fisicos = (corte.vinculos_fisicos ?? []).filter((v) => v.linea_ax_id !== lineaId);
     corte.sin_pareja = [...new Set([...(corte.sin_pareja ?? []), lineaId])];
     auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "SIN_PAREJA", despues: { linea: lineaId, codigo: linea.codigo, tamano: linea.tamano, color: linea.color } });
     return { sinPareja: true };
@@ -567,7 +614,9 @@ export function confirmarPareja(estado, { corteId, lineaId, varianteId, dimensio
   }
   corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
   try {
-    return corregirInventarioParaAx(estado, { corteId, cual: { varianteId }, ...valores, lineaId }, usuario);
+    const resultado = corregirInventarioParaAx(estado, { corteId, cual: { varianteId }, ...valores, lineaId }, usuario);
+    corte.vinculos_fisicos = (corte.vinculos_fisicos ?? []).filter((v) => v.linea_ax_id !== lineaId);
+    return resultado;
   } catch (error) {
     if (error instanceof ErrorCorreccion) throw new ErrorConciliacion(error.message);
     throw error;
@@ -599,9 +648,11 @@ export function confirmarSeguras(estado, corteId, usuario = null) {
 /** Deshace "no está en físico" (y lo que recordaban las versiones anteriores) para ese renglón. */
 export function olvidarPareja(estado, { corteId, lineaId }, usuario = null) {
   const { corte, linea } = lineaDelCorte(estado, corteId, lineaId);
-  const antes = { sin_pareja: (corte.sin_pareja ?? []).includes(lineaId), equivalencia: estado.equivalencias_ax?.[claveAx(linea)] ?? null };
-  if (!antes.sin_pareja && !antes.equivalencia) return;
+  const antes = { sin_pareja: (corte.sin_pareja ?? []).includes(lineaId), equivalencia: estado.equivalencias_ax?.[claveAx(linea)] ?? null,
+    vinculos: (corte.vinculos_fisicos ?? []).filter((v) => v.linea_ax_id === lineaId) };
+  if (!antes.sin_pareja && !antes.equivalencia && !antes.vinculos.length) return;
   corte.sin_pareja = (corte.sin_pareja ?? []).filter((id) => id !== lineaId);
+  corte.vinculos_fisicos = (corte.vinculos_fisicos ?? []).filter((v) => v.linea_ax_id !== lineaId);
   if (antes.equivalencia) delete estado.equivalencias_ax[claveAx(linea)];
   auditar(estado, { usuario, entidad: "corte_ax", entidadId: corte.id, accion: "OLVIDAR", antes: { linea: lineaId, ...antes } });
 }
@@ -611,7 +662,7 @@ export function olvidarPareja(estado, { corteId, lineaId }, usuario = null) {
 const ESTADOS = { cuadra: "Cuadra", explicada: "Explicada por vales", sobrante: "Sobrante", faltante: "Faltante", por_confirmar: "Por confirmar" };
 export const etiquetaEstado = (e) => ESTADOS[e] ?? e;
 
-function comparar({ ax, valorAx, fisico, transito }) {
+export function comparar({ ax, valorAx, fisico, transito }) {
   const salidas = transito?.salidas ?? CERO;
   const entradas = transito?.entradas ?? CERO;
   const diferencia = fisico.minus(ax);
@@ -724,6 +775,7 @@ export function conciliar(estado, corte) {
       codigo: p.linea.codigo,
       descripcion: descripcionDe(estado, p.linea.codigo, p.linea.nombre),
       variante: sugerida?.variante ?? null,
+      aviso: p.aviso ?? null,
       sugerida: Boolean(sugerida),
       lugares: (sugerida?.renglones ?? []).map((x) => ({ lugar: lugarCorto(x.ubicacion), hoja: x.ubicacion.hoja_excel.trim(), total: x.total })),
       ax: dec(p.linea.disponible) ?? CERO,

@@ -245,6 +245,16 @@ cheques en tránsito.
    si *Sobran* / *Faltan* sin explicar. En la ventana cambias de vista (por artículo, por contenedor para ir a revisar,
    valuada en pesos) y de filtro sin cerrarla. **Reporte AX** abre el kardex completo (también lo *por confirmar*, con
    *Confirmar…*, y lo que no está en el físico) para buscar cualquier código o descripción.
+   Si AX tiene una dimensión y el físico la tiene dividida entre distintos NP, se suman las coincidencias del mismo
+   código, dimensión y unidad: **2 + 2 piezas de 150VA contra AX 4 → Cuadra**. Se respetan las partidas de AX que sí
+   distinguen Color y ninguna cantidad física se cuenta dos veces.
+   En **Elegir del inventario…**, disponible en *Reporte AX*, *Diferencias* y *Justificar faltantes*, selecciona las
+   dimensiones / NP que realmente corresponden cuando las escrituras no coinciden. Cada opción muestra sus partidas,
+   contenedores y total; las que ya corresponden a otra dimensión de AX o tienen otra unidad quedan inhabilitadas.
+   Pulsa **Revisar vínculo** para ver el total y el resultado con los vales en tránsito, luego **Confirmar vínculo**.
+   Se guarda sólo para ese corte y ofrece **Deshacer**. Al volver a abrir puedes **Usar emparejamiento automático**.
+   Este vínculo conserva las cantidades, dimensiones, NP, etiquetas y vales; si se necesita corregir una clave física,
+   usa las acciones de *Emparejar con AX* para preparar también sus etiquetas.
 5. **Por resolver → Justificar faltantes:** a cada faltante le asignas los vales que ya salieron y que AX aún no
    descuenta (sin IN / TR), aunque sean de antes del reporte de AX, dentro del periodo admitido.
    En **Aceptar vales desde** se propone el **1 de noviembre del año anterior al reporte AX**: para un reporte de 2026,

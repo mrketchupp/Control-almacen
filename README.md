@@ -25,6 +25,8 @@ También hay una [versión lista para descargar](versiones/ControlAlmacen.html),
 En GitHub, abre ese archivo y usa **Download raw file** (icono de descarga).
 El clic derecho ofrece acciones según el diseño, elemento, etiqueta, vale o partida del inventario. El editor permite
 copiar, cortar y pegar elementos entre diseños con Deshacer / Rehacer; los campos de texto conservan su edición habitual.
+La conciliación AX suma las partidas de la misma dimensión con distintos NP y permite vincular manualmente el físico
+que corresponda desde **Elegir del inventario**, con revisión y Deshacer.
 
 ```bash
 npm ci && npm test && npm run build   # → dist/ControlAlmacen.html

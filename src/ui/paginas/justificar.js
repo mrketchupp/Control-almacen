@@ -21,6 +21,7 @@ import {
 import { Boton, Buscador, Pastilla, Segmentos, Tabla, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { PastillaAx } from "./base.js";
+import { ElegirFisicoAx } from "./fisicoAx.js";
 
 const n = (d) => (d === null || d === undefined ? "—" : num(aNumero(d)));
 const describir = (v) => (v ? `${v.dimension || "SIN DIMENSIÓN"}${v.np ? ` · NP ${v.np}` : ""}` : "—");
@@ -127,6 +128,7 @@ function ItemJustificar({ j, sugerencia, r, corte }) {
   const sesion = useSesion();
   const asignar = useAsignar(corte);
   const [eligiendo, setEligiendo] = useState(false);
+  const [inventario, setInventario] = useState(false);
   const { fila } = j;
   const vales = new Map(sesion.estado.vales.map((v) => [v.id, v]));
   const quitar = (a) =>
@@ -186,6 +188,8 @@ function ItemJustificar({ j, sugerencia, r, corte }) {
     ${eligiendo
       ? html`<${ElegirVales} r=${r} corte=${corte} fila=${fila} alTerminar=${() => setEligiendo(false)} />`
       : html`<div class="acciones-linea"><${Boton} tipo="texto" tamano="chico" onClick=${() => setEligiendo(true)}>Elegir vales…<//></div>`}
+    <div class="acciones-linea"><${Boton} tipo="texto" tamano="chico" onClick=${() => setInventario(true)}>Elegir del inventario…<//></div>
+    ${inventario ? html`<${ElegirFisicoAx} r=${r} corte=${corte} fila=${fila} alCerrar=${() => setInventario(false)} />` : null}
   </li>`;
 }
 

@@ -35,6 +35,7 @@ import { ImportarBase, MosaicoBase, VentanaBase } from "./base.js";
 import { EditorClave, escrituraClave, useCorreccion } from "./clave.js";
 import { VentanaJustificar } from "./justificar.js";
 import { exportarConDialogo } from "./sharepoint.js";
+import { ElegirFisicoAx } from "./fisicoAx.js";
 
 const n = (d) => (d === null || d === undefined ? "—" : num(aNumero(d)));
 const pesos = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" });
@@ -189,13 +190,15 @@ function EnFisico({ x }) {
   if (x.estado === "por_confirmar") {
     return x.variante
       ? html`<span title="Sugerida: confírmala en Por confirmar">¿${describir(x.variante)}?</span>${lugares}`
-      : html`<span class="nota">sin sugerencia</span>`;
+      : html`<span class="nota">${x.aviso || "sin sugerencia"}</span>`;
   }
   if (!x.variante) return html`<span class="nota">no está en el físico</span>`;
   if (x.variantes?.length > 1) {
-    // Partida de AX sin dimensión: junta las variantes que AX no distingue.
+    // AX puede reunir variantes con la misma dimensión y distintos NP, o vinculadas manualmente.
+    const tipo = x.metodos?.includes("vinculo_manual") ? "Inventario vinculado"
+      : x.metodos?.some((m) => m === "sin_dimension" || m === "todo_el_codigo") ? "AX sin dimensión" : "Misma dimensión";
     return html`<span title=${x.variantes.map(describir).join("\n")}>${textoFisico(x)}</span>
-      <${Pastilla} tono="info" titulo="AX no trae Tamaño ni Color para esta partida: se compara contra todas estas variantes">AX sin dimensión<//>
+      <${Pastilla} tono="info" titulo="Se compara contra la suma de estas variantes del inventario">${tipo}<//>
       <span class="lugares">${x.lugares.map((l) => html`<${Pastilla} tono="lugar" titulo=${`${l.hoja} · ${l.lugar}`}>${l.detalle}: ${n(l.total)}<//>`)}</span>`;
   }
   return html`<span>${describir(x.variante)}</span>${lugares}`;
@@ -203,6 +206,7 @@ function EnFisico({ x }) {
 
 /** Vista general: todo el reporte de AX (y lo que solo está en el físico) con su resultado. */
 function VistaRenglon({ r, filtro, texto, conFisico, alConfirmar }) {
+  const [inventario, setInventario] = useState(null);
   const filas = useFiltroTexto(
     r.general.filter((x) => (conFisico || x.linea || x.lineas) && pasa(filtro)(x)).map(buscable),
     texto,
@@ -250,11 +254,14 @@ function VistaRenglon({ r, filtro, texto, conFisico, alConfirmar }) {
                 </span>`
               : html`<${Resultado} r=${x} />`,
         },
+        { titulo: "", render: (x) => (x.linea || x.lineas?.length)
+          ? html`<${Boton} tipo="texto" tamano="chico" onClick=${() => setInventario(x)}>Elegir del inventario…<//>` : null },
       ]}
     />
     ${ocultas.length
       ? html`<p class="nota">${ocultas.length === 1 ? "1 más" : `${ocultas.length} más`} con esa búsqueda que solo están en el físico: marca «Incluir lo que solo está en el físico».</p>`
-      : null}`;
+      : null}
+    ${inventario ? html`<${ElegirFisicoAx} r=${r} corte=${r.corte} fila=${inventario} alCerrar=${() => setInventario(null)} />` : null}`;
 }
 
 function VistaArticulo({ r, filtro, texto }) {

@@ -23,7 +23,8 @@ import { fechaMinimaPropuesta } from "./justificantes.js";
 // Formato 13 (Ronda 22): los vales de entrada (y sus borradores) traen `fecha_recibido`, el día en que entra al
 // inventario y al reporte diario; `fecha` sigue siendo la del vale (cuando la base lo envió).
 // Formato 14: fusiona las correcciones de vales y etiquetas; agrega el límite anual de justificantes AX.
-export const FORMATO_ESTADO = 14;
+// Formato 15: vínculos por corte entre una partida de AX y varias variantes físicas.
+export const FORMATO_ESTADO = 15;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -204,6 +205,10 @@ export function migrarEstado(estado) {
     for (const vale of estado.vales ?? []) vale.campos_encabezado_corregidos ??= [];
     for (const corte of estado.cortes_ax ?? []) corte.fecha_minima_vales ??= fechaMinimaPropuesta(corte.fecha);
     estado.formato = 14;
+  }
+  if (estado.formato < 15) {
+    for (const corte of estado.cortes_ax ?? []) corte.vinculos_fisicos ??= [];
+    estado.formato = 15;
   }
   return estado;
 }

@@ -1,8 +1,18 @@
-# Versión con menús contextuales y portapapeles de elementos
+# Versión con agrupación de partidas físicas y vínculos manuales en AX
 
 Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
 Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
 Al actualizar tu copia, conserva el nombre y la ubicación habituales del HTML y usa el mismo navegador.
+
+En **Conciliación AX**, una dimensión puede reunir varias partidas físicas con distintos NP: se suman las
+coincidencias del mismo código, dimensión y unidad. **2 + 2 piezas de 150VA contra AX 4 → Cuadra**. Se respetan las
+dimensiones con Color específico y se evita contar dos veces el físico si AX repite su misma partida.
+
+En **Justificar faltantes**, **Reporte AX** y **Diferencias → Por partida de AX**, pulsa **Elegir del inventario…**
+cuando la escritura no permita reconocerlas. Selecciona las dimensiones / NP correctas, revisa las partidas, el total
+y el resultado con los vales en tránsito y pulsa **Confirmar vínculo**. Se guarda por corte con bitácora y **Deshacer**;
+puedes volver al emparejamiento automático. Conserva cantidades, claves, vales y etiquetas. Se recalcula al variar el
+saldo y también en la solicitud de ajuste; se mantiene el límite anual de los vales justificantes.
 
 El **clic derecho** ofrece acciones según el diseño, elemento, etiqueta pendiente, vale o partida del inventario.
 Puedes renombrar el diseño pulsado, duplicar y ordenar elementos, corregir o imprimir vales y editar o mover una partida.
@@ -47,7 +57,8 @@ en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
 Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
 
 Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 344 pruebas automatizadas, 7 de impresión y 10 de menús contextuales en Chromium. Se recorrieron en el navegador
+Se validaron 355 pruebas automatizadas y 4 de agrupación y vínculos AX en Chromium. Se conservan las validaciones de
+7 pruebas de impresión y 10 de menús contextuales. Se recorrieron en el navegador
 la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
 el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
 La impresión por lotes conserva la validación anterior de 88 vales y un PDF de 88 páginas.

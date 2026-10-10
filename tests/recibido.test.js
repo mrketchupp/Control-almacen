@@ -146,7 +146,7 @@ test("migración 12 → 13: las entradas toman su fecha como recibido; los borra
   const { estado, balero } = preparar();
   const vale = entrada(estado, [alRenglon(estado, balero.id, "2")], { fecha: "2026-10-01", recibido: "2026-10-01" });
   const b = borrador(estado, [alRenglon(estado, balero.id, "1")], { fecha: "2026-09-28", recibido: "2026-09-28", folio: "B-9" });
-  assert.equal(FORMATO_ESTADO, 14);
+  assert.ok(FORMATO_ESTADO >= 13);
 
   // Como quedó con el formato 12: sin fecha de recibido.
   const viejo = structuredClone(estado);

@@ -180,8 +180,18 @@ flowchart LR
   "Sin dimensión" = vacía, `S/D`, `SIN DIMENSIÓN` / `SIN DIMENCION`, `S/N`, o un texto que empieza así (`S/D NP: …`,
   `S/D CABLE UTP`: lo que sigue es NP o descripción). No se corrige el inventario (AX no trae dimensión que copiar). Si
   el Color trae algo (`S/D` + `X00489`, un NP), se empareja normal.
-- **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante (o de todas las
-  variantes de la fila, cuando AX no trae dimensión).
+- **Misma dimensión y varios NP:** AX no trae NP. Si varias variantes del mismo código coinciden con Tamaño / Color y
+  unidad, su físico y su tránsito se suman en una sola fila (*Misma dimensión*). Así, 2 + 2 piezas frente a AX 4 cuadran.
+  Una partida con Color específico tiene prioridad sobre otra que sólo trae Tamaño; las unidades distintas no se suman.
+  Los duplicados de la misma llave AX comparten grupo y suman su Disponible; el físico sólo se cuenta una vez.
+- **Elegir del inventario** (`servicios/vinculosAx.js`, formato 15): desde *Justificar faltantes*, *Reporte AX* o
+  *Diferencias*, seleccionar dimensiones / NP del mismo código, revisar el total y el resultado con los vales existentes,
+  y confirmar. Cada opción reúne todas sus partidas y muestra sus contenedores. Sólo se permiten variantes libres o ya
+  usadas por esa misma llave AX, con unidad compatible. Se guarda en el corte, con auditoría y Deshacer; se puede volver
+  al automático. Conserva las cantidades, las claves, las etiquetas y los vales; las correcciones de clave siguen en
+  *Emparejar con AX*. Al variar el saldo se vuelve a calcular el resultado: el vínculo no fuerza que cuadre.
+- **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante o de todas las
+  variantes del grupo automático o manual.
 - **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). En las entradas cuenta la **fecha del vale**, no la de recibido (Ronda 22): la base mueve el material en AX cuando lo envía. Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.
 - **Con el archivo de vales de la base (Rondas 12 y 13)** lo único que importa es si la partida tiene **folio de AX**:
   - Con folio IN / TR ya está en AX (CANTIDAD vacía = todo): no justifica diferencias.

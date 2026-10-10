@@ -93,6 +93,19 @@ test("en el formato actual los marcadores siguen siendo opcionales", () => {
   assert.equal(migrarEstado(null), null);
 });
 
+test("formato 15: los cortes previos conservan asignaciones y límite anual al agregar vínculos físicos", () => {
+  const estado = estadoVacio();
+  estado.formato = 14;
+  estado.cortes_ax = [{ id: 1, fecha: "2026-09-05", fecha_minima_vales: "2025-12-01", asignaciones: [{ id: 1, cantidad: "2" }], lineas: [{ id: 1, disponible: "4" }] }];
+  const antes = structuredClone(estado.cortes_ax[0]);
+  migrarEstado(estado);
+  assert.equal(estado.formato, FORMATO_ESTADO);
+  assert.deepEqual(estado.cortes_ax[0], { ...antes, vinculos_fisicos: [] });
+  const json = JSON.stringify(estado);
+  migrarEstado(estado);
+  assert.equal(JSON.stringify(estado), json);
+});
+
 function estadoAnterior(formato, inventario = "DLTA") {
   const estado = estadoVacio(inventario);
   estado.formato = formato;
@@ -148,8 +161,8 @@ test("la fusión conserva los dos formatos 10: vales corregidos y listas de etiq
   }
 });
 
-test("los respaldos de formatos 1 a 13 se restauran, migran y sobreviven al volver a abrir", async (t) => {
-  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]) {
+test("los respaldos de formatos 1 a 14 se restauran, migran y sobreviven al volver a abrir", async (t) => {
+  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
     await t.test(`respaldo de formato ${formato}`, async () => {
       const viejo = estadoAnterior(formato);
       const lineas = viejo.vales.map((vale) => JSON.stringify(vale.lineas));
@@ -162,7 +175,7 @@ test("los respaldos de formatos 1 a 13 se restauran, migran y sobreviven al volv
       assert.equal(almacen.estado.formato, FORMATO_ESTADO);
       assert.equal(almacen.estado.config.inventario, "DLTA");
       assert.deepEqual(almacen.estado.vales.map((vale) => JSON.stringify(vale.lineas)), lineas);
-      assert.ok(almacen.estado.vales.every((vale) => vale.campos_encabezado_corregidos.length === 0));
+      assert.ok(almacen.estado.vales.every((vale) => (vale.campos_encabezado_corregidos ?? []).length === 0));
       assert.ok(almacen.estado.vales.every((vale) => !Object.hasOwn(vale, "firmas_por_posicion")));
       const otro = new Almacen(almacen.backend);
       await otro.iniciar();

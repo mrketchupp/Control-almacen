@@ -254,6 +254,16 @@ vez por corte, a una variante (fila emparejada) o a una partida de AX sin físic
 destino sea cual sea su fecha (marca `asignado`); si la variante se juntó con otra, sigue `unida_a`. Las cantidades y los
 vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriores.
 
+**Vínculos físicos por corte (formato 15):** `corte.vinculos_fisicos = [{ linea_ax_id, variante_ids, fecha_hora,
+usuario }]`. La selección manual reserva todas las variantes para esa partida antes del emparejamiento automático.
+Un grupo reúne sus existencias y su tránsito una sola vez; los duplicados de la misma llave AX comparten grupo.
+No cambia variantes, existencias, vales ni etiquetas. Una selección vacía indica físico cero. Las referencias a
+variantes unidas siguen `unida_a`; un vínculo que perdió alguna variante o quedó en conflicto va a *Por confirmar*.
+Se auditan `VINCULAR_FISICO_AX`, `QUITAR_VINCULO_FISICO_AX` y `DESHACER_VINCULO_FISICO_AX`. Deshacer comprueba que la
+selección siga como la dejó esa acción. La migración agrega `vinculos_fisicos: []` a los cortes anteriores.
+La agrupación automática por dimensión no se guarda: se recalcula al conciliar el mismo código, Tamaño / Color y
+unidad, sumando los distintos NP que AX no distingue y dando prioridad a las dimensiones más específicas.
+
 ### Operación
 
 | Tabla | Campos |
@@ -266,9 +276,9 @@ vales no cambian. La migración agrega `asignaciones: []` a los cortes anteriore
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
 
-El estado lleva `formato` (hoy **14**; del 6 al 12 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*;
+El estado lleva `formato` (hoy **15**; del 6 al 12 se describen arriba en *Conciliación*, *Dos inventarios* y *Etiquetas*;
 el 12 completa `emitido_en` en las marcas de etiquetas de las entradas propias; el 13 agrega `fecha_recibido` a las
-entradas y a sus borradores, ver *Vales de entrada*; el 14 reúne los marcadores de correcciones generales de la rama de vales y la fecha mínima de justificantes AX). Al abrir un estado o un respaldo de un formato anterior se migra solo
+entradas y a sus borradores, ver *Vales de entrada*; el 14 reúne los marcadores de correcciones generales de la rama de vales y la fecha mínima de justificantes AX; el 15 agrega los vínculos físicos por corte). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
 de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
