@@ -133,4 +133,67 @@ test("grupos físicos y vínculo manual en la conciliación AX en Chromium", asy
     assert.match(await r.locator("tbody tr").filter({ hasText: /150VA/ }).innerText(), /Faltan 2/);
     await terminar();
   });
+
+  await t.test("el vínculo permite corregir claves con revisión, etiquetas y Deshacer", async () => {
+    const { page, e, estado, guardado, terminar } = await pagina(true);
+    const original = await estado();
+    await page.getByRole("button", { name: "Justificar", exact: true }).click();
+    await page.locator(".item-justificar").filter({ hasText: "8426" }).getByRole("button", { name: "Elegir del inventario…", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "Elegir partidas del inventario", exact: true });
+    await modal.getByRole("checkbox", { name: /Incluir MODELO SINTETICO/ }).check();
+    assert.match(await modal.innerText(), /Etiquetas: 0 nuevas/);
+    await modal.getByRole("checkbox", { name: "También corregir las claves del inventario a como están en AX y preparar etiquetas", exact: true }).check();
+    assert.match(await modal.innerText(), /Etiquetas: 1 nuevas/);
+    assert.match(await modal.innerText(), /Después: AX 4 · Físico 4 · Resultado: Cuadra/);
+    await modal.getByRole("button", { name: "Revisar vínculo", exact: true }).click();
+    const revision = page.getByRole("dialog", { name: "Revisar vínculo del inventario", exact: true });
+    assert.match(await revision.innerText(), /Quedará en inventario/);
+    assert.deepEqual((await estado()).variantes, original.variantes);
+    assert.deepEqual((await estado()).etiquetas, original.etiquetas);
+    await revision.getByRole("button", { name: "Confirmar corrección, vínculo y etiquetas", exact: true }).click();
+    const nuevo = await guardado((s) => s.etiquetas.material.length === (original.etiquetas?.material.length ?? 0) + 1);
+    assert.equal(nuevo.variantes.find((v) => v.id === e.dos.v.id).dimension, "150VA");
+    assert.equal(nuevo.variantes.find((v) => v.id === e.dos.v.id).np, "NP-SINTETICO-B");
+    assert.deepEqual(nuevo.vales, original.vales);
+    assert.deepEqual(nuevo.existencias, original.existencias);
+    assert.equal(nuevo.etiquetas.material.at(-1).origen.existencia_id, e.dos.e.id);
+    await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
+    const deshecho = await guardado((s) => s.cortes_ax[0].vinculos_fisicos.length === 0);
+    assert.deepEqual(deshecho.variantes, original.variantes);
+    assert.deepEqual(deshecho.etiquetas.material, original.etiquetas.material);
+    await terminar();
+  });
+
+  await t.test("elegir una sugerencia AX muestra su cantidad, el resultado y etiquetas antes de corregir", async () => {
+    const { page, e, estado, guardado, terminar } = await pagina(true);
+    const original = await estado();
+    await page.getByRole("button", { name: "Emparejar", exact: true }).click();
+    const emparejar = page.getByRole("dialog", { name: "Emparejar con AX", exact: true });
+    await emparejar.getByRole("radio", { name: /Solo en el físico/ }).click();
+    const item = emparejar.locator(".lista-sin-ax > li").filter({ hasText: "MODELO SINTETICO" });
+    await item.getByRole("button", { name: "Corregir dimensión / NP", exact: true }).click();
+    await item.getByRole("combobox", { name: "Dimensión", exact: true }).click();
+    const opcion = item.getByRole("option").filter({ hasText: /150VA.*AX del corte.*4 PZA/ });
+    assert.equal(await opcion.count(), 1);
+    await opcion.click();
+    assert.match(await item.innerText(), /Destino en AX: 8426.*150VA.*4 PZA/);
+    assert.match(await item.innerText(), /Etiquetas: 1 nuevas/);
+    assert.match(await item.innerText(), /Después: AX 4 · Físico 4 · Resultado: Cuadra/);
+    // La corrección individual y la selección de varias partidas se conectan sin guardar al abrirlas.
+    await item.getByRole("button", { name: "Elegir varias partidas para este AX…", exact: true }).click();
+    const vinculo = page.getByRole("dialog", { name: "Elegir partidas del inventario", exact: true });
+    assert.equal(await vinculo.getByRole("checkbox", { name: /Incluir MODELO SINTETICO/ }).isChecked(), true);
+    await vinculo.getByRole("button", { name: "Cancelar", exact: true }).click();
+    await item.getByRole("button", { name: "Revisar corrección", exact: true }).click();
+    assert.deepEqual((await estado()).variantes, original.variantes);
+    await item.getByRole("button", { name: "Confirmar corrección y etiquetas", exact: true }).click();
+    const nuevo = await guardado((s) => s.variantes.find((v) => v.id === e.dos.v.id).dimension === "150VA");
+    assert.equal(nuevo.etiquetas.material.at(-1).origen.linea_ax_id, 1);
+    assert.deepEqual(nuevo.vales, original.vales);
+    assert.deepEqual(nuevo.existencias, original.existencias);
+    await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
+    const deshecho = await guardado((s) => s.variantes.find((v) => v.id === e.dos.v.id).dimension === "MODELO SINTETICO");
+    assert.deepEqual(deshecho.etiquetas.material, original.etiquetas.material);
+    await terminar();
+  });
 });

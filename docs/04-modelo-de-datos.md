@@ -261,6 +261,9 @@ No cambia variantes, existencias, vales ni etiquetas. Una selección vacía indi
 variantes unidas siguen `unida_a`; un vínculo que perdió alguna variante o quedó en conflicto va a *Por confirmar*.
 Se auditan `VINCULAR_FISICO_AX`, `QUITAR_VINCULO_FISICO_AX` y `DESHACER_VINCULO_FISICO_AX`. Deshacer comprueba que la
 selección siga como la dejó esa acción. La migración agrega `vinculos_fisicos: []` a los cortes anteriores.
+La acción opcional de corregir y vincular aplica correcciones de clave a las partidas elegidas, prepara etiquetas y
+guarda el vínculo dentro de un único cambio del almacén. La previsión simula sobre una copia; no guarda datos. Deshacer
+restaura sólo los datos modificados, conserva cantidades y ediciones ajenas y rechaza sobrescribir cambios posteriores.
 La agrupación automática por dimensión no se guarda: se recalcula al conciliar el mismo código, Tamaño / Color y
 unidad, sumando los distintos NP que AX no distingue y dando prioridad a las dimensiones más específicas.
 

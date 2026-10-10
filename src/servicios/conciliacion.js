@@ -570,6 +570,8 @@ export function corregirInventarioParaAx(estado, { corteId, cual, dimension, np,
   if (!corte) throw new ErrorConciliacion("El corte ya no existe.");
   const linea = lineaId === null ? null : lineaDelCorte(estado, corteId, lineaId).linea;
   const previa = previaCorreccion(estado, cual, { dimension, np });
+  if (linea && linea.codigo !== previa.variante.codigo) throw new ErrorConciliacion("La partida de AX debe ser del mismo código que el inventario.");
+  if (linea && !unidadesCompatibles(linea.um, previa.variante.um)) throw new ErrorConciliacion("La partida de AX tiene otra unidad de medida.");
   // Una etiqueta por partida física que cambia, incluso si la variante está en varios contenedores.
   const partidas = previa.renglones.filter((e) => e.activo !== false && (
     texto(dimensionMostrada(e, previa.variante)) !== texto(dimension) || texto(npMostrado(e, previa.variante)) !== texto(np)

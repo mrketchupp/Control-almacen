@@ -27,6 +27,8 @@ El clic derecho ofrece acciones según el diseño, elemento, etiqueta, vale o pa
 copiar, cortar y pegar elementos entre diseños con Deshacer / Rehacer; los campos de texto conservan su edición habitual.
 La conciliación AX suma las partidas de la misma dimensión con distintos NP y permite vincular manualmente el físico
 que corresponda desde **Elegir del inventario**, con revisión y Deshacer.
+La revisión muestra el destino de AX, el resultado con tránsito y las etiquetas pendientes. El vínculo ofrece
+corregir también las claves y preparar etiquetas; desde *Emparejar con AX* puedes elegir varias partidas del mismo destino.
 
 ```bash
 npm ci && npm test && npm run build   # → dist/ControlAlmacen.html

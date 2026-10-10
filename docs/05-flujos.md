@@ -188,8 +188,15 @@ flowchart LR
   *Diferencias*, seleccionar dimensiones / NP del mismo código, revisar el total y el resultado con los vales existentes,
   y confirmar. Cada opción reúne todas sus partidas y muestra sus contenedores. Sólo se permiten variantes libres o ya
   usadas por esa misma llave AX, con unidad compatible. Se guarda en el corte, con auditoría y Deshacer; se puede volver
-  al automático. Conserva las cantidades, las claves, las etiquetas y los vales; las correcciones de clave siguen en
-  *Emparejar con AX*. Al variar el saldo se vuelve a calcular el resultado: el vínculo no fuerza que cuadre.
+  al automático. Por defecto conserva cantidades, claves, etiquetas y vales. La opción **También corregir las claves
+  del inventario a como están en AX y preparar etiquetas** revisa las claves de destino, el resultado real con tránsito
+  y una etiqueta por partida modificada; corrige y vincula al confirmar. El NP se conserva salvo si repite el Color de
+  AX. Si las claves se unen a una variante existente, se muestra el total conjunto. Deshacer restaura claves, vínculos
+  y etiquetas añadidas, y protege ediciones posteriores. Al variar el saldo se recalcula: el vínculo no fuerza que cuadre.
+- **Revisión de claves AX:** en *Emparejar con AX*, las sugerencias del corte actual muestran dimensión, cantidad,
+  unidad y fecha. Elegir una muestra el destino, físico y resultado con tránsito, y cuántas etiquetas se agregarán a
+  *Etiquetas → Material*. *Revisar corrección → Confirmar corrección y etiquetas* guarda la acción. Desde ese editor,
+  *Elegir varias partidas para este AX…* abre la selección del mismo destino, sin guardar cambios al abrirla.
 - **Existencia física para comparar:** el `TOTAL` calculado de todas las ubicaciones de esa variante o de todas las
   variantes del grupo automático o manual.
 - **Vales en tránsito:** los vales (salidas y entradas) posteriores al corte AX. Se usa la fecha de corte o, si se conoce, el último folio aplicado por la base (P-03; se puede escribir en la pantalla). En las entradas cuenta la **fecha del vale**, no la de recibido (Ronda 22): la base mueve el material en AX cuando lo envía. Las partidas sin renglón ligado (vales migrados) que son **anteriores al conteo** de su renglón cuentan (la cantidad contada ya las refleja: caso del primer corte); las posteriores al conteo, aún por ubicar, no mueven existencia y se muestran como pista.

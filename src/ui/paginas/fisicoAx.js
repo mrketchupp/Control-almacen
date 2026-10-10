@@ -1,16 +1,19 @@
 import { useMemo, useState } from "preact/hooks";
 import { aNumero, sumar } from "../../nucleo/decimal.js";
 import { ErrorConciliacion, dimensionAx, etiquetaEstado, textoVariante } from "../../servicios/conciliacion.js";
+import { corregirYVincularFisico, preverVinculoCorregido } from "../../servicios/correccionAx.js";
 import { candidatosFisicos, deshacerVinculoFisico, previaVinculoFisico, quitarVinculosFisicos, vincularFisico } from "../../servicios/vinculosAx.js";
 import { lugarCorto } from "../../servicios/inventario.js";
 import { Boton, Buscador, Pastilla, Tabla, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { escrituraClave, ResultadoCorreccionAx, useCorreccion } from "./clave.js";
 
 const n = (d) => num(aNumero(d));
 
 /** Selección y revisión del físico que corresponde a una fila de AX. */
 export function ElegirFisicoAx({ r, corte, fila, alCerrar }) {
   const sesion = useSesion();
+  const aplicarCorreccion = useCorreccion();
   const lineas = fila.lineas ?? [fila.linea];
   const lineaIds = lineas.map((l) => l.id);
   const opciones = candidatosFisicos(r, lineaIds);
@@ -19,10 +22,16 @@ export function ElegirFisicoAx({ r, corte, fila, alCerrar }) {
   const [texto, setTexto] = useState("");
   const [revisando, setRevisando] = useState(false);
   const [error, setError] = useState("");
+  const [corregir, setCorregir] = useState(false);
   const elegidas = opciones.filter((f) => seleccion.has(f.variante.id));
   const total = sumar(...elegidas.map((f) => f.total));
   const previa = useMemo(() => previaVinculoFisico(sesion.estado,
     { corteId: corte.id, lineaIds, varianteIds: [...seleccion] }), [sesion.estado, corte, [...seleccion].join(",")]);
+  const correccion = useMemo(() => {
+    if (!corregir) return null;
+    try { return preverVinculoCorregido(sesion.estado, { corteId: corte.id, lineaIds, varianteIds: [...seleccion] }); }
+    catch (e) { return { error: e.message }; }
+  }, [sesion.estado, corte, [...seleccion].join(","), corregir]);
   const manual = (corte.vinculos_fisicos ?? []).some((v) => lineaIds.includes(v.linea_ax_id));
   const visibles = useFiltroTexto(opciones.map((f) => ({ ...f, id: f.variante.id,
     _buscar: `${textoVariante(f.variante)} ${f.renglones.map((p) => lugarCorto(p.ubicacion)).join(" ")}`,
@@ -46,17 +55,36 @@ export function ElegirFisicoAx({ r, corte, fila, alCerrar }) {
       else throw e;
     }
   });
+  const guardarCorreccion = async () => {
+    const res = await aplicarCorreccion((e) => corregirYVincularFisico(e,
+      { corteId: corte.id, lineaIds, varianteIds: [...seleccion] }, sesion.usuario),
+    () => `${fila.codigo}: claves corregidas e inventario vinculado con AX.`);
+    if (res) alCerrar();
+  };
   const columnas = [
     { titulo: "Dimensión / NP", render: (f) => textoVariante(f.variante) },
     { titulo: "UM", render: (f) => f.variante.um || "—" },
     { titulo: "Físico", numero: true, render: (f) => n(f.total) },
     { titulo: "Partidas", render: (f) => f.renglones.map((p) => html`<span class="lugares"><${Pastilla} tono="lugar">${lugarCorto(p.ubicacion)}: ${n(p.total)}<//></span>`) },
   ];
+  const partidas = new Map(elegidas.flatMap((f) => f.renglones.map((p) => [p.existencia.id, p])));
+  const revisionClaves = [
+    { titulo: "Partida", render: (p) => lugarCorto(partidas.get(p.existenciaId).ubicacion) },
+    { titulo: "Ahora", render: (p) => escrituraClave(p.ahora.dimension, p.ahora.np) },
+    { titulo: "Quedará en inventario", render: (p) => escrituraClave(p.quedara.dimension, p.quedara.np) },
+    { titulo: "Físico", numero: true, render: (p) => n(partidas.get(p.existenciaId).total) },
+    { titulo: "Etiqueta", render: (p) => p.cambia ? "1 nueva" : "Sin cambio" },
+  ];
   return html`<${Ventana} titulo=${revisando ? "Revisar vínculo del inventario" : "Elegir partidas del inventario"} clase="ventana-concilia" alCerrar=${alCerrar}>
     <p><strong>${fila.codigo} ${fila.descripcion}</strong> · AX: ${[...new Set(lineas.map((l) => dimensionAx(l) || "SIN DIMENSIÓN"))].join(" / ")}</p>
-    <p class="nota">Elige todas las partidas físicas de este material que AX reúne. Cada opción suma las partidas de la misma dimensión y NP en sus contenedores. El vínculo se guarda para este corte; las cantidades, las claves y los vales conservan sus datos.</p>
+    <p class="nota">Elige todas las partidas físicas de este material que AX reúne. Cada opción suma las partidas de la misma dimensión y NP en sus contenedores. El vínculo se guarda para este corte.</p>
+    <label class="casilla"><input type="checkbox" checked=${corregir} disabled=${sesion.ocupado} onChange=${(e) => { setCorregir(e.currentTarget.checked); setRevisando(false); setError(""); }} />
+      <span>También corregir las claves del inventario a como están en AX y preparar etiquetas</span></label>
+    <p class="nota">${corregir ? "Se corregirá la dimensión a Tamaño + Color de AX. Se conserva el NP, salvo si repite el Color de AX. Las cantidades y los vales conservan sus datos."
+      : "Sólo vincular: conserva dimensiones, NP, cantidades y vales. Etiquetas: 0 nuevas."}</p>
     ${revisando
-      ? html`<${Tabla} filas=${elegidas} claveFila=${(f) => f.variante.id} columnas=${columnas} vacia="Sin partidas del inventario: se comparará AX contra físico 0." />`
+      ? corregir ? html`<${Tabla} filas=${correccion?.propuestas ?? []} claveFila=${(p) => p.existenciaId} columnas=${revisionClaves} vacia="Sin partidas del inventario: se comparará AX contra físico 0." />`
+        : html`<${Tabla} filas=${elegidas} claveFila=${(f) => f.variante.id} columnas=${columnas} vacia="Sin partidas del inventario: se comparará AX contra físico 0." />`
       : html`<${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Dimensión, NP, contenedor…" />
         <${Tabla} filas=${visibles} columnas=${[
           { titulo: "Incluir", render: (f) => html`<input type="checkbox" checked=${seleccion.has(f.variante.id)}
@@ -74,17 +102,22 @@ export function ElegirFisicoAx({ r, corte, fila, alCerrar }) {
       <span>Físico seleccionado: <strong>${n(total)}</strong></span>
       <span>Diferencia física: <strong>${n(total.minus(fila.ax))}</strong></span>
     </div>
-    <p aria-live="polite">Resultado con esta selección: <strong>${!previa ? "Por confirmar"
+    ${corregir ? html`<div class="revision-correccion-ax">
+      ${correccion?.error ? html`<p class="alerta" role="alert">${correccion.error}</p>`
+        : html`<p><strong>Etiquetas:</strong> ${correccion?.etiquetas ?? 0} nuevas en Etiquetas → Material (una por partida física que cambia).</p>
+          <${ResultadoCorreccionAx} comparacion=${correccion?.comparacion} />
+          ${correccion?.comparacion && !correccion.comparacion.fisico.eq(total) ? html`<p class="alerta">Ya hay partidas con la clave de destino: se unirán y el físico después será ${n(correccion.comparacion.fisico)}. Revisa también ese total.</p>` : null}`}
+    </div>` : html`<p aria-live="polite">Resultado con esta selección: <strong>${!previa ? "Por confirmar"
       : previa.estado === "faltante" ? `Faltan ${n(previa.sin_explicar.abs())}`
       : previa.estado === "sobrante" ? `Sobran ${n(previa.sin_explicar)}` : etiquetaEstado(previa.estado)}</strong>
-      ${previa?.folios.length ? html` · Vales en tránsito: ${previa.folios.join(", ")}` : null}</p>
+      ${previa?.folios.length ? html` · Vales en tránsito: ${previa.folios.join(", ")}` : null}</p>`}
     ${revisando ? html`<p>Confirma que estas ${elegidas.length} opciones corresponden al material de AX. La conciliación sumará su existencia y los vales en tránsito que les correspondan.</p>` : null}
     ${error ? html`<p class="alerta" role="alert">${error}</p>` : null}
     <div class="acciones-linea">
       ${revisando
-        ? html`<${Boton} tipo="primario" disabled=${sesion.ocupado} onClick=${() => guardar()}>Confirmar vínculo<//>
+        ? html`<${Boton} tipo="primario" disabled=${sesion.ocupado || Boolean(correccion?.error)} onClick=${() => corregir ? guardarCorreccion() : guardar()}>${corregir ? "Confirmar corrección, vínculo y etiquetas" : "Confirmar vínculo"}<//>
           <${Boton} disabled=${sesion.ocupado} onClick=${() => setRevisando(false)}>Cambiar selección<//>`
-        : html`<${Boton} tipo="primario" disabled=${sesion.ocupado} onClick=${() => setRevisando(true)}>Revisar vínculo<//>
+        : html`<${Boton} tipo="primario" disabled=${sesion.ocupado || Boolean(correccion?.error)} onClick=${() => setRevisando(true)}>Revisar vínculo<//>
           ${manual ? html`<${Boton} disabled=${sesion.ocupado} onClick=${() => guardar(true)}>Usar emparejamiento automático<//>` : null}`}
       <${Boton} tipo="texto" disabled=${sesion.ocupado} onClick=${alCerrar}>Cancelar<//>
     </div>

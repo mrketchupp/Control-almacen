@@ -4848,6 +4848,14 @@ button.mosaico:hover .mosaico-abrir {
   color: var(--alerta);
 }
 
+.revision-correccion-ax {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--primario-suave);
+}
+
 .lista-sin-ax {
   display: grid;
   gap: 8px;

@@ -253,8 +253,14 @@ cheques en tránsito.
    contenedores y total; las que ya corresponden a otra dimensión de AX o tienen otra unidad quedan inhabilitadas.
    Pulsa **Revisar vínculo** para ver el total y el resultado con los vales en tránsito, luego **Confirmar vínculo**.
    Se guarda sólo para ese corte y ofrece **Deshacer**. Al volver a abrir puedes **Usar emparejamiento automático**.
-   Este vínculo conserva las cantidades, dimensiones, NP, etiquetas y vales; si se necesita corregir una clave física,
-   usa las acciones de *Emparejar con AX* para preparar también sus etiquetas.
+   Por defecto conserva dimensiones, NP y etiquetas. Marca **También corregir las claves del inventario a como están
+   en AX y preparar etiquetas** si también debes actualizar las etiquetas físicas. La revisión muestra cómo quedará
+   cada clave, el total físico después (incluidas posibles uniones), el resultado con tránsito y las etiquetas que
+   se agregarán a **Etiquetas → Material**. Pulsa **Confirmar corrección, vínculo y etiquetas**. Conserva cantidades,
+   vales y NP, salvo si el NP repite el Color de AX. **Deshacer** revierte esa operación completa.
+   En **Emparejar con AX → Solo en el físico → Corregir dimensión / NP**, elegir una sugerencia **AX del corte…**
+   muestra el destino, sus cantidades y el efecto previsto. Pulsa **Revisar corrección → Confirmar corrección y
+   etiquetas**. **Elegir varias partidas para este AX…** conecta con la selección de varias partidas del mismo código.
 5. **Por resolver → Justificar faltantes:** a cada faltante le asignas los vales que ya salieron y que AX aún no
    descuenta (sin IN / TR), aunque sean de antes del reporte de AX, dentro del periodo admitido.
    En **Aceptar vales desde** se propone el **1 de noviembre del año anterior al reporte AX**: para un reporte de 2026,

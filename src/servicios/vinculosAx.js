@@ -39,7 +39,11 @@ export function previaVinculoFisico(estado, { corteId, lineaIds, varianteIds }) 
     ...(corte.vinculos_fisicos ?? []).filter((v) => !ids.includes(v.linea_ax_id)),
     ...ids.map((id) => ({ linea_ax_id: id, variante_ids: varianteIds })),
   ] };
-  const r = conciliar(estado, simulado);
+  return resultadoLineasAx(conciliar(estado, simulado), ids);
+}
+
+/** Resultado conjunto de las partidas elegidas, con el tránsito sin duplicar el físico. */
+export function resultadoLineasAx(r, ids) {
   if (r.porConfirmar.some((p) => ids.includes(p.linea.id))) return null;
   const filas = [...r.renglones.filter((f) => f.lineas.some((l) => ids.includes(l.id))), ...r.axSinFisico.filter((f) => ids.includes(f.linea.id))];
   return comparar({ ax: sumar(...filas.map((f) => f.ax)), valorAx: null, fisico: sumar(...filas.map((f) => f.fisico)),

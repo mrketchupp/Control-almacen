@@ -1,7 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
 import { leerArchivoSubido } from "../../almacen/archivos.js";
 import { sha256 } from "../../almacen/almacen.js";
-import { aNumero } from "../../nucleo/decimal.js";
+import { aNumero, dec } from "../../nucleo/decimal.js";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { fechaMinimaJustificantes } from "../../nucleo/justificantes.js";
 import { ErrorReporteAx, delAlmacen, leerReporteAx } from "../../importadores/ax.js";
@@ -396,6 +396,7 @@ function ItemConfirmar({ p, r, corte }) {
   const sesion = useSesion();
   const corregir = useCorreccion();
   const [editando, setEditando] = useState(null); // id de la variante que se está ajustando
+  const [vinculando, setVinculando] = useState(false);
   const sugerida = p.variante_id !== null ? r.fisico.get(p.variante_id) : null;
   const aplicar = (varianteId, valores = {}) =>
     corregir(
@@ -432,7 +433,7 @@ function ItemConfirmar({ p, r, corte }) {
         : null}
     </div>
     <div class="acciones-pareja">
-      ${sugerida ? html`<${Boton} tipo="primario" tamano="chico" onClick=${() => aplicar(p.variante_id)}>✓ Corregir a como está en AX<//>` : null}
+      ${sugerida ? html`<${Boton} tipo="primario" tamano="chico" onClick=${() => setEditando(p.variante_id)}>Revisar corrección a AX<//>` : null}
       ${sugerida && editando === null ? html`<${Boton} tipo="texto" tamano="chico" onClick=${() => setEditando(p.variante_id)}>Ajustar…<//>` : null}
       <${ElegirPareja} par=${p} r=${r} alElegir=${(varianteId) => (varianteId === null ? aplicar(null) : setEditando(varianteId))} />
     </div>
@@ -445,12 +446,18 @@ function ItemConfirmar({ p, r, corte }) {
             actual=${{ dimension: elegida.variante.dimension, np: elegida.variante.np, um: elegida.variante.um }}
             inicial=${valoresAx(p.linea, elegida.variante)}
             linea=${p.linea}
+            corte=${corte}
+            confirmar=${true}
+            alVincular=${() => setVinculando(true)}
             textoAplicar="Corregir el inventario"
             alAplicar=${({ dimension, np }) => aplicar(editando, { dimension, np })}
             alCancelar=${() => setEditando(null)}
           />
         </div>`
       : null}
+    ${vinculando ? html`<${ElegirFisicoAx} r=${r} corte=${corte}
+      fila=${{ linea: p.linea, codigo: p.linea.codigo, descripcion: p.linea.nombre, ax: dec(p.linea.disponible), fisico: null, variante_ids: [editando] }}
+      alCerrar=${() => setVinculando(false)} />` : null}
   </li>`;
 }
 
@@ -545,9 +552,10 @@ function ListaFisicoSinAx({ r }) {
   const corregir = useCorreccion();
   const [texto, setTexto] = useState("");
   const [editando, setEditando] = useState(null);
+  const [vinculando, setVinculando] = useState(null);
   const filas = useFiltroTexto(r.fisicoSinAx.map(buscable), texto, ["_buscar"]);
   return html`
-    <p class="nota">Si AX lo tiene con otra dimensión o NP, corrígela aquí: la siguiente conciliación ya lo empareja.</p>
+    <p class="nota">Si AX lo tiene con otra dimensión, elige su opción en Dimensión y revisa el resultado y las etiquetas. Si AX reúne varias partidas, puedes seleccionarlas juntas desde ese mismo editor.</p>
     <div class="controles-concilia"><${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión…" /></div>
     ${filas.length
       ? html`<ul class="lista-sin-ax">
@@ -566,9 +574,15 @@ function ListaFisicoSinAx({ r }) {
                     cual=${{ varianteId: x.variante_id }}
                     codigo=${x.codigo}
                     actual=${{ dimension: x.variante.dimension, np: x.variante.np, um: x.variante.um }}
-                    alAplicar=${({ dimension, np, cual }) =>
+                    corte=${r.corte}
+                    alVincular=${(linea) => {
+                      const f = r.renglones.find((f) => f.lineas.some((l) => l.id === linea.id)) ?? r.axSinFisico.find((f) => f.linea.id === linea.id);
+                      setVinculando({ ...(f ?? { codigo: linea.codigo, descripcion: linea.nombre, ax: dec(linea.disponible), fisico: null, linea }),
+                        variante_ids: [...new Set([...(f?.variante_ids ?? []), x.variante_id])] });
+                    }}
+                    alAplicar=${({ dimension, np, cual, lineaId }) =>
                       corregir(
-                        (e) => corregirInventarioParaAx(e, { corteId: r.corte.id, cual, dimension, np }, sesion.usuario),
+                        (e) => corregirInventarioParaAx(e, { corteId: r.corte.id, cual, dimension, np, lineaId }, sesion.usuario),
                         (res) => `Listo: ${x.codigo} quedó como ${res.despues}${res.unida ? " (se juntó con la variante igual)" : ""}.`,
                       ).then((res) => res && setEditando(null))}
                     alCancelar=${() => setEditando(null)}
@@ -578,6 +592,7 @@ function ListaFisicoSinAx({ r }) {
           )}
         </ul>`
       : html`<p class="vacio">Todo el inventario está en AX.</p>`}
+    ${vinculando ? html`<${ElegirFisicoAx} r=${r} corte=${r.corte} fila=${vinculando} alCerrar=${() => setVinculando(null)} />` : null}
   `;
 }
 

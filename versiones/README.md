@@ -1,4 +1,4 @@
-# Versión con agrupación de partidas físicas y vínculos manuales en AX
+# Versión con revisión de correcciones AX, vínculos y etiquetas
 
 Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
 Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
@@ -11,8 +11,17 @@ dimensiones con Color específico y se evita contar dos veces el físico si AX r
 En **Justificar faltantes**, **Reporte AX** y **Diferencias → Por partida de AX**, pulsa **Elegir del inventario…**
 cuando la escritura no permita reconocerlas. Selecciona las dimensiones / NP correctas, revisa las partidas, el total
 y el resultado con los vales en tránsito y pulsa **Confirmar vínculo**. Se guarda por corte con bitácora y **Deshacer**;
-puedes volver al emparejamiento automático. Conserva cantidades, claves, vales y etiquetas. Se recalcula al variar el
+puedes volver al emparejamiento automático. Por defecto conserva cantidades, claves, vales y etiquetas. Se recalcula al variar el
 saldo y también en la solicitud de ajuste; se mantiene el límite anual de los vales justificantes.
+
+Marca **También corregir las claves del inventario a como están en AX y preparar etiquetas** para corregir y vincular
+en una misma operación. La revisión muestra las claves de destino, el resultado con tránsito y cuántas etiquetas se
+agregarán a **Etiquetas → Material**. Conserva las cantidades y los vales; el NP sólo se limpia si repite el Color de AX.
+Si una clave se une a otra existente, se muestra el total resultante. **Deshacer** revierte claves, vínculo y etiquetas.
+
+En **Emparejar con AX**, elegir una sugerencia del corte muestra la partida AX, su cantidad, el resultado físico y las
+etiquetas antes de guardar con **Revisar corrección → Confirmar corrección y etiquetas**. **Elegir varias partidas
+para este AX…** abre el mismo destino en la selección múltiple.
 
 El **clic derecho** ofrece acciones según el diseño, elemento, etiqueta pendiente, vale o partida del inventario.
 Puedes renombrar el diseño pulsado, duplicar y ordenar elementos, corregir o imprimir vales y editar o mover una partida.
@@ -57,8 +66,8 @@ en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
 Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
 
 Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 355 pruebas automatizadas y 4 de agrupación y vínculos AX en Chromium. Se conservan las validaciones de
-7 pruebas de impresión y 10 de menús contextuales. Se recorrieron en el navegador
+Se validaron 363 pruebas automatizadas, 6 de agrupación, correcciones y vínculos AX y 10 de menús contextuales
+en Chromium. Se conserva la validación de 7 pruebas de impresión. Se recorrieron en el navegador
 la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
 el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
 La impresión por lotes conserva la validación anterior de 88 vales y un PDF de 88 páginas.
