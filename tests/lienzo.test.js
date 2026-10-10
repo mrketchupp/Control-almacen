@@ -193,6 +193,27 @@ test("deshacer y rehacer, con cambios seguidos juntados en un paso", () => {
   assert.deepEqual(lim.pasado, [7, 8, 9]);
 });
 
+test("pegar entre diseños conserva propiedades, usa un id libre y permite deshacer y rehacer", () => {
+  const original = { ...MODELOS_FABRICA["fabrica-material"].elementos[0], x: 95, y: 95 };
+  const destino = [normalizarElemento(original)];
+  const antes = structuredClone(destino);
+  const pegado = l.pegarElemento(destino, original);
+  assert.deepEqual(destino, antes);
+  assert.equal(pegado.elementos.length, 2);
+  assert.notEqual(pegado.id, original.id);
+  assert.equal(new Set(pegado.elementos.map((e) => e.id)).size, 2);
+  const el = pegado.elementos.at(-1);
+  assert.ok(el.x >= 0 && el.y >= 0 && el.x + el.w <= 100 && el.y + el.h <= 100);
+  assert.equal(el.tipo, original.tipo);
+  let h = l.empujar(l.historial(destino), pegado.elementos);
+  h = l.deshacer(h);
+  assert.deepEqual(h.presente, destino);
+  h = l.rehacer(h);
+  assert.deepEqual(h.presente, pegado.elementos);
+  assert.equal(l.pegarElemento(Array.from({ length: MAXIMO_ELEMENTOS }, () => el), original), null);
+  assert.equal(l.pegarElemento(destino, { tipo: "desconocido" }), null);
+});
+
 test("agregar, duplicar, quitar y ordenar elementos", () => {
   let els = [];
   const a = l.agregarElemento(els, "texto");

@@ -188,6 +188,37 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   **Datos de: DLTA | GSM** trae material o entradas del otro sin cambiar de inventario (solo se leen). La marca *Etiquetas
   impresas* aparece en la entrada de su inventario.
 
+### Clic derecho y portapapeles
+
+El clic derecho ofrece las acciones disponibles para el elemento pulsado. Los botones habituales siguen disponibles.
+
+| Dónde | Opciones |
+|---|---|
+| Diseño guardado, en el editor | Abrir, duplicar, renombrar, usar para Material / Código AX y borrar con Deshacer |
+| Elemento de etiqueta o su capa | Propiedades, copiar, cortar, pegar, duplicar, orden, quitar, Deshacer y Rehacer |
+| Espacio del lienzo | Pegar, agregar texto / QR / barras, Deshacer, Rehacer y guardar |
+| Etiqueta por imprimir | Editar, duplicar, incluir / excluir de esta impresión y quitar con Deshacer |
+| Vale del historial | Abrir; corregir e imprimir salidas emitidas; corregir y hacer etiquetas de entradas registradas |
+| Encabezado de un vale | Sus acciones disponibles y volver al historial |
+| Partida del inventario | Editar dimensión / NP y mover a otro contenedor |
+
+Las opciones cambian con el estado: los diseños de fábrica permiten copiar elementos y duplicar el diseño para
+editarlo; los vales cancelados del historial sólo permiten abrirlos. Deshacer / Rehacer aparecen cuando hay cambios
+que recuperar. Las correcciones mantienen su revisión y las acciones de quitar conservan su aviso de Deshacer.
+
+En los **campos de texto** y al seleccionar texto se conserva el menú del navegador: copiar, cortar, pegar, deshacer
+y rehacer, junto con sus atajos habituales. En una zona sin acciones también aparece el menú normal.
+**Mayús + clic derecho** permite abrirlo incluso donde hay acciones de la aplicación.
+
+En el editor, **Ctrl+C / Ctrl+X / Ctrl+V** copian, cortan y pegan elementos cuando el foco está en la etiqueta o en su
+lista de capas. Puedes copiarlos entre diseños; al pegar se conserva su contenido y se coloca una copia dentro de la
+etiqueta. **Ctrl+Z / Ctrl+Y / Ctrl+Mayús+Z** deshacen y rehacen cambios del diseño cuando no estás escribiendo en un campo.
+Si el navegador bloquea el acceso al portapapeles, las acciones del menú conservan la copia de elementos durante esa
+sesión de la aplicación.
+
+Con el foco en un elemento, **Mayús+F10** o la tecla de menú abre sus acciones. Las flechas, Inicio y Fin recorren las
+opciones, Intro las ejecuta y Escape cierra el menú y devuelve el foco al elemento.
+
 ### Conciliación contra AX
 Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera y los vales posteriores al corte, los
 cheques en tránsito.

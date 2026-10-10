@@ -1,8 +1,18 @@
-# Versión con etiquetas integradas y conciliación AX actualizada
+# Versión con menús contextuales y portapapeles de elementos
 
 Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
 Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
 Al actualizar tu copia, conserva el nombre y la ubicación habituales del HTML y usa el mismo navegador.
+
+El **clic derecho** ofrece acciones según el diseño, elemento, etiqueta pendiente, vale o partida del inventario.
+Puedes renombrar el diseño pulsado, duplicar y ordenar elementos, corregir o imprimir vales y editar o mover una partida.
+Sólo aparecen las opciones disponibles para su estado; las revisiones y los avisos de Deshacer se conservan.
+**Mayús+F10** abre las acciones por teclado y **Mayús + clic derecho** conserva el menú del navegador.
+
+En los campos de texto se mantienen **copiar, cortar, pegar, deshacer y rehacer** del navegador y sus atajos.
+En el editor, **Ctrl+C / Ctrl+X / Ctrl+V** copian, cortan y pegan elementos entre diseños; **Ctrl+Z / Ctrl+Y** recuperan
+los cambios. También están en el menú cuando corresponden. Los diseños de fábrica permiten copiar y duplicar el
+diseño para editarlo. Si el navegador bloquea el portapapeles, el menú conserva la copia de elementos durante esa sesión.
 
 Esta versión reúne la rama de vales y la de etiquetas en la rama predeterminada del proyecto.
 En **Etiquetas → Editor de diseños** puedes duplicar un diseño, mover y editar elementos, agregar QR y
@@ -37,7 +47,7 @@ en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
 Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
 
 Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 341 pruebas automatizadas y 7 pruebas de impresión en Chromium. Se recorrieron en el navegador
+Se validaron 344 pruebas automatizadas, 7 de impresión y 10 de menús contextuales en Chromium. Se recorrieron en el navegador
 la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
 el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
 La impresión por lotes conserva la validación anterior de 88 vales y un PDF de 88 páginas.

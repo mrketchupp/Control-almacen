@@ -163,6 +163,13 @@ export function PaginaInventario() {
     <${Tabla}
       limite=${300}
       filas=${visibles.map((f) => ({ ...f, _clase: f.total < 0 ? "fila-negativa" : "" }))}
+      menuFila=${(f) => ({
+        titulo: `Inventario: ${f.codigo} ${f.dimension || ""}`,
+        opciones: sesion.ocupado ? [] : [
+          { texto: "Editar dimensión y NP…", accion: () => setCorrigiendo(f.id) },
+          { texto: "Mover a otro contenedor…", accion: () => { setMoviendo(f.id); window.scrollTo(0, 0); } },
+        ],
+      })}
       columnas=${[
         {
           titulo: "Cont.",

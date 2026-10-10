@@ -69,6 +69,14 @@ function HistorialEntradas() {
     <${Tabla}
       limite=${200}
       filas=${visibles}
+      menuFila=${(f) => ({
+        titulo: `Entrada ${f.folio_texto}`,
+        opciones: sesion.ocupado ? [] : [
+          { texto: "Abrir entrada", accion: () => { location.hash = `#entrada/${f.vale_id}`; } },
+          valesPorId.get(f.vale_id)?.estado === "EMITIDO" && { texto: "Corregir entrada…", accion: () => { location.hash = `#entrada/${f.vale_id}/corregir`; } },
+          valesPorId.get(f.vale_id)?.estado === "EMITIDO" && { texto: "Hacer etiquetas…", accion: () => { location.hash = `#entrada/${f.vale_id}/etiquetas`; } },
+        ],
+      })}
       columnas=${[
         { titulo: "Folio", render: (f) => html`<a class="enlace-folio" href=${`#entrada/${f.vale_id}`} title="Ver entrada">${f.folio_texto}</a>` },
         { clave: "folio_externo", titulo: "Folio base" },
@@ -191,6 +199,14 @@ function HistorialSalidas() {
     <${Tabla}
       limite=${200}
       filas=${visibles}
+      menuFila=${(f) => ({
+        titulo: `Vale de salida ${f.folio}`,
+        opciones: sesion.ocupado ? [] : [
+          { texto: "Abrir vale", accion: () => { location.hash = `#vale/${f.vale_id}`; } },
+          f.estado === "EMITIDO" && { texto: "Imprimir vale", accion: () => sesion.tarea("Preparando impresión…", () => sesion.imprimirVales([sesion.estado.vales.find((v) => v.id === f.vale_id)])) },
+          f.estado === "EMITIDO" && { texto: "Corregir vale…", accion: () => { location.hash = `#vale/${f.vale_id}/corregir`; } },
+        ],
+      })}
       columnas=${[
         { titulo: "Folio", numero: true, render: (f) => html`<a class="enlace-folio" href=${`#vale/${f.vale_id}`} title="Ver vale">${f.folio}</a>${f.estado === "CANCELADO" ? html` <span class="insignia insignia-error">CANC.</span>` : ""}` },
         { clave: "fecha", titulo: "Fecha" },

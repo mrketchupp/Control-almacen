@@ -23,6 +23,8 @@ Cómo abrirla y usarla: [docs/10-instalacion-y-uso.md](docs/10-instalacion-y-uso
 `ControlAlmacen.html` se genera automáticamente en GitHub Actions (pestaña *Actions* → artefacto `ControlAlmacen-html`).
 También hay una [versión lista para descargar](versiones/ControlAlmacen.html), con etiquetas y editor de diseños integrados, impresión y corrección por lotes y actualización confirmada de puestos. Corregir el inventario desde AX prepara sus etiquetas; los justificantes tienen una fecha mínima editable por corte (propuesta: 1 de noviembre del año anterior al reporte).
 En GitHub, abre ese archivo y usa **Download raw file** (icono de descarga).
+El clic derecho ofrece acciones según el diseño, elemento, etiqueta, vale o partida del inventario. El editor permite
+copiar, cortar y pegar elementos entre diseños con Deshacer / Rehacer; los campos de texto conservan su edición habitual.
 
 ```bash
 npm ci && npm test && npm run build   # → dist/ControlAlmacen.html

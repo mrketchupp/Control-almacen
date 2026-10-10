@@ -19,6 +19,8 @@ import { INVENTARIOS } from "../../nucleo/inventarios.js";
 import * as et from "../../servicios/etiquetas.js";
 import { Aviso, Boton, Lista, Pastilla, Segmentos, Teclas, Ventana, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { useMenuContextual } from "../menuContextual.js";
+import { copiarElemento, elementoDelTexto, hayElementoCopiado, leerElementoCopiado, recordarElemento, textoElemento } from "../portapapelesElementos.js";
 import { Icono } from "../iconos.js";
 
 const TIPOS = et.TIPOS_ETIQUETA;
@@ -484,6 +486,7 @@ function PantallaCompleta({ etiqueta, raiz, children }) {
  */
 export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
   const sesion = useSesion();
+  const menu = useMenuContextual();
   const estado = sesion.estado;
   const config = useMemo(() => et.configEtiquetas(estado), [estado.config?.etiquetas]);
   const diseno = config.diseno;
@@ -564,6 +567,7 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
     ponerAbierto(m.id);
     ponerH(lz.historial(m.elementos.map((e) => ({ ...e }))));
     ponerVivo(null);
+    Object.assign(r.current, { deFabrica: esModeloDeFabrica(m.id), sucio: false });
     if (!mantener || !m.elementos.some((e) => e.id === r.current.sel)) ponerSel(null);
     setError(null);
     setIntentos(0);
@@ -707,6 +711,29 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
 
   const intentarCerrar = () => resolverCambios(alCerrar);
 
+  // La acción corresponde al diseño pulsado, aunque no sea el abierto. Conserva la revisión
+  // de cambios pendientes antes de abrirlo; renombrar el actual conserva sus cambios de elementos.
+  const sobreDiseno = (id, accion) => {
+    if (id === r.current.abierto) return accion();
+    return resolverCambios(() => {
+      abrirDirecto(id);
+      setPestana("etiqueta");
+      return accion();
+    });
+  };
+  const menuDiseno = (m) => ({
+    titulo: `Diseño: ${m.nombre}`,
+    opciones: sesion.ocupado ? [] : [
+      m.id !== abiertoId && { texto: "Abrir diseño", accion: () => abrir(m.id) },
+      { texto: m.fabrica ? "Duplicar para editar" : "Duplicar diseño", accion: () => sobreDiseno(m.id, duplicar) },
+      !m.fabrica && { texto: "Renombrar diseño…", accion: () => sobreDiseno(m.id, () => setRenombrando(true)) },
+      ...Object.keys(TIPOS).filter((t) => porTipo[t] !== m.id).map((t) => ({
+        texto: `Usar para ${TIPOS[t]}`, separador: true, accion: () => sobreDiseno(m.id, () => usar(t)),
+      })),
+      !m.fabrica && { texto: "Borrar diseño", peligro: true, separador: true, accion: () => sobreDiseno(m.id, borrar) },
+    ],
+  });
+
   // ------------------------------------------------ editar los elementos
 
   /** Aplica un cambio a la lista de elementos (con su paso para deshacer). Bloqueado en los de fábrica. */
@@ -771,10 +798,70 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
 
   const ed = { deFabrica, ofrecer, cambiarProp, cambiarCaja, duplicarSel, quitarSel, ordenar };
 
+  const copiarSel = async (cortar = false) => {
+    const id = r.current.sel;
+    const disenoId = r.current.abierto;
+    const el = r.current.h.presente.find((e) => e.id === id);
+    if (!el || (cortar && r.current.deFabrica)) return;
+    await copiarElemento(el);
+    if (cortar && r.current.abierto === disenoId && JSON.stringify(r.current.h.presente.find((e) => e.id === id)) === JSON.stringify(el)) {
+      editar((els) => lz.quitarElemento(els, id));
+      if (r.current.sel === id) ponerSel(null);
+    }
+  };
+  const pegar = (el) => {
+    if (r.current.deFabrica) return ofrecer();
+    const res = lz.pegarElemento(r.current.h.presente, el);
+    if (!res) return setError(`No se puede pegar: revisa el elemento o el máximo de ${MAXIMO_ELEMENTOS} elementos.`);
+    editar(() => res.elementos);
+    ponerSel(res.id);
+    enfocarCaja(res.id);
+  };
+  const pegarCopiado = async () => {
+    const disenoId = r.current.abierto;
+    const el = await leerElementoCopiado();
+    if (r.current.abierto !== disenoId) return;
+    if (el) pegar(el);
+    else setError("El portapapeles no contiene un elemento de un diseño de etiquetas.");
+  };
+
+  const sobreElemento = (id, accion) => { ponerSel(id); return accion(); };
+  const menuElemento = (el) => ({
+    titulo: nombreElemento(el),
+    opciones: sesion.ocupado ? [] : [
+      { texto: "Ver propiedades", accion: () => { ponerSel(el.id); setPestana("propiedades"); } },
+      { texto: "Copiar elemento", atajo: "Ctrl+C", accion: () => sobreElemento(el.id, copiarSel) },
+      ...(deFabrica ? [{ texto: "Duplicar diseño para editar", accion: duplicar }] : [
+        { texto: "Cortar elemento", atajo: "Ctrl+X", accion: () => sobreElemento(el.id, () => copiarSel(true)) },
+        (hayElementoCopiado() || navigator.clipboard?.readText) && elementos.length < MAXIMO_ELEMENTOS && { texto: "Pegar elemento", atajo: "Ctrl+V", accion: pegarCopiado },
+        elementos.length < MAXIMO_ELEMENTOS && { texto: "Duplicar elemento", atajo: "Ctrl+D", accion: () => sobreElemento(el.id, duplicarSel) },
+        elementos.at(-1)?.id !== el.id && { texto: "Traer al frente", accion: () => ordenar(el.id, "frente") },
+        elementos[0]?.id !== el.id && { texto: "Enviar al fondo", accion: () => ordenar(el.id, "fondo") },
+        { texto: "Quitar elemento", atajo: "Supr", peligro: true, separador: true, accion: () => sobreElemento(el.id, quitarSel) },
+        lz.puedeDeshacer(h) && { texto: "Deshacer", atajo: "Ctrl+Z", separador: true, accion: deshacer },
+        lz.puedeRehacer(h) && { texto: "Rehacer", atajo: "Ctrl+Y", accion: rehacer },
+      ]),
+    ],
+  });
+  const menuLienzo = () => ({
+    titulo: "Diseño de etiqueta",
+    opciones: sesion.ocupado ? [] : deFabrica
+      ? [{ texto: "Duplicar para editar", accion: duplicar }]
+      : [
+        (hayElementoCopiado() || navigator.clipboard?.readText) && elementos.length < MAXIMO_ELEMENTOS && { texto: "Pegar elemento", atajo: "Ctrl+V", accion: pegarCopiado },
+        elementos.length < MAXIMO_ELEMENTOS && { texto: "Agregar texto libre", accion: () => agregar("texto") },
+        elementos.length < MAXIMO_ELEMENTOS && { texto: "Agregar código QR", accion: () => agregar("qr") },
+        elementos.length < MAXIMO_ELEMENTOS && { texto: "Agregar código de barras", accion: () => agregar("barras") },
+        lz.puedeDeshacer(h) && { texto: "Deshacer", atajo: "Ctrl+Z", separador: true, accion: deshacer },
+        lz.puedeRehacer(h) && { texto: "Rehacer", atajo: "Ctrl+Y", accion: rehacer },
+        sucio && { texto: "Guardar diseño", atajo: "Ctrl+S", separador: true, accion: guardar },
+      ],
+  });
+
   // ------------------------------------------------ teclado
 
   const acciones = useRef({});
-  acciones.current = { guardar, intentarCerrar, deshacer, rehacer, duplicarSel, quitarSel, editar };
+  acciones.current = { guardar, intentarCerrar, deshacer, rehacer, duplicarSel, quitarSel, editar, pegar };
   useEffect(() => {
     const tecla = (e) => {
       // Alt mientras se arrastra = sin imán; que no abra el menú del navegador.
@@ -840,11 +927,35 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
     const soltarAlt = (e) => {
       if (e.key === "Alt" && r.current.vivo) e.preventDefault();
     };
+    const portapapeles = (e) => {
+      const ventanas = document.querySelectorAll(".ventana");
+      if (ventanas[ventanas.length - 1] !== raiz.current) return;
+      const t = e.target instanceof Element ? e.target : null;
+      if (t?.closest("input, textarea, select, [contenteditable]")) return;
+      if (window.getSelection() && !window.getSelection().isCollapsed) return;
+      if (!t?.closest(".edd-centro, .edd-capas") && t !== raiz.current) return;
+      if (e.type === "paste") {
+        const el = elementoDelTexto(e.clipboardData?.getData("text/plain"));
+        if (!el) return;
+        e.preventDefault();
+        acciones.current.pegar(el);
+        return;
+      }
+      const el = r.current.h.presente.find((el) => el.id === r.current.sel);
+      if (!el || (e.type === "cut" && r.current.deFabrica)) return;
+      const texto = textoElemento(el);
+      e.clipboardData?.setData("text/plain", texto);
+      e.preventDefault();
+      recordarElemento(texto);
+      if (e.type === "cut") acciones.current.quitarSel();
+    };
     document.addEventListener("keydown", tecla);
     document.addEventListener("keyup", soltarAlt);
+    for (const evento of ["copy", "cut", "paste"]) document.addEventListener(evento, portapapeles);
     return () => {
       document.removeEventListener("keydown", tecla);
       document.removeEventListener("keyup", soltarAlt);
+      for (const evento of ["copy", "cut", "paste"]) document.removeEventListener(evento, portapapeles);
     };
   }, []);
 
@@ -1078,7 +1189,7 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
         const usa = usaLista(m.id);
         const abierto = m.id === abiertoId;
         return html`<li key=${m.id}>
-          <button type="button" class=${`edd-diseno ${abierto ? "abierto" : ""}`} aria-current=${abierto ? "true" : undefined} onClick=${() => abrir(m.id)}>
+          <button type="button" class=${`edd-diseno ${abierto ? "abierto" : ""}`} aria-current=${abierto ? "true" : undefined} onClick=${() => abrir(m.id)} ...${menu(() => menuDiseno(m))}>
             <span class="edd-diseno-nombre">${m.fabrica ? html`<${Icono} nombre="candado" tam=${13} /> ` : null}${m.nombre}${abierto && sucio ? " ●" : ""}</span>
             <span class="edd-diseno-datos">
               ${m.fabrica ? html`<${Pastilla}>de fábrica<//>` : null}
@@ -1117,8 +1228,9 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
   const marcoLienzo = html`<div
     class="edd-lienzo"
     ref=${lienzo}
+    ...${menu(menuLienzo)}
     onPointerDown=${(e) => {
-      if (e.target === e.currentTarget) ponerSel(null);
+      if (e.button === 0 && e.target === e.currentTarget) ponerSel(null);
     }}
   >
     <div class="edd-marco" style=${`width:${ancho}px;height:${alto}px`}>
@@ -1133,7 +1245,7 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
         style=${`--edd-paso:${prefs.paso}%`}
         ref=${capa}
         onPointerDown=${(e) => {
-          if (e.target === e.currentTarget) ponerSel(null);
+          if (e.button === 0 && e.target === e.currentTarget) ponerSel(null);
         }}
         onPointerMove=${moverPuntero}
         onPointerUp=${(e) => soltar(e)}
@@ -1157,6 +1269,7 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
             style=${`left:${el.x}%;top:${el.y}%;width:${el.w}%;height:${el.h}%`}
             onPointerDown=${(e) => presionar(e, el.id)}
             onFocus=${() => r.current.sel !== el.id && ponerSel(el.id)}
+            ...${menu(() => menuElemento(el))}
           >
             ${vacio ? html`<span class="edd-vacio-texto">${porQueNoSeVe(el, etiqueta)}</span>` : null}
             ${avisosEl.length ? html`<span class="edd-alerta" aria-hidden="true">!</span>` : null}
@@ -1216,6 +1329,7 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
           <ul class="edd-teclas">
             <li>Arrastra para mover; las asas cambian el tamaño. Con <${Teclas} teclas=${["Alt"]} /> se mueve libre (sin imán ni guías).</li>
             <li>${["←", "→", "↑", "↓"].map((t) => html`<${Teclas} teclas=${[t]} /> `)} mueven 0.5 % · con <${Teclas} teclas=${["Shift"]} />, 5 %</li>
+            <li><${Teclas} teclas=${["Ctrl", "C"]} /> copia · <${Teclas} teclas=${["Ctrl", "X"]} /> corta · <${Teclas} teclas=${["Ctrl", "V"]} /> pega</li>
             <li><${Teclas} teclas=${["Supr"]} /> quita · <${Teclas} teclas=${["Ctrl", "D"]} /> duplica</li>
             <li><${Teclas} teclas=${["Ctrl", "Z"]} /> deshace · <${Teclas} teclas=${["Ctrl", "Y"]} /> rehace · <${Teclas} teclas=${["Ctrl", "S"]} /> guarda</li>
             <li><${Teclas} teclas=${["Esc"]} /> deja de elegir; sin nada elegido, cierra.</li>
@@ -1232,6 +1346,7 @@ export function EditorDisenos({ tipo: tipoInicial = "material", alCerrar }) {
                   type="button"
                   class=${`edd-capa-boton ${el.id === sel ? "elegida" : ""}`}
                   aria-pressed=${el.id === sel ? "true" : "false"}
+                  ...${menu(() => menuElemento(el))}
                   onClick=${() => {
                     ponerSel(el.id);
                     enfocarCaja(el.id);

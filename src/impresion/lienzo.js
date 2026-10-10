@@ -295,6 +295,16 @@ export function duplicarElemento(elementos, id) {
   return { elementos: [...elementos.slice(0, i + 1), copia, ...elementos.slice(i + 1)], id: nuevoId };
 }
 
+/** Pega una copia normalizada, con id libre y sin salirse de la etiqueta. */
+export function pegarElemento(elementos, original) {
+  if (elementos.length >= MAXIMO_ELEMENTOS) return null;
+  const limpio = normalizarElemento(original);
+  if (!limpio) return null;
+  const id = idLibre(elementos, limpio.id.replace(/-\d+$/, ""));
+  const copia = sinEncimar({ ...limpio, id }, elementos, 2);
+  return { elementos: [...elementos, copia], id };
+}
+
 export const quitarElemento = (elementos, id) => elementos.filter((el) => el.id !== id);
 
 /** Al frente = se dibuja al último (encima de todos); atrás = primero. */

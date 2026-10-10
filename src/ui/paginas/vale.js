@@ -18,6 +18,7 @@ import {
 import { estadoAxDeVales } from "../../servicios/seguimiento.js";
 import { Aviso, Boton, Dato, Insignia, Pastilla, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { useMenuContextual } from "../menuContextual.js";
 import { PastillaAx } from "./base.js";
 import { EditorVale, ListaErrores, VistaPrevia } from "./vales.js";
 
@@ -115,10 +116,11 @@ function FotosDelVale({ fotos }) {
 
 export function PaginaVale() {
   const sesion = useSesion();
+  const menu = useMenuContextual();
   const estado = sesion.estado;
   const id = valeDeRuta();
   const vale = estado.vales.find((v) => v.id === id);
-  const [corrigiendo, setCorrigiendo] = useState(false);
+  const [corrigiendo, setCorrigiendo] = useState(() => location.hash.endsWith("/corregir") && vale?.estado === "EMITIDO");
   const [previa, setPrevia] = useState(false);
   const indices = useMemo(() => new Indices(estado), [estado]);
   const ax = useMemo(() => estadoAxDeVales(estado), [estado]);
@@ -138,7 +140,14 @@ export function PaginaVale() {
   const duplicadas = partidasDuplicadas(vale);
 
   return html`
-    <div class="cabeza-vale">
+    <div class="cabeza-vale" tabindex="0" ...${menu(() => ({
+      titulo: `Vale de salida ${vale.folio}`,
+      opciones: sesion.ocupado ? [] : [
+        !corrigiendo && { texto: "Vista previa e imprimir…", accion: () => setPrevia(true) },
+        !cancelado && !corrigiendo && { texto: "Corregir vale…", accion: () => setCorrigiendo(true) },
+        { texto: "Volver al historial", separador: true, accion: () => { location.hash = "#historial"; } },
+      ],
+    }))}>
       <div>
         <span class="folio-grande">Folio ${vale.folio}</span>
         <${Insignia} tono=${cancelado ? "error" : "ok"}>${cancelado ? "CANCELADO" : vale.estado}<//>

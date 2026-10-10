@@ -2,6 +2,7 @@ import { createContext } from "preact";
 import { createPortal } from "preact/compat";
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { html } from "./html.js";
+import { useMenuContextual } from "./menuContextual.js";
 
 export const ContextoSesion = createContext(null);
 
@@ -79,7 +80,8 @@ export function Detalles({ resumen, children, abierto = false }) {
 /**
  * Tabla simple con encabezado fijo. columnas: [{ clave, titulo, numero, ancho, render }]
  */
-export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null, claveFila = (f, i) => f.id ?? i }) {
+export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null, claveFila = (f, i) => f.id ?? i, menuFila = null }) {
+  const menu = useMenuContextual();
   const [mostrar, setMostrar] = useState(limite);
   // Vuelve al límite solo si cambia el contenido (no en cada redibujo).
   const firma = `${filas.length}:${filas.length ? claveFila(filas[0], 0) : ""}:${filas.length ? claveFila(filas[filas.length - 1], filas.length - 1) : ""}`;
@@ -97,7 +99,8 @@ export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null,
         </thead>
         <tbody>
           ${visibles.map(
-            (fila, i) => html`<tr key=${claveFila(fila, i)} class=${fila._clase || ""}>
+            (fila, i) => html`<tr key=${claveFila(fila, i)} class=${fila._clase || ""} tabindex=${menuFila ? "0" : undefined}
+              ...${menuFila ? menu(() => menuFila(fila)) : {}}>
               ${columnas.map(
                 (c) => html`<td class=${c.numero ? "numero" : ""}>${c.render ? c.render(fila) : fila[c.clave]}</td>`,
               )}

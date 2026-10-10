@@ -15,6 +15,7 @@ import { impresionesPorVale, marcaDe } from "../../servicios/etiquetas.js";
 import { bitacoraDeVale } from "../../servicios/vales.js";
 import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { useMenuContextual } from "../menuContextual.js";
 import { EditorEntrada } from "./entradas.js";
 import { EstadoEtiquetas, EtiquetasDeEntrada } from "./etiquetas.js";
 import { ListaErrores } from "./vales.js";
@@ -94,11 +95,12 @@ function CorreccionEntrada({ vale, alTerminar }) {
 
 export function PaginaEntrada() {
   const sesion = useSesion();
+  const menu = useMenuContextual();
   const estado = sesion.estado;
   const id = entradaDeRuta();
   const vale = estado.vales.find((v) => v.id === id && v.tipo === "ENTRADA");
-  const [corrigiendo, setCorrigiendo] = useState(false);
-  const [etiquetas, setEtiquetas] = useState(false);
+  const [corrigiendo, setCorrigiendo] = useState(() => location.hash.endsWith("/corregir") && vale?.estado === "EMITIDO");
+  const [etiquetas, setEtiquetas] = useState(() => location.hash.endsWith("/etiquetas") && vale?.estado === "EMITIDO");
   const indices = useMemo(() => new Indices(estado), [estado]);
   if (!vale) return html`<${Aviso} tipo="advertencia" titulo="No se encontró la entrada">Vuelve al <a href="#historial">historial</a>.<//>`;
   const lugar = (l) => {
@@ -111,7 +113,14 @@ export function PaginaEntrada() {
   const impresas = (marcaDe(impresionesPorVale(estado), vale) ?? []).map((r) => ({ accion: "ETIQUETAS", fecha_hora: r.fecha_hora, usuario: r.usuario, etiquetas: r.etiquetas }));
   const bitacora = [...bitacoraDeVale(estado, vale.id), ...impresas].sort((a, b) => b.fecha_hora.localeCompare(a.fecha_hora));
   return html`
-    <div class="cabeza-vale">
+    <div class="cabeza-vale" tabindex="0" ...${menu(() => ({
+      titulo: `Entrada ${folioEntrada(vale.folio)}`,
+      opciones: sesion.ocupado ? [] : [
+        !corrigiendo && vale.estado === "EMITIDO" && { texto: "Hacer etiquetas…", accion: () => setEtiquetas(true) },
+        !corrigiendo && vale.estado === "EMITIDO" && { texto: "Corregir entrada…", accion: () => setCorrigiendo(true) },
+        { texto: "Volver al historial de entradas", separador: true, accion: () => { location.hash = "#historial/entradas"; } },
+      ],
+    }))}>
       <div>
         <span class="folio-grande">Entrada ${folioEntrada(vale.folio)}</span>
         <${Insignia} tono="ok">REGISTRADA<//>

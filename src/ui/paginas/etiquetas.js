@@ -16,6 +16,7 @@ import * as et from "../../servicios/etiquetas.js";
 import { MAXIMO_LOGO } from "../../servicios/valeImpreso.js";
 import { Aviso, Boton, Buscador, CampoSugerido, Combo, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { useMenuContextual } from "../menuContextual.js";
 import { Icono } from "../iconos.js";
 import { EditorDisenos } from "./editorEtiquetas.js";
 
@@ -824,6 +825,7 @@ function DisenoDeLista({ tipo, alEditor }) {
 
 function FilaEtiqueta({ etiqueta, tipo, incluida, alIncluir, alEditar }) {
   const sesion = useSesion();
+  const menu = useMenuContextual();
   const guardar = useGuardar();
   const [cantidad, setCantidad] = useState(String(etiqueta.cantidad));
   const fijarCantidad = () => {
@@ -840,7 +842,15 @@ function FilaEtiqueta({ etiqueta, tipo, incluida, alIncluir, alEditar }) {
       });
   };
   const origen = textoOrigen(etiqueta.origen, sesion.inventario.id);
-  return html`<li class=${`etq-fila ${incluida ? "" : "etq-fuera"}`}>
+  return html`<li class=${`etq-fila ${incluida ? "" : "etq-fuera"}`} tabindex="0" ...${menu(() => ({
+    titulo: `Etiqueta: ${etiqueta.codigo || etiqueta.nombre || "sin código"}`,
+    opciones: sesion.ocupado ? [] : [
+      { texto: "Editar etiqueta…", accion: alEditar },
+      { texto: "Duplicar etiqueta", accion: () => guardar((e) => et.duplicarEtiqueta(e, tipo, etiqueta.id)) },
+      { texto: incluida ? "Excluir de esta impresión" : "Incluir en esta impresión", accion: () => alIncluir(!incluida) },
+      { texto: "Quitar de la lista", peligro: true, separador: true, accion: quitar },
+    ],
+  }))}>
     <input type="checkbox" checked=${incluida} onChange=${(e) => alIncluir(e.currentTarget.checked)} aria-label=${`Imprimir ${etiqueta.codigo}`} title="Imprimir esta" />
     <label class="etq-cantidad" title="Cuántas etiquetas">
       <input

@@ -3,6 +3,7 @@ import { hoyIso, fmtFechaHora } from "../nucleo/fechas.js";
 import { agregarAlmacenista, almacenistas, fijarUsuarioEnTurno, lineasPorUbicar } from "../servicios/consultas.js";
 import { Boton, ContextoSesion, Lista, Ventana, useSesion } from "./componentes.js";
 import { html } from "./html.js";
+import { MenusContextuales } from "./menuContextual.js";
 import { Icono } from "./iconos.js";
 import { SelectorInventario } from "./inventario.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
@@ -309,5 +310,5 @@ function Marco() {
 }
 
 export function App({ sesion }) {
-  return html`<${ContextoSesion.Provider} value=${sesion}><${Marco} /><//>`;
+  return html`<${ContextoSesion.Provider} value=${sesion}><${MenusContextuales} sesion=${sesion}><${Marco} /><//><//>`;
 }

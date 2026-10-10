@@ -47,6 +47,10 @@ aquí.
    texto, **por inventario**. Desde la Ronda 22 la letra ya no está aquí: va en el **diseño** (ver abajo).
 5. **Diseño de cada lista** (Ronda 22): en la tarjeta *Por imprimir*, *Diseño: …* dice con cuál se imprime la lista y lo
    cambia ahí mismo; *Editor de diseños* abre el editor.
+6. **Clic derecho:** sobre un diseño ofrece abrir, duplicar, renombrar, asignar o borrar; sobre un elemento o su capa,
+   propiedades, copiar, cortar, pegar, duplicar, ordenar, quitar y Deshacer / Rehacer disponibles. En el lienzo vacío
+   permite agregar elementos, pegar y guardar. Actúa sobre lo pulsado y conserva la revisión de cambios pendientes al
+   cambiar de diseño. La lista por imprimir ofrece editar, duplicar, incluir / excluir y quitar con Deshacer.
 
 ## Del generador a Control de Almacén
 
@@ -191,7 +195,9 @@ propios). Tres zonas:
   etiqueta, a 6 px), si no la **cuadrícula** (si *Imán* está activo); con **Alt**, libre. Clic en vacío deja de elegir.
 - **Teclado** (no actúa mientras se escribe en un campo; Supr, flechas y Ctrl+D solo con el foco en la etiqueta): flechas
   0.5 % (Shift 5 %), Supr / Retroceso quita, Ctrl+D duplica, Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z, Ctrl+S guarda, Escape deja de
-  elegir (sin nada elegido, cierra). Tab recorre los elementos de la etiqueta.
+  elegir (sin nada elegido, cierra). Tab recorre los elementos de la etiqueta. Ctrl+C / Ctrl+X / Ctrl+V copian, cortan y
+  pegan elementos en la etiqueta o en su lista de capas, incluso entre diseños. En los campos de texto los atajos y el
+  menú del navegador mantienen la edición nativa. Mayús+F10 abre el menú del elemento enfocado; Escape lo cierra.
 - **De fábrica:** cualquier intento de cambiarlos (arrastrar, flechas, un campo, agregar) no cambia nada y la franja de
   arriba ofrece **Duplicar para editar**; nunca se edita en silencio.
 - **Guardar** (botón y Ctrl+S) con `guardarModeloEtiqueta`; *Cambios sin guardar* en la cabecera. Al cerrar, abrir otro
