@@ -31,6 +31,11 @@ function extension(nombre) {
   return i < 0 ? "" : nombre.slice(i).toLowerCase();
 }
 
+/** GSM usa un nombre fijo con espacios; la extensión sigue siendo la de su plantilla. */
+function nombreVales(nombreOriginal, inventario) {
+  return inventario === "GSM" ? `VALES DE SALIDA GSM${extension(nombreOriginal)}` : nombreOriginal;
+}
+
 /** Reemplaza la fecha DDMMAA del nombre original (o la agrega al final). */
 export function nombreConFecha(nombreOriginal, iso) {
   const i = nombreOriginal.lastIndexOf(".");
@@ -214,7 +219,7 @@ export class Almacen {
 
   // ------------------------------------------------------------ exportar
 
-  /** Nombre con el que se exporta (el del archivo original; el inventario lleva la fecha). */
+  /** Nombre del archivo exportado; GSM normaliza el libro de vales y el inventario lleva fecha. */
   nombreExportacion(tipo, hoy = hoyIso(), { corteAx: corteAxId = null } = {}) {
     if (tipo === "ENTRADAS") return nombreEntradas(this.inventario);
     if (tipo === "AJUSTE") {
@@ -223,7 +228,7 @@ export class Almacen {
     }
     const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === tipo && p.activa);
     if (!registro) return null;
-    return tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, hoy);
+    return tipo === "VALES" ? nombreVales(registro.nombre_original, this.inventario) : nombreConFecha(registro.nombre_original, hoy);
   }
 
   /**
@@ -250,7 +255,7 @@ export class Almacen {
     } else {
       const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
       resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla, { fecha: corte ?? hoy });
-      nombre = tipo === "VALES" ? registro.nombre_original : nombreConFecha(registro.nombre_original, corte ?? hoy);
+      nombre = tipo === "VALES" ? nombreVales(registro.nombre_original, this.inventario) : nombreConFecha(registro.nombre_original, corte ?? hoy);
     }
     const huella = await sha256(resultado.datos);
     const destino = guardar ? await guardar(nombre, resultado.datos) : null;

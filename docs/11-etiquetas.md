@@ -12,9 +12,9 @@ aquí.
 |---|---|
 | Generador aparte | Se queda (teléfono, Gemini). Control de Almacén **importa su lista `.json`**. No se cambia el generador. |
 | Cuántas etiquetas | **Entrada = una por pieza** (como con la foto del vale); **inventario = una por partida** (la etiqueta del lugar). Unidades continuas (M, MTS, LTS, KG, GAL…) o cantidades con decimales → **1**. Siempre se ajusta antes de imprimir. |
-| NOMBRE | El **nombre de AX** (del reporte más reciente importado en *Conciliación AX* que trae el código); si no viene, la **descripción del inventario**. |
+| NOMBRE | El **nombre de AX** (del reporte más reciente importado en *conciliación con Dynamics AX* que trae el código); si no viene, la **descripción del inventario**. |
 | ÁREA | **Vacía** (se escribe a mano si hace falta). Las de la lista del generador conservan la suya. |
-| CONDICIÓN | Se **renombra a INVENTARIO** con valores **DLTA / GSM**: se propone el inventario abierto y **se puede cambiar por etiqueta**. La condición de la lista del generador no se usa. |
+| CONDICIÓN | Se **renombra a INVENTARIO** con valores **Inventario A / Inventario B**: se propone el inventario abierto y **se puede cambiar por etiqueta**. La condición de la lista del generador no se usa. |
 | Logos | Se **proponen los del libro de vales** del inventario abierto (ya con lo corregido en *Ajustes → Vale impreso*); también se suben de un archivo. Cada inventario tiene los suyos (izquierdo y derecho) y su texto de almacén. |
 | Constancia | La lista por imprimir **se conserva** (va en los respaldos) y la **entrada queda marcada** «etiquetas impresas» (fecha y quién): historial de entradas, detalle de la entrada y su bitácora. |
 | DESCRIPCIÓN | Desde una entrada, `OC: <orden de compra>` si la partida trae O.C. (vacía si es `S/OC`); desde el inventario, vacía. |
@@ -30,7 +30,7 @@ aquí.
      una parte de él). Sin escribir nada, salen las más recientes con su estado de etiquetas.
    - **Del inventario:** buscar (código, descripción, dimensión, NP), filtrar por contenedor o *solo con existencia*, y
      marcar partidas (o *todo lo visible*). Una etiqueta por partida.
-   - **Desde Conciliación AX:** corregir la dimensión / NP en *Emparejar con AX* agrega automáticamente una etiqueta
+   - **Desde conciliación con Dynamics AX:** corregir la dimensión / NP en *Emparejar con AX* agrega automáticamente una etiqueta
      de Material por cada partida física modificada. Incluye *Corregir las seguras* y *Solo en el físico*. Se usan los
      datos después de la corrección; el aviso informa cuántas se agregaron. Deshacer retira solo las recién agregadas.
    - **A mano:** al escribir el código sugiere códigos (por número o por nombre) y llena el nombre (AX o inventario);
@@ -43,7 +43,7 @@ aquí.
    entradas.
 4. **Hoja y logos** (ventana *Hoja, medidas y logos*; hasta la Ronda 21 se llamaba *Diseño y logos*): plantilla (las del
    generador, incluida la precortada **J-5163 / Avery 5163**), hoja Carta / A4, márgenes, tamaño, separaciones (mm, cm o
-   `4in`) y borde. Muestra una etiqueta a tamaño real y la hoja completa. La hoja es **la misma en DLTA y GSM**; logos y
+   `4in`) y borde. Muestra una etiqueta a tamaño real y la hoja completa. La hoja es **la misma en Inventario A y Inventario B**; logos y
    texto, **por inventario**. Desde la Ronda 22 la letra ya no está aquí: va en el **diseño** (ver abajo).
 5. **Diseño de cada lista** (Ronda 22): en la tarjeta *Por imprimir*, *Diseño: …* dice con cuál se imprime la lista y lo
    cambia ahí mismo; *Editor de diseños* abre el editor.
@@ -59,7 +59,7 @@ aquí.
 | Foto del vale con **Gemini** | **De un vale de entrada** | Aquí no hay red (CSP `connect-src 'none'`). La foto ya se captura al registrar la entrada (Copilot) y de ahí salen las etiquetas. En el teléfono, el generador sigue leyendo fotos. |
 | Inventario Excel (en memoria) | **Del inventario** | Con el inventario vivo (existencias del día), no con un archivo. |
 | Listas de códigos AX (CSV / Excel) | Catálogo de artículos + reporte de AX | No se importan listas: el nombre sale del reporte de AX o del inventario. |
-| Condición (NUEVO / USADO NUEVO / RESGUARDO) | **INVENTARIO** (DLTA / GSM) | Lleva el logo derecho de su inventario. |
+| Condición (NUEVO / USADO NUEVO / RESGUARDO) | **INVENTARIO** (Inventario A / Inventario B) | Lleva el logo derecho de su inventario. |
 | Logo derecho por partida (biblioteca, «uno por inventario») | Logos por inventario | La etiqueta toma los de su inventario; no se elige logo por partida. |
 | Logos por URL | Solo archivo o los del vale | Sin red; van como `data:` (≤ 300 KB, reducidos a 800 px). |
 | Exportar / importar `.json` | Importar `.json` | Formato `etiquetas-almacen` v1: `materials` (cantidad, codigoAx, nombre, dimension, noParte, descripcion, area) y `axItems` (cantidad, codigoAx, nombre). Cada campo se limpia. |
@@ -67,16 +67,16 @@ aquí.
 | Diseño de plantilla, cuadrícula calculada | Igual (`impresion/etiquetas.js`) | `cuadricula` = `Layout.computeGrid`; mismas plantillas y mismas medidas. |
 | Etiqueta Material / Código AX | Igual | Mismos campos y orden; *CONDICION* → *INVENTARIO*. Texto vacío = `N/A`, nombre largo con «…». |
 
-## DLTA y GSM en una sola impresión (Ronda 21)
+## Inventario A y Inventario B en una sola impresión (Ronda 21)
 
 Comentarios del usuario: la ventana *Del inventario* obligaba a hacer scroll para ver *Cancelar* / *Agregar*, y aunque una
-etiqueta podía decir DLTA o GSM, al cambiar de inventario la lista no se conservaba ni se podía traer material del otro.
+etiqueta podía decir Inventario A o Inventario B, al cambiar de inventario la lista no se conservaba ni se podía traer material del otro.
 Decisión: **las dos cosas**.
 
-- **Una sola lista y una sola bitácora** para DLTA y GSM: se agrega en uno, se cambia arriba al otro y la lista sigue ahí;
-  se imprime todo junto. La marca *Etiquetas impresas* llega a la entrada de **su** inventario (la de GSM se ve en el
-  historial de GSM aunque se haya impreso desde DLTA).
-- **Leer el otro sin cambiar:** en *Del inventario* y *De un vale de entrada*, **Datos de: DLTA | GSM**. El otro se lee
+- **Una sola lista y una sola bitácora** para Inventario A y Inventario B: se agrega en uno, se cambia arriba al otro y la lista sigue ahí;
+  se imprime todo junto. La marca *Etiquetas impresas* llega a la entrada de **su** inventario (la de Inventario B se ve en el
+  historial de Inventario B aunque se haya impreso desde Inventario A).
+- **Leer el otro sin cambiar:** en *Del inventario* y *De un vale de entrada*, **Datos de: Inventario A | Inventario B**. El otro se lee
   de su base tal como quedó guardado (copia en memoria, migrada); **nunca se escribe en él**. Sus etiquetas llevan su
   inventario (y su logo). *Entradas recientes sin etiquetas* muestra las de los dos.
 - **Ventanas sin scroll:** *Del inventario* y *De un vale de entrada* ocupan casi toda la pantalla; la tabla toma lo que
@@ -100,7 +100,7 @@ y se corrigió:
   huella se reconoce solo por el id, y al juntar dos copias de la misma impresión se queda la que trae la huella).
 - **Restaurar un respaldo del formato 10 no vuelve a juntar** su lista vieja (sus etiquetas ya se imprimieron o se
   quitaron): al restaurar gana la lista compartida.
-- **Ids sin choques:** `DLTA-12-mg3k9x2a` (llevan el momento de creación); la bitácora se junta por id + fecha, así dos
+- **Ids sin choques:** `INV_A-12-mg3k9x2a` (llevan el momento de creación); la bitácora se junta por id + fecha, así dos
   impresiones distintas con el mismo id viejo se conservan las dos.
 - **Reloj del equipo:** `cambiado_en` nunca va hacia atrás (si el reloj se adelantó y se corrigió, el siguiente cambio
   sigue ganando).
@@ -108,22 +108,22 @@ y se corrigió:
   entradas (`registroParaLeer`).
 - **Interfaz:** las ventanas ya no rebasan la pantalla en anchos angostos (`.ventana { min-width: 0 }`); *Del
   inventario* conserva las marcas de cada inventario al cambiar *Datos de* y agrega las de los dos; el aviso de
-  «impresas» muestra los folios (también los de GSM); volver a pulsar el inventario activo no borra lo elegido; títulos
+  «impresas» muestra los folios (también los de Inventario B); volver a pulsar el inventario activo no borra lo elegido; títulos
   con «código AX»; etiqueta *Inventario en la etiqueta* sin encimarse; anillo de foco completo en la lista de entradas.
 
 ## Datos (formatos 10 a 12)
 
-- `estado.etiquetas = { material: [...], ax: [...], cambiado_en }`: lo que está por imprimir (de DLTA y GSM). Cada
-  etiqueta: `id` (`DLTA-12`), `cantidad` (1–999), `codigo`, `nombre`, `dimension`, `np`, `descripcion`, `area` (las de
-  código AX solo código y nombre), `inventario` (`DLTA` | `GSM`), `origen` (`{ tipo: "ENTRADA", inventario, vale_id, emitido_en,
+- `estado.etiquetas = { material: [...], ax: [...], cambiado_en }`: lo que está por imprimir (de Inventario A y Inventario B). Cada
+  etiqueta: `id` (`INV_A-12`), `cantidad` (1–999), `codigo`, `nombre`, `dimension`, `np`, `descripcion`, `area` (las de
+  código AX solo código y nombre), `inventario` (los ids definidos en `src/nucleo/inventarios.js`), `origen` (`{ tipo: "ENTRADA", inventario, vale_id, emitido_en,
   folio, folio_externo, linea_id }`, `{ tipo: "INVENTARIO", inventario, existencia_id, hoja }`, `{ tipo: "MANUAL" }` o
   `{ tipo: "ARCHIVO", archivo }`) y `agregada_en`. Es una **copia**: si después cambia el inventario, la etiqueta no cambia.
 - `estado.impresiones_etiquetas = [{ id, fecha_hora, usuario, tipo, partidas, etiquetas, vales: [{ inventario, vale_id }] }]`:
   bitácora (cada marca con `emitido_en` de la entrada). Una entrada «tiene etiquetas» si aparece en `vales` de alguna
   impresión con su id y su `emitido_en`. **Los vales no se tocan.**
 - `config.etiquetas = { diseno: { hoja, margen_sup, margen_lat, ancho, alto, sep_x, sep_y, fuente, borde },
-  identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: {…} } }`: **compartido** entre DLTA y GSM
-  (`VALORES_COMPARTIDOS.etiquetas`), así una etiqueta de GSM lleva el logo de GSM aunque se imprima desde DLTA. En la
+  identidad: { <id_a>: { logo_izq, logo_der, texto }, <id_b>: {…} } }`: **compartido** entre Inventario A y Inventario B
+  (`VALORES_COMPARTIDOS.etiquetas`), así una etiqueta de Inventario B lleva el logo de Inventario B aunque se imprima desde Inventario A. En la
   bitácora de sincronización las imágenes se anotan por su tamaño (`sinImagenes`), no completas.
 - Código: `servicios/etiquetas.js` (propuestas, lista, bitácora, lista del generador, `adoptarListaEtiquetas`,
   `juntarImpresiones`), `ui/sesion.js` (`estadoDeInventario`: el otro, solo para leer) y `main.js` (`leerOtroInventario`), `impresion/etiquetas.js` (hojas y
@@ -137,7 +137,7 @@ En el código se llaman **modelos** (`impresion/modelos.js`) para no confundirlo
 
 - `config.etiquetas.modelos = [{ id, nombre, elementos, creado_en, cambiado_en }]` y
   `config.etiquetas.modelo_por_tipo = { material: id, ax: id }`: van dentro de `config.etiquetas`, así que se comparten
-  entre DLTA y GSM sin nada aparte (gana el último cambio completo de `config.etiquetas`, como el diseño y los logos).
+  entre Inventario A y Inventario B sin nada aparte (gana el último cambio completo de `config.etiquetas`, como el diseño y los logos).
   **No cambia `FORMATO_ESTADO`.** En la bitácora de sincronización cada diseño se anota por su nombre y su número de
   elementos.
 - Dos de fábrica, **constantes de solo lectura** que no se guardan: `fabrica-material` y `fabrica-ax` (lo que se imprimía
@@ -176,11 +176,11 @@ propios). Tres zonas:
 
 - **Izquierda — diseños:** los de fábrica con candado (**solo lectura**), los guardados, *+ Nuevo* (en blanco o a partir del
   abierto), *Duplicar*, *Renombrar*, *Borrar* (con *Deshacer* en el aviso) y *Usar para Material* / *Usar para Código AX*
-  con pastillas de qué lista usa cada uno (vale para DLTA y GSM). La copia de «Material (de fábrica)» se llama «Material
+  con pastillas de qué lista usa cada uno (vale para Inventario A y Inventario B). La copia de «Material (de fábrica)» se llama «Material
   (copia)».
 - **Centro — la etiqueta grande** al tamaño de la plantilla actual (mm reales escalados para llenar el espacio; *Ajustar*,
   −/+ y *Tamaño real*), siempre en blanco aunque el tema sea oscuro. Datos: la primera etiqueta de la lista del tipo o la
-  muestra del núcleo (`muestraEtiqueta`); *Ver como* Material / Código AX y DLTA / GSM (logos y texto de almacén de cada
+  muestra del núcleo (`muestraEtiqueta`); *Ver como* Material / Código AX y Inventario A / Inventario B (logos y texto de almacén de cada
   uno). Cada elemento es **el mismo HTML que se imprime** (`htmlElemento`, en una envoltura `display: contents`) y encima va
   una capa con su marco, las 8 asas, la cuadrícula (1, 2 o 5 %) y las guías. Lo que con esos datos no se dibuja (logo sin
   imagen, texto de almacén vacío, QR sin datos) lleva un marco propio que dice por qué.
@@ -211,8 +211,8 @@ propios). Tres zonas:
   QR de menos de **12 mm** de lado, barras más delgadas que **0.25 mm** o de menos de **5 mm** de alto; campos que la
   etiqueta de código AX no trae.
 - **Responsivo:** 236 / flexible / 330 px a 1366, más anchos desde 1600; en menos de 900 px una zona a la vez con pestañas
-  *Diseños / Etiqueta / Propiedades* (sin scroll horizontal). Tokens de color del tema y de GSM; la selección, la
-  cuadrícula y las guías tienen colores fijos (van sobre la etiqueta blanca): azul en DLTA, morado en GSM.
+  *Diseños / Etiqueta / Propiedades* (sin scroll horizontal). Tokens de color del tema y de Inventario B; la selección, la
+  cuadrícula y las guías tienen colores fijos (van sobre la etiqueta blanca): azul en Inventario A, morado en Inventario B.
 - Preferencias del editor (cuadrícula, imán y paso) en `localStorage` (solo comodidad de quien lo usa).
 - **Lógica sin DOM** en `impresion/lienzo.js` (pruebas `tests/lienzo.test.js`): `pxAPorciento`, `porcientoAMm`,
   `letraEnMedidas`, `zoomParaAjustar`, `imantar`, `moverCaja`, `fijarCaja`, `redimensionar` (8 asas), `lineasGuia`,
@@ -231,7 +231,7 @@ imprimir (no en *flex*: los saltos de página dentro de un flex no siempre se re
 
 ## Apuntes
 
-- El nombre de AX solo existe si se importó un reporte en *Conciliación AX*; mientras tanto, sale la descripción del
+- El nombre de AX solo existe si se importó un reporte en *conciliación con Dynamics AX*; mientras tanto, sale la descripción del
   inventario (la misma de los vales).
 - Un logo del vale que el navegador no pueda redibujar (p. ej. un PNG raro) se usa tal cual si es PNG/JPG de menos de
   300 KB; si no, hay que subirlo de un archivo.
@@ -247,4 +247,4 @@ imprimir (no en *flex*: los saltos de página dentro de un flex no siempre se re
 | P-25 | ¿Se imprimen etiquetas también al **devolver** material (entrada copiada de un vale de salida)? | Sí, igual que cualquier entrada (ya funciona). |
 | P-26 | ¿Hace falta mandar la lista **de aquí al teléfono** (exportar el `.json` para el generador)? | No por ahora: el flujo es teléfono → PC. |
 | P-27 | Con muchas piezas (p. ej. 200 tornillos) ¿una por pieza o un tope? | Una por pieza hasta 999 por partida y 2000 por impresión; se baja a mano. Si molesta, poner un tope sugerido (p. ej. 20). |
-| P-28 | ¿El texto de almacén es el mismo en DLTA y GSM («BRONCO RIG-91»)? | Se guarda por inventario; si es el mismo, se escribe en los dos. |
+| P-28 | ¿El texto de almacén es el mismo en Inventario A y Inventario B («ALMACÉN»)? | Se guarda por inventario; si es el mismo, se escribe en los dos. |

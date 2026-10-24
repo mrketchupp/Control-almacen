@@ -7,6 +7,7 @@ import { FORMATO_ESTADO, migrarEstado } from "../src/nucleo/estado.js";
 import { calcularSaldos, cortesVigentes } from "../src/nucleo/existencias.js";
 import { lineasPorUbicar, resumen } from "../src/servicios/consultas.js";
 import * as co from "../src/servicios/conteos.js";
+import { estadoAlCierre } from "../src/servicios/corte.js";
 import * as en from "../src/servicios/entradas.js";
 import { historialReacomodos, reacomodar } from "../src/servicios/reacomodos.js";
 import * as v from "../src/servicios/vales.js";
@@ -44,7 +45,7 @@ test("un conteo parcial reinicia CONSUMO/INGRESO solo en los contenedores contad
   assert.ok(filas.every((f) => f.ubicacion_id === c1inv.id));
   assert.equal(filas.find((f) => f.id === balero1.id).teorico.toFixed(), "5");
   co.guardarConteoEnCurso(estado, { ...datos, capturas: { [balero1.id]: "4", [balero1b.id]: "6" } });
-  assert.deepEqual(co.resumenConteo(estado), { renglones: filas.length, contados: 2, faltan: filas.length - 2, con_diferencia: 1, sobrantes: 0 });
+  assert.deepEqual(co.resumenConteo(estado), { renglones: filas.length, contados: 2, faltan: filas.length - 2, con_diferencia: 1, sobrantes: 0, corregidas: 0, retiradas: 0 });
 
   const conteo = co.aplicarConteo(estado, { usuario: USUARIO });
   assert.equal(estado.conteo_en_curso, null);
@@ -175,4 +176,98 @@ test("renglones por ubicar respetan el corte de cada renglón; un respaldo del f
   assert.equal(b.destino, "RIG 91");
   co.iniciarConteo(viejo, {});
   assert.ok(viejo.conteo_en_curso);
+});
+
+test("las correcciones del conteo se guardan como borrador y descartarlas conserva el inventario", () => {
+  const { estado, renglones } = preparar();
+  const [partida] = renglones(701), antes = JSON.stringify([estado.existencias, estado.variantes, estado.vales]);
+  const datos = co.iniciarConteo(estado, { fecha: "2026-10-05" });
+  co.guardarConteoEnCurso(estado, { ...datos, correcciones: [{ existencia_id: partida.id, dimension: "DIMENSION SINTETICA", np: "NP SINTETICO", motivo: "Etiqueta ilegible" }] });
+  assert.equal(co.correccionesDelConteo(estado)[0].dimension, "DIMENSION SINTETICA");
+  assert.equal(co.resumenConteo(estado).corregidas, 1);
+  assert.deepEqual(co.validarConteo(estado), []);
+  assert.equal(JSON.stringify([estado.existencias, estado.variantes, estado.vales]), antes);
+  co.descartarConteo(estado, USUARIO);
+  assert.equal(JSON.stringify([estado.existencias, estado.variantes, estado.vales]), antes);
+});
+
+test("corregir dimensión y NP sin capturar cantidad conserva saldo, corte y movimientos posteriores", () => {
+  const { estado, renglones, salida } = preparar();
+  const [partida] = renglones(701), conteoAnterior = partida.conteo_id, cantidadAnterior = partida.cantidad_conteo;
+  const datos = co.iniciarConteo(estado, { fecha: "2026-10-05" });
+  salida([[partida.id, "1"]], "2026-10-05");
+  const antes = saldo(estado, partida.id).total.toFixed(), vales = JSON.stringify(estado.vales);
+  co.guardarConteoEnCurso(estado, { ...datos, correcciones: [{ existencia_id: partida.id, dimension: "DIMENSION CORREGIDA", np: "NP NUEVO", motivo: "Corregir la etiqueta" }] });
+  const conteo = co.aplicarConteo(estado, { usuario: USUARIO });
+  const variante = estado.variantes.find((v) => v.id === partida.variante_id);
+  assert.deepEqual([variante.dimension, variante.np], ["DIMENSION CORREGIDA", "NP NUEVO"]);
+  assert.deepEqual([partida.cantidad_conteo, partida.conteo_id, saldo(estado, partida.id).total.toFixed()], [cantidadAnterior, conteoAnterior, antes]);
+  assert.equal(JSON.stringify(estado.vales), vales);
+  assert.equal(conteo.lineas.length, 0);
+  assert.equal(conteo.correcciones.length, 1);
+  assert.equal(co.historialConteos(estado)[0].correcciones[0].motivo, "Corregir la etiqueta");
+});
+
+test("corregir una partida de una variante repetida mantiene separadas las otras y respeta el conteo parcial", () => {
+  const { estado, renglones } = preparar();
+  const [partida, , otra] = renglones(701), varianteOriginal = otra.variante_id;
+  const datos = co.iniciarConteo(estado, { ubicaciones: [partida.ubicacion_id], fecha: "2026-10-05" });
+  co.guardarConteoEnCurso(estado, { ...datos, capturas: { [partida.id]: "3" }, correcciones: [{ existencia_id: partida.id, dimension: "6309 SINTETICO", np: "" }] });
+  co.aplicarConteo(estado);
+  assert.equal(otra.variante_id, varianteOriginal);
+  assert.notEqual(partida.variante_id, varianteOriginal);
+  assert.equal(saldo(estado, partida.id).total.toFixed(), "3");
+  assert.equal(otra.conteo_id, 1);
+});
+
+test("quitar una partida conserva su ID y vales; el cierre anterior vuelve a mostrarla con su cantidad", () => {
+  const { estado, renglones, salida } = preparar();
+  const [partida] = renglones(701);
+  salida([[partida.id, "1"]], "2026-10-01");
+  const anterior = saldo(estado, partida.id).total.toFixed(), vales = JSON.stringify(estado.vales);
+  const datos = co.iniciarConteo(estado, { fecha: "2026-10-05" });
+  co.guardarConteoEnCurso(estado, { ...datos, correcciones: [{ existencia_id: partida.id, quitar: true, motivo: "Partida duplicada" }] });
+  assert.equal(co.renglonesDelConteo(estado).find((f) => f.id === partida.id).capturado, "0");
+  const conteo = co.aplicarConteo(estado);
+  assert.equal(estado.existencias.find((e) => e.id === partida.id), partida);
+  assert.equal(partida.activo, false);
+  assert.equal(partida.cantidad_conteo, "0");
+  assert.equal(saldo(estado, partida.id).total.toFixed(), "0");
+  assert.equal(JSON.stringify(estado.vales), vales);
+  assert.equal(conteo.lineas.find((l) => l.existencia_id === partida.id).activo_anterior, true);
+  const cierre = estadoAlCierre(estado, "2026-10-04").estado;
+  assert.notEqual(cierre.existencias.find((e) => e.id === partida.id).activo, false);
+  assert.equal(saldo(cierre, partida.id).total.toFixed(), anterior);
+});
+
+test("quitar y deshacer en el borrador recupera la cantidad que ya se había capturado", () => {
+  const { estado, renglones } = preparar();
+  const [partida] = renglones(701), datos = co.iniciarConteo(estado);
+  co.guardarConteoEnCurso(estado, { ...datos, capturas: { [partida.id]: "4" }, correcciones: [{ existencia_id: partida.id, quitar: true }] });
+  assert.equal(co.renglonesDelConteo(estado).find((f) => f.id === partida.id).capturado, "0");
+  co.guardarConteoEnCurso(estado, { ...estado.conteo_en_curso, correcciones: [] });
+  assert.equal(co.renglonesDelConteo(estado).find((f) => f.id === partida.id).capturado, "4");
+});
+
+test("quitar una partida con vales emitidos durante el conteo exige reflejar esos movimientos", () => {
+  const { estado, renglones, salida } = preparar();
+  const [partida] = renglones(701), datos = co.iniciarConteo(estado);
+  salida([[partida.id, "1"]]);
+  co.guardarConteoEnCurso(estado, { ...datos, correcciones: [{ existencia_id: partida.id, quitar: true }] });
+  const antes = JSON.stringify(estado);
+  assert.throws(() => co.aplicarConteo(estado), /movimientos posteriores/);
+  assert.equal(JSON.stringify(estado), antes);
+  co.aplicarConteo(estado, { corteAlAplicar: true });
+  assert.equal(saldo(estado, partida.id).total.toFixed(), "0");
+  assert.equal(partida.activo, false);
+});
+
+test("un lote de correcciones inválido no aplica cambios ni permite tocar otro contenedor", () => {
+  const { estado, renglones } = preparar();
+  const [partida, , fuera] = renglones(701), datos = co.iniciarConteo(estado, { ubicaciones: [partida.ubicacion_id] });
+  co.guardarConteoEnCurso(estado, { ...datos, correcciones: [{ existencia_id: partida.id, dimension: "CAMBIO VALIDADO", np: "" }, { existencia_id: fuera.id, quitar: true }] });
+  const antes = JSON.stringify(estado);
+  assert.throws(() => co.aplicarConteo(estado), co.ErrorConteo);
+  assert.equal(JSON.stringify(estado), antes);
+  assert.ok(co.validarConteo(estado).some((e) => e.id === fuera.id));
 });

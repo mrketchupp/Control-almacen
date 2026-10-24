@@ -8,9 +8,9 @@ Hay tres archivos, cada uno con un papel distinto:
 
 | Archivo | Papel | Quién lo edita |
 |---|---|---|
-| `DELTA RIG 91 <fecha>.xlsx` | Inventario **auditable** de AX (la referencia oficial) | Nadie en el RIG: lo genera la base operativa desde AX |
-| `INVENTARIO DE REFACCIONAMIENTO DLTA DE ALMACEN <fecha>.xlsx` | Control **físico** por contenedor | Almacenista |
-| `VALES DE SALIDA DLTA.xlsm` | Emisión de vales e historial (hoja `DIARIO`) | Almacenista |
+| `REPORTE DE EXISTENCIAS <fecha>.xlsx` | Inventario **auditable** de AX (la referencia oficial) | Nadie en el equipo: lo genera la base operativa desde AX |
+| `INVENTARIO DE ALMACEN <inventario> <fecha>.xlsx` | Control **físico** por contenedor | Almacenista |
+| `VALES DE SALIDA <inventario>.xlsm` | Emisión de vales e historial (hoja `DIARIO`) | Almacenista |
 
 **Analogía:** funciona como una conciliación bancaria.
 
@@ -22,7 +22,7 @@ La diferencia entre AX y lo físico debe explicarse por los "cheques en tránsit
 
 ```mermaid
 flowchart LR
-    subgraph RIG["RIG 91 (almacén)"]
+    subgraph equipo["EQUIPO (almacén)"]
         F[Inventario físico<br/>por contenedor]
         V[Vales de salida<br/>hoja DIARIO]
     end
@@ -37,10 +37,10 @@ flowchart LR
 
 ---
 
-## 1. Inventario AX — `DELTA RIG 91 <fecha>.xlsx`
+## 1. Reporte de Dynamics AX — `REPORTE DE EXISTENCIAS <fecha>.xlsx`
 
 - Es una exportación del reporte de Dynamics AX `rptInventSumDateTransForDimensions` (inventario por fecha con dimensiones). La hoja se llama `rptInventSumDateTransForDimensi`.
-- El reporte original incluye **todos los almacenes**; el usuario filtra el suyo (`RIG91-IX25`). La herramienta debe aceptar tanto el reporte completo como el ya filtrado.
+- El reporte original incluye **todos los almacenes**; el usuario filtra el suyo (`EQUIPO`). La herramienta debe aceptar tanto el reporte completo como el ya filtrado.
 - La muestra tiene 244 renglones y 94 códigos, todos con Modelo de inventario `INV`.
 
 | Col | Encabezado | Notas |
@@ -49,7 +49,7 @@ flowchart LR
 | B | Nombre del Artículo | |
 | C | Modelo de Inventario | `INV` en la muestra (en el historial también aparece `CONPROV`) |
 | D | Unidad de Medida | `PZA`, `KIT`, `JGO`, `m`… |
-| E | Almacén | `RIG91-IX25` |
+| E | Almacén | `EQUIPO` |
 | F | Tamaño | **Dimensión 1. AX la corta a 10 caracteres** (`MARIPOSA12`, `0509-7901-`) |
 | G | Color | Dimensión 2 (a veces marca, NP o medida secundaria) |
 | H | Disponible | Cantidad |
@@ -96,12 +96,12 @@ flowchart LR
 - Un mismo artículo puede estar en varios contenedores. Por ejemplo, el INYECTOR 246-1854 tiene 4 en C1 y 3 en C3, que suman 7, igual que en AX.
 - Tres hojas tienen notas de celda (comentarios) con pendientes de revisión.
 
-## 3. Vales — `VALES DE SALIDA DLTA.xlsm`
+## 3. Vales — `VALES DE SALIDA <inventario>.xlsm`
 
 ### Estructura
 - `DIARIO`: el historial. 1,294 renglones, folios 1–554, del 23-dic-2025 al 29-sep-2026.
-- 11 hojas-formulario, una por área: `SOLDADOR`, `TOP DRIVE`, `ELECTRONICO`, `ELECTRICO`, `MECANICO ` (espacio final), `OPERACION DIA ` (espacio final), `OPERACION NOCHE`, `RIG MANAGER`, `CONTROL DE SOLIDOS`, `NOV`, `TRANSFERENCIAS`.
-- Cada formulario trae el logo "MX DLTA NRG 1", botones de dibujo **GRABAR** (macro `PasarDatos`) y **LIMPIAR DATOS** (`LimpiarManual`), y copias propias del catálogo y de las listas desplegables. Por eso el archivo pesa 3.6 MB.
+- 11 hojas-formulario, una por área: `SOLDADOR`, `TOP DRIVE`, `ELECTRONICO`, `ELECTRICO`, `MECANICO ` (espacio final), `OPERACION DIA ` (espacio final), `OPERACION NOCHE`, `RESPONSABLE`, `CONTROL DE SOLIDOS`, `NOV`, `TRANSFERENCIAS`.
+- Cada formulario trae el logo "ALMACÉN A", botones de dibujo **GRABAR** (macro `PasarDatos`) y **LIMPIAR DATOS** (`LimpiarManual`), y copias propias del catálogo y de las listas desplegables. Por eso el archivo pesa 3.6 MB.
 
 ### Campos del formulario (área de impresión `C5:K62`)
 | Celda | Campo |

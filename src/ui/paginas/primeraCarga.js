@@ -7,8 +7,7 @@ import { leerVales } from "../../importadores/vales.js";
 import { agregarAlmacenista, fijarUsuarioEnTurno } from "../../servicios/consultas.js";
 import { ejecutarPrimeraCarga, fechaDesdeNombre, sugerirFolioCorte } from "../../servicios/primeraCarga.js";
 import { generarRevision, leerRevision } from "../../servicios/revision.js";
-import { otrosInventarios } from "../../nucleo/inventarios.js";
-import { Aviso, Boton, Dato, Detalles, ElegirArchivo, Tabla, Tarjeta, confirmar, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, Dato, Detalles, ElegirArchivo, Tabla, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { seguirConArchivo } from "../inventario.js";
 
@@ -39,7 +38,7 @@ function Paso({ numero, titulo, listo, deshabilitado, children }) {
     <header class="tarjeta-cabeza">
       <h2><span class="paso-numero">${listo ? "✓" : numero}</span>${titulo}</h2>
     </header>
-    ${deshabilitado ? html`<p class="nota">Completa el paso anterior.</p>` : children}
+    ${deshabilitado ? html`<p class="nota">${numero === "2" ? "Elige los dos archivos para continuar." : "Completa los datos del conteo base."}</p>` : children}
   </section>`;
 }
 
@@ -47,12 +46,11 @@ export function ReporteCarga({ reporte }) {
   const hojas = reporte.hojas.map((h) => ({ ...h, id: h.hoja, ok: h.total_archivo.eq(h.total_calculado) }));
   return html`
     ${reporte.cuadra
-      ? html`<${Aviso} tipo="exito" titulo="El inventario calculado coincide con tu archivo">Partida por partida, hoja por hoja.<//>`
+      ? html`<${Aviso} tipo="exito" titulo="El inventario coincide con tu archivo" />`
       : html`<${Aviso} tipo="advertencia" titulo="Hay diferencias contra tu archivo">
-          Es normal si tu Excel aún no descontaba los vales posteriores al conteo. Revisa la tabla de diferencias: cada
-          partida dice qué consumo tenía el archivo y cuál calcula la herramienta a partir de los vales.
+          Revisa el antes y el después de cada partida.
         <//>`}
-    <div class="datos">
+    <div class="datos carga-resumen">
       <${Dato} etiqueta="Partidas de inventario" valor=${num(reporte.existencias)} detalle=${`${reporte.variantes} variantes`} />
       <${Dato} etiqueta="Artículos" valor=${num(reporte.articulos)} detalle=${`${reporte.articulos_por_confirmar.length} por confirmar`} />
       <${Dato} etiqueta="Vales migrados" valor=${num(reporte.vales)} detalle=${`${reporte.lineas_migradas} de ${reporte.renglones_diario} partidas del DIARIO`} />
@@ -63,7 +61,7 @@ export function ReporteCarga({ reporte }) {
     ${reporte.advertencias.length
       ? html`<${Aviso} tipo="advertencia" titulo="Advertencias de la lista de revisión"><ul>${reporte.advertencias.map((a) => html`<li>${a}</li>`)}</ul><//>`
       : null}
-    <h3>Totales por hoja</h3>
+    <${Detalles} resumen=${`Totales por hoja (${hojas.length})`}>
     <${Tabla}
       filas=${hojas}
       columnas=${[
@@ -75,8 +73,9 @@ export function ReporteCarga({ reporte }) {
         { titulo: "", render: (h) => (h.ok ? html`<span class="ok">✓</span>` : html`<span class="alerta">≠</span>`) },
       ]}
     />
+    <//>
     ${reporte.diferencias.length
-      ? html`<h3>Diferencias por partida (${reporte.diferencias.length})</h3>
+      ? html`<${Detalles} resumen=${`Diferencias por partida (${reporte.diferencias.length})`} abierto=${true}>
           <${Tabla}
             filas=${reporte.diferencias.map((d, i) => ({ ...d, id: i }))}
             columnas=${[
@@ -87,11 +86,12 @@ export function ReporteCarga({ reporte }) {
               { titulo: "Consumo archivo → calculado", numero: true, render: (d) => `${n(d.archivo_consumo)} → ${n(d.calculado_consumo)}` },
               { titulo: "Ingreso archivo → calculado", numero: true, render: (d) => `${n(d.archivo_ingreso)} → ${n(d.calculado_ingreso)}` },
             ]}
-          />`
+          />
+        <//>`
       : null}
     ${reporte.por_ubicar.length
-      ? html`<h3>Partidas por ubicar (${reporte.por_ubicar.length})</h3>
-          <p class="nota">Vales posteriores al conteo cuya partida de inventario no se pudo decidir sola. Se resuelven en <em>Pendientes</em>.</p>
+      ? html`<${Detalles} resumen=${`Partidas por ubicar (${reporte.por_ubicar.length})`}>
+          <p class="nota">Podrás asignarlas en Pendientes después de cargar.</p>
           <${Tabla}
             filas=${reporte.por_ubicar.map((p, i) => ({ ...p, id: i }))}
             columnas=${[
@@ -103,7 +103,8 @@ export function ReporteCarga({ reporte }) {
               { titulo: "Cantidad", numero: true, render: (p) => n(p.cantidad) },
               { clave: "candidatos", titulo: "Candidatos", numero: true },
             ]}
-          />`
+          />
+        <//>`
       : null}
     <${Detalles} resumen=${`Partidas omitidas del DIARIO (${reporte.omitidos.length})`}>
       <${Tabla}
@@ -221,7 +222,7 @@ export function PaginaPrimeraCarga() {
     });
 
   const cargar = () => {
-    if (!confirmar(`Se guardarán como el inventario ${sesion.inventario.id} en este equipo y tus archivos quedarán como sus plantillas de exportación. ¿Continuar?`)) return;
+    if (!confirmar(`¿Guardar la carga de ${sesion.inventario.id} en este equipo y crear el primer respaldo?`)) return;
     return sesion.tarea("Guardando la carga…", async () => {
       // Se vuelve a ejecutar para guardar exactamente lo que se ensayó con las opciones actuales.
       const nombre = usuario.trim().toUpperCase();
@@ -246,66 +247,69 @@ export function PaginaPrimeraCarga() {
   };
 
   const r = revision?.respuestas;
+  const partidasInventario = inventario?.libro.hojas.reduce((total, hoja) => total + hoja.renglones.length, 0) ?? 0;
   return html`
-    <p class="introduccion">
-      Convierte tus Excel actuales en los datos de la herramienta. Tus archivos <strong>no se modifican</strong>: se leen
-      aquí mismo, en tu equipo, y se guardan como plantillas para exportar.
-    </p>
-    <${Aviso} tipo="info" titulo=${`Primera carga del inventario ${sesion.inventario.id}`}>
-      Usa el inventario y el libro de vales de <strong>${sesion.inventario.id}</strong>. ${otrosInventarios(sesion.inventario.id).join(" y ")} lleva sus
-      datos por separado (folios, plantillas y respaldos): para cargarlo, cámbiate arriba, junto al nombre de la herramienta.
-    <//>
-    <${Paso} numero="1" titulo="Tus archivos" listo=${inventario && vales}>
-      <div class="rejilla-2">
-        <div>
+    <div class="primera-carga">
+    <div class="carga-introduccion">
+      <p>Carga los dos Excel de <strong>${sesion.inventario.id}</strong>, revisa el resultado y confirma.</p>
+      <span class="nota">Los archivos originales se conservan.</span>
+    </div>
+    <ol class="carga-progreso" aria-label="Progreso de la carga">
+      <li class=${inventario && vales ? "completo" : "actual"}>1. Archivos</li>
+      <li class=${opcionesListas ? "completo" : inventario && vales ? "actual" : ""}>2. Conteo base</li>
+      <li class=${ensayo ? "completo" : opcionesListas ? "actual" : ""}>3. Revisar y cargar</li>
+    </ol>
+    <${Paso} numero="1" titulo="Archivos de ${sesion.inventario.id}" listo=${inventario && vales}>
+      <div class="carga-archivos">
+        <div class=${`carga-archivo ${inventario ? "carga-archivo-listo" : ""}`}>
           <h3>Inventario físico (.xlsx)</h3>
-          <${ElegirArchivo} etiqueta=${inventario ? "Cambiar archivo" : "Elegir inventario"} acepta=".xlsx" alElegir=${cargarInventario} tipo=${inventario ? "secundario" : "primario"} />
+          <p class="nota">El Excel de existencias por contenedor.</p>
+          <${ElegirArchivo} etiqueta=${inventario ? "Cambiar inventario" : "Elegir inventario"} acepta=".xlsx" alElegir=${cargarInventario} tipo=${inventario ? "secundario" : "primario"} />
           ${inventario
             ? html`<p class="archivo">${inventario.nombre}</p>
-                <ul class="lista-simple">
-                  ${inventario.libro.hojas.map(
-                    (h) => html`<li>${h.nombre.trim()}: ${h.renglones.length} partidas ${h.filas_vacias.length ? html`<span class="nota">(${h.filas_vacias.length} vacías omitidas)</span>` : null}</li>`,
-                  )}
-                  <li>Catálogo ARTICULOS_MX: ${num(inventario.libro.catalogo.size)} códigos</li>
-                </ul>`
+                <p class="carga-archivo-estado">✓ ${num(partidasInventario)} partidas · ${inventario.libro.hojas.length} hojas</p>
+                <${Detalles} resumen="Ver hojas y catálogo">
+                  <ul class="lista-simple">
+                    ${inventario.libro.hojas.map(
+                      (h) => html`<li>${h.nombre.trim()}: ${h.renglones.length} partidas ${h.filas_vacias.length ? html`<span class="nota">(${h.filas_vacias.length} vacías omitidas)</span>` : null}</li>`,
+                    )}
+                    <li>Catálogo ARTICULOS_MX: ${num(inventario.libro.catalogo.size)} códigos</li>
+                  </ul>
+                <//>`
             : null}
         </div>
-        <div>
-          <h3>Libro de vales (.xlsm)</h3>
-          <${ElegirArchivo} etiqueta=${vales ? "Cambiar archivo" : "Elegir libro de vales"} acepta=".xlsm,.xlsx" alElegir=${cargarVales} tipo=${vales ? "secundario" : "primario"} />
+        <div class=${`carga-archivo ${vales ? "carga-archivo-listo" : ""}`}>
+          <h3>Vales de salida (.xlsm o .xlsx)</h3>
+          <p class="nota">El libro con la hoja DIARIO y los formatos de vales.</p>
+          <${ElegirArchivo} etiqueta=${vales ? "Cambiar libro de vales" : "Elegir libro de vales"} acepta=".xlsm,.xlsx" alElegir=${cargarVales} tipo=${vales ? "secundario" : "primario"} />
           ${vales
             ? html`<p class="archivo">${vales.nombre}</p>
-                <ul class="lista-simple">
-                  <li>DIARIO: ${num(resumen.renglones)} partidas, folios ${resumen.folioMin}–${resumen.folioMax}</li>
-                  <li>Fechas: ${fmtFecha(resumen.desde)} a ${fmtFecha(resumen.hasta)}</li>
-                  <li>Formularios de área: ${resumen.formularios} · catálogo: ${num(resumen.catalogo)} códigos</li>
-                </ul>`
+                <p class="carga-archivo-estado">✓ ${num(resumen.renglones)} partidas · folios ${resumen.folioMin ?? "—"}–${resumen.folioMax ?? "—"}</p>
+                <${Detalles} resumen="Ver fechas y formatos">
+                  <ul class="lista-simple">
+                    <li>Fechas: ${fmtFecha(resumen.desde)} a ${fmtFecha(resumen.hasta)}</li>
+                    <li>Formularios de área: ${resumen.formularios} · catálogo: ${num(resumen.catalogo)} códigos</li>
+                  </ul>
+                <//>`
             : null}
         </div>
       </div>
+      ${inventario && vales ? html`<${Detalles} resumen=${revision ? `Correcciones del historial: ${revision.nombre}` : "Corregir historial antes de cargar (opcional)"}>
+        <p class="nota">Descarga la lista de datos dudosos, corrígela en Excel y vuelve a subirla.</p>
+        <div class="acciones-linea">
+          <${Boton} onClick=${generarLista}>Generar lista de revisión<//>
+          <${ElegirArchivo} etiqueta=${revision ? "Cambiar lista contestada" : "Subir lista contestada"} acepta=".xlsx" alElegir=${cargarRevision} />
+          ${revision ? html`<${Boton} tipo="texto" onClick=${() => { setRevision(null); invalidar(); }}>Quitar<//>` : null}
+        </div>
+        ${revision ? html`<${Aviso} tipo="exito" titulo="Correcciones listas para revisar">
+          ${r.correcciones.size} partidas corregidas · ${r.eliminar.size} por eliminar · ${r.codigos.size} códigos ·
+          ${r.alias.size} nombres unificados · ${r.normalizaciones.size} valores normalizados
+          ${r.advertencias.length ? html`<ul>${r.advertencias.map((a) => html`<li>${a}</li>`)}</ul>` : null}
+        <//>` : null}
+      <//>` : null}
     <//>
 
-    <${Paso} numero="2" titulo="Lista de revisión (opcional, recomendada)" listo=${Boolean(revision)} deshabilitado=${!(inventario && vales)}>
-      <p>
-        Genera un Excel con las partidas dudosas del DIARIO (#REF!, duplicados, códigos fuera de catálogo, nombres
-        escritos distinto…). Contéstalo con tus PDF escaneados y súbelo aquí. Si no lo contestas, se aplican solo las
-        limpiezas automáticas.
-      </p>
-      <div class="acciones-linea">
-        <${Boton} onClick=${generarLista}>Generar lista de revisión<//>
-        <${ElegirArchivo} etiqueta=${revision ? "Cambiar lista contestada" : "Subir lista contestada"} acepta=".xlsx" alElegir=${cargarRevision} />
-        ${revision ? html`<${Boton} tipo="texto" onClick=${() => { setRevision(null); invalidar(); }}>Quitar<//>` : null}
-      </div>
-      ${revision
-        ? html`<${Aviso} tipo="exito" titulo=${`Respuestas leídas de ${revision.nombre}`}>
-            ${r.correcciones.size} partidas corregidas · ${r.eliminar.size} por eliminar · ${r.codigos.size} códigos ·
-            ${r.alias.size} nombres unificados · ${r.normalizaciones.size} valores normalizados
-            ${r.advertencias.length ? html`<ul>${r.advertencias.map((a) => html`<li>${a}</li>`)}</ul>` : null}
-          <//>`
-        : null}
-    <//>
-
-    <${Paso} numero="3" titulo="Conteo base" listo=${opcionesListas} deshabilitado=${!(inventario && vales)}>
+    <${Paso} numero="2" titulo="Conteo base" listo=${opcionesListas} deshabilitado=${!(inventario && vales)}>
       <div class="formulario">
         <label>
           <span>Fecha del conteo físico</span>
@@ -318,7 +322,7 @@ export function PaginaPrimeraCarga() {
               if (!folioManual) sugerirCorte(e.currentTarget.value);
             }}
           />
-          <small>Se toma del nombre del archivo de inventario.</small>
+          <small>Fecha sugerida desde el archivo.</small>
         </label>
         <label>
           <span>Último folio ya reflejado en el conteo (folio de corte)</span>
@@ -333,8 +337,8 @@ export function PaginaPrimeraCarga() {
             }}
           />
           <small>
-            Se descuentan del inventario los vales del <strong>${Number(folioCorte || 0) + 1}</strong> en adelante.
-            ${folioManual ? html` <a href="#carga" onClick=${(e) => { e.preventDefault(); setFolioManual(false); sugerirCorte(fechaConteo); }}>Usar sugerido</a>` : " (sugerido: último folio con fecha anterior al conteo)"}
+            Los vales posteriores al <strong>${folioCorte || "0"}</strong> se descontarán del inventario.
+            ${folioManual ? html` <a href="#carga" onClick=${(e) => { e.preventDefault(); setFolioManual(false); sugerirCorte(fechaConteo); }}>Usar sugerido</a>` : " Puedes ajustar el folio sugerido."}
           </small>
         </label>
         <label>
@@ -344,18 +348,15 @@ export function PaginaPrimeraCarga() {
       </div>
     <//>
 
-    <${Paso} numero="4" titulo="Ensayo y reporte" listo=${Boolean(ensayo)} deshabilitado=${!opcionesListas}>
-      <p>Hace la carga completa en memoria y muestra el reporte. <strong>No guarda nada.</strong></p>
+    <${Paso} numero="3" titulo="Revisar y cargar" listo=${Boolean(ensayo)} deshabilitado=${!opcionesListas}>
+      <p class="nota">Ensaya para revisar los datos antes de guardarlos.</p>
       <div class="acciones-linea"><${Boton} tipo=${ensayo ? "secundario" : "primario"} onClick=${ensayar}>${ensayo ? "Repetir ensayo" : "Ensayar"}<//></div>
-      ${ensayo ? html`<${ReporteCarga} reporte=${ensayo.reporte} />` : null}
+      ${ensayo ? html`<div class="carga-revision"><${ReporteCarga} reporte=${ensayo.reporte} /></div>
+        <div class="carga-confirmacion">
+          <div><strong>¿Todo revisado?</strong><p class="nota">Al guardar se crea el primer respaldo${sesion.carpetaLista ? html` en <code>${sesion.carpeta.name}</code>` : " en Descargas"}.</p></div>
+          <${Boton} tipo="primario" onClick=${cargar}>Cargar definitivamente<//>
+        </div>` : null}
     <//>
-
-    <${Paso} numero="5" titulo="Cargar" deshabilitado=${!ensayo}>
-      <p>
-        Guarda todo en este equipo, registra tus archivos como plantillas y crea el primer respaldo
-        ${sesion.carpetaLista ? html` en <code>${sesion.carpeta.name}</code>` : " (se descargará)"}.
-      </p>
-      <div class="acciones-linea"><${Boton} tipo="primario" onClick=${cargar}>Cargar definitivamente<//></div>
-    <//>
+    </div>
   `;
 }

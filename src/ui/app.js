@@ -150,7 +150,7 @@ function BotonMas({ enlaces, abierta, insignia }) {
   const avisos = enlaces.reduce((t, [clave]) => t + (Number(insignia[clave]) || 0), 0);
   const destino = enlaces.some(([clave]) => clave === ultimaSeccion) ? ultimaSeccion : enlaces[0]?.[0];
   return html`<div class="nav-mas">
-    <a class=${`nav-boton-mas ${abierta ? "activo" : ""}`} href=${`#${destino}`} aria-haspopup="dialog" aria-expanded=${abierta}>
+    <a class=${`nav-boton-mas ${abierta ? "activo" : ""}`} href=${`#${destino}`} title="Ajustes y más" aria-label="Ajustes y más" aria-haspopup="dialog" aria-expanded=${abierta}>
       <${Icono} nombre="ajustes" />
       <span class="nav-texto">Ajustes y más</span>
       ${avisos ? html`<span class="contador" title="Hay pendientes adentro">${avisos}</span>` : null}
@@ -221,19 +221,62 @@ function useEnlaces(actual) {
   return { principales, mas, insignia, titulos };
 }
 
-function Navegacion({ actual, masAbierta }) {
+const CLAVE_MENU = "control-almacen:menu-compacto";
+
+function menuRecordado() {
+  try { return localStorage.getItem(CLAVE_MENU) === "1"; } catch { return false; }
+}
+
+/** En ventanas medianas se usa una barra de iconos; el menú completo sigue disponible al pulsar. */
+function useMenuEstrecho() {
+  const [estrecho, setEstrecho] = useState(() => window.matchMedia("(max-width: 1100px)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1100px)"), cambiar = () => setEstrecho(media.matches);
+    media.addEventListener("change", cambiar);
+    return () => media.removeEventListener("change", cambiar);
+  }, []);
+  return estrecho;
+}
+
+function Navegacion({ actual, masAbierta, compacto, estrecho, alAlternar }) {
   const { principales, mas, insignia, titulos } = useEnlaces(actual);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const abrirMenu = () => setMenuAbierto(true), cerrarMenu = () => setMenuAbierto(false);
+  const enlace = ([clave, p], corto = false) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""}
+      title=${p.titulo} aria-label=${p.titulo} aria-current=${clave === actual ? "page" : null} onClick=${cerrarMenu}>
+    <${Icono} nombre=${p.icono} />
+    <span class="nav-texto">${corto && clave === "vales" ? "Salidas" : p.titulo}</span>
+    <${Insignia} clave=${clave} valor=${insignia[clave]} titulos=${titulos} />
+  </a>`;
+  const rapidos = principales.filter(([clave]) => ["inicio", "carga", "vales", "inventario"].includes(clave));
+  const destinoSecundario = masAbierta || !rapidos.some(([clave]) => clave === actual);
+  const textoAlternar = estrecho ? "Abrir menú de secciones" : compacto ? "Expandir menú lateral" : "Contraer menú lateral";
   return html`<nav class="navegacion" aria-label="Secciones">
-    <div class="nav-principal">
+    <button class="nav-alternar" type="button" title=${textoAlternar} aria-label=${textoAlternar}
+      aria-expanded=${estrecho ? menuAbierto : !compacto} aria-controls=${estrecho ? "menu-todas-secciones" : "menu-principal"}
+      onClick=${estrecho ? abrirMenu : alAlternar}>
+      <${Icono} nombre="mas" /><span class="nav-texto">Contraer menú</span>
+    </button>
+    <div class="nav-principal" id="menu-principal">
       ${principales.map(
-        ([clave, p]) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""} aria-current=${clave === actual ? "page" : null}>
-          <${Icono} nombre=${p.icono} />
-          <span class="nav-texto">${p.titulo}</span>
-          <${Insignia} clave=${clave} valor=${insignia[clave]} titulos=${titulos} />
-        </a>`,
+        (p) => enlace(p),
       )}
     </div>
     <${BotonMas} enlaces=${mas} abierta=${masAbierta} insignia=${insignia} />
+    <div class="nav-inferior" style=${{ "--nav-opciones": rapidos.length + 1 }}>
+      ${rapidos.map((p) => enlace(p, true))}
+      <button type="button" class=${destinoSecundario ? "activo" : ""} title="Todas las secciones" aria-label="Más secciones"
+        aria-haspopup="dialog" aria-expanded=${menuAbierto} aria-controls="menu-todas-secciones" onClick=${abrirMenu}>
+        <${Icono} nombre="mas" /><span class="nav-texto">Más</span>
+      </button>
+    </div>
+    ${menuAbierto ? html`<${Ventana} titulo="Todas las secciones" clase="ventana-secciones" alCerrar=${cerrarMenu}>
+      <nav class="menu-secciones" id="menu-todas-secciones" aria-label="Todas las secciones">
+        ${principales.map((p) => enlace(p))}
+        <p class="menu-grupo">Ajustes y más</p>
+        ${mas.map((p) => enlace(p))}
+      </nav>
+    <//>` : null}
   </nav>`;
 }
 
@@ -255,6 +298,20 @@ function BannerPermiso() {
 function Marco() {
   const sesion = useSesion();
   const [ruta, setRuta] = useState(location.hash);
+  const [menuCompacto, setMenuCompacto] = useState(menuRecordado);
+  const estrecho = useMenuEstrecho(), compacto = estrecho || menuCompacto;
+  const cabecera = useRef(null), [altoCabecera, setAltoCabecera] = useState(57);
+  useEffect(() => {
+    const actualizar = () => setAltoCabecera(Math.ceil(cabecera.current?.getBoundingClientRect().height ?? 57));
+    actualizar();
+    const observador = new ResizeObserver(actualizar);
+    if (cabecera.current) observador.observe(cabecera.current);
+    return () => observador.disconnect();
+  }, []);
+  const alternarMenu = () => setMenuCompacto((antes) => {
+    try { localStorage.setItem(CLAVE_MENU, antes ? "0" : "1"); } catch { /* La preferencia sigue funcionando en esta sesión. */ }
+    return !antes;
+  });
   const gusto = personalizacion(sesion.estado, sesion.usuario);
   useEffect(() => aplicarPersonalizacion(gusto), [gusto.tema, gusto.avisos, gusto.animaciones]);
   // Página de fondo: la última que no es de "Ajustes y más" (esa se abre encima).
@@ -281,8 +338,8 @@ function Marco() {
   const cerrarMas = () => {
     location.hash = fondo.current || "#inicio";
   };
-  return html`<div class="marco">
-    <header class="cabecera">
+  return html`<div class=${`marco ${compacto ? "menu-compacto" : ""}`} style=${{ "--alto-cabecera": `${altoCabecera}px` }}>
+    <header class="cabecera" ref=${cabecera}>
       <div class="cabecera-izquierda">
         <a class="marca" href="#inicio">
           <span class="logo" aria-hidden="true">▦</span>
@@ -297,7 +354,7 @@ function Marco() {
     </header>
     <${BannerPermiso} />
     <div class="cuerpo">
-      <${Navegacion} actual=${activa} masAbierta=${Boolean(seccion)} />
+      <${Navegacion} actual=${activa} masAbierta=${Boolean(seccion)} compacto=${compacto} estrecho=${estrecho} alAlternar=${alternarMenu} />
       <main class="contenido" key=${clave}>
         ${["vale", "entrada", "inicio"].includes(clave) && !(clave === "inicio" && sesion.almacen.vacio) ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
         <${Componente} key=${["vale", "entrada", "reporte"].includes(clave) ? rutaFondo : clave} />

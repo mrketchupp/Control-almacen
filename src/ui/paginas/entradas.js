@@ -10,6 +10,7 @@ import {
   conClaveEscrita,
   conClaveYNp,
   conContenedor,
+  conMaterialNuevo,
   conNpEscrito,
   conRenglonExistente,
   confirmarEntrada,
@@ -66,7 +67,8 @@ function CeldaClave({ linea, opciones, alElegir, alEscribir, alSalir, error }) {
       ${o.sugerida && o.enVarios ? html`<${Pastilla} tono="info" titulo="Es el contenedor donde hay más de esta variante">★ sugerido<//>` : null}`}
     alElegir=${(o, mover = true) => alElegir(o, mover)}
     alSalir=${alSalir}
-    placeholder=${opciones.length ? "Elige o escribe" : "Escribe la clave"}
+    placeholder=${linea.material_nuevo ? "Dimensión del material nuevo" : opciones.length ? "Elige o escribe" : "Escribe la clave"}
+    autoMarcar=${!linea.material_nuevo}
     ariaLabel="Clave / dimensión"
   />`;
 }
@@ -356,6 +358,13 @@ export function EditorEntrada({ datos, alCambiar, errores = [], avisos = [], exc
             style=${`--i: ${orden}`}
             class=${`partida-entrada ${blanco ? "partida-vacia" : ""} ${conError ? "con-error" : ""} ${l.dudoso ? "dudosa" : ""} ${recientes?.has(l.uid) ? "reciente" : ""} ${resuelta ? "resuelta" : ""}`}
           >
+            ${Number.isInteger(l.codigo) && !l.no_inventariado ? html`<div class="partida-modo-material">
+              ${l.material_nuevo
+                ? html`<span class="nota"><strong>Material nuevo:</strong> captura dimensión, NP opcional, unidad y contenedor.</span>
+                    <${Boton} tipo="texto" tamano="chico" onClick=${() => cambiarLinea(l.uid, { material_nuevo: false }, `eclv-${l.uid}`)}>Elegir existente<//>`
+                : html`<span class="nota">¿Es otra variante o llega sin NP?</span>
+                    <${Boton} tipo="texto" tamano="chico" onClick=${() => cambiarLinea(l.uid, (actual) => conMaterialNuevo(estado, actual, { indices }), `np-${l.uid}`)}>Crear material nuevo<//>`}
+            </div>` : null}
             <div class="partida-linea1">
               <span class="partida-num" aria-label=${n ? `Partida ${n}` : "Partida nueva"}>${n ?? "＋"}</span>
               <div class="pf pf-codigo">

@@ -13,7 +13,7 @@ gantt
     F1 Núcleo, importación, exportación :       f1, 2026-09-30, 12d
     F2 Vales de salida                 :        f2, after f1, 10d
     F3 Vales de entrada y conteos      :        f3, after f2, 7d
-    F4 Conciliación AX                 :        f4, after f3, 8d
+    F4 conciliación con Dynamics AX                 :        f4, after f3, 8d
     section Puesta en marcha
     F5 Piloto en paralelo (1 guardia)  :        f5, after f4, 14d
 ```
@@ -66,7 +66,7 @@ Entregables:
 
 **Ronda de comentarios del usuario (aplicada):** borde derecho del vale impreso igual a los demás; página *Vales de
 salida* sin repeticiones de "Nuevo vale" y sin pestañas cuando no hay borradores; datos del vale a la izquierda y
-partidas al centro con las columnas del vale; vales internos con origen/destino fijos (`RIG 91 · ALMACEN` → `RIG 91 ·
+partidas al centro con las columnas del vale; vales internos con origen/destino fijos (`EQUIPO · ALMACEN` → `EQUIPO ·
 área`), entregó = almacenista en turno, autorizó solo en transferencias y observaciones fijas donde solo cambia la etapa
 de perforación; quién recibe se busca por nombre o puesto; partidas código → clave (filtrada por el código, con
 contenedor y existencia en pastillas); borrar partida más claro; contador de partidas en la pestaña; búsqueda rápida
@@ -74,7 +74,7 @@ opcional en *Ajustes*; historial con filtros combinables; exportar con ventana "
 
 **Tercera ronda (aplicada):** todas las listas desplegables con el mismo estilo (sin listas nativas del navegador); sin
 cancelación ni salto de folios (se quitó "fijar siguiente folio"); motivo de la corrección que se llena solo con los
-cambios; Autorizó con puesto y sugerencias RIG MANAGER / ITP; personas mostradas por su puesto (el uso en el área solo
+cambios; Autorizó con puesto y sugerencias RESPONSABLE / ITP; personas mostradas por su puesto (el uso en el área solo
 ordena); NOV con datos fijos, 4 firmas y 3 fotos en la posición y tamaño del formato. Pendiente: transferencias (P-22).
 
 **Cuarta ronda (aplicada):** fotos en su propia sección debajo de las partidas; en el panel, origen y destino al
@@ -127,7 +127,7 @@ Entregables:
   entra, queda, hoja). Folio interno consecutivo `E-0001`; corrección con motivo automático y bitácora; aviso de folio de
   la base repetido. Devoluciones que regresan al renglón de donde salió el material (P-08).
 - **Historial** con pestañas Salidas / Entradas (filtros por fecha, folio de la base, código, O.C. y texto) y
-  exportación de `VALES DE ENTRADA DLTA.xlsx` (columnas del DIARIO + folio interno).
+  exportación de `VALES DE ENTRADA <inventario>.xlsx` (columnas del DIARIO + folio interno).
 - **Conteo físico** total o por contenedor: hoja de conteo imprimible a ciegas, captura que se guarda sola, diferencias
   contra el sistema, material encontrado, aviso de vales emitidos durante el conteo, historial de conteos.
 - **Mover entre contenedores** desde *Inventario*, con historial.
@@ -144,7 +144,7 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ☐ Registrar una entrada real y revisar el inventario exportado.
 - ☐ Hacer un conteo (aunque sea de un contenedor) con la hoja impresa.
 
-## Fase 4 — Conciliación contra AX ✅ (entregada, en aceptación)
+## Fase 4 — Conciliación con Dynamics AX ✅ (entregada, en aceptación)
 Entregables:
 - Importación del reporte AX (completo o filtrado) con historial de cortes.
 - Emparejamiento en tres niveles con memoria de equivalencias.
@@ -171,7 +171,7 @@ sugieren ni aparecen en *Otra…* (antes se podía asignar la misma a varias); s
 ninguna libre, se propone *No está en el físico*.
 
 **Ronda 12 (aplicada):** el **archivo de vales de la base** (su copia del DIARIO con INV/NINV, TIPO DE MOV, CANTIDAD
-aplicada, TR, IN y COMENTARIOS) se importa en *Conciliación AX*: cada partida de los vales sabe si ya está en AX (folio
+aplicada, TR, IN y COMENTARIOS) se importa en *conciliación con Dynamics AX*: cada partida de los vales sabe si ya está en AX (folio
 IN / TR), si está pendiente (INV sin folio, o lo que falta de una aplicación parcial) o si no se descuenta (NO INV,
 CONPROV). Lo pendiente cuenta como tránsito aunque el vale sea anterior al corte; NO INV no justifica diferencias. Avisos
 de diferencias entre la base y los vales; aviso cuando la base y AX son de días distintos (se usaba el archivo de fecha más
@@ -204,18 +204,18 @@ almacén. La página *Inventario*, el inventario exportado y el del reporte diar
 empezar el día y CONSUMO / INGRESO = solo los vales de ese día (antes se acumulaban desde el conteo, por eso un consumo
 de días atrás seguía apareciendo). El TOTAL y lo guardado no cambian.
 
-**Ronda 17 (aplicada):** **dos inventarios, DLTA y GSM, por separado** (mismos tipos de archivo: vales de salida,
+**Ronda 17 (aplicada):** **dos inventarios, Inventario A y Inventario B, por separado** (mismos tipos de archivo: vales de salida,
 inventario, reporte de AX y archivo de la base). Selector en la cabecera con un color por inventario; cada uno con su base
-en el navegador, folios, plantillas, respaldos (`almacen_GSM_…` para GSM), carpeta, reporte diario y conciliación; formato
-9 (`config.inventario`). Nombres con el inventario: `VALES DE ENTRADA GSM.xlsx`, `SOLICITUD DE AJUSTE RIG 91 GSM
+en el navegador, folios, plantillas, respaldos (`almacen_<inventario>_…` para Inventario B), carpeta, reporte diario y conciliación; formato
+9 (`config.inventario`). Nombres con el inventario: `VALES DE ENTRADA <inventario>.xlsx`, `SOLICITUD DE AJUSTE Inventario B
 DDMMAA.xlsx`. Aviso al elegir un archivo cuyo nombre dice el otro inventario; un respaldo no se restaura en el otro.
 **Vale impreso por inventario** (*Ajustes*): se imprime con los textos y logos del libro de vales cargado; el encabezado
-del archivo aparece editable (p. ej. el nombre del almacén «MX DLTA …» y la dirección para GSM), reemplazos en todo el
+del archivo aparece editable (p. ej. el nombre del almacén «MX Inventario A …» y la dirección para Inventario B), reemplazos en todo el
 formato y cambio de logos, con vista previa por hoja. No cambia el Excel ni los vales.
-- ☐ Hacer la primera carga de GSM con sus archivos y revisar que DLTA sigue igual.
+- ☐ Hacer la primera carga de Inventario B con sus archivos y revisar que Inventario A sigue igual.
 
-**Ronda 18 (aplicada):** en GSM **toda la interfaz** toma el morado (botones, enlaces, menú, pestañas, foco; claro y
-oscuro). **Etapa de perforación compartida** entre DLTA y GSM (base común; se adopta al abrir, cargar o restaurar).
+**Ronda 18 (aplicada):** en Inventario B **toda la interfaz** toma el morado (botones, enlaces, menú, pestañas, foco; claro y
+oscuro). **Etapa de perforación compartida** entre Inventario A y Inventario B (base común; se adopta al abrir, cargar o restaurar).
 *Vale impreso*: dice que los textos y logos valen para todas las hojas. **Vale impreso más fiel:** bordes negros nítidos
 con su grosor (1 px fino, 2 px el marco) y sin rendijas entre celdas de color al escalar la hoja; «RECIBIO/ENTREGO» centrado
 sobre el nombre y el puesto (en el formato era una celda suelta alineada a la izquierda); las filas espaciadoras no
@@ -224,14 +224,14 @@ imprimen su texto.
 
 **Ronda 19 (aplicada):** **quitar áreas** en *Áreas y personas*: *Quitar…* borra el área que ningún vale ni borrador usa
 (con *Deshacer*) y descarta la que tiene vales (deja de salir al hacer vales; se recupera desde *Áreas descartadas*).
-**Personalización, captura de partidas y Mi pantalla de vales** son las mismas en DLTA y GSM (como la etapa): el tema
-oscuro elegido en GSM también queda en DLTA.
-- ☐ Revisar el vale impreso de GSM (textos y logo) contra uno en papel.
+**Personalización, captura de partidas y Mi pantalla de vales** son las mismas en Inventario A y Inventario B (como la etapa): el tema
+oscuro elegido en Inventario B también queda en Inventario A.
+- ☐ Revisar el vale impreso de Inventario B (textos y logo) contra uno en papel.
 
 **Ronda 20 (aplicada, no es de una fase):** el **generador de etiquetas** dentro de la herramienta (menú *Etiquetas*,
 `docs/11-etiquetas.md`). Al registrar una entrada se sugiere hacer sus etiquetas (una por pieza); en la sección se agregan
 de un vale de entrada (por folio interno o de la base), del inventario, a mano o desde la lista `.json` del generador
-(que sigue para el teléfono). *Condición* pasa a *Inventario* (DLTA / GSM, editable); NOMBRE = el de AX si lo trae el
+(que sigue para el teléfono). *Condición* pasa a *Inventario* (Inventario A / Inventario B, editable); NOMBRE = el de AX si lo trae el
 reporte; ÁREA vacía; DESCRIPCIÓN = la O.C. Logos propuestos del libro de vales. Las impresas quedan en la bitácora y
 marcan la entrada (historial con filtro *Etiquetas*). Estado formato 10.
 - ✔ Propuestas, lista, bitácora, lista del generador, migración y cuadrícula (pruebas `tests/etiquetas.test.js`).
@@ -239,16 +239,16 @@ marcan la entrada (historial con filtro *Etiquetas*). Estado formato 10.
   logos del vale y subidos, código AX, historial y detalle; sin errores ni peticiones de red; tema oscuro y pantalla
   angosta. PDF de cada plantilla con las hojas exactas.
 - ☐ Imprimir una hoja real (carta 2 × 6 y precortada J-5163) y comparar con lo que daba el generador.
-- ☐ Elegir los logos del vale para DLTA y GSM y revisar que se vean bien en la etiqueta.
+- ☐ Elegir los logos del vale para Inventario A y Inventario B y revisar que se vean bien en la etiqueta.
 - ☐ Contestar P-25 a P-28 (`docs/11`).
 
-**Ronda 21 (aplicada):** etiquetas de **DLTA y GSM en una sola impresión** (`docs/11`): la lista por imprimir y la bitácora
-son las mismas en los dos inventarios; en *Del inventario* y *De un vale de entrada* se eligen los **datos de DLTA o GSM**
+**Ronda 21 (aplicada):** etiquetas de **Inventario A y Inventario B en una sola impresión** (`docs/11`): la lista por imprimir y la bitácora
+son las mismas en los dos inventarios; en *Del inventario* y *De un vale de entrada* se eligen los **datos de Inventario A o Inventario B**
 sin cambiar de inventario (el otro solo se lee); las ventanas ya no obligan a hacer scroll para ver los botones. Estado
 formato 11.
 - ✔ Pruebas: compartir la lista y la bitácora con la base común (también atrasada), migración 10 → 11, marcas por
   inventario e ids sin choques.
-- ✔ Recorrido en Chromium (1366 × 768): GSM trae material de DLTA, la lista sigue al cambiar a DLTA, se imprime junto y
+- ✔ Recorrido en Chromium (1366 × 768): Inventario B trae material de Inventario A, la lista sigue al cambiar a Inventario A, se imprime junto y
   cada entrada queda marcada en su inventario; botones a la vista; sin errores ni peticiones de red.
 - ✔ Revisión adversarial (4 revisores + verificadores): restaurar ya no pasa marcas a otra entrada, no se vuelve a juntar
   una lista vieja, ids y bitácora sin choques, reloj atrasado, ventanas en pantallas angostas y marcas de las dos
@@ -259,16 +259,16 @@ formato 11.
 el día del inventario y del reporte diario) y **editor libre de diseños de etiquetas** con texto libre, QR y código de
 barras. Decisiones y pasos en `docs/12-ronda-22-plan.md`.
 
-Hecho: página *Conciliación AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
+Hecho: página *conciliación con Dynamics AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;
 vistas por renglón de AX, por artículo, por contenedor y valuada con filtros; listas sin pareja; exportación
-`SOLICITUD DE AJUSTE RIG 91 DDMMAA.xlsx`. Estado formato 6 (`cortes_ax`, `equivalencias_ax`).
+`SOLICITUD DE AJUSTE DDMMAA.xlsx`. Estado formato 6 (`cortes_ax`, `equivalencias_ax`).
 
 Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica el usuario):
 - ✔ Con el corte sintético, 92 % queda emparejado solo; tras una sesión de confirmación (que corrige el inventario), 100 %, y el segundo corte empareja exacto sin preguntar (prueba automática).
 - ✔ Cada diferencia muestra los folios que la explican (salidas y entradas en tránsito), o queda como sobrante / faltante sin explicar con su valor (prueba automática y en pantalla).
-- ☐ Con el corte real (`DELTA RIG 91 <fecha>.xlsx`): al menos 95 % emparejado tras una sesión de confirmación.
+- ☐ Con el corte real (`REPORTE DE EXISTENCIAS <fecha>.xlsx`): al menos 95 % emparejado tras una sesión de confirmación.
 - ☐ Revisar con la base que la solicitud de ajuste se entienda igual que el reporte de AX.
 - ✔ Con el archivo de la base sintético, cada partida queda aplicada / parcial / pendiente / NO INV / sin revisar como
   dice la base, lo pendiente explica diferencias como tránsito y las duplicadas se quitan con una corrección (pruebas

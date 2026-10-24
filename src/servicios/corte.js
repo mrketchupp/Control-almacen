@@ -74,6 +74,10 @@ export function estadoAlCierre(estadoActual, fecha) {
       }
       e.cantidad_conteo = linea.cantidad_anterior;
       e.conteo_id = linea.conteo_anterior_id ?? null;
+      if (Object.hasOwn(linea, "activo_anterior")) {
+        if (linea.activo_anterior === null) delete e.activo;
+        else e.activo = linea.activo_anterior;
+      }
     }
     for (const id of conteo.nuevos ?? []) quitar.add(id);
   }

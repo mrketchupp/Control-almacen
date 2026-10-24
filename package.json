@@ -2,7 +2,7 @@
   "name": "control-almacen",
   "version": "0.2.0",
   "private": true,
-  "description": "Control de Almacén RIG 91: herramienta web que guarda todo en el equipo del usuario.",
+  "description": "Herramienta local de almacén e inventario con vales, etiquetas y exportación a Excel.",
   "type": "module",
   "license": "UNLICENSED",
   "engines": {

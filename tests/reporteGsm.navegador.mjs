@@ -85,6 +85,7 @@ test("el reporte diario descarga los folios vigentes de GSM y mantiene el cierre
     await boton.click();
     const descarga = await esperando;
     assert.equal(await descarga.failure(), null);
+    if (conTabla) assert.equal(descarga.suggestedFilename(), "VALES DE SALIDA GSM.xlsm");
     const datos = new Uint8Array(await readFile(await descarga.path()));
     const libro = new LibroLeido(datos), diario = libro.hoja("DIARIO");
     const folios = [];

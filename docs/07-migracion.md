@@ -52,7 +52,7 @@ El importador lee este archivo ya contestado y aplica las respuestas. Cada fila 
 | L-06 | UM, LOTE, departamentos, destinos | Mapeo de la hoja 6 | Según hoja 6 |
 | L-07 | Descripción con error de dedo y código correcto | Se usa la descripción del catálogo | Automática |
 | L-08 | Código fuera de catálogo | Se da de alta el artículo con la descripción del DIARIO, marcado "por confirmar con AX" | Automática + aviso |
-| L-09 | Destino `0` | El valor que indique el usuario (propuesta: `RIG 91`) | Según hoja 3 |
+| L-09 | Destino `0` | El valor que indique el usuario (propuesta: `EQUIPO`) | Según hoja 3 |
 | L-10 | Folio faltante (494) | Se captura desde el PDF o se registra como "folio no utilizado", con nota | Según hoja 3 |
 | L-11 | Folio con 2 departamentos (358, 495) | Se conserva cada renglón con su encabezado original (se exporta igual); se revisa contra el PDF | Automática |
 | L-12 | Pase de salida vacío o 0 en vales antiguos (446 renglones) | Se exporta `XXXXX`: todos los vales del DIARIO son salidas | Automática |

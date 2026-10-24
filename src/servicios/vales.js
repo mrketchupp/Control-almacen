@@ -336,12 +336,14 @@ export function descartarBorrador(estado, id) {
 
 /**
  * Observaciones con las que sale el vale. En las áreas internas el texto es el del área y
- * solo cambia la etapa de perforación; en las demás, lo que se escribió en el vale.
+ * solo cambia la etapa de perforación. En transferencias se conserva el texto propio del vale
+ * y se cambia únicamente su línea de etapa cuando la tiene.
  */
 export function observacionesDelVale(estado, datos) {
   const area = plantillaArea(estado, datos.plantilla_area_id);
   const etapa = texto(datos.etapa_perforacion);
   if (tieneDatosFijos(area) && tieneEtapa(area.observaciones) && etapa) return conEtapa(area.observaciones, etapa);
+  if ((area ? tipoDeArea(area) === "TRANSFERENCIA" : datos.naturaleza === "TRANSFERENCIA") && tieneEtapa(datos.observaciones) && etapa) return conEtapa(datos.observaciones, etapa);
   return datos.observaciones;
 }
 
@@ -355,10 +357,11 @@ export function conDatosFijos(estado, datos) {
   return { ...datos, origen: area.origen ?? "", depto_origen: area.depto_origen ?? "", destino: area.destino ?? "", depto_destino: area.depto_destino ?? "" };
 }
 
-/** ¿Este vale pide la etapa de perforación? (área interna cuyas observaciones la llevan) */
+/** ¿Este vale lleva una línea de etapa editable por separado? */
 export function pideEtapa(estado, datos) {
   const area = plantillaArea(estado, datos.plantilla_area_id);
-  return tieneDatosFijos(area) && tieneEtapa(area.observaciones);
+  return tieneDatosFijos(area) ? tieneEtapa(area.observaciones)
+    : Boolean((area ? tipoDeArea(area) === "TRANSFERENCIA" : datos.naturaleza === "TRANSFERENCIA") && tieneEtapa(datos.observaciones));
 }
 
 /** Firmas de la segunda fila del formato del área (NOV), con su nombre para mostrar. */

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { PUESTOS_AUTORIZAN, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
+import { PUESTOS_AUTORIZAN, conEtapa, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
 import { aNumero, dec } from "../../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
@@ -31,6 +31,7 @@ import {
 } from "../../servicios/vales.js";
 import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { Icono } from "../iconos.js";
 
 // ---------------------------------------------------------------- utilidades
 
@@ -345,8 +346,10 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   const opcionesListas = useMemo(() => listas(estado), [estado.personas, estado.plantillas_area]);
   const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
   const fijo = tieneDatosFijos(area);
-  const tipo = area ? tipoDeArea(area) : null;
+  const tipo = area ? tipoDeArea(area) : datos.naturaleza === "TRANSFERENCIA" ? "TRANSFERENCIA" : null;
   const extras = firmasExtraDe(estado, datos);
+  const [editarObservaciones, setEditarObservaciones] = useState(false);
+  useEffect(() => setEditarObservaciones(false), [datos.id, datos.plantilla_area_id, excluirValeId]);
   const [espacios, setEspacios] = useState([]);
   useEffect(() => {
     let vivo = true;
@@ -486,7 +489,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                 <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
               <//>
             </div>
-            ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: origen, destino, observaciones y quién autoriza se capturan en cada vale.</p>` : null}
+            ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: indica origen, destino y quién autoriza.</p>` : null}
           `
         : null,
     recibio: html`
@@ -521,7 +524,22 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           <//>
         `
       : null,
-    observaciones: !(area && fijo)
+    observaciones: tipo === "TRANSFERENCIA"
+      ? html`<div class="campo observaciones-transferencia">
+          <div class="acciones-linea">
+            <span>Observaciones</span>
+            <${Boton} tipo="texto" tamano="chico" aria-label=${editarObservaciones ? "Terminar edición de observaciones" : "Editar observaciones de esta transferencia"}
+              aria-expanded=${editarObservaciones}
+              onClick=${() => setEditarObservaciones((antes) => !antes)}>
+              <${Icono} nombre=${editarObservaciones ? "candado" : "lapiz"} tam=${15} /> ${editarObservaciones ? "Terminar edición" : "Editar"}
+            <//>
+          </div>
+          ${editarObservaciones ? html`<textarea rows="4" aria-label="Observaciones de la transferencia"
+            value=${pideEtapa(estado, datos) ? sinEtapa(observaciones) : observaciones}
+            onInput=${(e) => cambiar({ observaciones: pideEtapa(estado, datos) ? conEtapa(e.currentTarget.value, datos.etapa_perforacion ?? "") : e.currentTarget.value })}></textarea>`
+            : html`<p class="observaciones-fijas">${observaciones || "—"}</p>`}
+        </div>`
+      : !(area && fijo)
       ? html`
           <${Campo} etiqueta="Observaciones">
             <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>

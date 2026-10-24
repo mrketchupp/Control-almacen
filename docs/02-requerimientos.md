@@ -14,10 +14,10 @@
 
 | ID | Decisión |
 |---|---|
-| D-01 | La base operativa registra en AX los vales que el almacenista le envía por correo a diario (archivo de vales). Cada ~2 semanas manda el inventario AX actualizado. |
+| D-01 | La base operativa registra en AX los vales que el almacenista le envía por correo a diario (archivo de vales). Cada ~2 semanas manda el reporte de Dynamics AX actualizado. |
 | D-02 | El material nuevo llega de la base con un **vale de material** (mismo formato de Excel). La base usa los códigos y dimensiones de AX, y el almacén consume con esos mismos códigos y dimensiones. |
 | D-03 | La herramienta **sí registra entradas**, con su propio historial tipo DIARIO. |
-| D-04 | El reporte AX llega con todas las ubicaciones; la herramienta filtra el almacén del RIG (`RIG91-IX25`, configurable). |
+| D-04 | El reporte AX llega con todas las ubicaciones; la herramienta filtra el almacén del equipo (`EQUIPO`, configurable). |
 | D-05 | Diésel, oxígeno, acetileno y similares **solo se registran en vales**; no llevan existencia. |
 | D-06 | Las transferencias a otros RIGs se descuentan como consumo. (Futuro: transferir entre ubicaciones.) |
 | D-07 | NOV es una **salida** de diésel. |
@@ -82,7 +82,7 @@ Prioridad: **M** = indispensable para salir a producción; **D** = deseable; **F
 | RF-41 | Hoja de conteo imprimible por contenedor (sin cantidades, para contar a ciegas). | D |
 | RF-42 | Movimiento a otra ubicación (reacomodo entre contenedores) sin afectar el total. | D |
 
-### Conciliación contra AX
+### Conciliación con Dynamics AX
 | ID | Requerimiento | Prio |
 |---|---|---|
 | RF-50 | Importar el reporte AX (completo o filtrado) y guardar cada corte con su fecha. | M |
@@ -96,7 +96,7 @@ Prioridad: **M** = indispensable para salir a producción; **D** = deseable; **F
 | ID | Requerimiento | Prio |
 |---|---|---|
 | RF-60 | Exportar `INVENTARIO DE REFACCIONAMIENTO…xlsx` idéntico: mismas hojas, tablas, fórmulas, notas y formato. Solo cambian los datos. | M |
-| RF-61 | Exportar `VALES DE SALIDA DLTA.xlsm` idéntico: macros, botones, logos y formularios intactos. Solo cambia `DIARIO`. | M |
+| RF-61 | Exportar `VALES DE SALIDA <inventario>.xlsm` idéntico: macros, botones, logos y formularios intactos. Solo cambia `DIARIO`. | M |
 | RF-62 | Exportar el historial de entradas en un libro aparte con las mismas columnas de DIARIO. | M |
 | RF-63 | Nombre de archivo con fecha, siguiendo la convención actual (`…_DDMMAA`). | M |
 | RF-64 | Exportar solo `DIARIO` (modo futuro, cuando la herramienta se adopte al 100%). | F |

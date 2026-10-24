@@ -9,17 +9,17 @@
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
 | **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
-| **Conciliación AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado. Con el **archivo de vales de la base** sabe qué partidas ya están en AX (IN / TR) y cuáles siguen pendientes |
+| **conciliación con Dynamics AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado. Con el **archivo de vales de la base** sabe qué partidas ya están en AX (IN / TR) y cuáles siguen pendientes |
 | **Etiquetas** | Etiquetas de material o de código AX (lo que hacía el generador de etiquetas): de un **vale de entrada** (se sugiere al registrarla), del **inventario**, a mano o desde la lista `.json` del generador; plantillas como la precortada J-5163; logos del vale por inventario; las entradas quedan marcadas *Etiquetas impresas* |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
 | **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
 | Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
 | Inventario | Consultar existencias por contenedor, con búsqueda y filtros |
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
-| Exportar y enviar | Generar `VALES DE SALIDA DLTA.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **subir al SharePoint** y traer vales hechos en el Excel |
+| Exportar y enviar | Generar `VALES DE SALIDA <inventario>.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **subir al SharePoint** y traer vales hechos en el Excel |
 | **Áreas y personas** | Editar las plantillas de cada área (interna, externa o transferencia) y las personas (almacenistas, puestos) |
 | **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida), **tu pantalla de vales** (orden de los datos y de qué lado van), **vale impreso** del inventario (textos y logos del formato) y etapa de perforación actual |
-| **Inventario DLTA / GSM** | Selector en la cabecera: cada inventario con sus datos por separado (vales, folios, inventario, respaldos, conciliación) |
+| **Inventarios independientes** | Selector en la cabecera: cada inventario con sus datos por separado (vales, folios, inventario, respaldos, conciliación) |
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
 
 El menú de la izquierda tiene lo del día a día. **Exportar y enviar, Áreas y personas, Ajustes, Respaldos y Ayuda**
@@ -58,10 +58,10 @@ aplicación* de Edge no aparece con archivos locales; por eso se usa el acceso d
 **Diagnóstico opcional:** `herramientas/diagnostico-navegador.html` comprueba, sin conectarse a internet, que Edge puede
 leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 
-**Dos inventarios:** arriba, junto al nombre, eliges **DLTA** (azul) o **GSM** (morado). Cada uno tiene sus datos por
-separado; la primera vez GSM está vacío y se hace su *Primera carga* con los archivos de GSM. Al abrir, entra al último
-que usaste. Si el libro de vales de GSM trae los textos o el logo de DLTA, se corrigen en *Ajustes → Vale impreso de GSM*
-(valen para todas las hojas). En GSM toda la interfaz va en morado. La **etapa de perforación**, la **personalización**
+**Dos inventarios:** arriba, junto al nombre, eliges **Inventario A** (azul) o **Inventario B** (morado). Cada uno tiene sus datos por
+separado; la primera vez Inventario B está vacío y se hace su *Primera carga* con los archivos de Inventario B. Al abrir, entra al último
+que usaste. Si el libro de vales de Inventario B trae los textos o el logo de Inventario A, se corrigen en *Ajustes → Vale impreso de Inventario B*
+(valen para todas las hojas). En Inventario B toda la interfaz va en morado. La **etapa de perforación**, la **personalización**
 (tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales** son las mismas en los dos: si cambias
 algo en uno, el otro lo toma al abrirlo.
 
@@ -73,8 +73,8 @@ algo en uno, el otro lo toma al abrirlo.
 
 En cada sesión nueva Edge vuelve a pedir el permiso: aparece un aviso amarillo arriba con el botón **Permitir** (un clic).
 
-Cada inventario elige su carpeta. Puede ser la misma (los respaldos de GSM se llaman `almacen_GSM_…` y no se mezclan),
-pero para tenerlo ordenado conviene una para cada uno, por ejemplo `OneDrive\ControlAlmacen\GSM`.
+Cada inventario elige su carpeta. Puede ser la misma (los respaldos de Inventario B se llaman `almacen_<inventario>_…` y no se mezclan),
+pero para tenerlo ordenado conviene una para cada uno, por ejemplo `OneDrive\ControlAlmacen\Inventario B`.
 
 | Qué | Dónde queda |
 |---|---|
@@ -83,6 +83,10 @@ pero para tenerlo ordenado conviene una para cada uno, por ejemplo `OneDrive\Con
 | Excel exportados | La carpeta que elijas al exportar (sin esa ventana, `OneDrive\ControlAlmacen\exportaciones\AAAA-MM-DD\`) |
 
 ## 3. Primera carga (la herramienta llega vacía)
+
+La pantalla agrupa la carga en **1. Archivos**, **2. Conteo base** y **3. Revisar y cargar**. Cada archivo tiene su
+tarjeta, nombre y resumen. Las explicaciones y la lista de revisión son desplegables; el ensayo conserva las
+diferencias y las correcciones antes → después antes de confirmar la carga.
 
 La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus datos entran solo desde tus propios archivos, en tu equipo.
 
@@ -105,10 +109,15 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 ## 4. Uso diario
 
 1. **Elige quién está en turno** arriba a la derecha. Queda registrado en cada acción y se pone como "Entregó" en los vales.
+   Puedes **Contraer menú** y volver a **Expandir menú**; se recuerda en este navegador. En ventanas medianas aparece
+   una barra de iconos con **Abrir menú**. En móvil, la barra inferior ofrece Inicio, Salidas, Inventario y **Más**;
+   desde Más puedes abrir todas las secciones. Las acciones también funcionan con teclado, sin depender del hover.
 2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*):
    1. A la izquierda elige el **área que recibe**. En transferencias, justo debajo capturas origen y destino. En las demás, lo que se llena solo (quién entrega, de dónde sale, a dónde llega y las observaciones) queda al final del panel, en *Se llenan solos*.
    2. **Recibió:** escribe el nombre o el puesto ("mecánico") y elige de la lista; su puesto se llena solo.
    3. **Etapa de perforación:** es lo único que cambia en las observaciones; ya viene con la última que usaste.
+      En transferencias las observaciones están protegidas: pulsa el **lápiz** para editar el texto de ese vale y
+      **Terminar edición** para protegerlo de nuevo. La etapa se captura por separado, y origen y destino siguen editables.
    4. Al centro, en **Partidas**: escribe el **código AX** y `Enter`; en **Clave almacén** aparecen solo las claves de ese código con su contenedor, su NP y existencia (pastillas grises); elige con las flechas y `Enter`; escribe la **cantidad** y `Enter` para pasar a la siguiente partida. La **clave** es la dimensión tal como está en el inventario (`S/D`, `SIN DIMENSION`…; si no tiene, `SIN DIMENSIÓN`) y el **NP** va en la columna **LOTE**. *Otra clave* sirve para algo que no sale del inventario; el diésel y lo que no lleva existencia quedan como *No inventariado*.
    5. Si pides más de lo que hay, la herramienta pide una **justificación** para continuar. **✕ Quitar** borra una partida.
    6. **Vista previa** muestra el vale sobre tu formato con `BORRADOR` en el folio. **Emitir vale · folio N** asigna el folio y descuenta la existencia.
@@ -127,12 +136,12 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
      orden pegado. Los repetidos se imprimen una sola vez. Si hay folios inválidos o que no existen en el inventario
      abierto, corrige la lista antes de imprimir. Los filtros del historial no limitan la búsqueda del lote.
    - **NOV:** llena las 4 firmas (químico y personal de NOV a la izquierda; tú y patrimonial a la derecha) y agrega hasta 3 fotos con **＋ Foto** en la sección *Fotos*, debajo de las partidas (se acomodan como en tu formato y se imprimen ahí). El siguiente vale NOV ya trae las mismas personas y la partida de diésel.
-   - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RIG MANAGER e ITP.
+   - **Transferencias:** Autorizó lleva nombre y puesto; primero se sugieren RESPONSABLE e ITP.
    - **Corregir datos generales por lotes:** en *Historial de vales*, elige **Vales de salida** o **Vales de entrada** y pulsa **Corregir por lotes**. Pega los folios (entradas: folio interno como `E-0001` o `1`), marca sólo los campos a cambiar y escribe el nuevo valor común. Pulsa **Revisar corrección**, comprueba el antes y el después y guarda con un motivo. Los materiales y las partidas se conservan. Un campo opcional marcado y vacío queda vacío también al imprimir.
    - Las **claves de almacén largas** se imprimen completas en varias líneas y centradas. Se amplía la fila usando el espacio de partidas vacías; si el formato está lleno, se ajusta la escala para conservar una hoja por vale.
 4. **Pendientes:** si la insignia naranja muestra un número, abre *Pendientes*. En cada renglón elige de qué contenedor salió; la opción más parecida aparece primero (★ = la clave coincide). Si no es un artículo del inventario, elige *No inventariado*.
 5. **Reporte diario y SharePoint:** en *Reporte diario* (menú de la izquierda o *Inicio → Crear reporte diario*) elige el día y descarga los dos archivos **como estaban al cierre de ese día**: el **libro de vales de salida** (hasta el último folio de ese día) y el **inventario de refaccionamiento** (con esa fecha en el nombre; sin los vales, entradas, conteos ni movimientos posteriores; las entradas cuentan el día en que se **recibieron**). Pulsa **Descargar** en cada uno: se abre el explorador para elegir carpeta y nombre, y después la tarjeta muestra *✓ Descargado*. Si no se puede escribir ahí (p. ej. el archivo está abierto en Excel u OneDrive lo está sincronizando), se reintenta y, si sigue sin poder, el Excel se descarga a *Descargas* y el aviso dice por qué. El encabezado de página del inventario lleva la fecha de ese día. Con ▶ avanzas al siguiente día con vales y, después del último, a hoy. Súbelos al SharePoint y pulsa **✓ Ya lo subí**: marca solo los vales hasta ese folio. *Subir al SharePoint* (en Inicio y en *Exportar y enviar*) te dice qué vales son nuevos o corregidos desde la última vez.
-   En GSM y DLTA, el libro de salida se genera con las filas visibles y la tabla y los filtros extendidos hasta el
+   En Inventario B y Inventario A, el libro de salida se genera con las filas visibles y la tabla y los filtros extendidos hasta el
    último folio del corte. Los filtros antiguos de la plantilla no ocultan los vales nuevos. Si actualizas la aplicación,
    vuelve a descargar el libro para obtener esta corrección; el Excel descargado anteriormente conserva su vista anterior.
 6. **Si se hicieron vales en el Excel** (por ejemplo, mientras se probaba la herramienta): *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último que conoce la herramienta. Así no quedan huecos: la herramienta no permite saltar folios.
@@ -161,8 +170,15 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   herramienta no se conecta a nada: solo lee el texto que pegas.
 - **Material que regresa:** *↩ Copiar partidas de un vale de salida* (debajo de las partidas) → folio → *Copiar
   partidas*; cada partida vuelve al renglón del que salió y ajustas las cantidades.
+- **Crear otra partida en una entrada:** pulsa **Crear material nuevo**, conserva o escribe la dimensión y captura
+  el NP que corresponde, o déjalo vacío. La sugerencia existente no se vuelve a seleccionar al salir del campo.
+  **Elegir existente** regresa al selector. Dimensión igual con otro NP o sin NP se mantiene separada; si todos los
+  datos coinciden se reutiliza esa variante, evitando duplicarla.
 - **Conteo físico:** elige todo o algunos contenedores, imprime la hoja de conteo (sin cantidades), *Empezar a
-  capturar*, anota lo contado y lo encontrado, y **Aplicar conteo**. Lo que no captures conserva su conteo anterior.
+  capturar*, anota lo contado y usa **Añadir partida**, **Corregir dimensión / NP** o **Quitar partida** cuando haga
+  falta. Las correcciones permanecen en el borrador y puedes **Deshacer corrección** antes de aplicar. Pulsa
+  **Revisar y aplicar conteo**, revisa los cambios y **Confirmar conteo**. Quitar conserva los vales históricos;
+  corregir sólo la clave mantiene cantidades y corte. Lo que no captures conserva su conteo anterior.
 - **Mover material de contenedor:** *Inventario* → botón *Mover* de la partida → cantidad y destino. El total no cambia.
 - **Corregir dimensión o NP:** *Inventario* → botón *Editar* de la partida. Sugiere la dimensión como la escribe AX (Tamaño +
   Color: juntos son la dimensión; AX no trae NP) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
@@ -181,14 +197,14 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
   escala 100 % y sin *Encabezados y pies de página*. Al terminar contesta **¿Salieron bien?**: así la entrada queda marcada.
 - **Hoja y logos** (en la lista): plantilla (estándar 2 × 6, precortada J-5163…), medidas en mm / cm / `4in` y
   borde (quítalo en hojas precortadas). Logos: *Del vale…* toma los del libro de vales del inventario abierto; *Subir…*
-  de un archivo. Cada etiqueta lleva los logos de su **inventario** (DLTA o GSM, se cambia por etiqueta).
+  de un archivo. Cada etiqueta lleva los logos de su **inventario** (Inventario A o Inventario B, se cambia por etiqueta).
 - **Editor de diseños** (en la lista; Ronda 22): qué lleva cada etiqueta y dónde, a pantalla completa. Duplica uno de
   fábrica, arrastra y cambia el tamaño de cada elemento (cuadrícula, imán y guías), agrega texto libre con `{codigo}`…,
-  código QR o código de barras, guarda (Ctrl+S) y elige *Usar para Material* / *Usar para Código AX* (para DLTA y GSM).
+  código QR o código de barras, guarda (Ctrl+S) y elige *Usar para Material* / *Usar para Código AX* (para Inventario A y Inventario B).
   En la tarjeta, *Diseño: …* cambia el de la lista sin abrir el editor.
 - *Historial de vales → Vales de entrada* tiene la columna y el filtro **Etiquetas** (sin imprimir / impresas).
-- **DLTA y GSM juntos:** la lista por imprimir es la misma en los dos. En *Del inventario* y *De un vale de entrada*,
-  **Datos de: DLTA | GSM** trae material o entradas del otro sin cambiar de inventario (solo se leen). La marca *Etiquetas
+- **Inventario A y Inventario B juntos:** la lista por imprimir es la misma en los dos. En *Del inventario* y *De un vale de entrada*,
+  **Datos de: Inventario A | Inventario B** trae material o entradas del otro sin cambiar de inventario (solo se leen). La marca *Etiquetas
   impresas* aparece en la entrada de su inventario.
 
 ### Clic derecho y portapapeles
@@ -222,10 +238,10 @@ sesión de la aplicación.
 Con el foco en un elemento, **Mayús+F10** o la tecla de menú abre sus acciones. Las flechas, Inicio y Fin recorren las
 opciones, Intro las ejecuta y Escape cierra el menú y devuelve el foco al elemento.
 
-### Conciliación contra AX
+### Conciliación con Dynamics AX
 Es como conciliar el banco: AX es el estado de cuenta, el inventario tu chequera y los vales posteriores al corte, los
 cheques en tránsito.
-1. *Conciliación AX* → **Importar reporte de AX** → elige el `DELTA RIG 91 <fecha>.xlsx` (completo o filtrado). Revisa el
+1. *conciliación con Dynamics AX* → **Importar reporte de AX** → elige el `REPORTE DE EXISTENCIAS <fecha>.xlsx` (completo o filtrado). Revisa el
    almacén y la fecha del corte (sale del nombre). Si sabes hasta qué folio capturó la base, escríbelo. **Importar corte**.
    Solo se comparan las partidas con *Modelo de Inventario* **INV**.
 2. La pantalla tiene dos zonas: al centro, los bloques **para actuar** (*Enviar a la base*, *Por resolver*, *Diferencias
@@ -294,7 +310,7 @@ cheques en tránsito.
 Las cantidades del inventario no cambian: si algo está mal en el físico, se corrige con un conteo o una corrección de vale.
 
 **Consumos de la base (qué ya está en AX).** Siguiendo con el banco: el archivo de vales que lleva la base es como la
-lista de cheques que el banco ya cobró. *Importar consumos de la base* → elige el `VALES DE SALIDA DELTA RIG91.xlsm` que
+lista de cheques que el banco ya cobró. *Importar consumos de la base* → elige el `VALES DE SALIDA <inventario>.xlsm` que
 te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; uno nuevo reemplaza al anterior). Desde ahí:
 - Las partidas con folio **IN / TR** ya están en AX (la *CANTIDAD* de la base es lo aplicado; vacía = todo).
 - Las que **no tienen IN / TR** (INV sin folio, sin revisar, que la base no tiene o posteriores a su archivo) cuentan como
@@ -323,7 +339,7 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 - **Cambiar de equipo o de navegador:** abre la herramienta allá, ve a **Respaldos → Restaurar desde un archivo…** y elige el `.zip` más reciente de OneDrive.
 - Antes de restaurar se guarda el estado actual (respaldo en la carpeta y copia interna), así que siempre puedes volver atrás.
 - **Zona de cuidado → Borrar los datos de <inventario>:** deja vacío el inventario abierto (por ejemplo, después de una prueba); el otro no cambia. Antes crea un respaldo.
-- Un respaldo se restaura estando en su inventario: uno de DLTA no entra en GSM (la herramienta dice a cuál cambiarse).
+- Un respaldo se restaura estando en su inventario: uno de Inventario A no entra en Inventario B (la herramienta dice a cuál cambiarse).
 
 > ⚠️ Si alguien borra en Edge "Cookies y otros datos de sitios", se borran los datos de trabajo. Se recuperan restaurando el último respaldo.
 

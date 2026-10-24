@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Almacen } from "../src/almacen/almacen.js";
 import { BackendMemoria } from "../src/almacen/bd.js";
+import { FORMATO_ESTADO } from "../src/nucleo/estado.js";
 import { bytesInventario, bytesVales, cargaSintetica } from "./ayuda.js";
 import { escenarioGruposAx } from "./ayudaGruposAx.js";
 
@@ -66,7 +67,7 @@ test("grupos físicos y vínculo manual en la conciliación AX en Chromium", asy
       assert.fail("No se guardó el vínculo esperado");
     };
     await page.goto(origen + "/#conciliacion");
-    await guardado((s) => s.formato === 16);
+    await guardado((s) => s.formato === FORMATO_ESTADO);
     const terminar = async () => { assert.deepEqual(errores, []); assert.deepEqual(externas, []); await context.close(); };
     return { page, e, guardado, estado, terminar };
   }

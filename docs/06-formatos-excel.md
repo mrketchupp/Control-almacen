@@ -62,7 +62,7 @@ Reglas de la hoja:
   DE  2026`) se cambia por la del inventario (hoy, o el día del reporte diario) con la misma forma de escribirla
   (día de la semana, "DE", mayúsculas). Si el encabezado no trae fecha, no se toca.
 
-**Nombre de archivo:** `INVENTARIO DE REFACCIONAMIENTO DLTA DE ALMACEN DDMMAA.xlsx`.
+**Nombre de archivo:** `INVENTARIO DE ALMACEN <inventario> DDMMAA.xlsx`.
 
 ---
 
@@ -121,7 +121,7 @@ En `sheet1.xml` se reemplazan:
 - **Borradores:** no se exportan.
 - **La copia de la base:** el encargado de la base agrega a su copia del DIARIO las columnas INV/NINV, TIPO DE MOV,
   CANTIDAD (aplicada), TR, IN y COMENTARIOS (sección G). La herramienta solo las lee; el DIARIO que exporta no las lleva.
-- **Nombre de archivo:** `VALES DE SALIDA DLTA.xlsm` (el mismo nombre de hoy).
+- **Nombre de archivo:** `VALES DE SALIDA <inventario>.xlsm` (el mismo nombre de hoy).
 
 ---
 
@@ -135,10 +135,10 @@ Es un archivo nuevo, así que no tiene la restricción de ser idéntico. Se gene
   entró al inventario (el que cuenta en el reporte diario). Las dos con el mismo estilo de fecha.
 - **B = folio de la base** (P-05); en una devolución sin folio de la base, `DEV. <folio de salida>`.
 - **C = `XXXXX`, D = `0`**: marca de entrada, igual que en el formato en papel.
-- E–H: de dónde viene y `RIG 91 · ALMACEN`; P = quien entregó (base), Q = almacenista que recibió; R = `0`.
+- E–H: de dónde viene y `EQUIPO · ALMACEN`; P = quien entregó (base), Q = almacenista que recibió; R = `0`.
 - **U = Folio interno** `E-0001`. Encabezado con filtro y panel congelado; fechas con formato `dd/mm/yyyy`.
 - **O (C.U) = LOTE = quien solicita** el material (como lo anota la base en sus vales), no el NP del inventario.
-- **Nombre de archivo:** `VALES DE ENTRADA DLTA.xlsx` (en GSM, `VALES DE ENTRADA GSM.xlsx`) (*Exportar y enviar → Vales de entrada*).
+- **Nombre de archivo:** `VALES DE ENTRADA <inventario>.xlsx` (en Inventario B, `VALES DE ENTRADA <inventario>.xlsx`) (*Exportar y enviar → Vales de entrada*).
 
 **En el inventario exportado**, los renglones que crea la herramienta (entradas de una variante o contenedor nuevos,
 material encontrado en un conteo, reacomodos) van **al final de la tabla de su hoja**, con el estilo del renglón modelo
@@ -149,7 +149,7 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 ## D. Reporte AX (importación)
 
 - Se busca la fila de encabezados que contenga `Código de Artículo` (normalmente la fila 1). Las columnas se leen por nombre.
-- Se filtra `Almacén = RIG91-IX25` en DLTA (configurable; en GSM se propone el primero del reporte y se recuerda el
+- Se filtra `Almacén = EQUIPO` en Inventario A (configurable; en Inventario B se propone el primero del reporte y se recuerda el
   elegido). Si el archivo ya viene filtrado, no pasa nada.
 - Solo se concilian las partidas con `Modelo de Inventario = INV` (si el reporte no trae esa columna, todas); la vista
   previa dice cuántas de otros modelos se omiten.
@@ -182,7 +182,7 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
   haya asignado a mano). Columnas: Folio, Fecha, Tipo de mov. (el de la base o la naturaleza del vale), Área, Código de
   Artículo (texto con ceros), Descripción, Clave, Cantidad por aplicar (de una aplicación parcial, lo que falta), U.M.,
   Justifica en AX (Tamaño + Color), Estado en la solicitud (con su color), Cómo se identificó y En el archivo de la base.
-- **Nombre de archivo:** `SOLICITUD DE AJUSTE RIG 91 <inventario> DDMMAA.xlsx` (`… DLTA 270926.xlsx`, `… GSM 270926.xlsx`;
+- **Nombre de archivo:** `SOLICITUD DE AJUSTE <inventario> DDMMAA.xlsx` (`… Inventario A 270926.xlsx`, `… Inventario B 270926.xlsx`;
   Ronda 17). La LEYENDA dice el inventario en el título.
 
 ## F. Vale de la base en Excel (importación opcional, RF-35)
@@ -194,7 +194,7 @@ Mismo formulario de 21 renglones:
 
 ## G. Archivo de vales de la base (importación, Ronda 12)
 
-El encargado de la base copia el `DIARIO` de los vales de salida (`VALES DE SALIDA DELTA RIG91.xlsm`) y le agrega
+El encargado de la base copia el `DIARIO` de los vales de salida (`VALES DE SALIDA <inventario>.xlsm`) y le agrega
 columnas para llevar qué ya descontó en AX. Solo se lee (`src/importadores/base.js`, `leerArchivoBase`); nunca se escribe.
 
 - Hoja: la visible que tenga `No. folio` e `INV/NINV` en los encabezados (primero `DIARIO`); las ocultas se ignoran.

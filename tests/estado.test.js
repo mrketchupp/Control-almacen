@@ -132,6 +132,20 @@ function estadoAnterior(formato, inventario = "DLTA") {
   return estado;
 }
 
+test("formato 17 conserva un conteo en captura y agrega sus correcciones sin modificar inventario ni vales", () => {
+  const estado = estadoAnterior(16);
+  estado.conteo_en_curso = { id: 1, fecha: "2026-10-24", ubicaciones: [1], capturas: { 1: "5" }, nuevos: [], observaciones: "CONTEO SINTETICO" };
+  const antes = structuredClone(estado);
+  migrarEstado(estado);
+  assert.equal(estado.formato, FORMATO_ESTADO);
+  assert.deepEqual(estado.conteo_en_curso, { ...antes.conteo_en_curso, correcciones: [] });
+  assert.deepEqual(estado.existencias, antes.existencias);
+  assert.deepEqual(estado.vales, antes.vales);
+  const migrado = JSON.stringify(estado);
+  migrarEstado(estado);
+  assert.equal(JSON.stringify(estado), migrado);
+});
+
 test("la fusión conserva los dos formatos 10: vales corregidos y listas de etiquetas con sus diseños", () => {
   for (const conEtiquetas of [false, true]) {
     const estado = estadoAnterior(10, "GSM");
@@ -161,8 +175,8 @@ test("la fusión conserva los dos formatos 10: vales corregidos y listas de etiq
   }
 });
 
-test("los respaldos de formatos 1 a 15 se restauran, migran y sobreviven al volver a abrir", async (t) => {
-  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]) {
+test("los respaldos de formatos 1 a 16 se restauran, migran y sobreviven al volver a abrir", async (t) => {
+  for (const formato of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) {
     await t.test(`respaldo de formato ${formato}`, async () => {
       const viejo = estadoAnterior(formato);
       const lineas = viejo.vales.map((vale) => JSON.stringify(vale.lineas));

@@ -32,7 +32,7 @@ export const esInterna = (area) => Boolean(area) && tipoDeArea(area) === "INTERN
 
 /**
  * ¿Los datos del vale salen fijos del área? Internas y externas (NOV) sí: origen, destino y
- * observaciones son los del formato y solo cambia la etapa. Las transferencias se editan.
+ * observaciones son los del formato y solo cambia la etapa. En transferencias el encabezado se edita.
  */
 export const tieneDatosFijos = (area) => Boolean(area) && tipoDeArea(area) !== "TRANSFERENCIA";
 
@@ -90,6 +90,9 @@ export function etapaDe(observaciones) {
 }
 
 export const tieneEtapa = (observaciones) => RE_ETAPA.test(String(observaciones ?? ""));
+
+/** Texto de observaciones sin la línea de etapa, para editar ambos datos por separado. */
+export const sinEtapa = (observaciones) => String(observaciones ?? "").split(/\r?\n/).filter((linea) => !RE_ETAPA.test(linea)).join("\n");
 
 /** Las mismas observaciones con otra etapa; si no traen la línea, se agrega al final. */
 export function conEtapa(observaciones, etapa) {

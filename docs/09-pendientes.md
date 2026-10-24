@@ -28,18 +28,18 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
 | P-05 | En el historial de entradas, ¿"No. folio" debe ser el folio de la base o uno propio? | B = folio de la base; columna extra U = folio interno `E-0001`. **Aplicado en F3.** |
-| P-06 | ¿Alguien más necesita el historial de entradas (la base, auditoría)? | Exportable en `VALES DE ENTRADA DLTA.xlsx`; se envía solo si lo piden. **Aplicado en F3.** |
+| P-06 | ¿Alguien más necesita el historial de entradas (la base, auditoría)? | Exportable en `VALES DE ENTRADA <inventario>.xlsx`; se envía solo si lo piden. **Aplicado en F3.** |
 | P-25 | **Ronda 22:** la entrada tiene fecha del vale y fecha de recibido (la de recibido cuenta en el inventario del día y en el reporte diario). ¿Con cuál se decide lo que está **en tránsito** en la conciliación con AX? | Con la **fecha del vale**: la base mueve el material en AX cuando lo envía, así que lo que va en camino ya está en AX. **Aplicado en la Ronda 22; falta que el usuario lo confirme.** |
 
 ## Inventario y conciliación
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-24 | **GSM (Ronda 17):** ¿el reporte de AX y el archivo de la base de GSM son archivos aparte de los de DLTA, o vienen juntos en uno? ¿Qué almacén de AX es el de GSM? | **Aparte**, cada uno se importa en su inventario. Si el reporte trae varios almacenes, se elige el de GSM al importar y se recuerda. Si el de la base viniera junto, habría que separar los vales por inventario (avisar). |
+| P-24 | **Inventario B (Ronda 17):** ¿el reporte de AX y el archivo de la base de Inventario B son archivos aparte de los de Inventario A, o vienen juntos en uno? ¿Qué almacén de AX es el de Inventario B? | **Aparte**, cada uno se importa en su inventario. Si el reporte trae varios almacenes, se elige el de Inventario B al importar y se recuerda. Si el de la base viniera junto, habría que separar los vales por inventario (avisar). |
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
-| P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. **Aplicado en F4** (campo "Base capturó hasta el folio"). **Ronda 12:** mejor aún, el archivo de vales de la base dice partida por partida qué ya aplicó (folio IN / TR) y qué sigue pendiente; se importa en *Conciliación AX*. |
+| P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. **Aplicado en F4** (campo "Base capturó hasta el folio"). **Ronda 12:** mejor aún, el archivo de vales de la base dice partida por partida qué ya aplicó (folio IN / TR) y qué sigue pendiente; se importa en *conciliación con Dynamics AX*. |
 | P-11 | ¿Cada cuándo se hace un **conteo físico** completo? ¿Hay conteos cíclicos por contenedor? | Soportar ambos: total y parcial por contenedor. **Aplicado en F3.** |
 | P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos). **Aplicado.** |
 | P-17 | Columna **ITEM**: ¿renumerar consecutivo al exportar? | Sí, 1..n por hoja |

@@ -11,7 +11,7 @@ import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, unidad } from "../nucleo/normalizar.js";
-import { crearRenglon, describirRenglon, lugarCorto, renglonDe, ubicacionesOrdenadas } from "./inventario.js";
+import { corregirDimensionNp, crearRenglon, describirRenglon, lugarCorto, renglonDe, ubicacionesOrdenadas } from "./inventario.js";
 import { siguienteFolio } from "./vales.js";
 
 export class ErrorConteo extends Error {
@@ -44,6 +44,7 @@ export function iniciarConteo(estado, { ubicaciones = null, usuario = null, fech
     ubicaciones: elegidas,
     corte: foliosActuales(estado),
     capturas: {},
+    correcciones: [],
     nuevos: [],
     observaciones: "",
   };
@@ -67,6 +68,7 @@ export function guardarConteoEnCurso(estado, datos) {
     fecha: texto(datos.fecha) || actual.fecha,
     capturas: Object.fromEntries(Object.entries(datos.capturas ?? {}).filter(([, v]) => texto(v) !== "")),
     nuevos: (datos.nuevos ?? []).map((n) => ({ ...n })),
+    correcciones: (datos.correcciones ?? actual.correcciones ?? []).map((c) => ({ ...c })),
     observaciones: texto(datos.observaciones),
   };
 }
@@ -100,7 +102,8 @@ export function renglonesDelConteo(estado, datos = estado.conteo_en_curso, { ind
     .sort((a, b) => orden.get(a.ubicacion_id) - orden.get(b.ubicacion_id) || a.orden - b.orden)
     .map((e) => {
       const r = describirRenglon(estado, e.id, { indices, saldos: totales });
-      const capturado = datos.capturas?.[e.id];
+      const correccion = (datos.correcciones ?? []).find((c) => c.existencia_id === e.id);
+      const capturado = correccion?.quitar ? "0" : datos.capturas?.[e.id];
       const contado = texto(capturado) === "" ? null : dec(capturado);
       return {
         id: e.id,
@@ -116,14 +119,26 @@ export function renglonesDelConteo(estado, datos = estado.conteo_en_curso, { ind
         capturado: texto(capturado),
         contado,
         diferencia: contado === null ? null : contado.minus(r.total),
+        correccion,
+        quitar: Boolean(correccion?.quitar),
+        dimension_nueva: correccion?.dimension ?? r.dimension,
+        np_nuevo: correccion?.np ?? r.np,
       };
     });
+}
+
+/** Correcciones del borrador: la revisión usa los datos actuales, sin tocar el inventario. */
+export function correccionesDelConteo(estado, datos = estado.conteo_en_curso) {
+  return renglonesDelConteo(estado, datos).filter((f) => f.correccion && (f.quitar || texto(f.dimension_nueva) !== texto(f.dimension) || texto(f.np_nuevo) !== texto(f.np)))
+    .map((f) => ({ existencia_id: f.id, codigo: f.codigo, descripcion: f.descripcion, lugar: f.lugar,
+      dimension_antes: f.dimension, np_antes: f.np, dimension: texto(f.dimension_nueva), np: texto(f.np_nuevo),
+      quitar: f.quitar, motivo: texto(f.correccion.motivo) || "Corrección durante el conteo físico" }));
 }
 
 /** Vales emitidos después de empezar el conteo que tocan renglones contados (pueden contarse doble). */
 export function valesDuranteConteo(estado, datos = estado.conteo_en_curso) {
   if (!datos) return [];
-  const contados = new Set([...Object.keys(datos.capturas ?? {})].map(Number));
+  const contados = new Set([...Object.keys(datos.capturas ?? {}).map(Number), ...(datos.correcciones ?? []).filter((c) => c.quitar).map((c) => c.existencia_id)]);
   const salida = [];
   for (const v of estado.vales) {
     if (v.estado !== "EMITIDO") continue;
@@ -139,12 +154,15 @@ export function valesDuranteConteo(estado, datos = estado.conteo_en_curso) {
 export function resumenConteo(estado, datos = estado.conteo_en_curso) {
   const filas = renglonesDelConteo(estado, datos);
   const contados = filas.filter((f) => f.contado !== null);
+  const correcciones = correccionesDelConteo(estado, datos);
   return {
     renglones: filas.length,
     contados: contados.length,
     faltan: filas.length - contados.length,
     con_diferencia: contados.filter((f) => !f.diferencia.eq(0)).length,
     sobrantes: (datos?.nuevos ?? []).filter((n) => Number.isInteger(n.codigo)).length,
+    corregidas: correcciones.filter((c) => !c.quitar).length,
+    retiradas: correcciones.filter((c) => c.quitar).length,
   };
 }
 
@@ -154,10 +172,19 @@ export function validarConteo(estado, datos = estado.conteo_en_curso) {
   if (!datos) return [{ id: null, campo: "conteo", mensaje: "No hay un conteo en captura." }];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(datos.fecha))) error(null, "fecha", "Falta la fecha del conteo.");
   const dentro = new Set(estado.existencias.filter((e) => e.activo !== false && datos.ubicaciones.includes(e.ubicacion_id)).map((e) => e.id));
+  const quitar = new Set((datos.correcciones ?? []).filter((c) => c.quitar).map((c) => c.existencia_id));
   for (const [id, valor] of Object.entries(datos.capturas ?? {})) {
-    if (!dentro.has(Number(id))) continue;
+    if (!dentro.has(Number(id)) || quitar.has(Number(id))) continue;
     const n = dec(valor);
     if (n === null || n.lt(0)) error(Number(id), "contado", `Lo contado debe ser un número (0 o más): "${valor}".`);
+  }
+  const corregidas = new Set();
+  for (const c of datos.correcciones ?? []) {
+    if (!dentro.has(c.existencia_id)) error(c.existencia_id, "correccion", "La partida a corregir ya no está activa dentro de este conteo.");
+    if (corregidas.has(c.existencia_id)) error(c.existencia_id, "correccion", "Revisa la corrección repetida de esta partida.");
+    corregidas.add(c.existencia_id);
+    if (c.dimension !== undefined && typeof c.dimension !== "string") error(c.existencia_id, "dimension", "La dimensión debe ser texto.");
+    if (c.np !== undefined && typeof c.np !== "string") error(c.existencia_id, "np", "El NP debe ser texto o quedar vacío.");
   }
   const sobrantes = (datos.nuevos ?? []).filter((s) => Number.isInteger(s.codigo) || texto(s.cantidad));
   sobrantes.forEach((s, i) => {
@@ -167,9 +194,10 @@ export function validarConteo(estado, datos = estado.conteo_en_curso) {
     const c = dec(s.cantidad);
     if (c === null || c.lte(0)) error(s.uid, "cantidad", `Partida encontrada ${n}: la cantidad debe ser mayor que 0.`);
     if (!unidad(s.um)) error(s.uid, "um", `Partida encontrada ${n}: falta la unidad (UM).`);
+    if (Number.isInteger(s.variante_id) && !estado.variantes.some((v) => v.id === s.variante_id && v.activo !== false && v.codigo === s.codigo)) error(s.uid, "variante", `Partida encontrada ${n}: revisa la variante de ese código.`);
   });
   const contados = Object.keys(datos.capturas ?? {}).filter((id) => dentro.has(Number(id))).length;
-  if (!contados && !sobrantes.length) error(null, "capturas", "No se ha capturado ninguna partida.");
+  if (!contados && !sobrantes.length && !correccionesDelConteo(estado, datos).length) error(null, "capturas", "No se ha capturado ninguna partida.");
   return errores;
 }
 
@@ -183,6 +211,15 @@ export function aplicarConteo(estado, { usuario = null, corteAlAplicar = false }
   const datos = estado.conteo_en_curso;
   const errores = validarConteo(estado, datos);
   if (errores.length) throw new ErrorConteo("El conteo tiene datos pendientes.", errores);
+  const correcciones = correccionesDelConteo(estado, datos);
+  if (!corteAlAplicar && valesDuranteConteo(estado, datos).some((v) => {
+    const vale = estado.vales.find((x) => x.id === v.vale_id);
+    return vale.lineas.some((l) => correcciones.some((c) => c.quitar && c.existencia_id === l.existencia_id));
+  })) throw new ErrorConteo("Hay movimientos posteriores en una partida que se quitará. Indica que lo contado ya refleja esos vales antes de aplicar.", [{ id: null, campo: "corte", mensaje: "Para quitar esa partida, selecciona que lo contado ya refleja los vales emitidos durante el conteo." }]);
+  // Revisar todas las uniones antes de guardar una sola corrección.
+  const comprobar = structuredClone(estado);
+  for (const c of correcciones.filter((c) => !c.quitar)) corregirDimensionNp(comprobar, { existenciaId: c.existencia_id }, c, { motivo: c.motivo });
+  for (const c of correcciones.filter((c) => !c.quitar)) corregirDimensionNp(estado, { existenciaId: c.existencia_id }, c, { usuario, motivo: c.motivo });
   const indices = new Indices(estado);
   const saldos = calcularSaldos(estado);
   const corte = corteAlAplicar ? foliosActuales(estado) : datos.corte;
@@ -199,21 +236,26 @@ export function aplicarConteo(estado, { usuario = null, corteAlAplicar = false }
     observaciones: texto(datos.observaciones) || null,
     lineas: [],
     nuevos: [],
+    correcciones,
   });
   const dentro = new Set(datos.ubicaciones);
-  for (const [id, valor] of Object.entries(datos.capturas ?? {})) {
+  const capturas = { ...datos.capturas, ...Object.fromEntries(correcciones.filter((c) => c.quitar).map((c) => [c.existencia_id, "0"])) };
+  for (const [id, valor] of Object.entries(capturas)) {
     const existencia = indices.existencia(Number(id));
     if (!existencia || existencia.activo === false || !dentro.has(existencia.ubicacion_id)) continue;
     const saldo = saldos.get(existencia.id);
+    const retirada = correcciones.some((c) => c.quitar && c.existencia_id === existencia.id);
     conteo.lineas.push({
       existencia_id: existencia.id,
       contado: decTexto(dec(valor)),
       teorico: decTexto(saldo ? saldo.total : CERO),
       cantidad_anterior: existencia.cantidad_conteo,
       conteo_anterior_id: existencia.conteo_id ?? null,
+      ...(retirada ? { activo_anterior: existencia.activo ?? null } : {}),
     });
     existencia.cantidad_conteo = decTexto(dec(valor));
     existencia.conteo_id = conteo.id;
+    if (retirada) existencia.activo = false;
   }
   for (const s of (datos.nuevos ?? []).filter((n) => Number.isInteger(n.codigo))) {
     indices.obtenerOCrearArticulo(s.codigo, texto(s.descripcion).toUpperCase(), "CONTEO");
@@ -252,7 +294,7 @@ export function aplicarConteo(estado, { usuario = null, corteAlAplicar = false }
     entidad: "conteo",
     entidadId: conteo.id,
     accion: "APLICAR",
-    despues: { alcance: conteo.alcance, renglones: conteo.lineas.length, diferencias, nuevos: conteo.nuevos.length, corte },
+    despues: { alcance: conteo.alcance, renglones: conteo.lineas.length, diferencias, nuevos: conteo.nuevos.length, correcciones, corte },
   });
   return conteo;
 }
@@ -295,6 +337,7 @@ export function historialConteos(estado) {
         corte_salida: c.ultimo_folio_salida,
         corte_entrada: c.ultimo_folio_entrada ?? 0,
         diferencias,
+        correcciones: c.correcciones ?? [],
         inicial: !c.lineas,
       };
     });

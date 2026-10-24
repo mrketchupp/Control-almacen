@@ -267,7 +267,7 @@ export function aplicarEntradaIA(estado, borrador, respuesta, { indices = new In
     const opciones = destinosDeCodigo(estado, codigo, { indices });
     const iguales = opciones.filter((o) => {
       const mismaDim = claveEstricta(o.clave) === dimension || (!dimension && claveEstricta(o.clave) === "");
-      return mismaDim && (!np || claveEstricta(o.np) === np);
+      return mismaDim && claveEstricta(o.np) === np;
     });
     const elegida = iguales.find((o) => o.sugerida) ?? iguales[0];
     const sinDestino = linea.existencia_id === null || linea.existencia_id === undefined;

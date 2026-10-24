@@ -22,7 +22,7 @@ flowchart TD
 - **Borradores:** se pueden tener varios abiertos en pestañas. No consumen folio y se guardan automáticamente (sobreviven a cerrar la pestaña). Descartar uno es inmediato y el aviso ofrece **Deshacer**.
 - **Pantalla:** a la izquierda los datos del vale: primero lo que se captura (área, fecha; en transferencias origen y destino; personas, etapa) y al final, en "Se llenan solos", lo automático (quién entrega, de dónde sale, a dónde llega y las observaciones fijas). Al centro las **partidas** y, debajo, en su propia sección, las **fotos** (NOV). Las partidas van con las mismas columnas y en el mismo orden que el vale impreso (O.C., cantidad, código, descripción, clave almacén, presentación, lote). Lo que viene del inventario (contenedor, existencia) se muestra en **pastillas grises**, aparte de lo que se imprime.
 - **Pantalla de cada almacenista (Ajustes → Mi pantalla de vales):** el orden de los bloques del panel de datos se cambia arrastrándolos por sus puntitos (o con ↑ ↓) en una vista previa, y un botón pasa los datos al otro lado de las partidas. Se guarda por almacenista y se aplica según quién está en turno; lo descrito arriba es el acomodo de fábrica (*Restablecer como venía*).
-- **Vales internos** (todo menos NOV y transferencias): salen de `RIG 91 · ALMACEN` y llegan a `RIG 91 · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.
+- **Vales internos** (todo menos NOV y transferencias): salen de `EQUIPO · ALMACEN` y llegan a `EQUIPO · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.
 - **Recibió:** se busca por nombre, por puesto o por el área a la que la persona suele recibir ("mecánico" lista a los mecánicos); al elegirla se llena su puesto.
 - **Partidas (paso a paso):** código AX → `Enter` → **clave**: la lista muestra solo las claves de ese código en el inventario, cada una con su contenedor y existencia (si solo hay una, se elige sola) → `Enter` → cantidad → `Enter` pasa a la siguiente partida. "Otra clave" deja la partida como no inventariada (no descuenta). Un artículo sin existencia (diésel) queda no inventariado y la clave se escribe a mano; un código que no está en el catálogo se acepta con su descripción y queda "por confirmar".
 - **Búsqueda rápida (opcional, en Ajustes):** un buscador por cualquier dato que llena la partida completa con `Enter`.
@@ -30,8 +30,8 @@ flowchart TD
 - **Emitir** es el único paso que asigna folio: el último + 1, dentro de un cambio atómico con candado de pestaña única. Un vale con errores no consume folio. **Todos los folios se usan:** ninguno se cancela ni se salta.
 - **Más renglones que el formato:** cada hoja-formulario tiene su capacidad (21, 20 u 19 renglones). Si el vale la supera, la herramienta avisa y ofrece dividirlo en folios consecutivos (P-16).
 - **Transferencias:** la plantilla `TRANSFERENCIAS` exige "Autorizó" y marca la naturaleza como `TRANSFERENCIA`.
-- **NOV (diésel):** área externa con datos fijos (sale de `RIG 91 · ALMACEN` hacia el tanque de NOV; observaciones fijas + etapa). Lleva **4 firmas**: a la izquierda el químico (arriba, "Recibió") y el personal de NOV (abajo); a la derecha el almacenista (arriba) y patrimonial (abajo). Las personas y la partida de diésel (sin cantidad) se toman del último vale NOV hecho en la herramienta. Lleva **3 fotos**, que se imprimen en el lugar y tamaño de las del formato; las partidas caben arriba de ellas (4). En el DIARIO, como hacía la macro, "Entrego" es el químico y "Recibio" el almacenista.
-- **Autorizó (transferencias):** nombre y puesto; se sugieren primero RIG MANAGER e ITP.
+- **NOV (diésel):** área externa con datos fijos (sale de `EQUIPO · ALMACEN` hacia el tanque de NOV; observaciones fijas + etapa). Lleva **4 firmas**: a la izquierda el químico (arriba, "Recibió") y el personal de NOV (abajo); a la derecha el almacenista (arriba) y patrimonial (abajo). Las personas y la partida de diésel (sin cantidad) se toman del último vale NOV hecho en la herramienta. Lleva **3 fotos**, que se imprimen en el lugar y tamaño de las del formato; las partidas caben arriba de ellas (4). En el DIARIO, como hacía la macro, "Entrego" es el químico y "Recibio" el almacenista.
+- **Autorizó (transferencias):** nombre y puesto; se sugieren primero RESPONSABLE e ITP.
 - **Personas:** se muestra su puesto; quien más ha firmado para esa área aparece primero.
 - **Impresión:** el vale se dibuja sobre **la hoja-formulario del propio libro de vales** (logo, colores, bordes, anchos, observaciones y pie de página) en tamaño carta, y se imprime o se guarda como PDF desde el navegador. La vista previa de un borrador lleva `BORRADOR` en el folio.
 - **Folios hechos fuera de la herramienta:** si se siguieron haciendo vales en el Excel, *Exportar y enviar → Traer vales hechos en el Excel* agrega los folios posteriores al último conocido. No hay forma de saltar folios: los hechos fuera se traen del Excel.
@@ -142,11 +142,11 @@ parecidos (`renglones`, `clave`, `solicita`, `unidad`…). La herramienta no se 
 **Mover material entre contenedores** (*Inventario → Mover*): cantidad y contenedor de destino. El total no cambia; los
 dos renglones quedan como recién contados y el movimiento queda en *Movimientos entre contenedores*.
 
-## 5. Conciliación contra AX
+## 5. Conciliación con Dynamics AX
 
 ```mermaid
 flowchart LR
-    A[Importar reporte AX<br/>completo o filtrado] --> B[Filtrar almacén RIG91-IX25<br/>y modelo INV]
+    A[Importar reporte AX<br/>completo o filtrado] --> B[Filtrar almacén EQUIPO<br/>y modelo INV]
     B --> C[Emparejar partidas]
     C --> C2[Exacto tras normalizar]
     C2 --> C3[Aproximado con puntaje]
@@ -266,7 +266,7 @@ página: entrega los dos libros **como estaban al cierre de ese día**
 
 - **Libro de vales de salida** (`.xlsm`): hasta el último folio con fecha de ese día o anterior. El `DIARIO` se abre
   completo, con las filas visibles y los rangos de tabla y filtro actualizados aunque la plantilla tuviera filtros
-  guardados o filas ocultas. Esto también se aplica al libro de GSM.
+  guardados o filas ocultas. Esto también se aplica al libro de Inventario B.
 - **Inventario de refaccionamiento** (`.xlsx`, con esa fecha en el nombre): CONSUMO e INGRESO solo con los vales y
   entradas hasta ese corte; los conteos y movimientos posteriores se deshacen (cada línea de conteo guarda la cantidad
   y el conteo anteriores) y no aparecen los renglones creados después. Las correcciones se toman como están hoy.
@@ -278,7 +278,7 @@ página: entrega los dos libros **como estaban al cierre de ese día**
 También muestra los vales y entradas del día y *Subir al SharePoint* limitado a ese corte: **✓ Ya lo subí** marca solo
 los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendientes para el reporte de su día.
 
-1. **Exportar → Vales:** genera `VALES DE SALIDA DLTA.xlsm` sobre la plantilla registrada, con `DIARIO` completo y actualizado.
+1. **Exportar → Vales:** genera `VALES DE SALIDA <inventario>.xlsm` sobre la plantilla registrada, con `DIARIO` completo y actualizado.
 2. La herramienta valida el archivo, lo guarda en la carpeta de exportaciones y registra hasta qué folio se incluyó.
 3. El usuario lo sube al SharePoint y pulsa **"✓ Ya lo subí"**. *Subir al SharePoint* muestra los vales nuevos o corregidos desde la última subida (se lleva con un contador de cambios, no con la hora, para que no se escape ninguno).
 4. **Exportar → Inventario:** genera el `.xlsx` con fecha en el nombre, cuando se necesite.
@@ -290,7 +290,7 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
 
 ## 8. Respaldo y restauración
 
-> Cada inventario (DLTA y GSM) tiene sus respaldos (`almacen_…` y `almacen_GSM_…`). Se restaura estando en el
+> Cada inventario (Inventario A y Inventario B) tiene sus respaldos (`almacen_…` y `almacen_<inventario>_…`). Se restaura estando en el
 > inventario del respaldo; uno del otro se rechaza con un aviso que dice a cuál cambiarse.
 
 - Los respaldos automáticos funcionan como se describe en [03-arquitectura.md](03-arquitectura.md#almacenamiento-y-respaldos).
@@ -300,23 +300,23 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
   3. La herramienta valida el respaldo (formato, folios únicos, plantillas completas) antes de reemplazar.
   4. Elegir otra vez la carpeta de respaldos; queda lista.
 
-## 9. Dos inventarios: DLTA y GSM (Ronda 17)
+## 9. Dos inventarios: Inventario A y Inventario B (Ronda 17)
 
-1. Arriba, junto al nombre de la herramienta, el selector **Inventario: DLTA | GSM** dice en cuál estás (DLTA azul, GSM
+1. Arriba, junto al nombre de la herramienta, el selector **Inventario: Inventario A | Inventario B** dice en cuál estás (Inventario A azul, Inventario B
    morado: también la franja de la cabecera, el logo y el título de la pestaña). Al abrir, entra al último que usaste.
-2. **La primera vez GSM está vacío:** *Primera carga* con el inventario y el libro de vales de GSM. Desde ahí lleva sus
-   propios vales y folios, entradas, conteos, plantillas, respaldos, reporte diario y conciliación contra AX.
-3. Si eliges un archivo cuyo nombre dice el otro inventario (por ejemplo `…DLTA…` estando en GSM), la herramienta pregunta
+2. **La primera vez Inventario B está vacío:** *Primera carga* con el inventario y el libro de vales de Inventario B. Desde ahí lleva sus
+   propios vales y folios, entradas, conteos, plantillas, respaldos, reporte diario y conciliación con Dynamics AX.
+3. Si eliges un archivo cuyo nombre dice el otro inventario (por ejemplo `…Inventario A…` estando en Inventario B), la herramienta pregunta
    antes de leerlo (primera carga, traer vales del Excel, reporte de AX y archivo de la base).
-4. **Vale impreso:** se imprime con los textos y logos del libro de vales cargado para ese inventario. Si el archivo de GSM
-   es el mismo formato que el de DLTA (dice «MX DLTA …», dirección y logo de DLTA), en *Ajustes → Vale impreso de GSM* se
+4. **Vale impreso:** se imprime con los textos y logos del libro de vales cargado para ese inventario. Si el archivo de Inventario B
+   es el mismo formato que el de Inventario A (dice «MX Inventario A …», dirección y logo de Inventario A), en *Ajustes → Vale impreso de Inventario B* se
    corrige: el encabezado del archivo aparece tal como viene, cada texto con lo que se imprime (editable); *Reemplazar en
-   todo el formato* cambia una parte de varios textos a la vez (p. ej. `DLTA` → `GSM`); cada logo se cambia por otra imagen
+   todo el formato* cambia una parte de varios textos a la vez (p. ej. `Inventario A` → `Inventario B`); cada logo se cambia por otra imagen
    o se quita. Con vista previa por hoja. Valen para **todas las hojas** (todas las áreas). No cambia el Excel ni los vales.
 5. **La etapa de perforación es la misma en los dos** (Ronda 18): si se cambia en uno (Inicio, Ajustes o al emitir un
    vale con otra etapa), el otro la toma al abrirlo; también al hacer su primera carga o restaurar un respaldo. Lo mismo
    (Ronda 19) con la **personalización** (tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales**.
-6. **Color:** en GSM toda la interfaz (botones, enlaces, menú, pestañas) va en morado; en DLTA, en azul.
+6. **Color:** en Inventario B toda la interfaz (botones, enlaces, menú, pestañas) va en morado; en Inventario A, en azul.
 
 ## 10. Etiquetas de almacén (Ronda 20)
 
@@ -329,5 +329,5 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
    **lista del generador** (`.json` del teléfono). Arriba, las entradas recientes sin etiquetas.
 3. **Imprimir:** *Vista previa e imprimir* → *Imprimir* (escala 100 %, sin encabezados) → **¿Salieron bien?** Al decir que
    sí quedan en la bitácora, las entradas se marcan *Etiquetas impresas* y, si se elige, salen de la lista.
-4. **Diseño y logos:** plantilla (incluida la precortada J-5163), medidas, letra y borde, iguales para DLTA y GSM; logos
+4. **Diseño y logos:** plantilla (incluida la precortada J-5163), medidas, letra y borde, iguales para Inventario A y Inventario B; logos
    (propuestos del libro de vales) y texto de almacén por inventario.

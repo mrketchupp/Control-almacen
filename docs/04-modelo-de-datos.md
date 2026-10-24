@@ -101,7 +101,7 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 | nombre | SOLDADOR, TOP DRIVE, … |
 | tipo | `INTERNO` (departamento del equipo), `EXTERNO` (otra compañía, p. ej. NOV) o `TRANSFERENCIA` (a otro equipo). Si falta, se deduce: transferencia por nombre/naturaleza; externa si el destino es distinto del origen |
 | hoja_excel | Hoja-formulario del libro de vales con la que se **imprime** el vale (nula = la del departamento) |
-| origen, depto_origen, destino, depto_destino | Valores por defecto. En las **internas** son fijos: `RIG 91 · ALMACEN` → `RIG 91 · <depto del área>` |
+| origen, depto_origen, destino, depto_destino | Valores por defecto. En las **internas** son fijos: `EQUIPO · ALMACEN` → `EQUIPO · <depto del área>` |
 | recibe_nombre, recibe_puesto | Receptor habitual |
 | autoriza_nombre | Quién autoriza habitualmente (transferencias) |
 | requiere_autoriza | Transferencias: sí (P-14) |
@@ -170,6 +170,10 @@ conteo con `tipo: "REACOMODO"` lo genera un movimiento entre contenedores (ver a
 
 **`conteo_en_curso`** (uno a la vez): el conteo mientras se captura (`ubicaciones`, `corte` = folios al empezar,
 `capturas` {existencia_id → contado}, `nuevos` [sobrantes], `fecha`). No cambia el inventario hasta aplicarlo.
+Desde el formato 17 incluye `correcciones: [{existencia_id, dimension, np, quitar, motivo}]`: cambios pendientes
+de clave o bajas que se revisan antes de confirmar. Al aplicar se guardan en `conteo.correcciones`; una baja registra
+`activo_anterior` en su línea, conserva el id y los vales, deja contado en cero y desactiva la partida. El cierre de
+un día anterior restaura su estado activo. Cambiar sólo dimensión / NP conserva cantidad contada, corte y saldo.
 
 **`reacomodos`**: fecha, usuario, `desde_existencia_id`, `hacia_existencia_id`, `renglon_nuevo`, código, clave, UM,
 `cantidad`, hojas de origen y destino, `conteo_id` (el REACOMODO que fijó ambos renglones) y motivo.
@@ -210,7 +214,7 @@ conserva lo que se confirmó con la versión anterior: esas parejas se vuelven a
 confirmarlas, se corrige el inventario y se borran. La pareja de cada partida **no se guarda**: se calcula cada vez
 (`servicios/conciliacion.js`, `emparejar`). Solo se concilian las partidas con **Modelo de Inventario = INV**
 (`lineasInv`); los códigos que en AX solo vienen con otro modelo tampoco se comparan del lado físico.
-`config.almacen_ax` = almacén que se filtra (por defecto `RIG91-IX25`).
+`config.almacen_ax` = almacén que se filtra; su valor inicial se consulta en la configuración del inventario.
 
 Las asignaciones de justificantes creadas desde el formato 16 guardan también `cantidad_vale` en la unidad
 original y `existencia_conversion_id` para resolver una conversión inequívoca de un vale migrado sin partida
@@ -225,17 +229,15 @@ y su fecha no importa: `guardado` (cuándo lo guardó Excel, de `docProps/core.x
 la Ronda 12 pueden traer `fecha`; se ignora. Los textos de la base (INV/NINV, TIPO DE MOV, CANTIDAD aplicada, TR, IN)
 se guardan como vienen. El estado en AX de cada partida **no se guarda**: se calcula (`estadoAxDeVales`).
 
-**Dos inventarios (formato 9, Ronda 17):** `config.inventario` = `DLTA` | `GSM` (los estados anteriores se migran como
-DLTA). Cada inventario es un estado aparte, en su propia base de IndexedDB; nunca se mezclan. `config.almacen_ax` se
-propone por inventario (DLTA `RIG91-IX25`; GSM ninguno: el primero del reporte, y se recuerda el elegido).
+**Inventarios independientes (formato 9):** `config.inventario` guarda uno de los ids definidos en `src/nucleo/inventarios.js`. Los estados anteriores adoptan el inventario predeterminado. Cada inventario tiene su propio estado y base de IndexedDB. `config.almacen_ax` propone el almacén configurado o el primero del reporte y recuerda la selección.
 `config.vale_impreso = { textos: [{ buscar, poner }], logos: { <huella de la imagen>: { src, nombre, guardado_en } |
 { quitar: true } } }` (opcional): lo que se cambia **al imprimir** sobre la hoja-formulario (textos fijos y logos del
-formato), por ejemplo el nombre del almacén y la dirección de DLTA en el vale de GSM. Los textos se reemplazan sin
+formato), por ejemplo el nombre del almacén y la dirección de Inventario A en el vale de Inventario B. Los textos se reemplazan sin
 importar mayúsculas ni espacios de más y nunca tocan lo capturado en el vale; el logo nuevo va como `data:` URL (≤ 300 KB)
 para que viaje en los respaldos. Ver `src/impresion/identidad.js` y `src/servicios/valeImpreso.js`.
 
 **Ajustes compartidos (Rondas 18 y 19):** `config.etapa_perforacion`, `config.personalizacion`, `config.captura_rapida` y
-`config.preferencias_vale` son los mismos en DLTA y GSM. Cada estado conserva su copia (va en sus respaldos) y se
+`config.preferencias_vale` son los mismos en Inventario A y Inventario B. Cada estado conserva su copia (va en sus respaldos) y se
 sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia el formato del estado.
 
 **Quitar áreas (Ronda 19):** un área (`plantillas_area`) que ningún vale ni borrador usa (`plantilla_area_id`) se
@@ -244,18 +246,18 @@ sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia
 vales migrados del DIARIO no apuntan a un área. Auditoría `BORRAR`, `REPONER`, `DESCARTAR`, `RECUPERAR`.
 
 **Etiquetas (formato 10, Ronda 20):** `estado.etiquetas = { material: [...], ax: [...] }` (lo que está por imprimir;
-cada etiqueta es una copia: cantidad 1–999, código, nombre, dimensión, NP, descripción, área, `inventario` DLTA | GSM y su
+cada etiqueta es una copia: cantidad 1–999, código, nombre, dimensión, NP, descripción, área, `inventario` Inventario A | Inventario B y su
 `origen` — entrada, inventario, a mano o archivo del generador) y `estado.impresiones_etiquetas = [{ id, fecha_hora,
 usuario, tipo, partidas, etiquetas, vales }]` (bitácora; una entrada tiene etiquetas si su id está en `vales`). Los vales
-no cambian. `config.etiquetas = { diseno, identidad: { DLTA: { logo_izq, logo_der, texto }, GSM: … } }` es compartido entre
-DLTA y GSM. Detalle en `docs/11-etiquetas.md`.
-Al corregir dimensión / NP desde Conciliación AX se agrega a `etiquetas.material` una etiqueta por partida física
+no cambian. `config.etiquetas = { diseno, identidad: { <id_a>: { logo_izq, logo_der, texto }, <id_b>: … } }` es compartido entre
+Inventario A y Inventario B. Detalle en `docs/11-etiquetas.md`.
+Al corregir dimensión / NP desde conciliación con Dynamics AX se agrega a `etiquetas.material` una etiqueta por partida física
 modificada, con los datos corregidos. Su `origen` conserva `existencia_id` e inventario y agrega `corte_ax_id` y
 `linea_ax_id` (null al corregir lo que solo está en el físico). Deshacer la corrección retira solo esas etiquetas nuevas.
 
-**Etiquetas de DLTA y GSM juntas (formato 11, Ronda 21):** la lista por imprimir y la bitácora son **las mismas en los
+**Etiquetas de Inventario A y Inventario B juntas (formato 11, Ronda 21):** la lista por imprimir y la bitácora son **las mismas en los
 dos inventarios** (se sincronizan con la base común como los ajustes compartidos; cada estado guarda su copia, que va en
-sus respaldos). Los ids llevan el inventario que los creó (`DLTA-12`, `GSM-3`) para no chocar; `origen.inventario` dice de
+sus respaldos). Los ids llevan el inventario que los creó (`INV_A-12`, `INV_B-3`) para no chocar; `origen.inventario` dice de
 qué inventario es la partida o la entrada; la bitácora marca `vales: [{ inventario, vale_id, emitido_en }]` (el id de un
 vale se repite si se restaura un respaldo: `emitido_en` dice cuál era); la lista lleva
 `cambiado_en` (gana el último cambio) y, si venía con etiquetas del formato 10, `juntar: true` (la primera vez se une con
@@ -296,7 +298,7 @@ El estado lleva `formato` (hoy **15**; del 6 al 12 se describen arriba en *Conci
 el 12 completa `emitido_en` en las marcas de etiquetas de las entradas propias; el 13 agrega `fecha_recibido` a las
 entradas y a sus borradores, ver *Vales de entrada*; el 14 reúne los marcadores de correcciones generales de la rama de vales y la fecha mínima de justificantes AX; el 15 agrega los vínculos físicos por corte). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
-de `RIG 91 · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
+de `EQUIPO · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
 para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada área; el 5 agrega
 `borradores_entrada`, `conteo_en_curso` y `reacomodos`, y marca los conteos anteriores como `alcance: TOTAL`.
@@ -317,7 +319,7 @@ se marcó como subido al SharePoint en un envío parcial del reporte diario; `en
 **Vales de entrada** (`vale.tipo = ENTRADA`): `folio` es el consecutivo interno propio (se muestra `E-0001`),
 independiente del de salidas; `folio_externo` = folio del vale que llega (obligatorio); `origen` = de dónde viene;
 `depto_origen` siempre `ALMACEN`; `devolucion_folio` (opcional) = vale de salida del que se copiaron las partidas
-(`motivo` queda `DEVOLUCION` en ese caso y `BASE` en los demás, solo como referencia); destino `RIG 91 · ALMACEN`,
+(`motivo` queda `DEVOLUCION` en ese caso y `BASE` en los demás, solo como referencia); destino `EQUIPO · ALMACEN`,
 entregó = quien trae el material y recibió = almacenista en turno. Cada renglón lleva su `existencia_id` (el renglón
 del inventario al que entra; si era una variante o un contenedor nuevos, se crean al confirmar) o `no_inventariado`.
 **`borradores_entrada`**: entradas en captura, con el mismo encabezado y renglones que además pueden traer

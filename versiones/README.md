@@ -1,97 +1,14 @@
-# Versión con corrección del libro diario de GSM
+# Aplicación
 
-Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
-Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
-Al actualizar tu copia, conserva el nombre y la ubicación habituales del HTML y usa el mismo navegador.
+[Descargar ControlAlmacen.html](ControlAlmacen.html) y elegir **Download raw file** en GitHub.
+Guárdalo como `ControlAlmacen.html` y ábrelo en Edge o Chrome.
 
-En **Reporte diario → Libro de vales de salida**, el `DIARIO` se genera con todas las filas visibles y los rangos
-de sus tablas y filtros actualizados. Una fila oculta o un filtro guardado en la plantilla de GSM ya no deja los vales
-nuevos fuera de la vista ni de la tabla. Se conservan las macros, formularios, logos y los datos del historial.
-La fecha elegida sigue marcando el corte: el caso de prueba llega al folio **2964 el 23/10/2026** y al **2930 el
-07/10/2026**, con un control de exportación de DLTA. Tras actualizar el HTML, vuelve a descargar el libro de salida
-desde el reporte del día que necesitas.
+Al actualizar, conserva el nombre y la ubicación del archivo y usa el mismo navegador.
+Los datos y los respaldos permanecen en el equipo.
 
-En **Conciliación AX**, una dimensión puede reunir varias partidas físicas con distintos NP: se suman las
-coincidencias del mismo código, dimensión y unidad. **2 + 2 piezas de 150VA contra AX 4 → Cuadra**. Se respetan las
-dimensiones con Color específico y se evita contar dos veces el físico si AX repite su misma partida.
+Incluye inventario, vales, conteos físicos, etiquetas, archivos Excel y conciliación con Dynamics AX.
 
-El selector muestra **Unidad en AX** y los bloqueos muestran las unidades de ambos lados. Se reconocen como piezas
-las abreviaturas `EA`, `UND`, `UNIDAD`, `PCS`, `PZA.` y otras equivalentes de conteo 1 a 1; se conservan los datos originales.
-Caja, juego, kilo, metro y litro requieren una equivalencia indicada por el usuario para convertir sus cantidades.
-Activa **Corregir la unidad del inventario a la de AX**, selecciona las opciones e indica, por ejemplo,
-**1 CJA = 12 PZA**. Si sólo estaba mal anotada la unidad, usa **1 = 1**. La revisión muestra cantidades y unidades
-antes → después, el resultado con tránsito y las etiquetas. Al confirmar, se guardan la unidad y la equivalencia;
-los vales conservan su captura original y sus movimientos se calculan en la unidad vigente. Los nuevos vales usan
-la unidad corregida. **Deshacer** se protege si después registras o editas vales de las partidas convertidas.
-
-En **Justificar faltantes**, **Reporte AX** y **Diferencias → Por partida de AX**, pulsa **Elegir del inventario…**
-cuando la escritura no permita reconocerlas. Selecciona las dimensiones / NP correctas, revisa las partidas, el total
-y el resultado con los vales en tránsito y pulsa **Confirmar vínculo**. Se guarda por corte con bitácora y **Deshacer**;
-puedes volver al emparejamiento automático. Por defecto conserva cantidades, claves, vales y etiquetas. Se recalcula al variar el
-saldo y también en la solicitud de ajuste; se mantiene el límite anual de los vales justificantes.
-
-Marca **También corregir las claves del inventario a como están en AX y preparar etiquetas** para corregir y vincular
-en una misma operación. La revisión muestra las claves de destino, el resultado con tránsito y cuántas etiquetas se
-agregarán a **Etiquetas → Material**. Conserva las cantidades y los vales; el NP sólo se limpia si repite el Color de AX.
-Si una clave se une a otra existente, se muestra el total resultante. **Deshacer** revierte claves, vínculo y etiquetas.
-Las correcciones de dimensión, NP y unidad quedan guardadas en inventario y respaldos. En siguientes cortes con
-las mismas claves de AX se emparejan automáticamente, sin repetir la selección manual. El vínculo simple se guarda
-sólo para su corte: activa la corrección correspondiente para resolver el dato del inventario de forma permanente.
-
-En **Emparejar con AX**, elegir una sugerencia del corte muestra la partida AX, su cantidad, el resultado físico y las
-etiquetas antes de guardar con **Revisar corrección → Confirmar corrección y etiquetas**. **Elegir varias partidas
-para este AX…** abre el mismo destino en la selección múltiple.
-
-El **clic derecho** ofrece acciones según el diseño, elemento, etiqueta pendiente, vale o partida del inventario.
-Puedes renombrar el diseño pulsado, duplicar y ordenar elementos, corregir o imprimir vales y editar o mover una partida.
-Sólo aparecen las opciones disponibles para su estado; las revisiones y los avisos de Deshacer se conservan.
-**Mayús+F10** abre las acciones por teclado y **Mayús + clic derecho** conserva el menú del navegador.
-
-En los campos de texto se mantienen **copiar, cortar, pegar, deshacer y rehacer** del navegador y sus atajos.
-En el editor, **Ctrl+C / Ctrl+X / Ctrl+V** copian, cortan y pegan elementos entre diseños; **Ctrl+Z / Ctrl+Y** recuperan
-los cambios. También están en el menú cuando corresponden. Los diseños de fábrica permiten copiar y duplicar el
-diseño para editarlo. Si el navegador bloquea el portapapeles, el menú conserva la copia de elementos durante esa sesión.
-
-Esta versión reúne la rama de vales y la de etiquetas en la rama predeterminada del proyecto.
-En **Etiquetas → Editor de diseños** puedes duplicar un diseño, mover y editar elementos, agregar QR y
-código de barras, guardarlo y elegirlo para imprimir. Se conservan los diseños y las listas de ambas ramas.
-
-En **Conciliación AX → Emparejar con AX**, corregir dimensión / NP agrega automáticamente una etiqueta
-por cada partida física modificada a **Etiquetas → Material**. Incluye las correcciones individuales,
-las seguras y lo que sólo está en el físico. **Deshacer** retira las etiquetas de esa corrección.
-
-En **Justificar faltantes → Aceptar vales desde**, el inicio propuesto es el **1 de noviembre del año
-anterior al reporte AX**. Cambia la fecha y pulsa **Guardar límite** para una prórroga o retraso; se guarda
-por corte. Los vales anteriores quedan fuera de las sugerencias, la asignación manual y la solicitud.
-Las asignaciones ya guardadas fuera del periodo se conservan con un aviso y dejan de justificar diferencias.
-
-En **Historial de vales → Vales de salida → Imprimir por lotes**, pega los folios de una columna de Excel
-o sepáralos con espacios, comas o punto y coma. Se imprimen una sola vez y en el orden de la lista.
-Corrige los folios inválidos o no encontrados antes de imprimir.
-
-Las claves de almacén largas se imprimen completas en varias líneas, centradas y con una fila más alta.
-Se aprovecha el espacio de partidas vacías y, si el formato está lleno, se ajusta la escala
-para conservar una página por vale. Las observaciones, las firmas y las bandas mantienen su posición.
-Los textos de celdas combinadas también se conservan si su origen está en una fila o columna oculta.
-La banda de «OBSERVACIÓN» y los rellenos de su bloque se dibujan desde sus propias celdas,
-para evitar una segunda franja de color dentro de las partidas cuando cambia una altura.
-
-En **Historial de vales → Vales de salida / Vales de entrada → Corregir por lotes**, pega los folios,
-marca los datos generales que deseas cambiar y revisa el antes y el después antes de guardar.
-En entradas se usa el folio interno (`E-0001` o `1`). Las partidas y los materiales se conservan.
-
-En **Áreas y personas → Personas**, agregar o editar un puesto permite confirmar su actualización
-en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
-Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
-
-Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 385 pruebas automatizadas y 3 del reporte diario y sus descargas reales en Chromium, con control GSM / DLTA.
-Se conservan las validaciones de 9 pruebas de agrupación, unidades, conversiones, correcciones y vínculos AX en Chromium.
-Se conservan las validaciones de 10 pruebas de menús contextuales y 7 de impresión. Se recorrieron en el navegador
-la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
-el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
-La impresión por lotes conserva la validación anterior de 88 vales y un PDF de 88 páginas.
-El HTML contiene únicamente el programa, estilos y licencias; los datos del almacén permanecen en el navegador.
+[Guía de uso](../docs/10-instalacion-y-uso.md)
 
 Para verificar la integridad del archivo:
 

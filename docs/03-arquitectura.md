@@ -63,7 +63,7 @@ Guardar los libros del usuario con una biblioteca genérica (openpyxl, SheetJS, 
 
 | Archivo | Qué se pierde al reescribir el libro |
 |---|---|
-| `VALES DE SALIDA DLTA.xlsm` | Todos los dibujos: logos, botones **GRABAR** / **LIMPIAR DATOS** con su macro asignada; metadatos de SharePoint (`customXml`); configuración de impresora |
+| `VALES DE SALIDA <inventario>.xlsm` | Todos los dibujos: logos, botones **GRABAR** / **LIMPIAR DATOS** con su macro asignada; metadatos de SharePoint (`customXml`); configuración de impresora |
 | `INVENTARIO…xlsx` | Configuración de impresora; las notas cambian de formato; se reescriben estilos y cadenas compartidas |
 
 **Solución:** el `.xlsx`/`.xlsm` es un ZIP de archivos XML. El exportador:
@@ -87,10 +87,10 @@ LibreOffice recalcula las 1,258 fórmulas del inventario sin errores. Especifica
 | Qué | Dónde |
 |---|---|
 | Programa | `ControlAlmacen.html`: un archivo que se abre en Edge (o la misma página publicada en un sitio estático). No se instala. |
-| Datos de trabajo (estado) | IndexedDB de Edge, **una base por inventario**: `control-almacen` (DLTA, la de siempre) y `control-almacen-gsm` (GSM); almacén `estado`. Por equipo, por cuenta de Windows y por origen de la página (P-01: ambos almacenistas comparten cuenta y equipo). |
+| Datos de trabajo (estado) | IndexedDB de Edge, una base por inventario según `src/nucleo/inventarios.js`; almacén `estado`. Los datos se separan por equipo, cuenta de Windows y origen de la página. |
 | Plantillas de Excel | IndexedDB, almacén `archivos` (bytes originales + SHA-256) |
 | Copias internas | IndexedDB, almacén `instantaneas`: una al inicio de cada día y antes de restaurar (últimas 10) |
-| Respaldos | `<carpeta elegida>\respaldos\almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip` (GSM: `almacen_GSM_…`) |
+| Respaldos | `<carpeta elegida>\respaldos\almacen_AAAA-MM-DD_HHMMSS_<motivo>.zip` (Inventario B: `almacen_<inventario>_…`) |
 | Exportaciones | `<carpeta elegida>\exportaciones\AAAA-MM-DD\` |
 | Lista de revisión | `<carpeta elegida>\revision\` |
 
@@ -115,17 +115,17 @@ desde } }`; claves en `VALORES_COMPARTIDOS`). `almacen/compartidos.js` (`Compart
 (la etapa también en los borradores que traían la anterior) con auditoría `SINCRONIZAR`. El `Almacen` avisa el origen de cada cambio
 (`cambio`, `carga`, `restaurar`, `borrar`). Antes de cambiar de inventario se espera a que quede guardada.
 
-**Dos inventarios (Ronda 17):** DLTA y GSM usan el mismo formato de archivos pero van **por separado**: cada uno tiene su
+**Dos inventarios (Ronda 17):** Inventario A y Inventario B usan el mismo formato de archivos pero van **por separado**: cada uno tiene su
 base de IndexedDB (estado, plantillas, ajustes —carpeta, último respaldo— y copias internas), sus folios, respaldos y
 conciliación. `src/nucleo/inventarios.js` los define (base, prefijo de respaldos, almacén de AX propuesto, palabras que
 los identifican en un nombre de archivo). `main.js` abre el último usado (recordado en `localStorage` solo para el
-arranque; si no se puede leer, DLTA) y cambia de uno a otro **en la misma pestaña** (sin recargar: crea otro `Almacen` y
+arranque; si no se puede leer, Inventario A) y cambia de uno a otro **en la misma pestaña** (sin recargar: crea otro `Almacen` y
 otra `Sesion` y vuelve a dibujar la app con otra `key`). El candado de pestaña única es uno solo. `estado.config.inventario`
 dice de cuál es cada estado: un respaldo de uno no se restaura en el otro, y la primera carga no acepta datos ajenos.
 
 ## Consistencia (el equivalente a las transacciones de SQLite)
 
-- **Una sola pestaña a la vez:** candado del navegador (Web Locks). La segunda pestaña muestra un aviso y no carga. DLTA y GSM se cambian dentro de esa misma pestaña.
+- **Una sola pestaña a la vez:** candado del navegador (Web Locks). La segunda pestaña muestra un aviso y no carga. Inventario A y Inventario B se cambian dentro de esa misma pestaña.
 - **Cada cambio es atómico:** se aplica a una copia del estado; solo si se guardó bien en IndexedDB pasa a ser el estado vigente. Los cambios se atienden en fila, uno por uno.
 - **Folios (F2):** se asignan dentro de ese mismo mecanismo (candado + cambio atómico): siempre el último + 1, validando que no exista para su tipo. Todos se usan: no se reutilizan, no se borran, no se cancelan ni se saltan; un vale equivocado se corrige con motivo y bitácora.
 

@@ -41,7 +41,7 @@ export const folioEntrada = (folio) => (hay(folio) ? `E-${String(folio).padStart
 
 // ---------------------------------------------------------------- borradores
 
-const SIN_DESTINO = { existencia_id: null, variante_id: null, ubicacion_id: null, dimension: "", np: "", no_inventariado: false };
+const SIN_DESTINO = { existencia_id: null, variante_id: null, ubicacion_id: null, dimension: "", np: "", no_inventariado: false, material_nuevo: false };
 
 export function lineaEntradaVacia() {
   return {
@@ -200,6 +200,8 @@ export function entradaConArticulo(estado, linea, codigo, { indices = new Indice
     descripcion: descripcion ?? indices.articulo(codigo)?.descripcion ?? (linea.codigo === codigo ? linea.descripcion : ""),
   };
   const opciones = destinosDeCodigo(estado, codigo, { indices });
+  if (linea.material_nuevo) return { ...base, material_nuevo: true, alta: true,
+    ubicacion_id: contenedorSugerido(estado, codigo, { indices, opciones }), um: umDelCodigo(opciones) || linea.um };
   const variantes = new Set(opciones.map((o) => o.variante_id));
   if (variantes.size === 1) return conRenglonExistente(estado, base, opciones.find((o) => o.sugerida).id, indices);
   return base;
@@ -224,7 +226,18 @@ export function conVarianteNueva(linea, { dimension = "", np = "", um = "", ubic
     um: unidad(um) || linea.um,
     clave: claveDeRenglon(dim),
     alta: true,
+    material_nuevo: Boolean(linea.material_nuevo),
   };
+}
+
+/** Alta elegida por la persona: conserva la dimensión, sin heredar el NP de una sugerencia. */
+export function conMaterialNuevo(estado, linea, { indices = new Indices(estado) } = {}) {
+  const existencia = hay(linea.existencia_id) ? indices.existencia(linea.existencia_id) : null;
+  const variante = existencia ? indices.variante(existencia.variante_id) : hay(linea.variante_id) ? indices.variante(linea.variante_id) : null;
+  const dimension = existencia && variante ? dimensionMostrada(existencia, variante) : linea.alta ? linea.dimension : linea.clave;
+  const ubicacionId = hay(linea.ubicacion_id) ? linea.ubicacion_id : existencia?.ubicacion_id ?? contenedorSugerido(estado, linea.codigo, { indices });
+  return { ...conVarianteNueva(linea, { dimension, np: variante && !linea.material_nuevo ? "" : linea.np,
+    um: texto(linea.um) || variante?.um || umDelCodigo(destinosDeCodigo(estado, linea.codigo, { indices })), ubicacionId }), material_nuevo: true };
 }
 
 /** La clave escrita es la dimensión tal cual; "SIN DIMENSIÓN" (lo que se muestra cuando no tiene) es vacía. */
@@ -253,6 +266,8 @@ export function contenedorSugerido(estado, codigo, { indices = new Indices(estad
  */
 export function conClaveEscrita(estado, linea, valor, { indices = new Indices(estado), opciones = null } = {}) {
   const lista = opciones ?? destinosDeCodigo(estado, linea.codigo, { indices });
+  if (linea.material_nuevo) return { ...conVarianteNueva(linea, { dimension: valor, np: linea.np,
+    um: texto(linea.um) || umDelCodigo(lista), ubicacionId: linea.ubicacion_id ?? contenedorSugerido(estado, linea.codigo, { indices, opciones: lista }) }), clave: valor };
   const elegida = lista.find((o) => o.id === linea.existencia_id);
   if (elegida && claveEstricta(elegida.clave) === claveEstricta(valor)) return { ...linea, clave: valor };
   // El NP del renglón que estaba elegido no pasa a la variante nueva (era de ese renglón).
@@ -288,8 +303,10 @@ export function conClaveYNp(estado, linea, { indices = new Indices(estado), opci
   const separado = separarNp(linea.clave);
   const clave = separado.np ? separado.dimension : texto(linea.clave);
   const np = separado.np || texto(linea.np);
+  if (linea.material_nuevo) return { ...conVarianteNueva(linea, { dimension: clave, np,
+    um: texto(linea.um) || umDelCodigo(lista), ubicacionId: linea.ubicacion_id ?? contenedorSugerido(estado, linea.codigo, { indices, opciones: lista }) }), clave };
   if (!clave && !np) return linea;
-  const iguales = lista.filter((o) => claveEstricta(o.clave) === claveEstricta(clave) && (!np || claveEstricta(o.np) === claveEstricta(np)));
+  const iguales = lista.filter((o) => claveEstricta(o.clave) === claveEstricta(clave) && claveEstricta(o.np) === claveEstricta(np));
   const actual = lista.find((o) => o.id === linea.existencia_id);
   if (actual && iguales.includes(actual)) return separado.np ? { ...linea, clave: actual.clave, np: actual.np } : linea;
   const elegida =

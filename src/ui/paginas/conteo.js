@@ -6,6 +6,7 @@ import { fmtFecha, fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
 import {
   ErrorConteo,
   aplicarConteo,
+  correccionesDelConteo,
   descartarConteo,
   guardarConteoEnCurso,
   historialConteos,
@@ -19,7 +20,7 @@ import {
 } from "../../servicios/conteos.js";
 import { folioEntrada } from "../../servicios/entradas.js";
 import { lugarCorto, ubicacionesOrdenadas } from "../../servicios/inventario.js";
-import { Aviso, Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { Aviso, Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { aplicarConteoIA } from "../../servicios/capturaIA.js";
 import { CapturaIA } from "./capturaIA.js";
@@ -164,6 +165,8 @@ function Captura() {
   const [vista, setVista] = useState("todos");
   const [aCiegas, setACiegas] = useState(false);
   const [corteAlAplicar, setCorteAlAplicar] = useState(false);
+  const [editando, setEditando] = useState(null);
+  const [revisando, setRevisando] = useState(false);
   const pendiente = useRef(null);
   const porGuardar = useRef(null);
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -172,6 +175,7 @@ function Captura() {
   const filas = useMemo(() => renglonesDelConteo(estado, datos, { indices, saldos }), [estado, datos, indices, saldos]);
   const resumen = useMemo(() => resumenConteo(estado, datos), [estado, datos]);
   const durante = useMemo(() => valesDuranteConteo(estado, datos), [estado.vales, datos]);
+  const correcciones = useMemo(() => correccionesDelConteo(estado, datos), [estado, datos]);
   const ubicaciones = datos.ubicaciones.map((id) => indices.ubicacion(id)).filter(Boolean);
 
   const guardar = async (valor) => {
@@ -196,6 +200,13 @@ function Captura() {
   );
   const capturar = (id, valor) => cambiar({ capturas: { ...datos.capturas, [id]: valor.replace(",", ".") } });
   const cambiarSobrante = (uid, cambio) => cambiar({ nuevos: datos.nuevos.map((s) => (s.uid === uid ? { ...s, ...cambio } : s)) });
+  const corregir = (fila, cambios) => {
+    const correccion = { existencia_id: fila.id, dimension: fila.dimension, np: fila.np, ...fila.correccion, ...cambios };
+    const tieneCambio = correccion.quitar || String(correccion.dimension ?? "").trim() !== String(fila.dimension ?? "").trim() || String(correccion.np ?? "").trim() !== String(fila.np ?? "").trim();
+    cambiar({ correcciones: [...(datos.correcciones ?? []).filter((c) => c.existencia_id !== fila.id), ...(tieneCambio ? [correccion] : [])] });
+  };
+  const cancelarCorreccion = (id) => cambiar({ correcciones: (datos.correcciones ?? []).filter((c) => c.existencia_id !== id) });
+  const editar = (fila) => setEditando({ fila, dimension: fila.dimension_nueva, np: fila.np_nuevo, motivo: fila.correccion?.motivo ?? "" });
 
   const porTexto = useFiltroTexto(filas, texto, ["codigo", "descripcion", "dimension", "np", "hoja"]);
   const visibles = porTexto.filter((f) => {
@@ -210,25 +221,29 @@ function Captura() {
     if (otra) document.getElementById(`cnt-${otra.id}`)?.focus();
   };
 
+  const revisar = () =>
+    sesion.tarea("Revisando conteo…", async () => {
+      if (pendiente.current) await guardar(datos);
+      const faltan = validarConteo(sesion.estado, datos);
+      setErrores(faltan);
+      if (!faltan.length) setRevisando(true);
+    });
   const aplicar = () =>
     sesion.tarea("Aplicando conteo…", async () => {
       if (pendiente.current) await guardar(datos);
       const faltan = validarConteo(sesion.estado, datos);
       setErrores(faltan);
       if (faltan.length) return;
-      const r = resumenConteo(sesion.estado, datos);
-      const aviso = r.faltan ? `\n${r.faltan} partidas sin capturar conservan su conteo anterior.` : "";
-      if (!confirmar(`¿Aplicar el conteo? ${r.contados} partidas toman lo contado (${r.con_diferencia} con diferencia)${r.sobrantes ? ` y se agregan ${r.sobrantes} encontrados` : ""}.${aviso}`)) return;
       try {
         const conteo = await sesion.almacen.modificar((e) => aplicarConteo(e, { usuario: sesion.usuario, corteAlAplicar }));
-        sesion.avisar("exito", `Conteo aplicado: ${conteo.lineas.length} partidas actualizadas.`);
+        sesion.avisar("exito", `Conteo aplicado: ${conteo.lineas.length} partidas contadas${conteo.correcciones.length ? ` y ${conteo.correcciones.length} correcciones` : ""}.`);
       } catch (error) {
-        if (error instanceof ErrorConteo) setErrores(error.errores);
+        if (error instanceof ErrorConteo) { setErrores(error.errores); setRevisando(false); }
         else throw error;
       }
     });
   const descartar = () => {
-    if (resumen.contados && !confirmar(`¿Descartar el conteo? Se pierde lo capturado (${resumen.contados} partidas). El inventario no cambia.`)) return;
+    if ((resumen.contados || resumen.sobrantes || correcciones.length) && !confirmar(`¿Descartar el conteo y sus correcciones? El inventario no cambia.`)) return;
     return sesion.tarea("Descartando…", async () => {
       clearTimeout(pendiente.current);
       pendiente.current = null;
@@ -254,6 +269,8 @@ function Captura() {
         <${Pastilla} tono="info">${resumen.contados} de ${resumen.renglones} contados<//>
         <${Pastilla} tono=${resumen.con_diferencia ? "alerta" : "ok"}>${resumen.con_diferencia} con diferencia<//>
         ${resumen.sobrantes ? html`<${Pastilla} tono="info">${resumen.sobrantes} encontrados<//>` : null}
+        ${resumen.corregidas ? html`<${Pastilla} tono="info">${resumen.corregidas} claves por corregir<//>` : null}
+        ${resumen.retiradas ? html`<${Pastilla} tono="alerta">${resumen.retiradas} partidas por quitar<//>` : null}
       </div>
     <//>
 
@@ -263,7 +280,7 @@ function Captura() {
         const { datos: nuevo, reporte } = aplicarConteoIA(sesion.estado, datos, respuesta, { indices });
         cambiar({ fecha: nuevo.fecha, capturas: nuevo.capturas, nuevos: nuevo.nuevos });
         return [
-          `✓ ${reporte.capturados} partidas con lo contado${reporte.sobrantes ? ` y ${reporte.sobrantes} encontrados (abajo, en "Encontrado y no está en la lista")` : ""}.`,
+          `✓ ${reporte.capturados} partidas con lo contado${reporte.sobrantes ? ` y ${reporte.sobrantes} encontrados (abajo, en "Añadir partidas al conteo")` : ""}.`,
           ...reporte.dudosos.map((d) => `⚠ Dudoso según el asistente: ${d}`),
           ...reporte.fueraDeAlcance.map((d) => `⚠ ${d}`),
           ...reporte.noReconocidos.map((d) => `⚠ ${d}`),
@@ -310,16 +327,17 @@ function Captura() {
             ${aCiegas ? null : html`<th class="numero">Sistema</th>`}
             <th class="numero">Contado</th>
             ${aCiegas ? null : html`<th class="numero">Diferencia</th>`}
+            <th>Corregir partida</th>
           </tr>
         </thead>
         <tbody>
           ${visibles.slice(0, 600).map(
-            (f) => html`<tr key=${f.id} class=${errorDe(f.id) ? "fila-error" : f.contado !== null && !aCiegas && !f.diferencia.eq(0) ? "fila-diferencia" : ""}>
+            (f) => html`<tr key=${f.id} class=${f.quitar ? "conteo-por-quitar" : errorDe(f.id) ? "fila-error" : f.contado !== null && !aCiegas && !f.diferencia.eq(0) ? "fila-diferencia" : ""}>
               <td><span class="sin-corte" title=${f.hoja}>${f.lugar}</span></td>
               <td class="numero">${f.codigo}</td>
               <td>${f.descripcion}</td>
-              <td>${f.dimension}</td>
-              <td>${f.np}</td>
+              <td>${f.dimension}${f.dimension_nueva !== f.dimension && !f.quitar ? html`<div class="conteo-clave-nueva">→ ${f.dimension_nueva || "Sin dimensión"}</div>` : null}</td>
+              <td>${f.np}${f.np_nuevo !== f.np && !f.quitar ? html`<div class="conteo-clave-nueva">→ ${f.np_nuevo || "Sin NP"}</div>` : null}</td>
               <td>${f.um}</td>
               ${aCiegas ? null : html`<td class="numero">${num(aNumero(f.teorico))}</td>`}
               <td class="numero">
@@ -328,6 +346,7 @@ function Captura() {
                   class=${`entrada-cantidad ${errorDe(f.id) ? "con-error" : ""}`}
                   inputmode="decimal"
                   value=${f.capturado}
+                  disabled=${f.quitar || sesion.ocupado}
                   placeholder="—"
                   onInput=${(e) => capturar(f.id, e.currentTarget.value)}
                   onKeyDown=${(e) => {
@@ -340,6 +359,12 @@ function Captura() {
                 />
               </td>
               ${aCiegas ? null : html`<td class="numero"><strong class=${f.diferencia && !f.diferencia.eq(0) ? "alerta" : ""}>${signo(f.diferencia)}</strong></td>`}
+              <td><div class="acciones-linea">
+                ${f.correccion ? html`<${Pastilla} tono=${f.quitar ? "alerta" : "info"}>${f.quitar ? "Se quitará" : "Clave pendiente"}<//>
+                  <${Boton} tamano="chico" tipo="texto" onClick=${() => cancelarCorreccion(f.id)}>Deshacer corrección<//>` : null}
+                ${!f.quitar ? html`<${Boton} tamano="chico" tipo="texto" onClick=${() => editar(f)}>Corregir dimensión / NP<//>
+                  <${Boton} tamano="chico" tipo="peligro-texto" onClick=${() => corregir(f, { quitar: true })}>Quitar partida<//>` : null}
+              </div></td>
             </tr>`,
           )}
         </tbody>
@@ -347,7 +372,7 @@ function Captura() {
       ${visibles.length > 600 ? html`<p class="nota">Se muestran 600 de ${visibles.length}: filtra por contenedor o busca para ver los demás.</p>` : null}
     </div>
 
-    <${Tarjeta} titulo="Encontrado y no está en la lista">
+    <${Tarjeta} titulo="Añadir partidas al conteo">
       <p class="nota">Material que apareció en el contenedor y no tiene partida. Se agrega al final de la hoja de ese contenedor con lo contado.</p>
       ${datos.nuevos.length
         ? html`<div class="tabla-contenedor tabla-partidas">
@@ -373,7 +398,7 @@ function Captura() {
             </table>
           </div>`
         : null}
-      <${Boton} onClick=${() => cambiar({ nuevos: [...datos.nuevos, nuevoSobrante(ubicaciones.length === 1 ? ubicaciones[0].id : null)] })}>＋ Agregar partida encontrada<//>
+      <${Boton} onClick=${() => cambiar({ nuevos: [...datos.nuevos, nuevoSobrante(ubicaciones.length === 1 ? ubicaciones[0].id : null)] })}>＋ Añadir partida<//>
     <//>
 
     ${durante.length
@@ -393,8 +418,41 @@ function Captura() {
     <div class="acciones-linea pie-editor">
       <span class="nota">${resumen.faltan ? `${resumen.faltan} partidas sin capturar conservarán su conteo anterior.` : "Todas las partidas están capturadas."}</span>
       <span class="espaciador"></span>
-      <${Boton} tipo="primario" tamano="grande" disabled=${!resumen.contados && !resumen.sobrantes} onClick=${aplicar}>Aplicar conteo<//>
+      <${Boton} tipo="primario" tamano="grande" disabled=${!resumen.contados && !resumen.sobrantes && !correcciones.length} onClick=${revisar}>Revisar y aplicar conteo<//>
     </div>
+    ${editando ? html`<${Ventana} titulo="Corregir partida del conteo" alCerrar=${() => setEditando(null)}>
+      <p><strong>${editando.fila.codigo} ${editando.fila.descripcion}</strong> · ${editando.fila.lugar}</p>
+      <div class="rejilla-campos">
+        <label class="campo"><span>Dimensión</span><input aria-label="Dimensión corregida" value=${editando.dimension} onInput=${(e) => setEditando({ ...editando, dimension: e.currentTarget.value })} /></label>
+        <label class="campo"><span>NP (opcional)</span><input aria-label="NP corregido" value=${editando.np} onInput=${(e) => setEditando({ ...editando, np: e.currentTarget.value })} /></label>
+        <label class="campo"><span>Motivo (opcional)</span><input value=${editando.motivo} onInput=${(e) => setEditando({ ...editando, motivo: e.currentTarget.value })} placeholder="Ej. dimensión escrita incorrectamente" /></label>
+      </div>
+      <p class="nota">Se guardará con el conteo. La cantidad sólo cambia si capturas lo contado; los vales anteriores conservan sus datos.</p>
+      <div class="acciones-linea"><${Boton} tipo="primario" onClick=${() => { corregir(editando.fila, { dimension: editando.dimension, np: editando.np, motivo: editando.motivo, quitar: false }); setEditando(null); }}>Guardar en el conteo<//>
+        <${Boton} tipo="texto" onClick=${() => setEditando(null)}>Cancelar<//></div>
+    <//>` : null}
+    ${revisando ? html`<${Ventana} titulo="Revisar conteo físico" clase="ventana-concilia" alCerrar=${() => setRevisando(false)}>
+      <p><strong>${resumen.contados}</strong> partidas contadas · <strong>${resumen.sobrantes}</strong> por añadir · <strong>${resumen.corregidas}</strong> claves por corregir · <strong>${resumen.retiradas}</strong> por quitar.</p>
+      ${filas.some((f) => f.contado !== null) ? html`<${Tabla} filas=${filas.filter((f) => f.contado !== null)} columnas=${[
+        { clave: "lugar", titulo: "Cont." }, { clave: "codigo", titulo: "Código" },
+        { titulo: "Partida", render: (f) => `${f.dimension} ${f.np ? `· NP ${f.np}` : ""}` },
+        { titulo: "Sistema", render: (f) => num(aNumero(f.teorico)), numero: true },
+        { titulo: "Contado", render: (f) => `${num(aNumero(f.contado))} ${f.um}`, numero: true },
+      ]} />` : null}
+      ${correcciones.length ? html`<${Tabla} filas=${correcciones} claveFila=${(c) => c.existencia_id} columnas=${[
+        { clave: "codigo", titulo: "Código" },
+        { titulo: "Ahora", render: (c) => `${c.dimension_antes || "Sin dimensión"} · NP ${c.np_antes || "—"}` },
+        { titulo: "Quedará", render: (c) => c.quitar ? "Fuera del inventario activo, con cantidad 0" : `${c.dimension || "Sin dimensión"} · NP ${c.np || "—"}` },
+        { clave: "motivo", titulo: "Motivo" },
+      ]} />` : null}
+      ${resumen.sobrantes ? html`<${Tabla} filas=${datos.nuevos.filter((s) => Number.isInteger(s.codigo))} claveFila=${(s) => s.uid} columnas=${[
+        { clave: "codigo", titulo: "Código por añadir" }, { clave: "dimension", titulo: "Dimensión" }, { clave: "np", titulo: "NP" },
+        { titulo: "Contado", render: (s) => `${s.cantidad} ${s.um}` },
+      ]} />` : null}
+      <p class="nota">${resumen.faltan} partidas sin cantidad capturada conservarán su conteo anterior. Quitar conserva los vales y el historial de la partida.</p>
+      <p class="nota">Corte de salidas: ${corteAlAplicar ? "último folio emitido al aplicar" : datos.corte.salida}. ${durante.length && !corteAlAplicar ? "Los vales emitidos durante el conteo se descontarán o sumarán después." : ""}</p>
+      <div class="acciones-linea"><${Boton} tipo="primario" disabled=${sesion.ocupado} onClick=${aplicar}>Confirmar conteo<//><${Boton} tipo="texto" onClick=${() => setRevisando(false)}>Seguir capturando<//></div>
+    <//>` : null}
   `;
 }
 
@@ -409,7 +467,7 @@ function HistorialConteos() {
       (c) => html`<${Detalles}
         key=${c.id}
         resumen=${html`<strong>${fmtFecha(c.fecha)}</strong> · ${c.descripcion}
-          ${c.inicial ? null : html` · ${c.renglones} partidas · <span class=${c.diferencias.length ? "alerta" : "ok"}>${c.diferencias.length} con diferencia</span>`}
+          ${c.inicial ? null : html` · ${c.renglones} partidas${c.correcciones.length ? ` · ${c.correcciones.length} correcciones` : ""} · <span class=${c.diferencias.length ? "alerta" : "ok"}>${c.diferencias.length} con diferencia</span>`}
           <span class="nota"> · vigente en ${c.vigentes} partidas${c.usuario ? ` · ${c.usuario}` : ""}</span>`}
       >
         <p class="nota">
@@ -431,6 +489,12 @@ function HistorialConteos() {
                 { titulo: "Diferencia", numero: true, render: (d) => html`<strong class="alerta">${signo(d.diferencia)}</strong> ${d.um}` },
               ]}
             />`}
+        ${c.correcciones.length ? html`<${Tabla} filas=${c.correcciones} claveFila=${(d) => d.existencia_id} columnas=${[
+          { clave: "codigo", titulo: "Código corregido" },
+          { titulo: "Antes", render: (d) => `${d.dimension_antes || "Sin dimensión"} · NP ${d.np_antes || "—"}` },
+          { titulo: "Corrección", render: (d) => d.quitar ? "Partida retirada del inventario activo" : `${d.dimension || "Sin dimensión"} · NP ${d.np || "—"}` },
+          { clave: "motivo", titulo: "Motivo" },
+        ]} />` : null}
       <//>`,
     )}
   <//>`;

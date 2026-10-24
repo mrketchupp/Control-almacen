@@ -99,7 +99,7 @@ test("cada inventario por separado: folios, nombres de exportación y respaldos 
   assert.equal(v.siguienteFolio(dlta.estado), folio); // DLTA no se entera
   assert.equal(gsm.nombreExportacion("ENTRADAS"), "VALES DE ENTRADA GSM.xlsx");
   assert.equal(dlta.nombreExportacion("ENTRADAS"), "VALES DE ENTRADA DLTA.xlsx");
-  assert.equal(gsm.nombreExportacion("VALES"), "VALES DE SALIDA GSM SINTETICO.xlsm");
+  assert.equal(gsm.nombreExportacion("VALES"), "VALES DE SALIDA GSM.xlsm");
   const { nombre } = await gsm.exportar("ENTRADAS", USUARIO, "2026-10-07");
   assert.equal(nombre, "VALES DE ENTRADA GSM.xlsx");
   const corte = await gsm.modificar((e) => registrarCorteAx(e, { fecha: "2026-09-05", almacen: "RIG91-IX25", renglones: delAlmacen(leerReporteAx(bytesAx(), NOMBRE_AX).renglones, "RIG91-IX25") }, USUARIO));
@@ -117,6 +117,25 @@ test("cada inventario por separado: folios, nombres de exportación y respaldos 
   const vacio = new Almacen(new BackendMemoria(), { inventario: "GSM" });
   await vacio.iniciar();
   await assert.rejects(() => vacio.cargarPrimeraVez(cargaSintetica().estado, []), /son del inventario DLTA y estás en GSM/);
+});
+
+test("GSM exporta su libro con espacios en el nombre desde Reporte diario y Exportar, conservando extensión y folios", async () => {
+  const gsm = await almacenDe("GSM");
+  const plantilla = gsm.estado.plantillas_excel.find((p) => p.tipo === "VALES" && p.activa);
+  plantilla.nombre_original = "VALES_DE_SALIDA_GSM.xlsm";
+  assert.equal(gsm.nombreExportacion("VALES"), "VALES DE SALIDA GSM.xlsm");
+  for (const opciones of [{}, { corte: "2026-10-23" }]) {
+    let guardado;
+    const archivo = await gsm.exportar("VALES", USUARIO, "2026-10-23", { ...opciones, guardar: (nombre) => { guardado = nombre; return nombre; } });
+    assert.equal(archivo.nombre, "VALES DE SALIDA GSM.xlsm");
+    assert.equal(guardado, archivo.nombre);
+    assert.equal(archivo.resultado.ultimoFolio, 9);
+    assert.equal(new LibroLeido(archivo.datos).hoja("DIARIO").valorRef("B14"), 9);
+  }
+  gsm.estado.plantillas_excel.find((p) => p.tipo === "VALES" && p.activa).nombre_original = "VALES_DE_SALIDA_GSM.xlsx";
+  assert.equal(gsm.nombreExportacion("VALES"), "VALES DE SALIDA GSM.xlsx");
+  const dlta = await almacenDe("DLTA");
+  assert.equal(dlta.nombreExportacion("VALES"), "VALES DE SALIDA DLTA SINTETICO.xlsm");
 });
 
 // ------------------------------------------------------------------ vale impreso

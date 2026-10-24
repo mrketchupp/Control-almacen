@@ -20,7 +20,7 @@ registra). La de **recibido** decide en qué día suma al inventario y cuenta en
    fecha de recibido, no por corte de E-folio, porque al ser editable deja de ir en orden), la página *Reporte diario*,
    los contadores del *Inicio* y `filasEntradas` / `filtrarEntradas` (historial: columnas *Fecha del vale* y
    *Recibido*; los filtros desde/hasta por recibido).
-3. **Conciliación AX sigue con la fecha del vale** (`transitoDesde`, `servicios/conciliacion.js`): la base mueve el
+3. **conciliación con Dynamics AX sigue con la fecha del vale** (`transitoDesde`, `servicios/conciliacion.js`): la base mueve el
    material en AX al enviarlo; con la de recibido, lo que va en camino se contaría mal. Decírselo al usuario.
 4. Captura (`ui/paginas/entradas.js`, `EditorEntrada`): «Fecha» → **Fecha del vale** (la llena Copilot) + **Recibido**
    (hoy). Validación: recibido obligatoria y no futura; **aviso** (no bloquea) si es anterior a la del vale.
@@ -37,14 +37,14 @@ dimensiones** (hoja, márgenes, tamaño). El editor usa el espacio que necesite 
 **Decisiones del usuario:**
 - **Editor libre** sobre la etiqueta, a pantalla completa: arrastrar y cambiar tamaño de cada elemento, con cuadrícula y
   guías. Posiciones en **proporción** (%), así el diseño se adapta a cualquier tamaño de etiqueta.
-- El diseño elegido vale para **todas** las etiquetas (DLTA y GSM); **Material** y **Código AX** pueden tener cada una
+- El diseño elegido vale para **todas** las etiquetas (Inventario A y Inventario B); **Material** y **Código AX** pueden tener cada una
   su propio diseño (las listas son independientes).
 - Elementos: logos (izq / der), título, texto de almacén, campos (código, nombre, dimensión, NP, descripción, área,
   inventario) **más texto libre** (y cambiar el título de cada campo), **código QR** y **código de barras**. (Líneas y
   recuadros no se pidieron; los campos pueden llevar la línea de abajo como opción.)
 
 **Plan:**
-1. Datos en `config.etiquetas` (ya compartido DLTA/GSM): `disenos: [{ id, nombre, elementos }]` y
+1. Datos en `config.etiquetas` (ya compartido Inventario A/Inventario B): `disenos: [{ id, nombre, elementos }]` y
    `diseno_por_tipo: { material, ax }`. Dos diseños **de fábrica** (Material y Código AX, como hoy) de solo lectura:
    *Duplicar para editar*. Al borrar uno en uso, esa lista vuelve al de fábrica. No cambia el formato del estado
    (es config compartida) — si se decide guardarlo aparte, subir formato.
