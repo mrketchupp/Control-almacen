@@ -76,13 +76,19 @@ Reglas de la hoja:
 - **Plantillas por área:** de cada hoja-formulario se leen E17, I17, E18, I18, C44:C46, D52/D53, I52/I53 y G58 para crear `plantilla_area`. En `MECANICO ` y `OPERACION DIA ` el bloque de firmas está desplazado; se localiza por las etiquetas `ENTREGO/RECIBIO` y `Nombre:`.
 
 ### Exportación
-**Solo se modifica `xl/worksheets/sheet1.xml` (DIARIO).** Todo lo demás se copia intacto: macros (`vbaProject.bin`), dibujos, botones, logos, formularios, `customXml` y configuración de impresora.
+**Se modifica la hoja `DIARIO`, sus tablas relacionadas (si existen) y el nombre definido de su autofiltro.**
+Las demás partes se copian intactas: macros (`vbaProject.bin`), dibujos, botones, logos, formularios, `customXml`
+y configuración de impresora.
 
 En `sheet1.xml` se reemplazan:
 - `<sheetData>`: fila 1 (encabezados de la plantilla, sin cambios) y una fila por renglón de vale.
 - `<dimension ref="A1:V{última}">`.
-- El `<autoFilter>` principal de la hoja, a `A1:T{última}`. Los de *vistas personalizadas* no se tocan.
+- El `<autoFilter>` principal de la hoja, a `A1:T{última}`, sin criterios u ordenaciones antiguos. Los de *vistas personalizadas* no se tocan.
 - `topLeftCell` del panel congelado, cerca del final, para que al abrir se vean los últimos renglones como hoy.
+- Las filas de datos se exportan visibles: no heredan `hidden`, grupos contraídos ni altura cero de la plantilla.
+  Se desactiva el filtro guardado y la altura cero por defecto de la hoja, conservando estilos y alturas positivas.
+- Si `DIARIO` tiene tablas de Excel, se ajustan también su `ref` y su `autoFilter` para incluir todos los renglones
+  exportados. Las columnas y el estilo de la tabla se conservan; si tiene fila de totales, se mueve después del último dato.
 
 **Mapeo de columnas** (emula exactamente lo que hacía la macro `PasarDatos`):
 

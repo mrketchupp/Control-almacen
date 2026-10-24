@@ -264,7 +264,9 @@ flowchart LR
 página: entrega los dos libros **como estaban al cierre de ese día**
 (`servicios/corte.js`, `estadoAlCierre`), aunque después se hayan hecho más vales o movimientos:
 
-- **Libro de vales de salida** (`.xlsm`): hasta el último folio con fecha de ese día o anterior.
+- **Libro de vales de salida** (`.xlsm`): hasta el último folio con fecha de ese día o anterior. El `DIARIO` se abre
+  completo, con las filas visibles y los rangos de tabla y filtro actualizados aunque la plantilla tuviera filtros
+  guardados o filas ocultas. Esto también se aplica al libro de GSM.
 - **Inventario de refaccionamiento** (`.xlsx`, con esa fecha en el nombre): CONSUMO e INGRESO solo con los vales y
   entradas hasta ese corte; los conteos y movimientos posteriores se deshacen (cada línea de conteo guarda la cantidad
   y el conteo anteriores) y no aparecen los renglones creados después. Las correcciones se toman como están hoy.

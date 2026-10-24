@@ -1,8 +1,15 @@
-# Versión con correcciones permanentes de unidad, conciliación AX y etiquetas
+# Versión con corrección del libro diario de GSM
 
 Abre [ControlAlmacen.html](ControlAlmacen.html) en GitHub y pulsa **Download raw file** (icono de descarga).
 Guárdalo como `ControlAlmacen.html` y ábrelo en Microsoft Edge. Es la aplicación completa y funciona sin conexión.
 Al actualizar tu copia, conserva el nombre y la ubicación habituales del HTML y usa el mismo navegador.
+
+En **Reporte diario → Libro de vales de salida**, el `DIARIO` se genera con todas las filas visibles y los rangos
+de sus tablas y filtros actualizados. Una fila oculta o un filtro guardado en la plantilla de GSM ya no deja los vales
+nuevos fuera de la vista ni de la tabla. Se conservan las macros, formularios, logos y los datos del historial.
+La fecha elegida sigue marcando el corte: el caso de prueba llega al folio **2964 el 23/10/2026** y al **2930 el
+07/10/2026**, con un control de exportación de DLTA. Tras actualizar el HTML, vuelve a descargar el libro de salida
+desde el reporte del día que necesitas.
 
 En **Conciliación AX**, una dimensión puede reunir varias partidas físicas con distintos NP: se suman las
 coincidencias del mismo código, dimensión y unidad. **2 + 2 piezas de 150VA contra AX 4 → Cuadra**. Se respetan las
@@ -78,7 +85,8 @@ en todos los vales existentes de esa persona, incluidos sus alias ya unificados.
 Aceptar actualiza el historial y registra la corrección; cancelar guarda solamente la persona.
 
 Esta entrega se generó con `npm run build` y se copió desde `dist/ControlAlmacen.html`.
-Se validaron 378 pruebas automatizadas y 9 de agrupación, unidades, conversiones, correcciones y vínculos AX en Chromium.
+Se validaron 385 pruebas automatizadas y 3 del reporte diario y sus descargas reales en Chromium, con control GSM / DLTA.
+Se conservan las validaciones de 9 pruebas de agrupación, unidades, conversiones, correcciones y vínculos AX en Chromium.
 Se conservan las validaciones de 10 pruebas de menús contextuales y 7 de impresión. Se recorrieron en el navegador
 la carga inicial, emisión, impresión, exportación y respaldo, además de las etiquetas de AX, Deshacer,
 el límite de justificantes, su persistencia y el editor de diseños con impresión de QR y barras.
