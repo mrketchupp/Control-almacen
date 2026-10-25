@@ -169,20 +169,26 @@ function alturaEstimada(texto, css, ancho) {
   return lineas * fuente * 1.1;
 }
 
-/** Geometría derivada para mostrar completas las claves; no cambia el Excel ni las partidas. */
+/**
+ * Geometría derivada para mostrar completas las claves y las descripciones de las partidas (se parten en
+ * varias líneas y la fila crece); no cambia el Excel ni las partidas.
+ */
 export function ajustarAlturasClaves(modelo, valores, medirTexto = alturaEstimada) {
   const { columnas } = modelo.campos.lineas;
   // NOV conserva filas de la rejilla debajo de las partidas para sus fotos.
   const partidas = modelo.campos.lineas.filas.slice(0, modelo.capacidad);
-  if (columnas.clave === undefined) return modelo;
+  const ajustables = [columnas.clave, columnas.descripcion].filter((c) => c !== undefined);
+  if (!ajustables.length) return modelo;
   const valorEn = (r, c) => valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : modelo.valor(r, c);
-  const claves = new Map();
+  const textos = new Map();
   for (const r of partidas) {
-    const rango = modelo.combinadaEn.get(`${r},${columnas.clave}`) ?? { r1: r, r2: r, c1: columnas.clave, c2: columnas.clave };
-    const texto = formatearValor(valorEn(rango.r1, rango.c1), modelo.estilos.codigoFormato(modelo.estiloDe(rango.r1, rango.c1)));
-    if (texto.trim()) claves.set(`${rango.r1},${rango.c1}`, { rango, texto });
+    for (const c of ajustables) {
+      const rango = modelo.combinadaEn.get(`${r},${c}`) ?? { r1: r, r2: r, c1: c, c2: c };
+      const texto = formatearValor(valorEn(rango.r1, rango.c1), modelo.estilos.codigoFormato(modelo.estiloDe(rango.r1, rango.c1)));
+      if (texto.trim()) textos.set(`${rango.r1},${rango.c1}`, { rango, texto, esClave: c === columnas.clave });
+    }
   }
-  if (!claves.size) return modelo;
+  if (!textos.size) return modelo;
   const vacias = modelo.filas.filter(({ r }) => partidas.includes(r) && modelo.columnas.every(({ c }) => {
     const rango = modelo.combinadaEn.get(`${r},${c}`);
     return !String(valorEn(rango?.r1 ?? r, rango?.c1 ?? c) ?? "").trim();
@@ -193,7 +199,7 @@ export function ajustarAlturasClaves(modelo, valores, medirTexto = alturaEstimad
   for (let intento = 0; intento < 8; intento++) {
     const anchos = enRejilla(modelo.columnas.map((c) => c.px), escala);
     const altos = new Map(modelo.filas.map(({ r, px }) => [r, px]));
-    for (const { rango, texto } of claves.values()) {
+    for (const { rango, texto, esClave } of textos.values()) {
       const visibles = modelo.filas.filter(({ r }) => r >= rango.r1 && r <= rango.r2);
       if (!visibles.length) continue;
       const css = modelo.estilos.css(modelo.estiloTextoDe?.(rango.r1, rango.c1) ?? modelo.estiloDe(rango.r1, rango.c1)).css;
@@ -201,7 +207,9 @@ export function ajustarAlturasClaves(modelo, valores, medirTexto = alturaEstimad
       const fin = modelo.estilos.bordesCss(modelo.estiloDe(rango.r2, rango.c2));
       const borde = (lado, objeto = bordes) => Number.parseFloat(objeto[lado]) || 0;
       const ancho = modelo.columnas.reduce((s, { c }, i) => s + (c >= rango.c1 && c <= rango.c2 ? anchos[i] : 0), 0);
-      const interior = Math.max(1, ancho - 4 - (borde("border-left") + borde("border-right", fin)) / (2 * escala) - 1 / escala);
+      // La clave se dibuja sin sangría; la descripción conserva la de su celda.
+      const izquierda = esClave ? 2 : Number.parseFloat(css["padding-left"]) || 2;
+      const interior = Math.max(1, ancho - izquierda - 2 - (borde("border-left") + borde("border-right", fin)) / (2 * escala) - 1 / escala);
       const requerido = Math.ceil(medirTexto(texto, css, interior) + (borde("border-top") + borde("border-bottom", fin)) / (2 * escala) + 1 / escala);
       const actual = visibles.reduce((s, { r }) => s + altos.get(r), 0);
       if (requerido > actual) altos.set(visibles[0].r, altos.get(visibles[0].r) + requerido - actual);
@@ -352,13 +360,19 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
         const siguiente = (rango ? rango.c2 : c) + 1;
         css.overflow = siguiente <= modelo.area.c2 && textoEn(r, siguiente) ? "hidden" : "visible";
       }
-      if (modelo.campos.lineas.filas.includes(filaFuente) && colFuente === modelo.campos.lineas.columnas.clave) {
+      const enPartida = modelo.campos.lineas.filas.includes(filaFuente);
+      if (enPartida && colFuente === modelo.campos.lineas.columnas.clave) {
         css["white-space"] = "pre-wrap";
         css["overflow-wrap"] = "anywhere";
         css["text-align"] = "center";
         css["vertical-align"] = "middle";
         css.overflow = "hidden";
         delete css["padding-left"];
+      } else if (enPartida && colFuente === modelo.campos.lineas.columnas.descripcion) {
+        // Se parte en líneas aunque la celda no tenga ajuste de texto; la fila crece (ajustarAlturasClaves).
+        css["white-space"] = "pre-wrap";
+        css["overflow-wrap"] = "anywhere";
+        css.overflow = "hidden";
       }
       const atributos = `${colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan > 1 ? ` rowspan="${rowspan}"` : ""}`;
       // El texto se dibuja fuera del flujo de la tabla: height en un <tr> solo es un mínimo.

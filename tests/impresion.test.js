@@ -270,6 +270,104 @@ test("sin filas vacías se ajusta la hoja completa y las fotos conservan sus anc
   assert.ok(escalaLlena < lleno.pagina.escala, "Al ocupar todas las partidas, la escala disminuye para que ninguna salga de la hoja");
 });
 
+const descripcionesLargas = [
+  'ACOPLADOR 2" HEMBRA TIPO C X 2" VÁSTAGO DE MANGUERA DE ALUMINIO / 2 " 212 / 200-C-AL',
+  'VÁLVULA DE COMPUERTA BRIDADA DE ACERO AL CARBONO CLASE 300 CON VÁSTAGO ASCENDENTE, VOLANTE Y EMPAQUETADURA DE GRAFITO PARA SERVICIO DE LODOS DE PERFORACIÓN A ALTA PRESIÓN / 3 1/16" X 10K / API 6A',
+];
+const lineaCon = (descripcion, clave = "S/D") => ({ cantidad: "1", codigo: 701, descripcion, clave, um: "PZA" });
+const altoDe = (modelo, r) => modelo.filas.find((fila) => fila.r === r).px;
+const sumaAltos = (filas) => filas.reduce((s, fila) => s + fila.px, 0);
+
+/** La descripción como en la hoja de GSM: combinada, centrada, con ajuste de texto, en Arial de 9 pt y en filas de 15 pt. */
+function conDescripcionTipoGsm(modelo, extra = {}) {
+  const { filas, columnas } = modelo.campos.lineas;
+  const estilos = modelo.estilos;
+  const estiloDe = modelo.estiloDe.bind(modelo);
+  const propio = 5000;
+  const base = estiloDe(filas[0], columnas.descripcion);
+  const original = (indice) => (indice === propio ? base : indice);
+  modelo.estiloDe = (r, c) => (filas.includes(r) && c === columnas.descripcion ? propio : estiloDe(r, c));
+  modelo.estilos = {
+    css(indice) {
+      const estilo = estilos.css(original(indice));
+      if (indice !== propio) return estilo;
+      const css = { ...estilo.css, "font-family": "Arial", "font-size": "9pt", "font-weight": "bold", "text-align": "center", "vertical-align": "middle", "white-space": "pre-wrap", ...extra };
+      return { ...estilo, css, ajustar: true, alineado: true };
+    },
+    bordesCss: (indice) => estilos.bordesCss(original(indice)),
+    codigoFormato: (indice) => estilos.codigoFormato(original(indice)),
+  };
+  return modelo;
+}
+
+test("las descripciones largas ganan altura usando filas vacías sin cambiar el modelo ni las partidas", () => {
+  const modelo = conDescripcionTipoGsm(analizarFormulario(libro, "MECANICO "));
+  const filasAntes = modelo.filas.map((fila) => ({ ...fila }));
+  const vale = { lineas: [...descripcionesLargas.map((d) => lineaCon(d)), lineaCon("BALEROS")], observaciones: null };
+  const valores = valoresDeVale(modelo, vale);
+  const ajustado = ajustarAlturasClaves(modelo, valores);
+  const [primera, segunda, corta] = modelo.campos.lineas.filas;
+  assert.ok(altoDe(ajustado, primera) > altoDe(modelo, primera), "dos líneas no caben en una fila de 15 pt");
+  assert.ok(altoDe(ajustado, segunda) > altoDe(ajustado, primera), "la descripción más larga necesita más líneas");
+  assert.equal(altoDe(ajustado, corta), altoDe(modelo, corta), "la descripción que cabe conserva la altura de la hoja");
+  assert.ok(Math.abs(sumaAltos(ajustado.filas) - sumaAltos(modelo.filas)) < 1e-6, "El espacio de las filas vacías mantiene la altura de la hoja");
+  assert.deepEqual(modelo.filas, filasAntes);
+  assert.deepEqual(vale.lineas.map((linea) => linea.descripcion), [...descripcionesLargas, "BALEROS"]);
+  const celdas = [...paginaHtml(modelo, valores).matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)];
+  for (const descripcion of descripcionesLargas) {
+    const celda = celdas.find(([, , contenido]) => contenido.includes(descripcion.split(" ")[0]));
+    assert.match(celda[1], /white-space:pre-wrap/);
+    assert.match(celda[1], /text-align:center/);
+    assert.match(celda[1], /vertical-align:middle/);
+  }
+});
+
+test("la descripción que cabe en su celda no cambia la geometría de la hoja", () => {
+  for (const hoja of ["SOLDADOR", "MECANICO "]) {
+    const modelo = conDescripcionTipoGsm(analizarFormulario(libro, hoja));
+    const valores = valoresDeVale(modelo, { lineas: [lineaCon("BALEROS"), lineaCon("ENSAMBLAJE DE SELLOS / 2N8866 3R-12")], observaciones: null });
+    assert.equal(ajustarAlturasClaves(modelo, valores), modelo, hoja);
+  }
+});
+
+test("la descripción se parte en líneas aunque la celda de la hoja no tenga ajuste de texto", () => {
+  const modelo = analizarFormulario(libro, "SOLDADOR");
+  const [primera] = modelo.campos.lineas.filas;
+  assert.equal(modelo.estilos.css(modelo.estiloDe(primera, modelo.campos.lineas.columnas.descripcion)).ajustar, false, "la hoja sintética no ajusta el texto");
+  const valores = valoresDeVale(modelo, { lineas: [lineaCon(descripcionesLargas[0])], observaciones: null });
+  assert.ok(altoDe(ajustarAlturasClaves(modelo, valores), primera) > altoDe(modelo, primera));
+  const celda = [...paginaHtml(modelo, valores).matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)].find(([, , contenido]) => contenido.includes("ACOPLADOR"));
+  assert.match(celda[1], /white-space:pre-wrap/);
+  assert.match(celda[1], /overflow-wrap:anywhere/);
+  assert.doesNotMatch(celda[1], /white-space:nowrap/);
+});
+
+test("con clave y descripción largas la fila crece lo que pide la más alta, no la suma", () => {
+  const modelo = conDescripcionTipoGsm(analizarFormulario(libro, "MECANICO "));
+  const [primera] = modelo.campos.lineas.filas;
+  const altos = (clave, descripcion) => {
+    const medir = (texto) => (texto === "clave" ? clave : texto === "descripcion" ? descripcion : 0);
+    const valores = valoresDeVale(modelo, { lineas: [lineaCon(descripcion ? "descripcion" : "", clave ? "clave" : "")], observaciones: null });
+    return altoDe(ajustarAlturasClaves(modelo, valores, medir), primera);
+  };
+  assert.ok(altos(60, 40) > altoDe(modelo, primera));
+  assert.equal(altos(60, 40), altos(60, 0), "la clave más alta manda");
+  assert.equal(altos(40, 60), altos(0, 60), "la descripción más alta manda");
+});
+
+test("la sangría de la celda de la descripción reduce el ancho con el que se mide", () => {
+  const anchoMedido = (extra) => {
+    const modelo = conDescripcionTipoGsm(analizarFormulario(libro, "SOLDADOR"), extra);
+    const anchos = [];
+    const valores = valoresDeVale(modelo, { lineas: [lineaCon(descripcionesLargas[0], "")], observaciones: null });
+    ajustarAlturasClaves(modelo, valores, (texto, css, ancho) => (anchos.push(ancho), 1));
+    return anchos[0];
+  };
+  const sinSangria = anchoMedido();
+  assert.ok(sinSangria > 300, "mide con el ancho de las tres columnas combinadas");
+  assert.ok(Math.abs(sinSangria - anchoMedido({ "padding-left": "9px" }) - 7) < 1e-6, "9 px de sangría ocupan 7 px más que el margen de 2 px");
+});
+
 test("los títulos de firma se centran sobre las columnas de su nombre y puesto", () => {
   const m = analizarFormulario(libro, "SOLDADOR");
   // En el formato, «RECIBIO/ENTREGO» es una celda suelta en J50 y el nombre ocupa I52:K52.

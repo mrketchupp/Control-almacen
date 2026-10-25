@@ -65,7 +65,8 @@ function casoConTextoLargo() {
     lineas: [{ cantidad: "3", codigo: 701, descripcion, clave: "PRUEBA", um: "PZA", oc: "OC-1" }],
   };
   const valores = impresion.valoresDeVale(modelo, vale);
-  valores.set("30,6", desbordado);
+  // En la columna de O.C. (la de la descripción siempre se parte en líneas): su vecina, la de cantidad, está vacía.
+  valores.set("30,3", desbordado);
   return {
     modelo, valores, descripcion, desbordado, entrego, recibio,
     html: `<!doctype html><meta charset="utf-8"><style>body{margin:0}${impresion.cssImpresion(modelo)}</style>${impresion.paginaHtml(modelo, valores)}`,
@@ -154,7 +155,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
       const lienzo = document.querySelector(".vale-lienzo").getBoundingClientRect();
       return { x: Math.ceil(rect.right + 3), y: Math.ceil(rect.top + 1), width: Math.min(60, Math.floor(lienzo.right - rect.right - 6)), height: Math.floor(rect.height - 3) };
     }, caso.desbordado);
-    assert.ok(clip.width > 0 && clip.height > 0, "Debe existir una región vacía a la derecha de la descripción");
+    assert.ok(clip.width > 0 && clip.height > 0, "Debe existir una región vacía a la derecha de la celda");
     const conTexto = await page.screenshot({ clip, animations: "disabled" });
     await page.evaluate((texto) => {
       [...document.querySelectorAll("td")].find((td) => td.textContent === texto).textContent = "";
@@ -345,6 +346,110 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     }
     assert.equal(paginas[3].fotos.length, 3);
     assert.ok(paginas[1].escala < paginas[0].escala, "La hoja llena reduce su escala para conservar todas las partidas");
+    const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    assert.equal((pdf.toString("latin1").match(/\/Type\s*\/Page\b/g) ?? []).length, 4, "El PDF contiene exactamente una página por vale");
+    await page.setViewportSize({ width: 1100, height: 1200 });
+  });
+
+  await t.test("descripciones largas completas, medidas con la fuente del navegador, mantienen una hoja por vale", async () => {
+    const { build } = await import("esbuild");
+    const compilado = await build({
+      stdin: {
+        resolveDir: fileURLToPath(new URL("..", import.meta.url)),
+        contents: `import { Sesion } from "./src/ui/sesion.js";
+          import { LibroLeido } from "./src/xlsx/leer.js";
+          import { analizarFormulario } from "./src/impresion/formulario.js";
+          // La descripción como en la hoja de GSM: centrada, con ajuste de texto, en Arial de 9 pt y en filas de 15 pt.
+          function tipoGsm(modelo) {
+            const { filas, columnas } = modelo.campos.lineas;
+            const estilos = modelo.estilos;
+            const estiloDe = modelo.estiloDe.bind(modelo);
+            const propio = 5000;
+            const base = estiloDe(filas[0], columnas.descripcion);
+            const original = (i) => (i === propio ? base : i);
+            modelo.estiloDe = (r, c) => (filas.includes(r) && c === columnas.descripcion ? propio : estiloDe(r, c));
+            modelo.estilos = {
+              css(i) {
+                const e = estilos.css(original(i));
+                if (i !== propio) return e;
+                return { ...e, css: { ...e.css, "font-family": "Arial", "font-size": "9pt", "font-weight": "bold", "text-align": "center", "vertical-align": "middle", "white-space": "pre-wrap" }, ajustar: true, alineado: true };
+              },
+              bordesCss: (i) => estilos.bordesCss(original(i)),
+              codigoFormato: (i) => estilos.codigoFormato(original(i)),
+            };
+          }
+          globalThis.documentoDescripciones = async (bytes, descripciones) => {
+            const libro = new LibroLeido(new Uint8Array(bytes));
+            const paginas = ["SOLDADOR", "MECANICO ", "TRANSFERENCIAS", "NOV"].map((hoja, i) => {
+              const modelo = analizarFormulario(libro, hoja);
+              if (hoja === "MECANICO ") tipoGsm(modelo);
+              const cantidad = i ? modelo.capacidad : 2;
+              const vale = { folio: 1300 + i, tipo: "SALIDA", fecha: "2026-10-09", observaciones: null,
+                entrego_nombre: "ALMACENISTA DE PRUEBA", recibio_nombre: "USUARIO DE PRUEBA",
+                lineas: Array.from({ length: cantidad }, (_, n) => ({ cantidad: "1", codigo: 701, oc: "S/OC",
+                  descripcion: descripciones[n % descripciones.length], clave: "S/D", um: "PZA" })) };
+              const fotos = hoja === "NOV" ? modelo.fotos.map(() => "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="lightblue"/></svg>')) : [];
+              return { modelo, vale, fotos };
+            });
+            const documento = await Sesion.prototype._documentoImpresion.call({}, paginas, null);
+            return { documento, descripcionesPorPagina: paginas.map(p => p.vale.lineas.map(l => l.descripcion)) };
+          };`,
+      },
+      bundle: true, write: false, format: "iife", platform: "browser", logLevel: "silent",
+    });
+    await page.setContent("<!doctype html><meta charset='utf-8'>");
+    await page.addScriptTag({ content: compilado.outputFiles[0].text });
+    const descripciones = [
+      'ACOPLADOR 2" HEMBRA TIPO C X 2" VÁSTAGO DE MANGUERA DE ALUMINIO / 2 " 212 / 200-C-AL',
+      "BALEROS",
+      'VÁLVULA DE COMPUERTA BRIDADA DE ACERO AL CARBONO CLASE 300 CON VÁSTAGO ASCENDENTE, VOLANTE Y EMPAQUETADURA DE GRAFITO PARA SERVICIO DE LODOS DE PERFORACIÓN A ALTA PRESIÓN / 3 1/16" X 10K / API 6A',
+      "ENSAMBLAJE DE SELLOS / 2N8866 3R-12",
+    ];
+    const resultado = await page.evaluate(([bytes, textos]) => globalThis.documentoDescripciones(bytes, textos), [Array.from(bytesVales()), descripciones]);
+    await page.setViewportSize({ width: 1100, height: 5000 });
+    await page.setContent(`<!doctype html><meta charset="utf-8"><style>body{margin:0}${resultado.documento.css}</style>${resultado.documento.html}`);
+    await page.evaluate(() => document.fonts.ready);
+    const paginas = await page.evaluate((textos) => [...document.querySelectorAll(".vale-pagina")].map((pagina) => {
+      const lienzo = pagina.querySelector(".vale-lienzo");
+      const tabla = pagina.querySelector(".vale-tabla");
+      const marco = lienzo.getBoundingClientRect();
+      const hoja = pagina.getBoundingClientRect();
+      const rectTabla = tabla.getBoundingClientRect();
+      const escala = Number(lienzo.style.zoom);
+      return {
+        escala, dentro: marco.bottom <= hoja.bottom + 1 && rectTabla.bottom <= marco.bottom + 1,
+        filasAlineadas: [...tabla.rows].every(tr => Math.abs(tr.getBoundingClientRect().height - Number.parseFloat(tr.style.height) * escala) < 1),
+        observaciones: [...tabla.querySelectorAll("td")].filter(td => td.textContent === "OBSERVACION").length,
+        firmas: [...tabla.querySelectorAll("td")].filter(td => ["ALMACENISTA DE PRUEBA", "USUARIO DE PRUEBA"].includes(td.textContent)).length,
+        fotos: [...lienzo.querySelectorAll(".vale-foto")].map(foto => {
+          const rect = foto.getBoundingClientRect();
+          const finPartidas = Math.max(...[...tabla.querySelectorAll("td")].filter(td => textos.includes(td.textContent)).map(td => td.getBoundingClientRect().bottom));
+          return rect.top >= finPartidas - 1 && rect.bottom <= marco.bottom + 1;
+        }),
+        descripciones: [...tabla.querySelectorAll("td")].filter(td => textos.includes(td.textContent)).map(td => {
+          const celda = td.getBoundingClientRect();
+          const rango = document.createRange();
+          rango.selectNodeContents(td.querySelector(".vale-texto>div"));
+          return { texto: td.textContent, alto: celda.height,
+            completo: [...rango.getClientRects()].every(rect => rect.top >= celda.top - 0.5 && rect.bottom <= celda.bottom + 0.5 && rect.left >= celda.left - 0.5 && rect.right <= celda.right + 0.5) };
+        }),
+      };
+    }), descripciones);
+    assert.equal(paginas.length, 4);
+    for (const [i, pagina] of paginas.entries()) {
+      assert.deepEqual(pagina.descripciones.map(celda => celda.texto), resultado.descripcionesPorPagina[i], `Página ${i + 1}: todas las descripciones conservan su texto y orden`);
+      assert.ok(pagina.dentro && pagina.filasAlineadas, `Página ${i + 1}: tabla y capas conservan la geometría dentro de la hoja`);
+      assert.equal(pagina.observaciones, 1);
+      assert.equal(pagina.firmas, 2);
+      for (const celda of pagina.descripciones) assert.ok(celda.completo, `Página ${i + 1}: descripción sin recorte ${celda.texto.slice(0, 40)}`);
+      assert.ok(pagina.fotos.every(Boolean), "Las fotos siguen dentro de la hoja y debajo de las partidas");
+    }
+    // Con dos partidas (larga y corta) solo crece la fila de la larga; la que cabe conserva la altura de la hoja.
+    const [soldador] = paginas;
+    const filaOriginal = analizarFormulario(new LibroLeido(bytesVales()), "SOLDADOR").filas.find((fila) => fila.r === 22).px;
+    assert.ok(soldador.descripciones[0].alto > soldador.descripciones[1].alto + 5 * soldador.escala, "La descripción de varias líneas tiene una fila más alta");
+    assert.ok(Math.abs(soldador.descripciones[1].alto - filaOriginal * soldador.escala) < 1.5, "La descripción de una línea conserva su fila");
+    assert.equal(paginas[3].fotos.length, 3);
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
     assert.equal((pdf.toString("latin1").match(/\/Type\s*\/Page\b/g) ?? []).length, 4, "El PDF contiene exactamente una página por vale");
     await page.setViewportSize({ width: 1100, height: 1200 });
