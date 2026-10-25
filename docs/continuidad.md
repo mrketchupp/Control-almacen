@@ -9,13 +9,18 @@ Los cambios funcionales solicitados están terminados y verificados. No quedan i
 - Libro diario: nombre del inventario con espacios y extensión original, tanto al descargar como en «Guardar como».
 - Conteo: altas, correcciones de dimensión / NP y bajas en borrador, con revisión antes de confirmar. Las bajas
   conservan los identificadores y vales. Corregir sólo la clave mantiene cantidades y corte.
+- Historial: edición del puesto de quien entrega en vales antiguos e importados, con puestos vacíos explícitos y
+  conservación de los materiales. La lista recuerda filtros, pestaña, filas desplegadas y scroll al volver del detalle,
+  de forma independiente por inventario y tipo de vale.
 
 El formato de datos es **17**. La migración agrega las correcciones a los conteos en captura. Los reportes históricos
 restauran el estado activo anterior a una baja. Los inventarios existentes conservan sus identificadores internos.
 
-Validación terminada: **405 pruebas automatizadas y 42 comprobaciones en Chromium**, sin errores ni peticiones
+Validación terminada: **408 pruebas automatizadas y 49 comprobaciones en Chromium**, sin errores ni peticiones
 externas. Incluye primera carga → emitir → imprimir → exportar → respaldo; ventanas de 1440, 960, 900, 390 y 320 px;
 entradas con NP distinto o vacío, transferencias, conteos, impresión por lotes y conciliación con Dynamics AX.
+Incluye puestos de vales importados (agregar, modificar y borrar) y memoria del historial con más de 200 filas,
+regreso desde detalle, Atrás, recarga, pestañas, desplazamiento interno de tabla y separación por inventario.
 
 El programa listo para usar está en `versiones/ControlAlmacen.html`; su integridad se verifica con
 `cd versiones && sha256sum -c SHA256.txt`. El código se compila mediante `npm run build`.

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { PUESTOS_AUTORIZAN, conEtapa, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
+import { PUESTOS_AUTORIZAN, conEtapa, etiquetasFirmasExtra, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
 import { aNumero, dec } from "../../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
@@ -9,6 +9,7 @@ import { preferenciasVale } from "../../servicios/preferencias.js";
 import {
   ErrorVale,
   aplicarPlantilla,
+  areaDeVale,
   borrador as buscarBorrador,
   conArticulo,
   conDatosFijos,
@@ -347,7 +348,11 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
   const fijo = tieneDatosFijos(area);
   const tipo = area ? tipoDeArea(area) : datos.naturaleza === "TRANSFERENCIA" ? "TRANSFERENCIA" : null;
-  const extras = firmasExtraDe(estado, datos);
+  // En los importados la plantilla puede faltar: sólo se recuperan las etiquetas, nunca sus personas.
+  const extras = firmasExtraDe(estado, datos) ?? (excluirValeId !== null
+    ? etiquetasFirmasExtra(areaDeVale(estado, datos)) ?? (["firma_extra_izq_nombre", "firma_extra_izq_puesto", "firma_extra_der_nombre", "firma_extra_der_puesto"].some((campo) => normal(datos[campo]))
+      ? { izq: "Firma adicional izquierda", der: "Firma adicional derecha" } : null)
+    : null);
   const [editarObservaciones, setEditarObservaciones] = useState(false);
   useEffect(() => setEditarObservaciones(false), [datos.id, datos.plantilla_area_id, excluirValeId]);
   const [espacios, setEspacios] = useState([]);
@@ -422,10 +427,12 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     cambiar({ lineas: vacia ? datos.lineas.map((l) => (l.uid === vacia.uid ? linea : l)) : [...datos.lineas, linea] });
   };
 
-  const autoriza = requiereAutoriza(estado, datos);
+  const autoriza = requiereAutoriza(estado, datos) || (excluirValeId !== null && Boolean(normal(datos.autorizo_nombre) || normal(datos.autorizo_puesto)));
   const areas = estado.plantillas_area.filter((p) => p.activo !== false || p.id === datos.plantilla_area_id);
   const enTurno = sesion.usuario ? conEntregaEnTurno(estado, datos, sesion.usuario) : null;
-  const quienEntrega = entrego ?? (enTurno ? { nombre: enTurno.entrego_nombre, puesto: enTurno.entrego_puesto } : null);
+  const quienEntrega = excluirValeId !== null
+    ? { nombre: datos.entrego_nombre || entrego?.nombre || "—", puesto: datos.entrego_puesto ?? "" }
+    : entrego ?? (enTurno ? { nombre: enTurno.entrego_nombre, puesto: enTurno.entrego_puesto } : null);
   const observaciones = observacionesDelVale(estado, datos) ?? "";
   const capturadas = lineasCapturadas(datos.lineas);
   const preferencias = preferenciasVale(estado, sesion.usuario);
@@ -548,7 +555,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
       : null,
     automaticos: html`
       <div class="datos-automaticos">
-        <span class="subtitulo-panel">Se llenan solos</span>
+        <span class="subtitulo-panel">${excluirValeId !== null ? "Datos de quien entrega" : "Se llenan solos"}</span>
         <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
           <dt>Entrega</dt>
           <dd>
@@ -562,6 +569,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                 <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>`
             : null}
         </dl>
+        ${excluirValeId !== null ? puestoDe("Puesto de quien entrega", "entrego") : null}
         ${area && fijo
           ? html`<div class="campo">
               <span>Observaciones (así salen en el vale)</span>

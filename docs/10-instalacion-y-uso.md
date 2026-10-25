@@ -130,6 +130,12 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
      derecha. Se guarda al momento para el almacenista en turno: cada quien ve su propio acomodo. *Restablecer como venía*
      regresa al de fábrica.
 3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
+   - En vales antiguos o importados también puedes completar o modificar **Puesto de quien entrega**, además de los
+     demás puestos. Se respeta el papel de cada persona en los formatos con firmas invertidas. Un cambio de puesto
+     conserva los materiales y queda registrado; si lo dejas vacío, la impresión respeta ese vacío.
+   - Al volver del detalle, el historial conserva sus filtros, pestaña, cantidad de filas desplegadas y posición de
+     lectura. Salidas y entradas recuerdan su propia vista, separada para cada inventario. **Quitar filtros** limpia
+     la búsqueda y regresa al inicio de la lista.
    - **Imprimir varios vales:** *Historial de vales → Vales de salida → Imprimir por lotes*. Pega tu lista de folios
      (por ejemplo, una columna de Excel o 88 folios separados por saltos de línea, espacios, comas o punto y coma).
      Revisa el conteo y pulsa **Imprimir**: se abre un solo diálogo de impresión o PDF, con una hoja por vale en el

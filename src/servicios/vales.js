@@ -689,6 +689,8 @@ const ETIQUETAS_ENCABEZADO = {
   depto_origen: "Depto. origen",
   destino: "Destino",
   depto_destino: "Depto. destino",
+  entrego_nombre: "Entregó",
+  entrego_puesto: "Puesto de quien entrega",
   recibio_nombre: "Recibió",
   recibio_puesto: "Puesto de quien recibe",
   autorizo_nombre: "Autorizó",
@@ -802,6 +804,9 @@ export function corregirVale(estado, valeId, datos, motivo, usuario = null) {
     [encabezado.entrego_nombre, encabezado.recibio_nombre] = [encabezado.recibio_nombre, encabezado.entrego_nombre];
     [encabezado.entrego_puesto, encabezado.recibio_puesto] = [encabezado.recibio_puesto, encabezado.entrego_puesto];
   }
+  // Se recuerdan también los vacíos elegidos: la impresión no debe recuperar el puesto de la plantilla.
+  const puestosCorregidos = Object.keys(encabezado).filter((campo) => campo.endsWith("_puesto") && texto(vale[campo]) !== texto(encabezado[campo]));
+  if (puestosCorregidos.length) vale.campos_encabezado_corregidos = [...new Set([...(vale.campos_encabezado_corregidos ?? []), ...puestosCorregidos])];
   asegurarArticulos(estado, datos.lineas);
   registrarPersonas(estado, encabezado);
   const previas = new Map(vale.lineas.map((l) => [l.id, l]));
@@ -812,15 +817,17 @@ export function corregirVale(estado, valeId, datos, motivo, usuario = null) {
     cambio: siguienteId(estado, "cambio"),
     fotos: fotosLimpias(datos.fotos ?? vale.fotos),
   });
-  vale.lineas = datos.lineas.map((l, i) => {
+  const lineasCorregidas = datos.lineas.map((l, i) => {
     const previa = Number.isInteger(l.id) ? previas.get(l.id) : null;
     const nueva = lineaLimpia(estado, { ...previa, ...l }, i + 1, previa ? previa.id : siguienteId(estado, "vale_linea"));
+    if (previa && previa.renglon === i + 1 && JSON.stringify(lineaLimpia(estado, previa, i + 1, previa.id)) === JSON.stringify(nueva)) return previa;
     // Si el renglón cambió, el encabezado propio de la migración ya no aplica.
     if (previa && JSON.stringify(foto({ lineas: [previa] }).lineas[0]) !== JSON.stringify(foto({ lineas: [nueva] }).lineas[0])) {
       nueva.encabezado_original = null;
     }
     return nueva;
   });
+  if (lineasCorregidas.length !== vale.lineas.length || lineasCorregidas.some((l, i) => l !== vale.lineas[i])) vale.lineas = lineasCorregidas;
   auditar(estado, { usuario, entidad: "vale", entidadId: vale.id, accion: "CORREGIR", antes: { motivo: texto(motivo), cambios, ...antes }, despues: foto(vale) });
   return vale;
 }

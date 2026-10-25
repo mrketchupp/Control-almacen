@@ -9,6 +9,7 @@ import { SelectorInventario } from "./inventario.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
 import { PaginaExportar } from "./paginas/exportar.js";
 import { PaginaHistorial } from "./paginas/historial.js";
+import { capturarHistorialAntesDeNavegar } from "./memoriaHistorial.js";
 import { PaginaInicio } from "./paginas/inicio.js";
 import { PaginaInventario } from "./paginas/inventario.js";
 import { PaginaPendientes } from "./paginas/pendientes.js";
@@ -320,6 +321,7 @@ function Marco() {
   useEffect(() => {
     const alCambiar = () => {
       const nueva = location.hash;
+      capturarHistorialAntesDeNavegar();
       if (!esDeMas(nueva) && nueva !== fondo.current) window.scrollTo(0, 0);
       setRuta(nueva);
     };

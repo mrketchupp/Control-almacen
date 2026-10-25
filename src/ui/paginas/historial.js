@@ -1,4 +1,5 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
+import { capturarHistorialAntesDeNavegar, recordarVistaHistorial, useMemoriaHistorial, vistaHistorial } from "../memoriaHistorial.js";
 import { filasHistorial, filtrarHistorial } from "../../servicios/consultas.js";
 import { filasEntradas, filtrarEntradas } from "../../servicios/entradas.js";
 import { estadoAxDeVales, etiquetaAx, sinAplicar } from "../../servicios/seguimiento.js";
@@ -35,7 +36,7 @@ function HistorialEntradas() {
   const sesion = useSesion();
   const [corrigiendoLote, setCorrigiendoLote] = useState(false);
   const filas = useMemo(() => filasEntradas(sesion.estado), [sesion.estado]);
-  const [filtros, setFiltros] = useState(SIN_FILTROS_ENTRADAS);
+  const { filtros, setFiltros, limpiar, raiz, mostrar, cambiarMostrar } = useMemoriaHistorial(sesion, "entradas", SIN_FILTROS_ENTRADAS);
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
   const impresas = useMemo(() => impresionesPorVale(sesion.estado), [sesion.estado.impresiones_etiquetas]);
   const enLista = useMemo(() => entradasEnLista(sesion.estado), [sesion.estado.etiquetas]);
@@ -47,7 +48,7 @@ function HistorialEntradas() {
   }, [filas, filtros, impresas]);
   const activos = Object.values(filtros).filter(Boolean).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
-  return html`
+  return html`<div ref=${raiz} data-historial="entradas">
     <div class="acciones-linea">
       <${Boton} onClick=${() => setCorrigiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>Corregir por lotes<//>
     </div>
@@ -63,11 +64,13 @@ function HistorialEntradas() {
         <span>Etiquetas</span>
         <${Lista} valor=${filtros.etiquetas} alCambiar=${(etiquetas) => setFiltros({ ...filtros, etiquetas })} ariaLabel="Etiquetas" opciones=${FILTRO_ETIQUETAS} />
       </div>
-      ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS_ENTRADAS)}>Quitar filtros (${activos})<//>` : null}
+      ${activos ? html`<${Boton} tipo="texto" onClick=${limpiar}>Quitar filtros (${activos})<//>` : null}
     </div>
     <p class="conteo">${num(visibles.length)} partidas · ${num(folios)} entradas${activos ? " con los filtros elegidos" : ""}</p>
     <${Tabla}
       limite=${200}
+      mostrarInicial=${mostrar}
+      alCambiarMostrar=${cambiarMostrar}
       filas=${visibles}
       menuFila=${(f) => ({
         titulo: `Entrada ${f.folio_texto}`,
@@ -94,18 +97,38 @@ function HistorialEntradas() {
       ]}
       vacia=${filas.length ? "Ninguna partida coincide con los filtros." : "Aún no hay entradas. Se registran en Vales de entrada."}
     />
-  `;
+  </div>`;
 }
 
 export function PaginaHistorial() {
-  const [vista, setVista] = useState(() => (/^#historial\/entradas/.test(location.hash) ? "entradas" : "salidas"));
+  const sesion = useSesion();
+  const [vista, setVista] = useState(() => vistaHistorial(sesion));
+  useEffect(() => {
+    const cambiarDesdeRuta = () => {
+      if (/^#historial(?:\/|$)/.test(location.hash)) {
+        const nueva = vistaHistorial(sesion);
+        recordarVistaHistorial(sesion, nueva);
+        setVista(nueva);
+      }
+    };
+    recordarVistaHistorial(sesion, vista);
+    window.addEventListener("hashchange", cambiarDesdeRuta);
+    return () => window.removeEventListener("hashchange", cambiarDesdeRuta);
+  }, [sesion]);
+  const elegirVista = (nueva) => {
+    if (vista === nueva) return;
+    capturarHistorialAntesDeNavegar();
+    recordarVistaHistorial(sesion, nueva);
+    history.replaceState(null, "", `#historial/${nueva}`);
+    setVista(nueva);
+  };
   return html`
     <div class="pestanas pestanas-vista" role="tablist" aria-label="Tipo de vale">
       ${[
         ["salidas", "Vales de salida"],
         ["entradas", "Vales de entrada"],
       ].map(
-        ([clave, titulo]) => html`<button type="button" role="tab" aria-selected=${vista === clave} class=${`pestana ${vista === clave ? "activa" : ""}`} onClick=${() => setVista(clave)}>
+        ([clave, titulo]) => html`<button type="button" role="tab" aria-selected=${vista === clave} class=${`pestana ${vista === clave ? "activa" : ""}`} onClick=${() => elegirVista(clave)}>
           ${titulo}
         </button>`,
       )}
@@ -126,7 +149,7 @@ function HistorialSalidas() {
       return { ...f, ax: info, ax_texto: info ? etiquetaAx(info) : "", duplicada: duplicadas.get(f.id) ?? null };
     });
   }, [sesion.estado, ax]);
-  const [filtros, setFiltros] = useState(SIN_FILTROS);
+  const { filtros, setFiltros, limpiar, raiz, mostrar, cambiarMostrar } = useMemoriaHistorial(sesion, "salidas", SIN_FILTROS);
   const poner = (clave) => (e) => setFiltros({ ...filtros, [clave]: e.currentTarget.value });
   const fijar = (clave) => (valor) => setFiltros({ ...filtros, [clave]: valor });
   const deptos = useMemo(() => [...new Set(filas.map((f) => f.depto).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [filas]);
@@ -134,7 +157,7 @@ function HistorialSalidas() {
   const visibles = useMemo(
     () =>
       filtrarHistorial(filas, filtros)
-        .filter((f) => !filtros.revisar || REVISAR[filtros.revisar].pasa(f))
+        .filter((f) => !filtros.revisar || !REVISAR[filtros.revisar] || REVISAR[filtros.revisar].pasa(f))
         .map((f) => (f.estado === "CANCELADO" ? { ...f, _clase: "fila-cancelada" } : f.duplicada ? { ...f, _clase: "fila-duplicada" } : f)),
     [filas, filtros],
   );
@@ -143,7 +166,7 @@ function HistorialSalidas() {
     .map(([valor, r]) => ({ valor, etiqueta: r.etiqueta, detalle: `${filas.filter(r.pasa).length}` }));
   const activos = Object.entries(filtros).filter(([, v]) => v).length;
   const folios = new Set(visibles.map((f) => f.folio)).size;
-  return html`
+  return html`<div ref=${raiz} data-historial="salidas">
     <div class="acciones-linea">
       <${Boton} onClick=${() => setImprimiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>🖨 Imprimir por lotes<//>
       <${Boton} onClick=${() => setCorrigiendoLote(true)} disabled=${Boolean(sesion.ocupado) || !filas.length}>Corregir por lotes<//>
@@ -190,7 +213,7 @@ function HistorialSalidas() {
         <span>Revisar</span>
         <${Lista} valor=${filtros.revisar} alCambiar=${fijar("revisar")} ariaLabel="Revisar" opciones=${[{ valor: "", etiqueta: "Todas" }, ...opcionesRevisar]} />
       </div>
-      ${activos ? html`<${Boton} tipo="texto" onClick=${() => setFiltros(SIN_FILTROS)}>Quitar filtros (${activos})<//>` : null}
+      ${activos ? html`<${Boton} tipo="texto" onClick=${limpiar}>Quitar filtros (${activos})<//>` : null}
     </div>
     <p class="conteo">
       ${num(visibles.length)} partidas · ${num(folios)} folios${activos ? " con los filtros elegidos" : ""}
@@ -198,6 +221,8 @@ function HistorialSalidas() {
     </p>
     <${Tabla}
       limite=${200}
+      mostrarInicial=${mostrar}
+      alCambiarMostrar=${cambiarMostrar}
       filas=${visibles}
       menuFila=${(f) => ({
         titulo: `Vale de salida ${f.folio}`,
@@ -226,7 +251,7 @@ function HistorialSalidas() {
       ]}
       vacia="Ninguna partida coincide con los filtros."
     />
-  `;
+  </div>`;
 }
 
 function ImpresionPorLotes({ alCerrar }) {

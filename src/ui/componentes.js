@@ -80,12 +80,18 @@ export function Detalles({ resumen, children, abierto = false }) {
 /**
  * Tabla simple con encabezado fijo. columnas: [{ clave, titulo, numero, ancho, render }]
  */
-export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null, claveFila = (f, i) => f.id ?? i, menuFila = null }) {
+export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null, mostrarInicial = limite, alCambiarMostrar = null, claveFila = (f, i) => f.id ?? i, menuFila = null }) {
   const menu = useMenuContextual();
-  const [mostrar, setMostrar] = useState(limite);
+  const [mostrar, setMostrar] = useState(mostrarInicial);
+  const cambiarMostrar = (valor) => { setMostrar(valor); alCambiarMostrar?.(valor); };
   // Vuelve al límite solo si cambia el contenido (no en cada redibujo).
   const firma = `${filas.length}:${filas.length ? claveFila(filas[0], 0) : ""}:${filas.length ? claveFila(filas[filas.length - 1], filas.length - 1) : ""}`;
-  useEffect(() => setMostrar(limite), [firma, limite]);
+  const anterior = useRef({ firma, limite });
+  useEffect(() => {
+    if (anterior.current.firma !== firma || anterior.current.limite !== limite) cambiarMostrar(limite);
+    anterior.current = { firma, limite };
+  }, [firma, limite]);
+  useEffect(() => setMostrar(mostrarInicial), [mostrarInicial]);
   const visibles = mostrar ? filas.slice(0, mostrar) : filas;
   if (!filas.length) return html`<p class="vacio">${vacia}</p>`;
   return html`<div class="tabla-contenedor">
@@ -112,8 +118,8 @@ export function Tabla({ columnas, filas, vacia = "Sin partidas.", limite = null,
     ${mostrar && filas.length > mostrar
       ? html`<div class="mas">
           <span>Mostrando ${mostrar} de ${filas.length}</span>
-          <${Boton} onClick=${() => setMostrar(mostrar + limite)}>Ver ${Math.min(limite, filas.length - mostrar)} más<//>
-          <${Boton} onClick=${() => setMostrar(null)}>Ver todos<//>
+          <${Boton} onClick=${() => cambiarMostrar(mostrar + limite)}>Ver ${Math.min(limite, filas.length - mostrar)} más<//>
+          <${Boton} onClick=${() => cambiarMostrar(null)}>Ver todos<//>
         </div>`
       : null}`;
 }
