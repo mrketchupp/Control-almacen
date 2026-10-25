@@ -4,11 +4,13 @@
 // totales, el rango de la tabla, las áreas de impresión/filtro, las notas y la fecha
 // del encabezado de página. Ver docs/06-formatos-excel.md, sección A.
 
+import { leerCatalogoInventario } from "../importadores/inventario.js";
 import { CERO, dec } from "../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { codigoAx, textoONumero } from "../nucleo/normalizar.js";
 import { cambiarUltimaFila, desplazarFormula, separarReferencia } from "../xlsx/celdas.js";
+import { LibroLeido } from "../xlsx/leer.js";
 import { HojaXML, PaqueteOOXML, ErrorPlantilla, cambiarNombresDefinidos, celda, celdaFormula } from "../xlsx/plantilla.js";
 import { TIPOS } from "../xlsx/rutas.js";
 import { atributos, cambiarEtiqueta, ponerAtributo } from "../xlsx/xml.js";
@@ -46,7 +48,7 @@ export function exportarInventario(estado, plantilla, { fecha = null } = {}) {
     totalRenglones += existencias.length;
   }
 
-  if (partes.has(HOJA_CATALOGO)) actualizarCatalogo(paquete, partes.get(HOJA_CATALOGO), estado);
+  if (partes.has(HOJA_CATALOGO)) actualizarCatalogo(paquete, partes.get(HOJA_CATALOGO), estado, plantilla);
   if (libro !== paquete.texto("xl/workbook.xml")) paquete.escribir("xl/workbook.xml", libro);
   paquete.eliminarCalcChain();
   return {
@@ -253,8 +255,11 @@ function moverNotas(paquete, parte, mapa, advertencias) {
 
 // ----------------------------------------------------------------- catálogo
 
-/** Reescribe ARTICULOS_MX solo si hay códigos que la plantilla no tiene. */
-function actualizarCatalogo(paquete, parte, estado) {
+/**
+ * Reescribe ARTICULOS_MX solo si hay códigos que la plantilla no tiene o cuya descripción se corrigió
+ * (la de la plantilla no se vuelve a tocar si el catálogo sigue igual).
+ */
+function actualizarCatalogo(paquete, parte, estado, plantilla) {
   const hoja = new HojaXML(paquete.texto(parte));
   const enPlantilla = new Set();
   for (const numero of hoja.numerosFila) {
@@ -263,7 +268,10 @@ function actualizarCatalogo(paquete, parte, estado) {
     if (codigo !== null) enPlantilla.add(codigo);
   }
   const articulos = Object.values(estado.articulos).sort((a, b) => a.codigo - b.codigo);
-  if (articulos.every((a) => enPlantilla.has(a.codigo))) return;
+  if (articulos.every((a) => enPlantilla.has(a.codigo))) {
+    const descripciones = leerCatalogoInventario(new LibroLeido(plantilla));
+    if (articulos.every((a) => !descripciones.has(a.codigo) || descripciones.get(a.codigo) === a.descripcion)) return;
+  }
   const conValor = hoja.numerosFila.filter((n) => hoja.valorNumerico(n, "A"));
   const primeraDatos = conValor.length ? Math.min(...conValor) : 3;
   const estilos = hoja.estilos(primeraDatos);

@@ -12,13 +12,16 @@ Los cambios funcionales solicitados están terminados y verificados. No quedan i
 - Historial: edición del puesto de quien entrega en vales antiguos e importados, con puestos vacíos explícitos y
   conservación de los materiales. La lista recuerda filtros, pestaña, filas desplegadas y scroll al volver del detalle,
   de forma independiente por inventario y tipo de vale.
+- Catálogo: se puede corregir la descripción de un código ya existente con el lápiz ✎ (inventario, vales de salida y de
+  entrada, corrección de vales y conteo). Queda en la bitácora, actualiza los borradores abiertos y llega a `ARTICULOS_MX` en
+  el inventario exportado; los vales emitidos sólo cambian si se corrigen.
 - Impresión: las descripciones largas (por ejemplo, en vales migrados del Excel de GSM) se imprimen completas, en varias
   líneas, ampliando su fila como ya se hacía con las claves largas; lo que cabe en una línea no cambia la hoja.
 
 El formato de datos es **17**. La migración agrega las correcciones a los conteos en captura. Los reportes históricos
 restauran el estado activo anterior a una baja. Los inventarios existentes conservan sus identificadores internos.
 
-Validación terminada: **413 pruebas automatizadas y 50 comprobaciones en Chromium**, sin errores ni peticiones
+Validación terminada: **422 pruebas automatizadas y 56 comprobaciones en Chromium**, sin errores ni peticiones
 externas. Incluye primera carga → emitir → imprimir → exportar → respaldo; ventanas de 1440, 960, 900, 390 y 320 px;
 entradas con NP distinto o vacío, transferencias, conteos, impresión por lotes y conciliación con Dynamics AX.
 Incluye puestos de vales importados (agregar, modificar y borrar) y memoria del historial con más de 200 filas,

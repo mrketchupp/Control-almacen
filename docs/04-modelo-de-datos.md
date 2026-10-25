@@ -37,7 +37,7 @@ erDiagram
 | Campo | Tipo | Notas |
 |---|---|---|
 | codigo | int PK | Código AX sin ceros a la izquierda |
-| descripcion | texto | Descripción oficial |
+| descripcion | texto | Descripción oficial. Se corrige desde la herramienta (`servicios/articulos.js`, `corregirDescripcion`): queda en `auditoria` (entidad `articulo`, acción `CORREGIR_DESCRIPCION`, antes → después y motivo), actualiza las partidas de los borradores que traían la anterior y se exporta a `ARTICULOS_MX`. Los vales emitidos conservan la suya |
 | clase | `INV` / `CONS` / nulo | Inventariable o consumible (lista pendiente de la base) |
 | modelo_ax | texto | `INV`, `CONPROV`… si se conoce |
 | activo | bool | |

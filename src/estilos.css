@@ -7407,3 +7407,78 @@ button.mosaico:hover .mosaico-abrir {
 .conteo-por-quitar > td { background: var(--error-suave, var(--fondo-suave)); }
 .conteo-por-quitar > td:nth-child(4), .conteo-por-quitar > td:nth-child(5) { text-decoration: line-through; }
 .tabla-conteo td:last-child .acciones-linea { min-width: 190px; flex-wrap: wrap; gap: 4px; }
+
+/* Corregir la descripción de un código del catálogo (lápiz junto a la descripción de cada partida). */
+.descripcion-codigo {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.descripcion-codigo > .descripcion {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.boton-descripcion {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--texto-suave);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.boton-descripcion:hover:not(:disabled),
+.boton-descripcion:focus-visible {
+  background: var(--primario-suave);
+  color: var(--primario);
+}
+
+.boton-descripcion:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* En una tabla de texto corrido (inventario), el lápiz sigue a la última palabra y no agranda la fila. */
+.tabla .boton-descripcion {
+  margin: -5px 0 -5px 2px;
+}
+
+/* En las partidas de un vale o de una entrada, a la altura de la primera línea de la descripción. */
+.tabla-partidas .boton-descripcion {
+  margin: 4px 0 0;
+}
+
+.pf .boton-descripcion {
+  margin: -3px 0 0;
+}
+
+.ventana.ventana-descripcion {
+  width: min(560px, 100%);
+}
+
+.editor-descripcion {
+  display: grid;
+  gap: 12px;
+}
+
+.editor-descripcion textarea {
+  width: 100%;
+}
+
+.editor-descripcion .acciones-linea {
+  justify-content: flex-end;
+}
+
+.descripciones-previas {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}

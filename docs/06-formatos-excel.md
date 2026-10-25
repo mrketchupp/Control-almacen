@@ -33,7 +33,7 @@
 - **`ARTICULOS_MX`:** filas desde la 3, A = código y B = producto.
 
 ### Exportación
-Partes modificadas: `xl/worksheets/sheet{1..10}.xml`, `xl/tables/table{1..10}.xml`, `xl/workbook.xml` (definedNames y calcPr), `xl/worksheets/sheet11.xml` (catálogo, solo si cambió), comentarios y VML (solo si se movieron las notas), y la eliminación de `calcChain`.
+Partes modificadas: `xl/worksheets/sheet{1..10}.xml`, `xl/tables/table{1..10}.xml`, `xl/workbook.xml` (definedNames y calcPr), `xl/worksheets/sheet11.xml` (catálogo `ARTICULOS_MX`: solo si hay códigos que la plantilla no tiene o si se corrigió la descripción de alguno; se reescribe completo con las descripciones del estado), comentarios y VML (solo si se movieron las notas), y la eliminación de `calcChain`.
 
 **Hoja de contenedor** (una por ubicación, en el mismo orden de la plantilla):
 

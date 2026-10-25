@@ -757,6 +757,8 @@ export function resumenCambios(estado, valeGuardado, datos) {
     siguen.add(previa.id);
     const detalle = [];
     if (previa.codigo !== l.codigo) detalle.push(`código ${previa.codigo} → ${l.codigo}`);
+    // Con otro código la descripción cambia sola: no se repite.
+    else if (texto(previa.descripcion).toUpperCase() !== texto(l.descripcion).toUpperCase()) detalle.push(`descripción ${texto(previa.descripcion).toUpperCase() || "—"} → ${texto(l.descripcion).toUpperCase() || "—"}`);
     const ca = dec(previa.cantidad);
     const cb = dec(l.cantidad);
     if (!(ca && cb ? ca.eq(cb) : texto(previa.cantidad) === texto(l.cantidad))) detalle.push(`cantidad ${cantidadConUm(previa)} → ${cantidadConUm(l)}`);

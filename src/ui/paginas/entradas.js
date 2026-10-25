@@ -36,6 +36,7 @@ import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { hayAnimaciones } from "../tema.js";
 import { PasosCopilot } from "./capturaIA.js";
+import { BotonDescripcion } from "./descripcion.js";
 import { EtiquetasDeEntrada } from "./etiquetas.js";
 import { CeldaCodigo, indiceArticulos, listas, normal, palabras, partidaConFoco } from "./vales.js";
 
@@ -199,6 +200,8 @@ export function EditorEntrada({ datos, alCambiar, errores = [], avisos = [], exc
     });
     if (cambio_) cambiar({ lineas });
   };
+  // Tras corregir la descripción de un código en el catálogo, sus partidas de esta entrada la toman también.
+  const conDescripcion = (codigo, descripcion) => cambiar({ lineas: datos.lineas.map((l) => (l.codigo === codigo ? { ...l, descripcion } : l)) });
   const agregarLinea = (tras = null) => {
     const nueva = lineaEntradaVacia();
     enfocar.current = `cod-${nueva.uid}`;
@@ -394,7 +397,10 @@ export function EditorEntrada({ datos, alCambiar, errores = [], avisos = [], exc
                       placeholder="Descripción (código nuevo)"
                       onInput=${(e) => cambiarLinea(l.uid, { descripcion: e.currentTarget.value })}
                     />`
-                  : html`<span class="descripcion" title=${l.descripcion}>${l.descripcion || html`<span class="nota">—</span>`}</span>`}
+                  : html`<div class="descripcion-codigo">
+                      <span class="descripcion" title=${l.descripcion}>${l.descripcion || html`<span class="nota">—</span>`}</span>
+                      ${conocido ? html`<${BotonDescripcion} codigo=${l.codigo} alCambiar=${(descripcion) => conDescripcion(l.codigo, descripcion)} />` : null}
+                    </div>`}
               </div>
               <div class="pf pf-clave">
                 <span class="mini">Clave / dimensión</span>

@@ -33,6 +33,7 @@ import {
 import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
+import { BotonDescripcion } from "./descripcion.js";
 
 // ---------------------------------------------------------------- utilidades
 
@@ -385,6 +386,8 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     if (siguiente) enfocar.current = siguiente;
     cambiar({ lineas: datos.lineas.map((l) => (l.uid === uid ? (typeof cambio === "function" ? cambio(l) : { ...l, ...cambio }) : l)) });
   };
+  // Tras corregir la descripción de un código en el catálogo, sus partidas de este vale la toman también.
+  const conDescripcion = (codigo, descripcion) => cambiar({ lineas: datos.lineas.map((l) => (l.codigo === codigo ? { ...l, descripcion } : l)) });
   const agregarLinea = (tras = null) => {
     const nueva = lineaVacia(area?.lote_defecto ?? "");
     enfocar.current = `cod-${nueva.uid}`;
@@ -673,7 +676,10 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
                             placeholder="Descripción (código nuevo, queda por confirmar)"
                             onInput=${(e) => cambiarLinea(l.uid, { descripcion: e.currentTarget.value })}
                           />`
-                        : html`<span class="descripcion">${l.descripcion || html`<span class="nota">—</span>`}</span>`}
+                        : html`<div class="descripcion-codigo">
+                            <span class="descripcion">${l.descripcion || html`<span class="nota">—</span>`}</span>
+                            ${conocido ? html`<${BotonDescripcion} codigo=${l.codigo} alCambiar=${(descripcion) => conDescripcion(l.codigo, descripcion)} />` : null}
+                          </div>`}
                     </td>
                     <td>
                       <${CeldaClave}

@@ -189,6 +189,14 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
 - **Corregir dimensión o NP:** *Inventario* → botón *Editar* de la partida. Sugiere la dimensión como la escribe AX (Tamaño +
   Color: juntos son la dimensión; AX no trae NP) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
   cantidades no cambian y el aviso trae *Deshacer*.
+- **Corregir la descripción de un código:** el **lápiz ✎** junto a la descripción (en *Inventario*, en las partidas de los vales de
+  salida y de entrada —también al corregir un vale del historial— y en lo encontrado durante un conteo) abre una ventana con la
+  descripción del catálogo; en el inventario también está en el menú del clic derecho. Escribe la nueva (se guarda en mayúsculas;
+  `Enter` guarda y `Esc` cancela) y, si quieres, el motivo. Es la descripción **del código**: la toman el inventario, los vales y
+  entradas nuevos, las etiquetas nuevas y el Excel del inventario (hoja oculta `ARTICULOS_MX`). Las partidas de los borradores
+  abiertos que seguían la anterior pasan a la nueva. **Los vales ya emitidos no cambian**: al corregir uno del historial, sus partidas
+  de ese código toman la nueva descripción y queda en el motivo y la bitácora (*descripción A → B*) cuando guardas la corrección.
+  Cada cambio queda en la bitácora con quién, cuándo y el texto anterior (la ventana lista los últimos).
 - **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
 - **Historial de entradas:** *Historial de vales → Vales de entrada*, con las columnas *Fecha del vale* y *Recibido*; los
   filtros *Recibido desde / hasta* van por la de recibido. Se exporta en *Exportar y enviar → Vales de entrada* (FECHA = la
@@ -225,7 +233,7 @@ El clic derecho ofrece las acciones disponibles para el elemento pulsado. Los bo
 | Etiqueta por imprimir | Editar, duplicar, incluir / excluir de esta impresión y quitar con Deshacer |
 | Vale del historial | Abrir; corregir e imprimir salidas emitidas; corregir y hacer etiquetas de entradas registradas |
 | Encabezado de un vale | Sus acciones disponibles y volver al historial |
-| Partida del inventario | Editar dimensión / NP y mover a otro contenedor |
+| Partida del inventario | Editar dimensión / NP, editar la descripción del código y mover a otro contenedor |
 
 Las opciones cambian con el estado: los diseños de fábrica permiten copiar elementos y duplicar el diseño para
 editarlo; los vales cancelados del historial sólo permiten abrirlos. Deshacer / Rehacer aparecen cuando hay cambios

@@ -41,7 +41,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 |---|---|---|
 | P-03 | ¿La base informa **hasta qué folio** capturó en AX en cada corte? | Vales en tránsito = vales con fecha **posterior** a la fecha de corte. Se puede indicar un folio de corte manual. **Aplicado en F4** (campo "Base capturó hasta el folio"). **Ronda 12:** mejor aún, el archivo de vales de la base dice partida por partida qué ya aplicó (folio IN / TR) y qué sigue pendiente; se importa en *conciliación con Dynamics AX*. |
 | P-11 | ¿Cada cuándo se hace un **conteo físico** completo? ¿Hay conteos cíclicos por contenedor? | Soportar ambos: total y parcial por contenedor. **Aplicado en F3.** |
-| P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos). **Aplicado.** |
+| P-15 | ¿Actualizar la hoja oculta `ARTICULOS_MX` del inventario exportado cuando se agregan códigos nuevos? | Sí (si no, la descripción sale `#N/A` para códigos nuevos). **Aplicado**; también se actualiza cuando se corrige la descripción de un código existente. |
 | P-17 | Columna **ITEM**: ¿renumerar consecutivo al exportar? | Sí, 1..n por hoja |
 | P-18 | Solicitud de ajuste: ¿solo renglones con diferencia o todos? | Solo con diferencia, con opción de incluir todos. **Aplicado en F4.** |
 

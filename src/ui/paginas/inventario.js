@@ -6,6 +6,13 @@ import { ErrorReacomodo, historialReacomodos, reacomodar } from "../../servicios
 import { Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { EditorClave, useCorreccion } from "./clave.js";
+import { BotonDescripcion, EditorDescripcion } from "./descripcion.js";
+
+/** La descripción con el lápiz pegado a su última palabra (si la descripción se parte en líneas, no queda solo). */
+function descripcionConLapiz({ codigo, descripcion }) {
+  const corte = descripcion.lastIndexOf(" ") + 1;
+  return html`${descripcion.slice(0, corte)}<span class="sin-corte">${descripcion.slice(corte)}<${BotonDescripcion} codigo=${codigo} /></span>`;
+}
 
 /** Corregir la dimensión y el NP de una partida del inventario (o de todas las de su variante), con sugerencias de AX. */
 function CorregirClave({ fila, alTerminar }) {
@@ -116,6 +123,7 @@ export function PaginaInventario() {
   const [vista, setVista] = useState("todos");
   const [moviendo, setMoviendo] = useState(null);
   const [corrigiendo, setCorrigiendo] = useState(null);
+  const [describiendo, setDescribiendo] = useState(null);
   const hojas = useMemo(() => [...new Set(filas.map((f) => f.hoja))], [filas]);
   const porTexto = useFiltroTexto(filas, texto, ["codigo", "descripcion", "dimension", "np", "nota"]);
   const visibles = porTexto.filter((f) => {
@@ -131,6 +139,7 @@ export function PaginaInventario() {
   return html`
     ${fila ? html`<${MoverRenglon} key=${fila.id} fila=${fila} alTerminar=${() => setMoviendo(null)} />` : null}
     ${aCorregir ? html`<${CorregirClave} key=${aCorregir.id} fila=${aCorregir} alTerminar=${() => setCorrigiendo(null)} />` : null}
+    ${describiendo !== null ? html`<${EditorDescripcion} key=${describiendo} codigo=${describiendo} alTerminar=${() => setDescribiendo(null)} />` : null}
     <div class="filtros">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión, NP…" />
       <${Lista}
@@ -167,6 +176,7 @@ export function PaginaInventario() {
         titulo: `Inventario: ${f.codigo} ${f.dimension || ""}`,
         opciones: sesion.ocupado ? [] : [
           { texto: "Editar dimensión y NP…", accion: () => setCorrigiendo(f.id) },
+          { texto: "Editar la descripción del código…", accion: () => setDescribiendo(f.codigo) },
           { texto: "Mover a otro contenedor…", accion: () => { setMoviendo(f.id); window.scrollTo(0, 0); } },
         ],
       })}
@@ -176,7 +186,7 @@ export function PaginaInventario() {
           render: (f) => html`<span class="sin-corte" title=${f.hoja}>#${f.contenedor} ${f.clase === "Inventariable" ? "Inv." : "Cons."}</span>`,
         },
         { clave: "codigo", titulo: "Código", numero: true },
-        { clave: "descripcion", titulo: "Descripción" },
+        { titulo: "Descripción", render: (f) => descripcionConLapiz(f) },
         { clave: "dimension", titulo: "Dimensión" },
         { clave: "np", titulo: "NP" },
         { clave: "um", titulo: "UM" },

@@ -24,6 +24,7 @@ import { Aviso, Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, Vent
 import { html } from "../html.js";
 import { aplicarConteoIA } from "../../servicios/capturaIA.js";
 import { CapturaIA } from "./capturaIA.js";
+import { BotonDescripcion } from "./descripcion.js";
 import { CeldaCodigo, ListaErrores, indiceArticulos } from "./vales.js";
 
 const signo = (d) => (d === null ? "" : d.gt(0) ? `+${num(aNumero(d))}` : num(aNumero(d)));
@@ -89,7 +90,7 @@ function NuevoConteo() {
 
 // ---------------------------------------------------------------- renglones encontrados
 
-function Sobrante({ s, n, ubicaciones, articulos, estado, alCambiar, alQuitar, errores }) {
+function Sobrante({ s, n, ubicaciones, articulos, estado, alCambiar, alDescripcion, alQuitar, errores }) {
   const variantes = useMemo(() => variantesDeCodigo(estado, s.codigo), [estado.variantes, s.codigo]);
   const conocido = Number.isInteger(s.codigo) && Boolean(estado.articulos[s.codigo]);
   const errorEn = (campo) => errores.find((e) => e.id === s.uid && e.campo === campo);
@@ -118,7 +119,10 @@ function Sobrante({ s, n, ubicaciones, articulos, estado, alCambiar, alQuitar, e
     <td>
       ${Number.isInteger(s.codigo) && !conocido
         ? html`<input value=${s.descripcion} placeholder="Descripción (código nuevo)" onInput=${(e) => alCambiar({ descripcion: e.currentTarget.value })} />`
-        : html`<span class="descripcion">${s.descripcion || html`<span class="nota">—</span>`}</span>`}
+        : html`<div class="descripcion-codigo">
+            <span class="descripcion">${s.descripcion || html`<span class="nota">—</span>`}</span>
+            ${conocido ? html`<${BotonDescripcion} codigo=${s.codigo} alCambiar=${(descripcion) => alDescripcion(s.codigo, descripcion)} />` : null}
+          </div>`}
     </td>
     <td>
       ${Number.isInteger(s.codigo)
@@ -200,6 +204,8 @@ function Captura() {
   );
   const capturar = (id, valor) => cambiar({ capturas: { ...datos.capturas, [id]: valor.replace(",", ".") } });
   const cambiarSobrante = (uid, cambio) => cambiar({ nuevos: datos.nuevos.map((s) => (s.uid === uid ? { ...s, ...cambio } : s)) });
+  // Tras corregir la descripción de un código en el catálogo, sus partidas encontradas la toman también.
+  const conDescripcion = (codigo, descripcion) => cambiar({ nuevos: datos.nuevos.map((s) => (s.codigo === codigo ? { ...s, descripcion } : s)) });
   const corregir = (fila, cambios) => {
     const correccion = { existencia_id: fila.id, dimension: fila.dimension, np: fila.np, ...fila.correccion, ...cambios };
     const tieneCambio = correccion.quitar || String(correccion.dimension ?? "").trim() !== String(fila.dimension ?? "").trim() || String(correccion.np ?? "").trim() !== String(fila.np ?? "").trim();
@@ -391,6 +397,7 @@ function Captura() {
                     estado=${estado}
                     errores=${errores}
                     alCambiar=${(cambio) => cambiarSobrante(s.uid, cambio)}
+                    alDescripcion=${conDescripcion}
                     alQuitar=${() => cambiar({ nuevos: datos.nuevos.filter((x) => x.uid !== s.uid) })}
                   />`,
                 )}
