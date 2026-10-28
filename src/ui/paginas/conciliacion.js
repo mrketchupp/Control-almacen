@@ -27,7 +27,8 @@ import {
 } from "../../servicios/conciliacion.js";
 import { COLORES_ESTADO, filasSolicitud, valesPorAplicar } from "../../exportadores/ajuste.js";
 import { sugerencias as sugerenciasDeVales } from "../../servicios/justificacion.js";
-import { Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { COINCIDENCIA_MINIMA, hojaParaConciliar, textoCoincidencia } from "../../servicios/kardex.js";
+import { Aviso, Bento, Boton, Buscador, ElegirArchivo, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { seguirConArchivo } from "../inventario.js";
 import { Icono } from "../iconos.js";
@@ -103,23 +104,48 @@ function ElegirPareja({ par, r, alElegir, etiqueta = "Otra…" }) {
 
 function VentanaImportar({ previa, alCerrar, alImportar }) {
   const sesion = useSesion();
-  const [almacen, setAlmacen] = useState(previa.almacen);
+  const inv = sesion.inventario.id;
+  const [hoja, setHoja] = useState(previa.hoja);
+  const elegida = previa.hojas.find((h) => h.hoja === hoja) ?? previa.hojas[0];
+  const tabla = elegida.tabla;
+  const almacenDe = (t) => t.almacenes.find((a) => a.nombre.toUpperCase() === String(sesion.estado.config?.almacen_ax ?? "").toUpperCase())?.nombre ?? t.almacenes[0]?.nombre ?? "";
+  const [almacen, setAlmacen] = useState(almacenDe(tabla));
   const [fecha, setFecha] = useState(previa.reporte.fechaSugerida ?? hoyIso());
   const [folio, setFolio] = useState("");
-  const renglones = delAlmacen(previa.reporte.renglones, almacen);
-  const inv = lineasInv({ lineas: renglones }).length;
+  const [seguro, setSeguro] = useState(false);
+  const renglones = delAlmacen(tabla.renglones, almacen);
+  const inv_ = lineasInv({ lineas: renglones }).length;
   const repetido = corteConHuella(sesion.estado, previa.huella);
+  // Ronda 20: DLTA y GSM usan códigos distintos; un reporte que casi no los tiene es de otro inventario.
+  const ajena = elegida.coincidencia.proporcion < COINCIDENCIA_MINIMA || Boolean(elegida.marca && elegida.marca !== inv);
+  const cambiarHoja = (nombre) => {
+    const h = previa.hojas.find((x) => x.hoja === nombre);
+    setHoja(nombre);
+    setAlmacen(almacenDe(h.tabla));
+    setSeguro(false);
+  };
   return html`<${Ventana} titulo="Importar reporte de AX" alCerrar=${alCerrar}>
-    <p><strong>${previa.nombre}</strong> · hoja <code>${previa.reporte.hoja}</code></p>
+    <p><strong>${previa.nombre}</strong>${previa.hojas.length > 1 ? null : html` · hoja <code>${tabla.hoja}</code>`}</p>
+    ${previa.hojas.length > 1
+      ? html`<div class="campo">
+          <span>El libro trae ${previa.hojas.length} hojas: ¿cuál es de ${inv}?</span>
+          <${Lista}
+            valor=${hoja}
+            alCambiar=${cambiarHoja}
+            ariaLabel="Hoja del reporte"
+            opciones=${previa.hojas.map((h) => ({ valor: h.hoja, etiqueta: h.hoja, detalle: `${h.tabla.renglones.length} partidas · ${h.uso === "propio" ? textoCoincidencia(h.coincidencia, inv) : h.motivo || textoCoincidencia(h.coincidencia, inv)}` }))}
+          />
+        </div>`
+      : null}
     <div class="campos-importar">
       <label class="campo">
         <span>Almacén</span>
-        ${previa.reporte.almacenes.length > 1
+        ${tabla.almacenes.length > 1
           ? html`<${Lista}
               valor=${almacen}
               alCambiar=${setAlmacen}
               ariaLabel="Almacén"
-              opciones=${previa.reporte.almacenes.map((a) => ({ valor: a.nombre, etiqueta: a.nombre || "(sin almacén)", detalle: `${a.renglones} partidas` }))}
+              opciones=${tabla.almacenes.map((a) => ({ valor: a.nombre, etiqueta: a.nombre || "(sin almacén)", detalle: `${a.renglones} partidas` }))}
             />`
           : html`<input value=${almacen} disabled />`}
       </label>
@@ -135,13 +161,22 @@ function VentanaImportar({ previa, alCerrar, alImportar }) {
       </label>
     </div>
     <p>
-      <strong>${inv}</strong> partidas con modelo INV de ${almacen || "este almacén"}
-      ${renglones.length > inv ? html` · <span class="nota">${renglones.length - inv} de otros modelos no se concilian</span>` : null}
-      ${previa.reporte.renglones.length > renglones.length ? html` · <span class="nota">${previa.reporte.renglones.length - renglones.length} de otros almacenes se ignoran</span>` : null}
+      <strong>${inv_}</strong> partidas con modelo INV de ${almacen || "este almacén"}
+      ${renglones.length > inv_ ? html` · <span class="nota">${renglones.length - inv_} de otros modelos no se concilian</span>` : null}
+      ${tabla.renglones.length > renglones.length ? html` · <span class="nota">${tabla.renglones.length - renglones.length} de otros almacenes se ignoran</span>` : null}
     </p>
-    ${repetido ? html`<p class="alerta">Este mismo archivo ya se importó como el corte del ${fmtFecha(repetido.fecha)}.</p>` : null}
+    ${ajena
+      ? html`<${Aviso} tipo="advertencia" titulo=${`¿Es el reporte de ${inv}?`}>
+          <p>
+            ${elegida.marca && elegida.marca !== inv ? `La hoja dice ${elegida.marca}` : textoCoincidencia(elegida.coincidencia, inv)}: parece de otro
+            inventario${elegida.marca === "FX" ? " (FX todavía no se concilia)" : ""}.
+          </p>
+          <label class="casilla"><input type="checkbox" checked=${seguro} onChange=${(e) => setSeguro(e.currentTarget.checked)} /><span>Sí, es de ${inv}: importarlo de todos modos</span></label>
+        <//>`
+      : null}
+    ${repetido ? html`<p class="alerta">Este mismo archivo ya se importó como el corte del ${fmtFecha(repetido.fecha)}${repetido.hoja ? ` (hoja ${repetido.hoja})` : ""}.</p>` : null}
     <div class="acciones-linea">
-      <${Boton} tipo="primario" disabled=${!inv || !fecha} onClick=${() => alImportar({ almacen, fecha, folio, renglones })}>Importar corte<//>
+      <${Boton} tipo="primario" disabled=${!inv_ || !fecha || (ajena && !seguro)} onClick=${() => alImportar({ almacen, fecha, folio, renglones, hoja: tabla.hoja })}>Importar corte<//>
       <${Boton} tipo="texto" onClick=${alCerrar}>Cancelar<//>
     </div>
   <//>`;
@@ -653,20 +688,21 @@ export function PaginaConciliacion() {
       try {
         const datos = await leerArchivoSubido(archivo);
         const reporte = leerReporteAx(datos, archivo.name);
-        const preferido = estado.config?.almacen_ax;
-        const almacen = reporte.almacenes.find((a) => a.nombre.toUpperCase() === String(preferido ?? "").toUpperCase())?.nombre ?? reporte.almacenes[0]?.nombre ?? "";
-        setPrevia({ nombre: archivo.name, reporte, almacen, huella: await sha256(datos) });
+        const { hoja, hojas } = hojaParaConciliar(estado, reporte);
+        setPrevia({ nombre: archivo.name, reporte, hoja, hojas, huella: await sha256(datos) });
       } catch (error) {
         if (error instanceof ErrorReporteAx) sesion.avisar("error", error.message);
         else sesion.avisar("error", `No se pudo leer ${archivo.name}: ${error.message}`);
       }
     });
-  const importar = ({ almacen, fecha, folio, renglones }) =>
+  const importar = ({ almacen, fecha, folio, renglones, hoja }) =>
     sesion.tarea("Importando el corte…", async () => {
       try {
         const nuevo = await sesion.almacen.modificar((e) => {
           e.config.almacen_ax = almacen;
-          return registrarCorteAx(e, { fecha, almacen, archivo: previa.nombre, huella: previa.huella, folioSalida: folio, renglones }, sesion.usuario).id;
+          const c = registrarCorteAx(e, { fecha, almacen, archivo: previa.nombre, huella: previa.huella, folioSalida: folio, renglones }, sesion.usuario);
+          c.hoja = hoja;
+          return c.id;
         });
         setPrevia(null);
         setCorteId(nuevo);

@@ -6,6 +6,7 @@ import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, corteDe, cortesVigentes } from "../nucleo/existencias.js";
 import { fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { DUENO_FX, duenoDe } from "../nucleo/inventarios.js";
 import { claveLaxa } from "../nucleo/normalizar.js";
 
 export function resumen(estado) {
@@ -55,6 +56,9 @@ export function renglonesAgotados(estado) {
 
 // ---------------------------------------------------------------- inventario
 
+/** ¿Hay partidas de FX (dentro de GSM)? Entonces el inventario de FX sale en su propio libro. */
+export const hayPartidasFx = (estado) => estado.existencias.some((e) => e.activo !== false && duenoDe(e) === DUENO_FX);
+
 /**
  * Partidas del inventario como el Excel diario: CANTIDAD = lo que había al empezar el día, CONSUMO e
  * INGRESO = los vales de ese día (hoy, si no se indica), TOTAL = lo que hay.
@@ -69,6 +73,7 @@ export function filasInventario(estado, { dia = hoyIso() } = {}) {
     return ua.orden - ub.orden || a.orden - b.orden;
   });
   for (const e of existencias) {
+    if (e.activo === false) continue; // quitada o dada de baja: no está en el inventario (sigue en su conteo)
     const saldo = saldos.get(e.id);
     const ubicacion = indices.ubicacion(e.ubicacion_id);
     const variante = indices.variante(e.variante_id);
@@ -89,6 +94,7 @@ export function filasInventario(estado, { dia = hoyIso() } = {}) {
       nota: e.nota || "",
       origen: e.origen || "",
       ubicacion_id: ubicacion.id,
+      dueno: duenoDe(e), // "FX" en las partidas de FX (GSM)
     });
   }
   return filas;

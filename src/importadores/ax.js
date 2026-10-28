@@ -21,7 +21,11 @@ export const COLUMNAS_AX = {
   disponible: "DISPONIBLE",
   valor_financiero: "VALOR FINANCIERO",
   valor_inventario: "VALOR DE INVENTARIO",
+  sitio: "SITIO",
+  cantidad_financiera: "CANTIDAD FINANCIERA",
 };
+// El Kardex de auditoría (base oficial) trae además lo que llenó el conteo.
+export const COLUMNAS_CONTEO = { conteo: ["CONTEO FISICO", "CONTEO"], contenedor: ["CONTENEDOR"] };
 const OBLIGATORIAS = ["codigo", "disponible"];
 
 const encabezado = (v) => n.sinAcentos(n.valorATexto(v) ?? "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -53,11 +57,15 @@ export function fechaDeNombre(nombre) {
   return encontrada;
 }
 
-/** La hoja y la fila de encabezados del reporte (busca "Código de Artículo" en las primeras filas). */
-function ubicarTabla(libro) {
+/**
+ * Las hojas con la tabla del reporte (busca "Código de Artículo" en las primeras filas), cada una con su
+ * fila de encabezados. Un libro puede traer varias (el Kardex de auditoría trae una por inventario).
+ */
+function ubicarTablas(libro) {
   const hojas = libro.hojas.filter((h) => h.tipo === TIPOS.hoja && h.estado === "visible");
   // Primero la hoja con el nombre del reporte; luego las demás.
   hojas.sort((a, b) => Number(/^rptInvent/i.test(b.nombre)) - Number(/^rptInvent/i.test(a.nombre)));
+  const tablas = [];
   for (const info of hojas) {
     const ws = libro.hoja(info.nombre);
     for (let fila = 1; fila <= Math.min(ws.maxFila, 25); fila++) {
@@ -68,24 +76,22 @@ function ubicarTabla(libro) {
         const i = valores.indexOf(titulo);
         if (i >= 0) columnas[campo] = i + 1;
       }
-      return { ws, fila, columnas };
+      for (const [campo, titulos] of Object.entries(COLUMNAS_CONTEO)) {
+        const i = titulos.map((t) => valores.indexOf(t)).find((x) => x >= 0);
+        if (i !== undefined) columnas[campo] = i + 1;
+      }
+      tablas.push({ ws, fila, columnas });
+      break;
     }
   }
-  return null;
+  return tablas;
 }
 
-/**
- * @returns {{ hoja, renglones: [{ fila, codigo, codigo_texto, nombre, modelo, um, almacen, tamano, color,
- *   disponible, valor_financiero, valor_inventario }], almacenes: [{ nombre, renglones }], fechaSugerida, ignoradas }}
- */
-export function leerReporteAx(datos, nombreArchivo = "reporte AX.xlsx") {
-  const libro = datos instanceof LibroLeido ? datos : new LibroLeido(datos);
-  const tabla = ubicarTabla(libro);
-  if (!tabla) throw new ErrorReporteAx('No encontré la columna "Código de Artículo". ¿Es el reporte de inventario de AX?');
-  const { ws, fila: filaEncabezados, columnas } = tabla;
+function leerTabla({ ws, fila: filaEncabezados, columnas }) {
   const faltan = OBLIGATORIAS.filter((c) => !columnas[c]);
-  if (faltan.length) throw new ErrorReporteAx(`Al reporte le faltan las columnas: ${faltan.map((c) => COLUMNAS_AX[c]).join(", ")}.`);
+  if (faltan.length) throw new ErrorReporteAx(`A la hoja ${ws.nombre} le faltan las columnas: ${faltan.map((c) => COLUMNAS_AX[c]).join(", ")}.`);
   const valor = (f, campo) => (columnas[campo] ? ws.valor(f, columnas[campo]) : null);
+  const conConteo = Boolean(columnas.conteo);
   const renglones = [];
   let ignoradas = 0;
   for (let f = filaEncabezados + 1; f <= ws.maxFila; f++) {
@@ -95,7 +101,7 @@ export function leerReporteAx(datos, nombreArchivo = "reporte AX.xlsx") {
       ignoradas += 1; // renglón de totales o vacío
       continue;
     }
-    renglones.push({
+    const renglon = {
       fila: f,
       codigo,
       codigo_texto: textoCelda(valor(f, "codigo")),
@@ -108,7 +114,14 @@ export function leerReporteAx(datos, nombreArchivo = "reporte AX.xlsx") {
       disponible: decimalTexto(valor(f, "disponible")) ?? "0",
       valor_financiero: decimalTexto(valor(f, "valor_financiero")),
       valor_inventario: decimalTexto(valor(f, "valor_inventario")),
-    });
+    };
+    if (columnas.sitio) renglon.sitio = textoCelda(valor(f, "sitio"));
+    if (columnas.cantidad_financiera) renglon.cantidad_financiera = decimalTexto(valor(f, "cantidad_financiera"));
+    if (conConteo) {
+      renglon.conteo = decimalTexto(valor(f, "conteo"));
+      renglon.contenedor = textoCelda(valor(f, "contenedor"));
+    }
+    renglones.push(renglon);
   }
   const conteo = new Map();
   for (const r of renglones) conteo.set(r.almacen, (conteo.get(r.almacen) ?? 0) + 1);
@@ -116,9 +129,34 @@ export function leerReporteAx(datos, nombreArchivo = "reporte AX.xlsx") {
     hoja: ws.nombre,
     renglones,
     almacenes: [...conteo].map(([nombre, cuantos]) => ({ nombre, renglones: cuantos })).sort((a, b) => b.renglones - a.renglones),
-    fechaSugerida: fechaDeNombre(nombreArchivo),
     ignoradas,
+    conConteo,
   };
+}
+
+/**
+ * @returns {{ hoja, renglones: [{ fila, codigo, codigo_texto, nombre, modelo, um, almacen, tamano, color,
+ *   disponible, valor_financiero, valor_inventario, sitio?, cantidad_financiera?, conteo?, contenedor? }],
+ *   almacenes: [{ nombre, renglones }], fechaSugerida, ignoradas, tablas }}
+ *   La primera tabla va arriba; `tablas` = todas las hojas con el reporte (mismo formato), para elegir la
+ *   del inventario abierto (Ronda 20: el Kardex de auditoría trae FX, GSM y DLTA en el mismo libro).
+ */
+export function leerReporteAx(datos, nombreArchivo = "reporte AX.xlsx") {
+  const libro = datos instanceof LibroLeido ? datos : new LibroLeido(datos);
+  const encontradas = ubicarTablas(libro);
+  if (!encontradas.length) throw new ErrorReporteAx('No encontré la columna "Código de Artículo". ¿Es el reporte de inventario de AX?');
+  const tablas = [];
+  let error = null;
+  for (const t of encontradas) {
+    try {
+      tablas.push(leerTabla(t));
+    } catch (e) {
+      if (!(e instanceof ErrorReporteAx)) throw e;
+      error ??= e;
+    }
+  }
+  if (!tablas.length) throw error;
+  return { ...tablas[0], fechaSugerida: fechaDeNombre(nombreArchivo), tablas };
 }
 
 /** Solo los renglones del almacén (sin distinguir mayúsculas). Los que no dicen almacén se conservan. */

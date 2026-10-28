@@ -13,7 +13,7 @@ import { estadoAlCierre } from "../servicios/corte.js";
 import { exportarInventario } from "../exportadores/inventario.js";
 import { exportarVales } from "../exportadores/vales.js";
 import { Indices } from "../nucleo/estado.js";
-import { INVENTARIO_DEFECTO, inventarioPorId } from "../nucleo/inventarios.js";
+import { DUENO_FX, INVENTARIO_DEFECTO, inventarioPorId } from "../nucleo/inventarios.js";
 import { leerVales } from "../importadores/vales.js";
 import { completarAreaDesdeFormulario } from "../servicios/primeraCarga.js";
 import { CARPETA_FOTOS, crearRespaldo, leerRespaldo, revisarInventario } from "./respaldos.js";
@@ -44,6 +44,20 @@ export function nombreConFecha(nombreOriginal, iso) {
   const texto = ddmmaa(iso);
   if (/\d{6}(?!\d)/.test(base)) return base.replace(/\d{6}(?!\d)/, texto) + sufijo;
   return `${base} ${texto}${sufijo}`;
+}
+
+/**
+ * El libro de FX lleva el nombre del inventario de GSM con FX: "… GSM …" → "… FX …"; si no dice GSM, FX va
+ * después de "REFACCIONAMIENTO" ("INVENTARIO DE REFACCIONAMIENTO FX DE ALMACEN 281026.xlsx").
+ */
+export function nombreFx(nombre) {
+  if (/(^|[^A-Z])GSM([^A-Z]|$)/i.test(nombre)) return nombre.replace(/(^|[^A-Z])GSM(?=[^A-Z]|$)/i, "$1FX");
+  const m = nombre.match(/REFACCIONAMIENTO([ _-]?)/i);
+  if (m) return nombre.replace(m[0], `${m[0].slice(0, "REFACCIONAMIENTO".length)}${m[1] || " "}FX${m[1]}`);
+  const fecha = nombre.match(/([ _-])(\d{6})(\.[^.]*)?$/);
+  if (fecha) return nombre.replace(fecha[0], `${fecha[1]}FX${fecha[0]}`);
+  const i = nombre.lastIndexOf(".");
+  return i < 0 ? `${nombre} FX` : `${nombre.slice(0, i)} FX${nombre.slice(i)}`;
 }
 
 export class Almacen {
@@ -226,13 +240,17 @@ export class Almacen {
       const c = corteAx(this.estado, corteAxId);
       return c ? nombreSolicitud(c.fecha, this.inventario) : null;
     }
-    const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === tipo && p.activa);
+    const plantilla = tipo === "INVENTARIO_FX" ? "INVENTARIO" : tipo;
+    const registro = [...(this.estado?.plantillas_excel ?? [])].reverse().find((p) => p.tipo === plantilla && p.activa);
     if (!registro) return null;
-    return tipo === "VALES" ? nombreVales(registro.nombre_original, this.inventario) : nombreConFecha(registro.nombre_original, hoy);
+    if (tipo === "VALES") return nombreVales(registro.nombre_original, this.inventario);
+    const nombre = nombreConFecha(registro.nombre_original, hoy);
+    return tipo === "INVENTARIO_FX" ? nombreFx(nombre) : nombre;
   }
 
   /**
-   * Genera el Excel: 'VALES' e 'INVENTARIO' sobre la plantilla del usuario; 'ENTRADAS' y 'AJUSTE'
+   * Genera el Excel: 'VALES', 'INVENTARIO' e 'INVENTARIO_FX' (las partidas de FX de GSM, en su propio
+   * libro) sobre la plantilla del usuario; 'ENTRADAS' y 'AJUSTE'
    * (solicitud de ajuste de un corte de AX: `corteAx`, `todos`) son libros nuevos. Con
    * `guardar(nombre, datos)` lo escribe antes de registrar la exportación (si falla la escritura,
    * no queda registrada).
@@ -253,9 +271,12 @@ export class Almacen {
       resultado = exportarSolicitudAjuste(estado, c, { todos });
       nombre = resultado.nombre;
     } else {
-      const { registro, datos: plantilla } = await this.plantillaActiva(tipo);
-      resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla, { fecha: corte ?? hoy });
+      // INVENTARIO_FX (en GSM): las partidas de FX en su propio libro, con la misma plantilla.
+      const fx = tipo === "INVENTARIO_FX";
+      const { registro, datos: plantilla } = await this.plantillaActiva(fx ? "INVENTARIO" : tipo);
+      resultado = tipo === "VALES" ? exportarVales(estado, plantilla) : exportarInventario(estado, plantilla, { fecha: corte ?? hoy, dueno: fx ? DUENO_FX : null });
       nombre = tipo === "VALES" ? nombreVales(registro.nombre_original, this.inventario) : nombreConFecha(registro.nombre_original, corte ?? hoy);
+      if (fx) nombre = nombreFx(nombre);
     }
     const huella = await sha256(resultado.datos);
     const destino = guardar ? await guardar(nombre, resultado.datos) : null;

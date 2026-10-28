@@ -259,6 +259,19 @@ formato 11.
 el día del inventario y del reporte diario) y **editor libre de diseños de etiquetas** con texto libre, QR y código de
 barras. Decisiones y pasos en `docs/12-ronda-22-plan.md`.
 
+**Ronda 23 — etapa 0 de la rutina de auditoría (aplicada): base oficial con el conteo de la auditoría.** Primero las
+bases: el conteo del Kardex de la auditoría como CANTIDAD de lo **inventariable** (lo consumible no se toca), con vista
+previa por secciones (se escriben distinto, cambian con su impacto en $, repetidas que se dan de baja, nuevas en el
+contenedor que anotó el conteo, solo en consumible, inventariables sin Kardex con *No existe*). **FX dentro del
+Inventario B** (comparte vales y folios): el conteo marca sus partidas; en *Inventario* se ven y se filtran; su **libro de
+Excel aparte** (exportar y reporte diario). **Aviso de Kardex equivocado** en la base oficial y en la conciliación
+(códigos que no son del inventario, hoja de otro inventario; un libro con varias hojas ya no toma "la primera"). Probado
+en local con los archivos reales (sin subirlos): aplicar dos veces el mismo Kardex no cambia nada.
+- ☐ Cargar el Kardex de la auditoría en los dos inventarios, revisar la vista previa y aplicar.
+- ☐ Exportar el inventario del Inventario B y el de FX y compararlos con el Kardex.
+- Siguiente (cuando el inventario quede correcto): marca FX en vales y entradas (LOTE automático), alertas de repetidas
+  y de "recibido sin registrar", conteo guiado por el Kardex, resumen de guardia y Kardex esperado.
+
 Hecho: página *conciliación con Dynamics AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar
 con valor, solicitud de ajuste); *Por confirmar* con *Es esta* / otra / *No está en el físico* y *Confirmar las seguras*;

@@ -263,6 +263,24 @@ vale se repite si se restaura un respaldo: `emitido_en` dice cuál era); la list
 `cambiado_en` (gana el último cambio) y, si venía con etiquetas del formato 10, `juntar: true` (la primera vez se une con
 la del otro). La migración convierte los ids numéricos y los `vales` anteriores.
 
+**Base oficial, FX y bajas (formato 18, Ronda 23):**
+- `existencia.dueno = "FX"` (solo en el Inventario B): partida de **FX**, material que AX lleva en su propio almacén y
+  Kardex pero que se descuenta en los vales del Inventario B (LOTE "FX"). Comparte vales, folios y contenedores; sin
+  `dueno` = del inventario. El libro de inventario del Inventario B sale sin ellas y el de FX solo con ellas
+  (`exportarInventario(…, { dueno })`). La conciliación no las cuenta (`fisicoPorVariante({ dueno })`, `transitoDesde`
+  por el dueño del corte).
+- `existencia.activo = false` + `existencia.baja = { fecha, motivo, conteo_id, usuario, en }`: partida **dada de baja**
+  (no existe o estaba repetida). Deja de salir en el inventario y en el Excel, pero no se borra (sus vales y el historial
+  del conteo la siguen viendo). Solo se da de baja si quedó en 0 y no tiene vales posteriores al conteo. Su línea del
+  conteo guarda `activo_anterior` (como al quitar una partida en un conteo).
+- Conteo `tipo: "AUDITORIA"` (conteo de auditoría como base oficial): como un conteo parcial (corte por folio del día del
+  conteo) y además `archivo`, `huella`, `hojas: [{ hoja, dueno }]`, `bajas: [existencia_id]`, `movidas: [{ existencia_id,
+  de, a, orden_anterior }]`; cada línea guarda `dueno_anterior` y `kardex` (las partidas de AX que la contaron). El
+  reporte diario de un día anterior lo deshace todo (`estadoAlCierre`). Auditoría `BASE_OFICIAL`.
+- `corte.hoja` (opcional): la hoja del libro de AX de la que se tomó el corte; `corte.base_oficial`: el conteo de auditoría
+  que lo registró.
+La migración solo sube el formato.
+
 **Vales asignados a faltantes (formato 8, Ronda 14):** `corte.asignaciones = [{ id, partida_id, vale_id, folio, codigo,
 cantidad, variante_id | linea_ax_id, metodo: "sugerida" | "manual", por, en }]`. Cada partida de vale se asigna una sola
 vez por corte, a una variante (fila emparejada) o a una partida de AX sin físico. `transitoDesde` la cuenta para ese

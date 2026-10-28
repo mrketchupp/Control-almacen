@@ -64,6 +64,11 @@ Reglas de la hoja:
 
 **Nombre de archivo:** `INVENTARIO DE ALMACEN <inventario> DDMMAA.xlsx`.
 
+**Libro de FX (Ronda 23, en el Inventario B):** la misma plantilla del Inventario B con solo las partidas de FX (y la
+del Inventario B sin ellas); las partidas dadas de baja no salen. Nombre: el del Inventario B con `FX` (la marca del
+inventario en el nombre se cambia por `FX`; si no la tiene, después de
+`REFACCIONAMIENTO`: `INVENTARIO DE REFACCIONAMIENTO FX DE ALMACEN DDMMAA.xlsx`).
+
 ---
 
 ## B. Vales de salida (`.xlsm`)
@@ -157,6 +162,17 @@ de la plantilla, CANTIDAD (0 si llegó por entrada) e INGRESO; los códigos nuev
 - La fecha de corte se toma del nombre del archivo (`DDMMAA`, `DD-MM-AA`, `DD.MM.AAAA`…; gana la última fecha válida) y el usuario la confirma.
 - Los textos (nombre, UM, Tamaño, Color) se guardan **tal como vienen** para repetirlos en la solicitud de ajuste; se normalizan solo al comparar. `Código` conserva también su texto con ceros (`000000670`).
 - Si viene el reporte completo, se elige el almacén (por defecto el de la configuración) y se avisa cuántos renglones de otros almacenes se ignoran. Importar el mismo archivo dos veces avisa.
+- **Varias hojas (Ronda 23):** se leen todas las que tienen la tabla (`tablas`). Se propone la del inventario abierto
+  (la que dice su nombre o, si ninguna, la que tiene más códigos del inventario); se puede elegir otra. Si la elegida
+  casi no tiene códigos del inventario (los dos inventarios usan códigos distintos) o dice otro inventario (o FX), se avisa y
+  hay que confirmarlo. Columnas opcionales que se guardan si vienen: `Sitio`, `Cantidad Financiera`.
+
+### D.1 Kardex de auditoría (importación, Ronda 23)
+
+El mismo reporte de AX, una hoja por inventario (por ejemplo FX, la del Inventario B y la del Inventario A), con dos columnas que llena el conteo
+oficial: **`Conteo`** o **`Conteo Fisico`** (número) y **`Contenedor`** (número; 0 o vacío = no dice). Solo se usan las
+hojas que traen la columna de conteo. Costo unitario = `Valor Financiero / Cantidad Financiera` (para ordenar por impacto).
+Ver `docs/05` §4.3.
 
 ## E. Solicitud de ajuste (exportación, archivo nuevo)
 

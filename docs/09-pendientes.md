@@ -35,6 +35,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 
 | ID | Pregunta | Propuesta por defecto |
 |---|---|---|
+| P-26 | **FX (Ronda 23):** en un vale del Inventario B, ¿la partida de FX lleva en LOTE solo "FX" o "FX" más el NP? ¿El libro de FX aparte lo aceptan los demás almacenistas? | Por ahora solo se marca en el inventario (sin tocar los vales) y el libro de FX sale aparte. Se decide al llevar la marca a vales y entradas. |
 | P-24 | **Inventario B (Ronda 17):** ¿el reporte de AX y el archivo de la base de Inventario B son archivos aparte de los de Inventario A, o vienen juntos en uno? ¿Qué almacén de AX es el de Inventario B? | **Aparte**, cada uno se importa en su inventario. Si el reporte trae varios almacenes, se elige el de Inventario B al importar y se recuerda. Si el de la base viniera junto, habría que separar los vales por inventario (avisar). |
 
 | ID | Pregunta | Propuesta por defecto |

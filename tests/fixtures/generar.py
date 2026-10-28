@@ -941,6 +941,75 @@ def generar_base(ruta: Path) -> Path:
     return ruta
 
 
+# ---------------------------------------------------------------- Kardex de auditoría (base oficial)
+
+# El Kardex con el que se hace el conteo oficial: el reporte de AX de cada inventario en su hoja, con dos
+# columnas más que llena el conteo (Conteo / Conteo Fisico y Contenedor). La primera hoja es la de FX
+# (como en el real): un lector que tomara "la primera hoja" leería el inventario equivocado. La hoja del
+# inventario principal NO dice su nombre (PRINCIPAL); se reconoce por sus códigos.
+NOMBRE_KARDEX = "KARDEX AUDITORIA SINTETICO 261026.xlsx"
+ENCABEZADOS_KARDEX = [
+    "Tipo de Artículo",
+    "Código de Artículo",
+    "Nombre del Artículo",
+    "Modelo de Inventario",
+    "Unidad de Medida",
+    "Sitio",
+    "Almacén",
+    "Tamaño",
+    "Color",
+    "Cantidad Financiera",
+    "Disponible",
+    "Valor Financiero",
+    "Valor de Inventario",
+]
+# (código, tamaño, color, um, disponible en AX, conteo, contenedor, costo unitario)
+KARDEX_PRINCIPAL = [
+    (701, "6205-2Z", "", "PZA", 6, 6, 1, 120.5),  # cuadra
+    (707, "MARIPOSA 4", "", "PZA", 4, 3, 1, 1500.0),  # Tamaño cortado a 10: cambia la cantidad
+    (701, "6309-2Z/C3", "", "PZA", 9, 9, 1, 350.0),  # en #1 y #2 del físico: el conteo la junta en #1
+    (702, "P557500", "", "PZA", 20, 20, 1, 85.25),  # solo en consumible: no se toca
+    (703, "1/2 X 2", "", "PZA", 10, 8, 2, 4.75),  # no estaba en el físico: partida nueva en #2
+    (712, "6303 SKF", "", "PZA", 0, 1, 1, 410.0),  # código que no está en el catálogo
+    (709, "CABLE 3/4", "", "m", 50, 40, 6, 18.0),  # contenedor que no existe: hay que elegir
+    (714, "MODELO ZX100", "", "PZA", 8, 7, 2, 45.0),  # escrita distinto (MOD:ZX100): por confirmar
+    (711, "", "", "PZA", 7, 6, 2, 60.0),  # sin dimensión: junta las variantes sin dimensión
+    (711, "MOD:A1", "", "PZA", 2, 2, 2, 60.0),
+    (710, "S/D", "X00489", "PZA", 2, 0, 1, 75.0),  # contada en 0
+    (136, "", "", "LT", 500, 0, 0, 20.0, "NO INV"),
+    (705, "3/4 ALTA PRES", "", "m", 2, 2, 2, 50.0),  # el código solo está en consumible y no se parece: el usuario elige
+]
+KARDEX_GSM = [
+    (701, "6205-2Z", "", "PZA", 4, 4, 1, 120.5),  # el mismo artículo en GSM y en FX: el físico tiene una partida
+    (701, "6309-2Z/C3", "", "PZA", 10, 10, 1, 350.0),  # cuadra: 7 en #1 + 3 en #2 (se queda repartido)
+    (706, "555001", "", "PZA", 1, 1, 1, 900.0),
+]
+KARDEX_FX = [
+    (701, "6205-2Z", "", "PZA", 2, 2, 1, 120.5),  # la otra parte del 6205-2Z: partida FX nueva
+    (707, "MARIPOSA 4", "", "PZA", 4, 4, 1, 1500.0),  # solo en FX: la partida pasa a FX
+    (703, "1/2 X 2", "", "PZA", 3, 3, 2, 4.75),  # FX sin físico: partida FX nueva
+]
+
+
+def _hoja_kardex(wb: Workbook, titulo: str, renglones: list, conteo: str, sitio: str, almacen: str) -> None:
+    ws = wb.create_sheet(titulo)
+    ws.append(ENCABEZADOS_KARDEX + [conteo, "Contenedor"])
+    for codigo, tamano, color, um, disponible, contado, contenedor, costo, *modelo in renglones:
+        valor = round(disponible * costo, 2)
+        ws.append(["Artículo", f"{codigo:09d}", CATALOGO.get(codigo, "ARTICULO NUEVO"), modelo[0] if modelo else "INV", um, sitio,
+                   almacen, tamano, color, disponible, disponible, valor, valor, contado, contenedor])
+
+
+def generar_kardex(ruta: Path) -> Path:
+    wb = Workbook()
+    wb.remove(wb.active)
+    _hoja_kardex(wb, "FX", KARDEX_FX, "Conteo", "SITIO-FX", "ALMACEN-FX")
+    _hoja_kardex(wb, "GSM", KARDEX_GSM, "Conteo Fisico", "SITIO-G", ALMACEN_AX)
+    _hoja_kardex(wb, "PRINCIPAL", KARDEX_PRINCIPAL, "Conteo Fisico", "SITIO-P", ALMACEN_AX)
+    wb.save(ruta)
+    return ruta
+
+
 def generar_todo(carpeta: Path) -> dict[str, Path]:
     carpeta.mkdir(parents=True, exist_ok=True)
     return {
@@ -948,6 +1017,7 @@ def generar_todo(carpeta: Path) -> dict[str, Path]:
         "vales": generar_vales(carpeta / "VALES SINTETICO.xlsm"),
         "ax": generar_ax(carpeta / NOMBRE_AX),
         "base": generar_base(carpeta / NOMBRE_BASE),
+        "kardex": generar_kardex(carpeta / NOMBRE_KARDEX),
     }
 
 

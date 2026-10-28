@@ -1,5 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
+import { hayPartidasFx } from "../../servicios/consultas.js";
 import { describirCorte } from "../../servicios/corte.js";
 import { fechasConVales, reporteDelDia } from "../../servicios/reporte.js";
 import { valesPorEnviar } from "../../servicios/vales.js";
@@ -61,6 +62,8 @@ export function PaginaReporte() {
   const { corte } = reporte;
   const nombreVales = sesion.almacen.nombreExportacion("VALES", fecha);
   const nombreInventario = sesion.almacen.nombreExportacion("INVENTARIO", fecha);
+  const fx = useMemo(() => hayPartidasFx(estado), [estado.existencias]);
+  const nombreFx = fx ? sesion.almacen.nombreExportacion("INVENTARIO_FX", fecha) : null;
   const posteriores = pendientesTotales - reporte.porSubir.length;
 
   return html`
@@ -112,6 +115,16 @@ export function PaginaReporte() {
             descargado=${descargados.INVENTARIO}
             onClick=${() => exportarConDialogo(sesion, "INVENTARIO", (destino) => setDescargados((d) => ({ ...d, INVENTARIO: destino })), { corte: fecha })}
           />
+          ${fx
+            ? html`<${BotonArchivo}
+                nombre=${nombreFx}
+                titulo="Inventario de FX"
+                detalle=${`Cerrado al ${fmtFecha(fecha)}`}
+                disabled=${!nombreFx}
+                descargado=${descargados.INVENTARIO_FX}
+                onClick=${() => exportarConDialogo(sesion, "INVENTARIO_FX", (destino) => setDescargados((d) => ({ ...d, INVENTARIO_FX: destino })), { corte: fecha })}
+              />`
+            : null}
         </div>
         <p class="nota">Salen sobre tus plantillas, igual que en Exportar y enviar.</p>
       </section>

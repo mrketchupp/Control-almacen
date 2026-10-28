@@ -26,7 +26,9 @@ import { fechaMinimaPropuesta } from "./justificantes.js";
 // Formato 15: vínculos por corte entre una partida de AX y varias variantes físicas.
 // Formato 16: conversiones de unidad por partida y factores de los vales, sin reescribirlos.
 // Formato 17: correcciones del inventario capturadas en el borrador de un conteo físico.
-export const FORMATO_ESTADO = 17;
+// Formato 18 (base oficial): conteo de auditoría (`tipo: "AUDITORIA"`), partidas de FX dentro de GSM
+// (`existencia.dueno = "FX"`) y partidas dadas de baja (`activo: false` + `baja`).
+export const FORMATO_ESTADO = 18;
 export const ALMACEN_AX_DEFECTO = "RIG91-IX25";
 
 export function estadoVacio(inventario = INVENTARIO_DEFECTO) {
@@ -219,6 +221,10 @@ export function migrarEstado(estado) {
   if (estado.formato < 17) {
     if (estado.conteo_en_curso) estado.conteo_en_curso.correcciones ??= [];
     estado.formato = 17;
+  }
+  if (estado.formato < 18) {
+    // Nada que convertir: antes no había partidas de FX ni dadas de baja con motivo (todas son del inventario).
+    estado.formato = 18;
   }
   return estado;
 }

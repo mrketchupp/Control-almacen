@@ -18,6 +18,7 @@ import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
+import { duenoDe } from "../nucleo/inventarios.js";
 import { fechaMinimaPropuesta, valeAdmitido } from "../nucleo/justificantes.js";
 import { claveEstricta, claveLaxa, compactar, mayusculas, sinDimension } from "../nucleo/normalizar.js";
 import { folioEntrada } from "./entradas.js";
@@ -112,11 +113,12 @@ export function quitarCorteAx(estado, corteId, usuario = null) {
 // ---------------------------------------------------------------- físico y tránsito
 
 /** Existencia física por variante: TOTAL de todos sus renglones del inventario. */
-export function fisicoPorVariante(estado, { indices = new Indices(estado), saldos = null } = {}) {
+export function fisicoPorVariante(estado, { indices = new Indices(estado), saldos = null, dueno = undefined } = {}) {
   const totales = saldos ?? calcularSaldos(estado);
   const porVariante = new Map();
   for (const e of estado.existencias) {
-    if (e.activo === false) continue;
+    // Con `dueno` (null = las del inventario, "FX" = las de FX dentro de GSM) solo las partidas de ese dueño.
+    if (e.activo === false || (dueno !== undefined && duenoDe(e) !== dueno)) continue;
     const v = indices.variante(e.variante_id);
     if (!v) continue;
     let r = porVariante.get(v.id);
@@ -178,6 +180,7 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
   const porLinea = new Map();
   const asignadas = new Map((corte.asignaciones ?? []).map((a) => [a.partida_id, a]));
   const lineasAx = new Map(corte.lineas.map((l) => [l.id, l]));
+  const dueno = corte.dueno ?? null;
   const sumarA = (mapa, clave, vale, linea, cantidad, marca, um = linea.um) => {
     let t = mapa.get(clave);
     if (!t) {
@@ -245,9 +248,10 @@ export function transitoDesde(estado, corte, { indices = new Indices(estado), ax
       }
       if (!cantidad || cantidad.eq(0)) continue;
       let existencia = hay(l.existencia_id) ? indices.existencia(l.existencia_id) : null;
+      if (existencia && duenoDe(existencia) !== dueno) continue; // de FX: no es de este reporte (o al revés)
       if (!existencia) {
         indice ??= indiceExistencias(estado, indices);
-        const candidatos = candidatosExactos(indice, indices, l.codigo, l.clave).filter((e) => e.activo !== false);
+        const candidatos = candidatosExactos(indice, indices, l.codigo, l.clave).filter((e) => e.activo !== false && duenoDe(e) === dueno);
         const variantes = new Set(candidatos.map((e) => e.variante_id));
         const yaContado = (e) => !cuentaParaSaldo(e.conteo_id !== null && e.conteo_id !== undefined ? indices.conteos.get(e.conteo_id) : null, vale);
         if (variantes.size === 1 && candidatos.every(yaContado)) existencia = candidatos[0];
@@ -366,9 +370,12 @@ function parecido(ax, f) {
 export const PUNTAJE_SUGERENCIA = 0.5;
 export const PUNTAJE_SEGURO = 0.85;
 
-/** Físico que se compara con el corte: sin los códigos que en AX no son INV. */
+/**
+ * Físico que se compara con el corte: sin los códigos que en AX no son INV y, en GSM, solo las partidas
+ * del dueño del corte (las de FX no son del reporte de GSM).
+ */
 function fisicoComparable(estado, corte, indices, fisico = null) {
-  const todo = fisico ?? fisicoPorVariante(estado, { indices });
+  const todo = fisico ?? fisicoPorVariante(estado, { indices, dueno: corte.dueno ?? null });
   const fuera = codigosNoInv(corte);
   if (!fuera.size) return todo;
   return new Map([...todo].filter(([, r]) => !fuera.has(r.variante.codigo)));

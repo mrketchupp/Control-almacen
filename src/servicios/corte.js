@@ -77,9 +77,21 @@ export function estadoAlCierre(estadoActual, fecha) {
       if (Object.hasOwn(linea, "activo_anterior")) {
         if (linea.activo_anterior === null) delete e.activo;
         else e.activo = linea.activo_anterior;
+        delete e.baja;
+      }
+      // Conteo de auditoría (base oficial): también el dueño (FX) que tenía.
+      if (Object.hasOwn(linea, "dueno_anterior")) {
+        if (linea.dueno_anterior) e.dueno = linea.dueno_anterior;
+        else delete e.dueno;
       }
     }
     for (const id of conteo.nuevos ?? []) quitar.add(id);
+    for (const m of [...(conteo.movidas ?? [])].reverse()) {
+      const e = porId.get(m.existencia_id);
+      if (!e) continue;
+      e.ubicacion_id = m.de;
+      if (m.orden_anterior !== undefined) e.orden = m.orden_anterior;
+    }
   }
   const revertidos = new Set(revertir.map((c) => c.id));
   estado.conteos = estado.conteos.filter((c) => !revertidos.has(c.id));

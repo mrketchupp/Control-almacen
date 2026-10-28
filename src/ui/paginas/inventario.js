@@ -1,9 +1,10 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
+import { DUENO_FX } from "../../nucleo/inventarios.js";
 import { filasInventario } from "../../servicios/consultas.js";
 import { corregirDimensionNp, lugarCorto, renglonDe, ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { ErrorReacomodo, historialReacomodos, reacomodar } from "../../servicios/reacomodos.js";
-import { Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { Boton, Buscador, Detalles, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { EditorClave, useCorreccion } from "./clave.js";
 import { BotonDescripcion, EditorDescripcion } from "./descripcion.js";
@@ -121,6 +122,9 @@ export function PaginaInventario() {
   const [texto, setTexto] = useState("");
   const [hoja, setHoja] = useState("");
   const [vista, setVista] = useState("todos");
+  // En GSM, las partidas de FX (las marcó el conteo de auditoría).
+  const conFx = useMemo(() => filas.some((f) => f.dueno === DUENO_FX), [filas]);
+  const [dueno, setDueno] = useState("todo");
   const [moviendo, setMoviendo] = useState(null);
   const [corrigiendo, setCorrigiendo] = useState(null);
   const [describiendo, setDescribiendo] = useState(null);
@@ -128,6 +132,7 @@ export function PaginaInventario() {
   const porTexto = useFiltroTexto(filas, texto, ["codigo", "descripcion", "dimension", "np", "nota"]);
   const visibles = porTexto.filter((f) => {
     if (hoja && f.hoja !== hoja) return false;
+    if (conFx && dueno !== "todo" && (dueno === DUENO_FX) !== (f.dueno === DUENO_FX)) return false;
     if (vista === "movimiento") return f.consumo || f.ingreso;
     if (vista === "agotado") return f.total <= 0;
     if (vista === "notas") return Boolean(f.nota);
@@ -162,6 +167,7 @@ export function PaginaInventario() {
           { valor: "nuevos", etiqueta: "Agregados en la herramienta" },
         ]}
       />
+      ${conFx ? html`<${Segmentos} etiqueta="Material" valor=${dueno} alCambiar=${setDueno} opciones=${{ todo: "Todo", propio: sesion.inventario.id, [DUENO_FX]: "FX" }} />` : null}
       <span class="conteo">${num(visibles.length)} de ${num(filas.length)}</span>
     </div>
     <p class="nota nota-inventario-dia">
@@ -186,7 +192,10 @@ export function PaginaInventario() {
           render: (f) => html`<span class="sin-corte" title=${f.hoja}>#${f.contenedor} ${f.clase === "Inventariable" ? "Inv." : "Cons."}</span>`,
         },
         { clave: "codigo", titulo: "Código", numero: true },
-        { titulo: "Descripción", render: (f) => descripcionConLapiz(f) },
+        {
+          titulo: "Descripción",
+          render: (f) => html`${descripcionConLapiz(f)}${f.dueno === DUENO_FX ? html` <${Pastilla} tono="fx" titulo="Material de FX (se descuenta en los vales de GSM)">FX<//>` : null}`,
+        },
         { clave: "dimension", titulo: "Dimensión" },
         { clave: "np", titulo: "NP" },
         { clave: "um", titulo: "UM" },

@@ -167,6 +167,24 @@ h3 {
   --sobre-inventario: #1a1030;
 }
 
+/* FX: material de FX dentro de GSM. Verde azulado para distinguirlo del morado de GSM. */
+:root {
+  --fx: #0f766e;
+  --fx-suave: #e3f4f1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --fx: #5fd3c4;
+    --fx-suave: #143430;
+  }
+}
+
+:root[data-tema="oscuro"] {
+  --fx: #5fd3c4;
+  --fx-suave: #143430;
+}
+
 /* ---------------------------------------------------------------- marco */
 
 .cabecera {
@@ -1878,6 +1896,11 @@ select.con-error {
 .pastilla-lugar {
   background: var(--neutro-suave);
   color: var(--texto);
+}
+
+.pastilla-fx {
+  background: var(--fx-suave);
+  color: var(--fx);
 }
 
 .resultados li .pastilla {
@@ -7481,4 +7504,57 @@ button.mosaico:hover .mosaico-abrir {
 .descripciones-previas {
   margin: 4px 0 0;
   padding-left: 18px;
+}
+
+/* ---------------------------------------------------------------- conteo de auditoría (base oficial) */
+
+.cifras-auditoria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  list-style: none;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie-2);
+}
+
+.cifras-auditoria strong {
+  font-size: 1.05rem;
+}
+
+.reparto {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reparto li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.reparto li.reparto-baja .reparto-clave {
+  text-decoration: line-through;
+  color: var(--texto-suave);
+}
+
+.lista-pendiente > button {
+  border-color: var(--alerta);
+  box-shadow: 0 0 0 1px var(--alerta);
+}
+
+.reparto-cantidad {
+  width: 6em;
+  text-align: right;
+}
+
+.reparto .casilla {
+  gap: 4px;
+  font-size: 0.85rem;
 }

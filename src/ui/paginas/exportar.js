@@ -2,7 +2,7 @@ import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
 import { leerArchivoSubido, soportaGuardarComo } from "../../almacen/archivos.js";
 import { leerVales } from "../../importadores/vales.js";
-import { lineasPorUbicar } from "../../servicios/consultas.js";
+import { hayPartidasFx, lineasPorUbicar } from "../../servicios/consultas.js";
 import { importarValesNuevos, revisarValesNuevos } from "../../servicios/sincronizar.js";
 import { valesPorEnviar } from "../../servicios/vales.js";
 import { Aviso, Boton, ElegirArchivo, Tabla, Tarjeta, useSesion } from "../componentes.js";
@@ -62,6 +62,7 @@ export function PaginaExportar() {
   const historial = [...estado.exportaciones].reverse().slice(0, 20);
   const porEnviar = valesPorEnviar(estado).length;
   const entradas = estado.vales.filter((v) => v.tipo === "ENTRADA").length;
+  const fx = useMemo(() => hayPartidasFx(estado), [estado.existencias]);
   return html`
     <p class="introduccion">
       Se generan sobre <strong>tus propios archivos</strong> (las plantillas que subiste en la primera carga), así que
@@ -87,6 +88,12 @@ export function PaginaExportar() {
         <p>Actualiza CONSUMO e INGRESO por contenedor con los vales posteriores al conteo. El nombre lleva la fecha de hoy.</p>
         <${Boton} tipo="primario" onClick=${() => exportar("INVENTARIO")}>${conDialogo ? "Exportar inventario…" : "Exportar inventario"}<//>
       <//>
+      ${fx
+        ? html`<${Tarjeta} titulo="Inventario de FX (.xlsx)">
+            <p>Las partidas de FX en su propio libro, con el mismo formato que el de ${sesion.inventario.id} (que sale sin ellas).</p>
+            <${Boton} tipo="primario" onClick=${() => exportar("INVENTARIO_FX")}>${conDialogo ? "Exportar inventario FX…" : "Exportar inventario FX"}<//>
+          <//>`
+        : null}
       <${Tarjeta} titulo="Vales de entrada (.xlsx)">
         <p>
           Historial de entradas con las columnas del DIARIO (B = folio de la base, U = folio interno E-0001). Es un archivo nuevo;

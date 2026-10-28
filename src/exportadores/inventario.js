@@ -8,6 +8,7 @@ import { leerCatalogoInventario } from "../importadores/inventario.js";
 import { CERO, dec } from "../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
+import { duenoDe } from "../nucleo/inventarios.js";
 import { codigoAx, textoONumero } from "../nucleo/normalizar.js";
 import { cambiarUltimaFila, desplazarFormula, separarReferencia } from "../xlsx/celdas.js";
 import { LibroLeido } from "../xlsx/leer.js";
@@ -22,9 +23,11 @@ const COLUMNAS = "ABCDEFGHIJ".split("");
  * @param plantilla  bytes del inventario del usuario
  * @param fecha  AAAA-MM-DD del inventario: va en el encabezado de página y define el día (como el Excel
  *   diario: CANTIDAD = lo que había al empezar ese día; CONSUMO e INGRESO = solo los vales de ese día)
+ * @param dueno  null = las partidas del inventario; "FX" = las de FX (en GSM, su libro aparte con el
+ *   mismo formato). Las dadas de baja no salen.
  * @returns {{ datos: Uint8Array, renglones, hojas, partesModificadas, advertencias }}
  */
-export function exportarInventario(estado, plantilla, { fecha = null } = {}) {
+export function exportarInventario(estado, plantilla, { fecha = null, dueno = null } = {}) {
   const paquete = new PaqueteOOXML(plantilla);
   const hojas = paquete.hojas();
   const indiceHoja = new Map(hojas.map(([nombre], i) => [nombre, i]));
@@ -41,7 +44,7 @@ export function exportarInventario(estado, plantilla, { fecha = null } = {}) {
       throw new ErrorPlantilla(`La plantilla no tiene la hoja '${ubicacion.hoja_excel}'`);
     }
     const existencias = estado.existencias
-      .filter((e) => e.ubicacion_id === ubicacion.id && e.activo !== false)
+      .filter((e) => e.ubicacion_id === ubicacion.id && e.activo !== false && duenoDe(e) === dueno)
       .sort((a, b) => a.orden - b.orden);
     const ultima = exportarHoja(paquete, partes.get(ubicacion.hoja_excel), existencias, indices, saldos, advertencias, fecha);
     libro = ajustarNombres(libro, indiceHoja.get(ubicacion.hoja_excel), ultima);

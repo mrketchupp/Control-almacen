@@ -50,14 +50,28 @@ const conMarca = (nombre, marca) => new RegExp(`(^|[^A-Z])${marca}([^A-Z]|$)`).t
  * De qué inventario dice ser un archivo por su nombre ("VALES_DE_SALIDA_DLTA.xlsm" → DLTA,
  * "INVENTARIO … GSM 280926.xlsx" → GSM). null si no lo dice o si nombra a más de uno.
  */
-export function inventarioDelNombre(nombre) {
-  const texto = String(nombre ?? "")
+const sinAcentosMayusculas = (nombre) =>
+  String(nombre ?? "")
     .toUpperCase()
     .normalize("NFKD")
     .replace(/\p{M}/gu, "");
+
+export function inventarioDelNombre(nombre) {
+  const texto = sinAcentosMayusculas(nombre);
   const ids = INVENTARIOS.filter((i) => i.marcas.some((m) => conMarca(texto, m))).map((i) => i.id);
   return ids.length === 1 ? ids[0] : null;
 }
+
+/**
+ * FX (Ronda 20): material que AX lleva aparte (su propio almacén y su propio Kardex) pero que se
+ * descuenta en los vales de GSM (LOTE "FX"). Comparte los vales y los folios de GSM, así que vive en el
+ * estado de GSM: cada partida de FX lleva `dueno: "FX"`; las demás no llevan dueño (son del inventario).
+ */
+export const DUENO_FX = "FX";
+export const duenoDe = (existencia) => existencia?.dueno ?? null;
+
+/** ¿El nombre (de una hoja, un almacén o un archivo) dice FX? */
+export const diceFx = (nombre) => conMarca(sinAcentosMayusculas(nombre), DUENO_FX);
 
 /** Si el nombre del archivo dice que es de OTRO inventario, su id (para avisar antes de leerlo). */
 export function deOtroInventario(nombre, actual) {

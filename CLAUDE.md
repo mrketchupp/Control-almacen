@@ -16,8 +16,12 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
 - Ronda 22: **fecha de recibido** en los vales de entrada (manda en el inventario y el reporte diario) y **editor de
   diseños de etiqueta** a pantalla completa con QR y código de barras propios — ver "Ronda 22" abajo y
   `docs/12-ronda-22-plan.md`. Entregada, en aceptación.
+- Ronda 23 (etapa 0 de la rutina de auditoría, con luz verde del usuario): **conteo de auditoría como base oficial**, FX
+  dentro del Inventario B (solo la marca en el inventario y su libro de Excel aparte) y aviso de Kardex equivocado — ver
+  "Base oficial y FX" abajo. Lo siguiente (marca FX en vales/entradas, alertas de repetidas y de "recibido sin registrar",
+  conteo guiado por el Kardex, resumen de guardia, Kardex esperado) espera a que el usuario deje su inventario correcto.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
-- Formato del estado: `FORMATO_ESTADO = 17` (`src/nucleo/estado.js`, `migrarEstado`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
+- Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
 `etiquetas` (`{ material, ax }` por imprimir) e `impresiones_etiquetas` (bitácora); el 11, ids `INV-n`, `origen.inventario`,
 `vales: [{ inventario, vale_id, emitido_en }]`, `origen.emitido_en`, `etiquetas.cambiado_en` y `juntar` (Ronda 21); el 12
@@ -192,6 +196,30 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   `nombreParaCopia`. Editor `ui/paginas/editorEtiquetas.js` (`EditorDisenos`, pantalla completa) con la lógica sin DOM en
   `impresion/lienzo.js` (zoom, imán, guías, deshacer). En la página: *Hoja y logos* (medidas) y *Editor de diseños*.
 
+## Base oficial y FX (Ronda 23)
+- **Kardex de auditoría** = reporte de AX con una hoja por inventario y columnas `Conteo` / `Conteo Fisico` y `Contenedor`.
+  `leerReporteAx` lee **todas** las hojas (`tablas`; la primera sigue arriba) y, si vienen, `sitio`,
+  `cantidad_financiera`, `conteo`, `contenedor`.
+- `servicios/kardex.js`: `clasificarHojas` (uso "propio" / "FX" / null por el nombre de la hoja o del almacén
+  —`marcaDeHoja`, `diceFx`— y por `coincidencia` de códigos con el inventario: los dos inventarios usan códigos distintos;
+  `COINCIDENCIA_MINIMA`), `hojaParaConciliar` (la conciliación elige la hoja y avisa si es de otro inventario).
+- `servicios/baseOficial.js`: `analizarKardex` (empareja **cada hoja por su lado** con `emparejar`; una variante exacta de
+  una hoja no se sugiere a otra), `planBaseOficial(estado, analisis, decisiones)` (vista previa: `grupos` por variantes
+  compartidas con `partidas` editables, `nuevas`, `porConfirmar`, `soloConsumible`, `sinKardex`, `errores`) y
+  `aplicarBaseOficial` (corrige escrituras a la de AX, conteo AUDITORIA con `corteAlDia`, bajas con `activo_anterior`,
+  nuevas, dueño FX y, opcional, el corte de AX). Reparto: `repartir` (Inventario B/FX: los ya marcados conservan dueño; si
+  no, `repartirEntreDuenos` prueba combinaciones) y `distribuir` (una partida toma el conteo; repartidas que ya suman se
+  quedan; repetidas de la misma variante → el conteo a una y las demás de baja; varias variantes → la diferencia a la
+  mayor). Solo se propone una pareja dudosa si `mismosNumeros`; si no, el usuario elige. **Solo cambia lo inventariable;
+  lo consumible no se toca.** Aplicar dos veces el mismo Kardex no cambia nada (probado con los archivos reales en local).
+- FX: `DUENO_FX`, `duenoDe`, `diceFx` en `nucleo/inventarios.js`. `exportarInventario(…, { dueno })`, tipo `INVENTARIO_FX`
+  en `Almacen.exportar` con `nombreFx`; `hayPartidasFx`; `fisicoPorVariante({ dueno })` y `transitoDesde` por
+  `corte.dueno`. `filasInventario` ya no lista partidas inactivas y trae `dueno`. UI: `ui/paginas/auditoria.js`
+  (`CargarAuditoria` en *Conteo físico*), pastilla `.pastilla-fx` (tokens `--fx`, `--fx-suave`) y filtro *Material* en
+  *Inventario*. `estadoAlCierre` deshace también dueño, bajas y movidas.
+- Fixture: `generar_kardex` (`KARDEX AUDITORIA SINTETICO 261026.xlsx`, hojas FX, GSM y PRINCIPAL sin nombre de inventario);
+  pruebas `tests/baseOficial.test.js` y Chromium `tests/baseOficial.navegador.mjs`.
+
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.
 2. **Los datos no salen del equipo.** Nada de servidores, APIs, analítica, CDNs ni fuentes externas. La página lleva CSP `default-src 'none'; connect-src 'none'` y todo va dentro del HTML. No agregues dependencias que necesiten red o `eval`.
@@ -237,6 +265,10 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Captura con Copilot (`servicios/capturaIA.js`): la herramienta NO se conecta; solo da instrucciones para copiar y lee el JSON pegado con `jsonTolerante.js` (repara lo cortado o mal formado, sin `eval`) y nombres parecidos.
 - Reporte diario: `estadoAlCierre(estado, fecha)` (copia del estado al cierre del día) → `Almacen.exportar(tipo, …, { corte })`. *Ya lo subí* del reporte usa `registrarEnvio(…, { hastaFolio })`.
 - Personalización por almacenista (`config.personalizacion`, `servicios/preferencias.js`) → `ui/tema.js` pone `data-tema`, `data-avisos` y `data-animaciones` en `<html>` (y lo recuerda en `localStorage` solo para el arranque). Colores siempre con variables CSS; el oscuro va en `:root[data-tema="oscuro"]` y en `prefers-color-scheme` si no eligió claro.
+- **FX** es material que AX lleva en su propio almacén y Kardex pero se descuenta en los **vales del Inventario B** (LOTE
+  "FX") y comparte sus folios: por eso vive dentro de ese estado como dueño de partidas, nunca como base aparte (un vale
+  puede llevar partidas de los dos). El libro de inventario de FX sale aparte; la conciliación de FX aún no.
+- Los dos inventarios comparten el almacén de AX; en el Kardex los distingue el **Sitio**. Sus códigos casi no se repiten.
 - conciliación con Dynamics AX: llave de AX = código + Tamaño + Color; **Tamaño + Color = la dimensión** (AX no trae NP; `dimensionAx`, `valoresAx`) y AX corta el Tamaño a 10 caracteres. Solo se concilia `Modelo de Inventario = INV`. Diferencia sin explicar = físico − AX + salidas en tránsito − entradas en tránsito. Las **cantidades** no cambian; confirmar una pareja sí corrige la dimensión / NP de la variante (a como está en AX).
 - Archivo de vales de la base: con folio **IN / TR** la partida ya está en AX (CANTIDAD de la base = lo aplicado; vacía =
   todo; texto como `REGRESAR` = todo con aviso); **sin folio IN / TR** (INV sin folio, sin revisar, que la base no tiene o

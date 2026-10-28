@@ -29,6 +29,7 @@ function generar() {
     vales: join(carpeta, "VALES SINTETICO.xlsm"),
     ax: join(carpeta, "DELTA RIG 91 SINTETICO 050926.xlsx"),
     base: join(carpeta, "VALES DE SALIDA BASE SINTETICO 050926.xlsx"),
+    kardex: join(carpeta, "KARDEX AUDITORIA SINTETICO 261026.xlsx"),
     catalogo: datos.catalogo,
     folio_corte: datos.folio_corte,
   };
@@ -51,6 +52,8 @@ export const bytesAx = () => new Uint8Array(readFileSync(fixtures.ax));
 export const NOMBRE_AX = "DELTA RIG 91 SINTETICO 050926.xlsx";
 export const bytesBase = () => new Uint8Array(readFileSync(fixtures.base));
 export const NOMBRE_BASE = "VALES DE SALIDA BASE SINTETICO 050926.xlsx";
+export const bytesKardex = () => new Uint8Array(readFileSync(fixtures.kardex));
+export const NOMBRE_KARDEX = "KARDEX AUDITORIA SINTETICO 261026.xlsx";
 export const libroInventario = () => leerInventario(bytesInventario(), "INVENTARIO SINTETICO.xlsx");
 export const libroVales = () => leerVales(bytesVales(), "VALES SINTETICO.xlsm");
 
