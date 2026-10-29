@@ -143,7 +143,7 @@ test("DLTA: aplicar deja el inventario como el Kardex; aplicar otra vez no cambi
   const vale = salida(p6309c2.id, "1", "2026-10-27");
   assert.throws(() => aplicar(), (e) => e instanceof b.ErrorBaseOficial && e.errores.length === 1); // falta el contenedor del 709
   const c2 = ubicacion("CONTENEDOR #2 INVENTARIABLE");
-  const { conteo, corteAx } = aplicar({ ubicaciones: { "n:PRINCIPAL#8": c2.id } }, { registrarCorte: true });
+  const { conteo, corteAx } = aplicar({ ubicaciones: { "n:PRINCIPAL#8": c2.id } });
 
   assert.equal(conteo.tipo, "AUDITORIA");
   assert.equal(conteo.ultimo_folio_salida, vale.folio - 1); // el del 27 no estaba en el conteo
@@ -171,9 +171,11 @@ test("DLTA: aplicar deja el inventario como el Kardex; aplicar otra vez no cambi
   assert.deepEqual([corteAx.fecha, corteAx.hoja, corteAx.lineas.length], [FECHA, "PRINCIPAL", 13]);
   assert.equal(estado.auditoria.at(-1).accion, "BASE_OFICIAL");
 
-  // Otra vez el mismo Kardex: todo se conserva.
+  // Otra vez el mismo Kardex: todo se conserva y el reporte de AX no se repite.
   const otra = plan();
   assert.deepEqual([otra.nuevas.length, otra.sustituidas.length, otra.retiradas.length, otra.errores.length], [0, 0, 0, 0]);
+  assert.equal(aplicar().corteAx, null);
+  assert.equal(estado.cortes_ax.length, 1);
 });
 
 test("lo que no viene en el Kardex pero tiene vales después del conteo no se da de baja", () => {

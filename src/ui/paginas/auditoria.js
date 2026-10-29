@@ -12,7 +12,6 @@ import { DUENO_FX, INVENTARIOS } from "../../nucleo/inventarios.js";
 import { ErrorReporteAx, leerReporteAx } from "../../importadores/ax.js";
 import { documentoRevision } from "../../impresion/revision.js";
 import { ErrorBaseOficial, analizarKardex, aplicarBaseOficial, listasDeRevision, planBaseOficial } from "../../servicios/baseOficial.js";
-import { corteConHuella } from "../../servicios/conciliacion.js";
 import { folioEntrada } from "../../servicios/entradas.js";
 import { ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { Aviso, Boton, Detalles, ElegirArchivo, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, num, useSesion } from "../componentes.js";
@@ -149,7 +148,6 @@ function PreviaReemplazo({ relacionadas, datos, setDatos }) {
   const [ubicaciones, setUbicaciones] = useState({});
   const [errores, setErrores] = useState([]);
   const propia = relacionadas.find((r) => r.destino !== DUENO_FX);
-  const [registrarCorte, setRegistrarCorte] = useState(() => Boolean(propia) && !corteConHuella(estado, propia.hoja.archivo.huella));
   const fecha = datos.fecha ?? hoyIso();
   const hojas = useMemo(() => relacionadas.map((r) => ({ hoja: r.hoja.nombre, uso: r.destino === DUENO_FX ? DUENO_FX : "propio", tabla: r.hoja.tabla })), [relacionadas]);
   const analisis = useMemo(() => analizarKardex(estado, hojas, { fecha, folioSalida: folio }), [estado, hojas, fecha, folio]);
@@ -169,8 +167,11 @@ function PreviaReemplazo({ relacionadas, datos, setDatos }) {
         if (sesion.carpetaLista) await sesion.respaldar("antes-de-base-oficial", { descargarSiNoHayCarpeta: false });
         const archivo = archivos || null;
         const huella = propia?.hoja.archivo.huella ?? relacionadas[0].hoja.archivo.huella;
-        const hecho = await sesion.almacen.modificar((e) => aplicarBaseOficial(e, { hojas, fecha, folioSalida: folio, decisiones: { ubicaciones }, archivo, huella, registrarCorte }, sesion.usuario).resumen);
-        sesion.avisar("exito", `${inv} quedó como el Kardex: ${hecho.conservadas} partidas conservadas, ${hecho.nuevas} nuevas y ${hecho.sustituidas + hecho.retiradas} de baja.`);
+        const { resumen: hecho, corteAx } = await sesion.almacen.modificar((e) => aplicarBaseOficial(e, { hojas, fecha, folioSalida: folio, decisiones: { ubicaciones }, archivo, huella }, sesion.usuario));
+        sesion.avisar(
+          "exito",
+          `${inv} quedó como el Kardex: ${hecho.conservadas} partidas conservadas, ${hecho.nuevas} nuevas y ${hecho.sustituidas + hecho.retiradas} de baja.${corteAx ? ` El Kardex también quedó en Conciliación AX (reporte del ${fmtFecha(fecha)}).` : ""}`,
+        );
         setDatos((d) => ({ ...d, aplicados: [...d.aplicados, inv] }));
       } catch (error) {
         if (error instanceof ErrorBaseOficial) setErrores(error.errores.length ? error.errores : [{ mensaje: error.message }]);
@@ -274,19 +275,10 @@ function PreviaReemplazo({ relacionadas, datos, setDatos }) {
             : ""}.
         </p>`
       : null}
-    ${propia
-      ? html`<label class="casilla">
-          <input type="checkbox" checked=${registrarCorte} onChange=${(e) => setRegistrarCorte(e.currentTarget.checked)} />
-          <span>
-            Guardar también el <strong>Disponible</strong> de AX de la hoja ${propia.hoja.etiqueta} como corte de AX al ${fmtFecha(fecha)}, para
-            justificar los faltantes en la conciliación${corteConHuella(estado, propia.hoja.archivo.huella) ? " (este archivo ya está importado como corte)" : ""}.
-          </span>
-        </label>`
-      : null}
     <${ListaErrores} errores=${[...plan.errores, ...errores.filter((e) => !plan.errores.some((x) => x.mensaje === e.mensaje))]} />
     <div class="acciones-linea">
       <${Boton} tipo="primario" disabled=${plan.errores.length > 0 || !r.lineas} onClick=${aplicar}>Reemplazar lo inventariable de ${inv}<//>
-      <span class="nota">Nada cambia hasta aplicar; antes se guarda una copia.</span>
+      <span class="nota">Nada cambia hasta aplicar; antes se guarda una copia. El Kardex queda también en Conciliación AX.</span>
     </div>
   `;
 }

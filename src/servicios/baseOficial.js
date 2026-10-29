@@ -28,7 +28,7 @@ import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { DUENO_FX, duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { mayusculas, sinDimension, unidad } from "../nucleo/normalizar.js";
-import { dimensionAx, emparejar, fisicoPorVariante, registrarCorteAx, umComparable } from "./conciliacion.js";
+import { corteConHuella, dimensionAx, emparejar, fisicoPorVariante, registrarCorteAx, umComparable } from "./conciliacion.js";
 import { crearRenglon, lugarCorto, ubicacionesOrdenadas } from "./inventario.js";
 
 export class ErrorBaseOficial extends Error {
@@ -431,11 +431,12 @@ function umPara(estado, codigo, umAx) {
 /**
  * Aplica el reemplazo (en un solo cambio). Vuelve a armar el plan sobre el estado actual; si tiene errores
  * no cambia nada.
- * @param registrarCorte  guardar también el Disponible de la hoja propia como corte de AX de ese día
- *   (para justificar los faltantes en la conciliación)
- * @returns {{ conteo, resumen, corteAx }}
+ * El Disponible de AX de la hoja propia queda además como reporte de AX con la fecha del conteo (para
+ * justificar faltantes en la conciliación sin volver a importar el archivo); si ese archivo ya estaba
+ * importado (misma huella), no se repite.
+ * @returns {{ conteo, resumen, corteAx }} corteAx = el reporte de AX registrado ahora (null si ya estaba)
  */
-export function aplicarBaseOficial(estado, { hojas, fecha, folioSalida = null, decisiones = {}, archivo = null, huella = null, registrarCorte = false }, usuario = null) {
+export function aplicarBaseOficial(estado, { hojas, fecha, folioSalida = null, decisiones = {}, archivo = null, huella = null }, usuario = null) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(fecha))) throw new ErrorBaseOficial("Falta la fecha del conteo.");
   const analisis = analizarKardex(estado, hojas, { fecha, folioSalida });
   if (!analisis.contadas.length) throw new ErrorBaseOficial("El Kardex no trae partidas con conteo para este inventario.");
@@ -531,10 +532,10 @@ export function aplicarBaseOficial(estado, { hojas, fecha, folioSalida = null, d
     .map((u) => u.id)
     .filter((id) => tocadas.has(id));
 
-  // Opcional: el Disponible de AX de la hoja propia como corte de ese día (conciliación).
+  // El Disponible de AX de la hoja propia como reporte de AX de ese día (conciliación), una sola vez por archivo.
   let corteAx = null;
   const propia = hojas.find((h) => h.uso === "propio");
-  if (registrarCorte && propia) {
+  if (propia?.tabla.renglones.length && !corteConHuella(estado, huella)) {
     corteAx = registrarCorteAx(estado, { fecha, almacen: propia.tabla.almacenes?.[0]?.nombre ?? "", archivo, huella, renglones: propia.tabla.renglones }, usuario);
     corteAx.hoja = propia.hoja;
     corteAx.base_oficial = conteo.id;

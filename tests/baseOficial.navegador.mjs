@@ -174,6 +174,8 @@ test("conteo de auditoría como base oficial en Chromium", async (t) => {
     assert.equal(conteo.fecha, "2026-10-26");
     assert.deepEqual(conteo.revision.np.map((r) => r.np).sort(), ["LED 20W", "LED 50W", "X100"]);
     assert.ok(conteo.revision.retiradas.length > 0);
+    // El mismo Kardex queda como reporte de AX con la fecha del conteo (sin importarlo otra vez).
+    assert.deepEqual(dlta.cortes_ax.map((c) => [c.fecha, c.hoja]), [["2026-10-26", "PRINCIPAL"]]);
 
     // El Kardex y las parejas se quedan: GSM se aplica sin volver a cargarlo.
     await ventana.getByRole("button", { name: "Ir a GSM para aplicar GSM y FX" }).click();
@@ -186,6 +188,7 @@ test("conteo de auditoría como base oficial en Chromium", async (t) => {
     const gsm = await leer("GSM");
     const fx = gsm.existencias.filter((e) => e.activo !== false && e.dueno === "FX").map((e) => gsm.variantes.find((v) => v.id === e.variante_id).codigo);
     assert.deepEqual(fx.sort(), [1701, 1703, 1707, 1742]);
+    assert.deepEqual(gsm.cortes_ax.map((c) => [c.fecha, c.hoja]), [["2026-10-26", "GSM"]]);
     assert.equal(await enGsm.getByRole("button", { name: /Ir a DLTA/ }).count(), 0); // DLTA ya se aplicó
     await enGsm.getByRole("button", { name: "Cerrar" }).first().click();
 

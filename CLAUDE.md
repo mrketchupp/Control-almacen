@@ -222,7 +222,8 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   `sinRetirar`. `listaNp` / `listaRetiradas` → `conteo.revision` (texto para imprimir: `impresion/revision.js`,
   `documentoRevision`; `listasDeRevision`, `npAnteriores`). `porCodigo` = cambios por artículo con impacto en $.
   **Lo consumible no se toca.** `aplicarBaseOficial` registra el conteo AUDITORIA (`nuevos`, `bajas`, `religadas`,
-  `revision`) y, opcional, el corte de AX. Aplicar dos veces el mismo Kardex no cambia nada (probado con los archivos
+  `revision`) y **siempre** el Disponible de la hoja propia como reporte de AX con la fecha del conteo (sin casilla:
+  el mismo archivo sirve en las dos partes; si ya estaba importado, `corteConHuella`, no se repite). Aplicar dos veces el mismo Kardex no cambia nada (probado con los archivos
   reales en local; los casos que lo rompían están inventados en la fixture: dos escrituras de AX, Color `S/N`, FX sin
   dimensión). `esExacto` (conciliación) acepta la dimensión escrita como Tamaño + Color aunque el Color sea `S/N`.
 - **3 dígitos**: `soloConsumible(inventario, codigo)` (`nucleo/inventarios.js`) — en GSM / FX los códigos < 1000 son

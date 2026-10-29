@@ -167,8 +167,9 @@ una hoja por inventario o un archivo por inventario) se carga en *Conteo físico
      (siempre son consumibles; solo los de 4 dígitos son inventariables; en el Inventario A no aplica).
    - **Cambios por artículo** (los de más impacto en $ primero): cada código con lo que tenía, lo que tendrá y qué pasa
      con cada partida.
-4. *Reemplazar lo inventariable*: antes se guarda una copia interna (y un respaldo si hay carpeta). Opcional: guardar el
-   *Disponible* de AX de la hoja propia como corte de AX de ese día para justificar faltantes en la conciliación.
+4. *Reemplazar lo inventariable*: antes se guarda una copia interna (y un respaldo si hay carpeta). El mismo Kardex queda
+   además en *Conciliación AX* como reporte de AX con la fecha del conteo (el *Disponible* de la hoja del inventario),
+   para justificar faltantes sin importarlo otra vez; si ese archivo ya estaba importado, no se repite.
 5. **El otro inventario:** el Kardex y las parejas se quedan cargados en la pestaña; *Ir a <inventario> para aplicar…*
    abre el otro y su vista previa sin volver a cargar el archivo. Aplicar otra vez el mismo Kardex no cambia nada.
 
