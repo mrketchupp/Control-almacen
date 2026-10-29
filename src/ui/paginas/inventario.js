@@ -1,6 +1,7 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { DUENO_FX } from "../../nucleo/inventarios.js";
+import { pareceFecha } from "../../nucleo/normalizar.js";
 import { npAnteriores } from "../../servicios/baseOficial.js";
 import { filasInventario } from "../../servicios/consultas.js";
 import { corregirDimensionNp, lugarCorto, renglonDe, sugerenciasClave, ubicacionesOrdenadas } from "../../servicios/inventario.js";
@@ -185,6 +186,7 @@ export function PaginaInventario() {
     if (vista === "agotado") return f.total <= 0;
     if (vista === "notas") return Boolean(f.nota);
     if (vista === "nuevos") return Boolean(f.origen);
+    if (vista === "fecha") return pareceFecha(f.np) || pareceFecha(f.dimension);
     return true;
   });
   const fila = moviendo ? filas.find((f) => f.id === moviendo) : null;
@@ -215,6 +217,7 @@ export function PaginaInventario() {
           { valor: "agotado", etiqueta: "Existencia 0 o negativa" },
           { valor: "notas", etiqueta: "Con nota" },
           { valor: "nuevos", etiqueta: "Agregados en la herramienta" },
+          { valor: "fecha", etiqueta: "NP o dimensión que Excel volvió fecha (revisar)" },
         ]}
       />
       ${conFx ? html`<${Segmentos} etiqueta="Material" valor=${dueno} alCambiar=${setDueno} opciones=${{ todo: "Todo", propio: sesion.inventario.id, [DUENO_FX]: "FX" }} />` : null}

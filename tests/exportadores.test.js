@@ -8,6 +8,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { exportarEntradas } from "../src/exportadores/entradas.js";
 import { exportarInventario, fechaEnTexto } from "../src/exportadores/inventario.js";
+import { pareceFecha } from "../src/nucleo/normalizar.js";
+import { comoFraccion } from "../src/xlsx/estiloUniforme.js";
 import { exportarVales } from "../src/exportadores/vales.js";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
 import { Indices } from "../src/nucleo/estado.js";
@@ -173,9 +175,10 @@ test("inventario: partes intactas y recálculo al abrir", () => {
     ...[1, 2, 3, 4].map((i) => `xl/tables/table${i}.xml`),
     "xl/comments/comment1.xml",
     "xl/drawings/commentsDrawing1.vml",
+    "xl/styles.xml", // Ronda 25: se agregan al final los estilos uniformes (lo que había no cambia)
   ]);
   for (const parte of distintas) assert.ok(permitidas.has(parte), parte);
-  assert.ok(!distintas.has("xl/styles.xml") && !distintas.has("xl/theme/theme1.xml"));
+  assert.ok(!distintas.has("xl/theme/theme1.xml"));
   const partes = descomprimirZip(resultado.datos);
   assert.ok(!partes.has("xl/calcChain.xml"));
   assert.ok(!new TextDecoder().decode(partes.get("[Content_Types].xml")).includes("calcChain"));
@@ -195,6 +198,37 @@ test("inventario: la fecha del encabezado de página es la del inventario", () =
   assert.equal(fechaEnTexto("Fecha: 5/9/2026, 28 de septiembre de 2026", "2026-10-01"), "Fecha: 01/10/2026, 1 de octubre de 2026");
 });
 
+test("inventario: un solo estilo por columna, anchos iguales y lo de antes intacto en styles.xml (Ronda 25)", () => {
+  const { estado } = cargaSintetica();
+  const partes = descomprimirZip(exportarInventario(estado, bytesInventario()).datos);
+  const texto = (bytes) => new TextDecoder().decode(bytes);
+  const estilos = texto(partes.get("xl/styles.xml"));
+  const original = texto(descomprimirZip(bytesInventario()).get("xl/styles.xml"));
+  const lista = (xml, sec, hijo) =>
+    [...new RegExp(`<${sec}\\b[^>]*>([\\s\\S]*?)</${sec}>`).exec(xml)[1].matchAll(new RegExp(`<${hijo}\\b[^>]*?/>|<${hijo}\\b[^>]*>[\\s\\S]*?</${hijo}>`, "g"))].map((m) => m[0]);
+  for (const [sec, hijo] of [["cellXfs", "xf"], ["fonts", "font"], ["borders", "border"], ["fills", "fill"]]) {
+    const antes = lista(original, sec, hijo);
+    assert.deepEqual(lista(estilos, sec, hijo).slice(0, antes.length), antes, sec);
+  }
+  const xfs = lista(estilos, "cellXfs", "xf");
+  const bordes = lista(estilos, "borders", "border");
+  const letras = lista(estilos, "fonts", "font");
+  const hoja = texto(partes.get("xl/worksheets/sheet1.xml"));
+  const atributo = (xf, n) => new RegExp(`\\s${n}="([^"]*)"`).exec(xf)?.[1];
+  const estiloDe = (ref) => xfs[Number(new RegExp(`<c\\b(?=[^>]*\\sr="${ref}")[^>]*?\\ss="(\\d+)"`).exec(hoja)[1])];
+  for (const ref of ["A1", "C1", "J1", "A2", "B3", "D4", "E5", "H6", "J6"]) {
+    const xf = estiloDe(ref);
+    assert.match(bordes[Number(atributo(xf, "borderId"))], /<left style="thin">[\s\S]*<right style="thin">[\s\S]*<top style="thin">[\s\S]*<bottom style="thin">/, ref);
+    assert.match(letras[Number(atributo(xf, "fontId"))], /<b\/>[\s\S]*<sz val="12"\/>[\s\S]*Calibri/, ref);
+  }
+  assert.equal(atributo(estiloDe("D4"), "numFmtId"), "49"); // texto
+  assert.equal(atributo(estiloDe("A2"), "fillId"), "0"); // sin color de fila
+  assert.notEqual(atributo(estiloDe("H6"), "fillId"), "0"); // CONSUMO conserva su color
+  assert.match(hoja, /<cols><col min="1" max="1" width="8\.7109375" customWidth="1"\/><col min="2" max="2" width="14\.7109375"/);
+  assert.deepEqual([5.875, 5.5, 4, 1.25, 0.0625].map(comoFraccion), ["5 7/8", "5 1/2", "4", "1 1/4", "1/16"]);
+  assert.deepEqual(["1903-02-15", "2-15", "NP-1"].map(pareceFecha), [true, false, false]);
+});
+
 test("inventario: datos, fórmulas, totales y notas", () => {
   const { estado } = cargaSintetica();
   const libro = new LibroLeido(exportarInventario(estado, bytesInventario()).datos);
@@ -205,7 +239,7 @@ test("inventario: datos, fórmulas, totales y notas", () => {
   assert.equal(c1.valorRef("A7"), "Total");
   assert.equal(c1.formulas.get("F7"), "SUBTOTAL(109,Tabla1[CANTIDAD])");
   assert.deepEqual([2, 3, 4, 5, 6].map((f) => c1.valor(f, 1)), [1, 2, 3, 4, 5]); // ITEM renumerado
-  assert.equal(c1.valorRef("D6"), 555001);
+  assert.equal(c1.valorRef("D6"), "555001"); // NP y DIMENSIÓN siempre como texto (Ronda 25)
   assert.equal(c1.valorRef("H6"), 1); // CONSUMO del vale 6
   assert.equal(c1.valorRef("G3"), "PZA"); // 'PZA ' sin el espacio sobrante
   assert.ok(c1.comentarios().has("D4")); // la nota sigue en su celda

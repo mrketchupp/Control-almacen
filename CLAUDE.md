@@ -24,6 +24,12 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   su inventario** (pantalla de parejas; sin revisar códigos), **listas de revisión** impresas (NP que se pierden y lo que
   sale), **NP editable** desde Inventario y **códigos de 3 dígitos = consumibles** en el Inventario B y FX — ver "Base
   oficial y FX" abajo. Entregada, en aceptación.
+- Ronda 25 (decisiones del usuario sobre formatos): el **inventario exportado tiene un solo estilo por columna**
+  (`xlsx/estiloUniforme.js`: `EstilosUniformes` agrega al final de styles.xml bordes delgados completos, Calibri 12
+  negrita, sin colores de fila —solo CONSUMO/INGRESO/TOTAL y el encabezado—, NP y DIMENSIÓN como texto con la
+  fracción como se ve —`comoFraccion`—, cantidades en General; `conAnchosUniformes` = mismos anchos A–J; sin inmovilizar).
+  Lo que había en styles.xml no cambia (prueba en `exportadores.test.js`). *Inventario* filtra los NP/dimensiones que
+  Excel volvió fecha (`pareceFecha`). Pendiente: vale impreso uniforme (V-1 a V-4 y V-6; ver `docs/08-plan.md`).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

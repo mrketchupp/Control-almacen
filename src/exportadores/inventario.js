@@ -9,8 +9,9 @@ import { CERO, dec } from "../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { duenoDe } from "../nucleo/inventarios.js";
-import { codigoAx, textoONumero } from "../nucleo/normalizar.js";
+import { codigoAx, pareceFecha } from "../nucleo/normalizar.js";
 import { cambiarUltimaFila, desplazarFormula, separarReferencia } from "../xlsx/celdas.js";
+import { EstilosUniformes, comoFraccion, conAnchosUniformes } from "../xlsx/estiloUniforme.js";
 import { LibroLeido } from "../xlsx/leer.js";
 import { HojaXML, PaqueteOOXML, ErrorPlantilla, cambiarNombresDefinidos, celda, celdaFormula } from "../xlsx/plantilla.js";
 import { TIPOS } from "../xlsx/rutas.js";
@@ -36,6 +37,7 @@ export function exportarInventario(estado, plantilla, { fecha = null, dueno = nu
   const indices = new Indices(estado);
   let libro = paquete.texto("xl/workbook.xml");
   const advertencias = [];
+  const uniformes = new EstilosUniformes(paquete.texto("xl/styles.xml"));
   let totalRenglones = 0;
 
   const ubicaciones = [...estado.ubicaciones].sort((a, b) => a.orden - b.orden);
@@ -46,11 +48,12 @@ export function exportarInventario(estado, plantilla, { fecha = null, dueno = nu
     const existencias = estado.existencias
       .filter((e) => e.ubicacion_id === ubicacion.id && e.activo !== false && duenoDe(e) === dueno)
       .sort((a, b) => a.orden - b.orden);
-    const ultima = exportarHoja(paquete, partes.get(ubicacion.hoja_excel), existencias, indices, saldos, advertencias, fecha);
+    const ultima = exportarHoja(paquete, partes.get(ubicacion.hoja_excel), existencias, indices, saldos, advertencias, fecha, uniformes);
     libro = ajustarNombres(libro, indiceHoja.get(ubicacion.hoja_excel), ultima);
     totalRenglones += existencias.length;
   }
 
+  if (uniformes.cambio) paquete.escribir("xl/styles.xml", uniformes.xml());
   if (partes.has(HOJA_CATALOGO)) actualizarCatalogo(paquete, partes.get(HOJA_CATALOGO), estado, plantilla);
   if (libro !== paquete.texto("xl/workbook.xml")) paquete.escribir("xl/workbook.xml", libro);
   paquete.eliminarCalcChain();
@@ -65,7 +68,14 @@ export function exportarInventario(estado, plantilla, { fecha = null, dueno = nu
 
 // --------------------------------------------------------------------- hoja
 
-function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias, fecha) {
+/** NP y DIMENSIÓN siempre como texto; un número con formato de fracción se escribe como se ve ("5 7/8"). */
+function comoTexto(valor, formato) {
+  if (valor === null || valor === undefined || String(valor).trim() === "") return null;
+  const texto = String(valor);
+  return /\?\/\?/.test(formato) && /^-?\d+(\.\d+)?$/.test(texto) ? comoFraccion(Number(texto)) : texto;
+}
+
+function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias, fecha, uniformes) {
   const hoja = new HojaXML(paquete.texto(parte));
   const parteTabla = paquete.relacionDeTipo(parte, TIPOS.tabla);
   if (!parteTabla) throw new ErrorPlantilla(`La hoja ${parte} no tiene tabla de Excel`);
@@ -107,19 +117,23 @@ function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias
     const valores = {
       A: posicion,
       B: variante.codigo,
-      D: textoONumero(dimensionMostrada(existencia, variante)),
-      E: textoONumero(npMostrado(existencia, variante)),
+      D: comoTexto(dimensionMostrada(existencia, variante), uniformes.formatoDe(estilos.D)),
+      E: comoTexto(npMostrado(existencia, variante), uniformes.formatoDe(estilos.E)),
       F: saldo ? saldo.cantidad : dec(existencia.cantidad_conteo),
       G: umMostrada(existencia, variante) || null,
       H: consumo.eq(0) ? null : consumo,
       I: ingreso.eq(0) ? null : ingreso,
     };
+    for (const columna of ["D", "E"]) {
+      if (pareceFecha(valores[columna])) advertencias.push(`${parte}: ${variante.codigo} tiene ${columna === "D" ? "DIMENSION" : "NP"} "${valores[columna]}" (parece una fecha; revísalo)`);
+    }
     const celdas = COLUMNAS.map((columna) => {
       const referencia = `${columna}${numero}`;
+      const estilo = uniformes.deColumna(estilos[columna], columna);
       if (formulasModelo[columna]) {
-        return celdaFormula(referencia, desplazarFormula(formulasModelo[columna], numero - modelo), estilos[columna]);
+        return celdaFormula(referencia, desplazarFormula(formulasModelo[columna], numero - modelo), estilo);
       }
-      return celda(referencia, valores[columna] ?? null, estilos[columna]);
+      return celda(referencia, valores[columna] ?? null, estilo);
     });
     nuevas.push(HojaXML.nuevaFila(numero, celdas, atributosFila));
   });
@@ -137,6 +151,16 @@ function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias
     nuevas.push(hoja.moverFila(numero, numero + delta));
     mapaFilas.set(numero, numero + delta);
   }
+  // Encabezado con el mismo estilo en todas las hojas y anchos de columna iguales (Ronda 25).
+  const encabezado = hoja.filas.get(filaEncabezado);
+  if (encabezado) {
+    const estilosEncabezado = hoja.estilos(filaEncabezado);
+    encabezado.texto = encabezado.texto.replace(/<c\b[^>]*?(?=\/?>)/g, (apertura) => {
+      const letras = /\sr="([A-Z]+)\d+"/.exec(apertura)?.[1];
+      return letras && COLUMNAS.includes(letras) ? ponerAtributo(apertura, "s", String(uniformes.deColumna(estilosEncabezado[letras], letras, { encabezado: true }))) : apertura;
+    });
+  }
+  hoja.antes = conAnchosUniformes(hoja.antes);
   hoja.reemplazarFilas(
     hoja.numerosFila.filter((n) => n <= filaEncabezado),
     nuevas,

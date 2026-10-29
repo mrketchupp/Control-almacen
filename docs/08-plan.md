@@ -318,3 +318,12 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 2. Pruebas automáticas (`node --test`) con Excel **sintéticos** generados por `tests/fixtures/generar.py`. Nunca con datos reales.
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
+
+**Ronda 25 — formatos (decisiones del usuario).** Inventario: I-1 bordes delgados completos, I-2 sin colores de fila,
+I-3 Calibri 12 negrita, I-4 NP y DIMENSIÓN como texto (fracción como se ve; las fechas accidentales se filtran en
+*Inventario* para corregirlas), I-5 cantidades en General, I-6 mismos anchos, I-7 sin inmovilizar. **Aplicado.**
+Vale impreso (pendiente): V-1 Fecha y No. folio con línea sencilla, V-2 una sola letra en las partidas (Arial 9,
+centrada) y líneas completas, V-3 título OBSERVACIÓN y 21 partidas en todas las hojas, V-4 quitar el punto suelto
+(I8), V-5 el logo se queda, V-6 ensanchar PRESENTACIÓN para que quepa, V-7 el pie es correcto. NOV y TRANSFERENCIAS
+tienen su propio formato; en el Inventario B solo cambian logo y textos.
+

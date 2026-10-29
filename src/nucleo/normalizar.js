@@ -64,6 +64,11 @@ export function claveEstricta(valor) {
  * ¿No tiene dimensión? Vacía, "S/D", "SIN DIMENSIÓN" (o "SIN DIMENCION"), "S/N", "N/A"… o un texto que
  * empieza así ("S/D NP: 1/4\"", "S/D CABLE UTP"): lo que sigue es NP o descripción, no la dimensión.
  */
+/** NP o dimensión que Excel convirtió en fecha al teclearla ("1903-02-15"): hay que revisarla a mano. */
+export function pareceFecha(valor) {
+  return typeof valor === "string" && /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/.test(valor.trim());
+}
+
 export function sinDimension(valor) {
   if (claveEstricta(valor) === "") return true;
   const texto = sinAcentos(compactar(valor) ?? "");
