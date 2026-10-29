@@ -162,7 +162,8 @@ una hoja por inventario o un archivo por inventario) se carga en *Conteo físico
      al conteo pasan sus partidas de vale a la que las reemplaza; si no hay con qué reemplazarlas, se quedan y se avisa.
    - **Listas de revisión** (se imprimen antes o después de aplicar): **NP que se pierden** (sustituidas con NP, y con qué
      partida quedó cada una) y **Salen del inventario** (no vienen en el Kardex). El NP se vuelve a anotar a mano en
-     *Inventario* (lápiz de la columna NP, sugiere los que tenía el código).
+     *Inventario* (lápiz de la columna NP, sugiere los que tenía el código). Ya revisada, cada lista se limpia en
+     *Conteo físico → Listas de revisión de la auditoría* (*Limpiar la lista*, con Deshacer; el inventario no cambia).
    - **No se tocan:** lo consumible (aunque el Kardex lo cuente) y, en el Inventario B y FX, los códigos de **3 dígitos**
      (siempre son consumibles; solo los de 4 dígitos son inventariables; en el Inventario A no aplica).
    - **Cambios por artículo** (los de más impacto en $ primero): cada código con lo que tenía, lo que tendrá y qué pasa

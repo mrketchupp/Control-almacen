@@ -230,7 +230,9 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   consumibles: no se aplican del Kardex, no se dan de baja y no se dan de alta en hojas INV (entradas, conteos;
   `ubicacionesSugeridas` las manda al final). En DLTA no aplica.
 - **NP rápido** en *Inventario*: lápiz en la columna NP (`EditarNp`, `corregirDimensionNp` con la misma dimensión,
-  sugiere `npAnteriores` y los NP del código); tarjeta *Listas de revisión de la auditoría* en *Conteo físico*.
+  sugiere `npAnteriores` y los NP del código); tarjeta *Listas de revisión de la auditoría* en *Conteo físico*
+  (imprimir y **Limpiar la lista** con Deshacer: `limpiarListaRevision` / `reponerListaRevision`, auditoría
+  `LIMPIAR_LISTA_REVISION`; un conteo con las dos listas vacías ya no se muestra).
 - FX: `DUENO_FX`, `duenoDe`, `diceFx` en `nucleo/inventarios.js`. `exportarInventario(…, { dueno })`, tipo `INVENTARIO_FX`
   en `Almacen.exportar` con `nombreFx`; `hayPartidasFx`; `fisicoPorVariante({ dueno })` y `transitoDesde` por
   `corte.dueno`. `filasInventario` ya no lista partidas inactivas y trae `dueno`. Pastilla `.pastilla-fx` (tokens

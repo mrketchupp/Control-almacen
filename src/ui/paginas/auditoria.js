@@ -11,7 +11,7 @@ import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { DUENO_FX, INVENTARIOS } from "../../nucleo/inventarios.js";
 import { ErrorReporteAx, leerReporteAx } from "../../importadores/ax.js";
 import { documentoRevision } from "../../impresion/revision.js";
-import { ErrorBaseOficial, analizarKardex, aplicarBaseOficial, listasDeRevision, planBaseOficial } from "../../servicios/baseOficial.js";
+import { ErrorBaseOficial, analizarKardex, aplicarBaseOficial, limpiarListaRevision, listasDeRevision, planBaseOficial, reponerListaRevision } from "../../servicios/baseOficial.js";
 import { folioEntrada } from "../../servicios/entradas.js";
 import { ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { Aviso, Boton, Detalles, ElegirArchivo, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, num, useSesion } from "../componentes.js";
@@ -284,10 +284,14 @@ function PreviaReemplazo({ relacionadas, datos, setDatos }) {
 }
 
 /** Una lista de revisión (NP que se pierden / lo que sale) con su botón de imprimir. */
-function ListaRevision({ tipo, titulo, filas, alImprimir, abierta = false }) {
+function ListaRevision({ tipo, titulo, filas, alImprimir, alLimpiar = null, abierta = false }) {
+  const sesion = useSesion();
   if (!filas.length) return null;
   return html`<${Detalles} abierto=${abierta} resumen=${html`<strong>${titulo}</strong> · ${filas.length}`}>
-    <div class="acciones-linea"><${Boton} tamano="chico" onClick=${alImprimir}>🖨 Imprimir la lista<//></div>
+    <div class="acciones-linea">
+      <${Boton} tamano="chico" onClick=${alImprimir}>🖨 Imprimir la lista<//>
+      ${alLimpiar ? html`<${Boton} tamano="chico" disabled=${Boolean(sesion.ocupado)} onClick=${alLimpiar}>Limpiar la lista<//>` : null}
+    </div>
     <${Tabla}
       filas=${filas}
       claveFila=${(f) => f.existencia_id}
@@ -305,20 +309,44 @@ function ListaRevision({ tipo, titulo, filas, alImprimir, abierta = false }) {
   <//>`;
 }
 
-/** Las listas guardadas de los conteos de auditoría ya aplicados, para imprimirlas cuando se necesiten. */
+const TITULOS_LISTA = { np: "NP que se perdieron", retiradas: "Salieron del inventario" };
+
+/** Las listas guardadas de los conteos de auditoría ya aplicados, para imprimirlas y limpiarlas cuando se revisen. */
 export function ListasDeRevision() {
   const sesion = useSesion();
   const listas = useMemo(() => listasDeRevision(sesion.estado), [sesion.estado]);
   if (!listas.length) return null;
   const imprimir = (tipo, l) => sesion.tarea("Preparando impresión…", () => sesion.imprimirDocumento(documentoRevision(tipo, tipo === "np" ? l.np : l.retiradas, { fecha: l.fecha, inventario: sesion.inventario.id })));
+  const limpiar = (tipo, l) => {
+    const nombre = TITULOS_LISTA[tipo];
+    const extra = tipo === "np" ? " Sus NP dejarán de sugerirse al anotar el NP en Inventario." : "";
+    if (!confirmar(`¿Limpiar la lista "${nombre}" del conteo del ${fmtFecha(l.fecha)}? El inventario no cambia.${extra}`)) return;
+    return sesion.tarea("Limpiando la lista…", async () => {
+      const filas = await sesion.almacen.modificar((e) => limpiarListaRevision(e, l.conteo_id, tipo, sesion.usuario));
+      sesion.avisar("exito", `Lista "${nombre}" limpia (${filas.length} partidas).`, 12000, {
+        etiqueta: "↶ Deshacer",
+        alHacer: () => sesion.almacen.modificar((e) => reponerListaRevision(e, l.conteo_id, tipo, filas, sesion.usuario)),
+      });
+    });
+  };
   return html`<${Tarjeta} titulo="Listas de revisión de la auditoría">
-    <p class="nota">Lo que quedó al reemplazar lo inventariable con el Kardex: para anotar a mano los NP que hagan falta (Inventario → NP) y revisar en físico lo que salió.</p>
+    <p class="nota">
+      Lo que quedó al reemplazar lo inventariable con el Kardex: para anotar a mano los NP que hagan falta (Inventario → NP) y revisar en
+      físico lo que salió. Cuando termines, limpia la lista.
+    </p>
     ${listas.map(
       (l) => html`<div key=${l.conteo_id} class="lista-revision">
         <p><strong>Conteo del ${fmtFecha(l.fecha)}</strong>${l.archivo ? html` <span class="nota">· ${l.archivo}</span>` : null}</p>
-        <${ListaRevision} tipo="np" titulo="NP que se perdieron" filas=${l.np} alImprimir=${() => imprimir("np", l)} />
-        <${ListaRevision} tipo="retiradas" titulo="Salieron del inventario" filas=${l.retiradas} alImprimir=${() => imprimir("retiradas", l)} />
-        ${!l.np.length && !l.retiradas.length ? html`<p class="nota">No se perdió ningún NP ni salió ninguna partida.</p>` : null}
+        ${["np", "retiradas"].map(
+          (tipo) => html`<${ListaRevision}
+            key=${tipo}
+            tipo=${tipo}
+            titulo=${TITULOS_LISTA[tipo]}
+            filas=${l[tipo]}
+            alImprimir=${() => imprimir(tipo, l)}
+            alLimpiar=${() => limpiar(tipo, l)}
+          />`,
+        )}
       </div>`,
     )}
   <//>`;

@@ -178,6 +178,24 @@ test("DLTA: aplicar deja el inventario como el Kardex; aplicar otra vez no cambi
   assert.equal(estado.cortes_ax.length, 1);
 });
 
+test("las listas de revisión se limpian cuando ya se revisaron (y Deshacer las repone)", () => {
+  const { estado, aplicar, ubicacion } = preparar("DLTA");
+  aplicar({ ubicaciones: { "n:PRINCIPAL#8": ubicacion("CONTENEDOR #2 INVENTARIABLE").id } });
+  const [{ conteo_id }] = b.listasDeRevision(estado);
+  const filas = b.limpiarListaRevision(estado, conteo_id, "np", USUARIO);
+  assert.equal(filas.length, 3);
+  assert.deepEqual(b.npAnteriores(estado, 711), []); // ya no se sugieren
+  assert.deepEqual(b.listasDeRevision(estado).map((l) => [l.np.length, l.retiradas.length]), [[0, 2]]);
+  assert.throws(() => b.limpiarListaRevision(estado, conteo_id, "np", USUARIO), b.ErrorBaseOficial);
+  b.reponerListaRevision(estado, conteo_id, "np", filas, USUARIO);
+  assert.deepEqual(b.npAnteriores(estado, 711).map((x) => x.np), ["LED 20W", "LED 50W", "X100"]);
+  // Las dos limpias: el conteo ya no aparece en las listas.
+  b.limpiarListaRevision(estado, conteo_id, "np", USUARIO);
+  b.limpiarListaRevision(estado, conteo_id, "retiradas", USUARIO);
+  assert.deepEqual(b.listasDeRevision(estado), []);
+  assert.deepEqual(estado.auditoria.slice(-3).map((a) => a.accion), ["REPONER_LISTA_REVISION", "LIMPIAR_LISTA_REVISION", "LIMPIAR_LISTA_REVISION"]);
+});
+
 test("lo que no viene en el Kardex pero tiene vales después del conteo no se da de baja", () => {
   const { partidas, plan, salida } = preparar("DLTA");
   const [r706] = partidas(706);

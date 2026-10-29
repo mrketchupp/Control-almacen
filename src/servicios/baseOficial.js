@@ -546,12 +546,44 @@ export function aplicarBaseOficial(estado, { hojas, fecha, folioSalida = null, d
   return { conteo, resumen, corteAx };
 }
 
-/** Las listas de revisión de los conteos de auditoría, del más reciente al más antiguo. */
+/** Las listas de revisión de los conteos de auditoría (las que aún tienen algo), del más reciente al más antiguo. */
 export function listasDeRevision(estado) {
   return [...(estado.conteos ?? [])]
-    .filter((c) => c.tipo === "AUDITORIA" && c.revision)
+    .filter((c) => c.tipo === "AUDITORIA" && (c.revision?.np?.length || c.revision?.retiradas?.length))
     .reverse()
     .map((c) => ({ conteo_id: c.id, fecha: c.fecha, archivo: c.archivo ?? null, np: c.revision.np ?? [], retiradas: c.revision.retiradas ?? [] }));
+}
+
+const LISTAS_REVISION = ["np", "retiradas"];
+
+function revisionDe(estado, conteoId, tipo) {
+  const conteo = (estado.conteos ?? []).find((c) => c.id === conteoId && c.tipo === "AUDITORIA");
+  if (!conteo) throw new ErrorBaseOficial("Ese conteo de auditoría ya no existe.");
+  if (!LISTAS_REVISION.includes(tipo)) throw new ErrorBaseOficial("Esa lista de revisión no existe.");
+  conteo.revision ??= {};
+  return conteo;
+}
+
+/**
+ * Limpia una lista de revisión ("np" o "retiradas") de un conteo de auditoría cuando ya se revisó. No cambia el
+ * inventario; los NP de esa lista dejan de sugerirse.
+ * @returns las partidas que tenía (para Deshacer con `reponerListaRevision`)
+ */
+export function limpiarListaRevision(estado, conteoId, tipo, usuario = null) {
+  const conteo = revisionDe(estado, conteoId, tipo);
+  const filas = conteo.revision[tipo] ?? [];
+  if (!filas.length) throw new ErrorBaseOficial("La lista ya está vacía.");
+  conteo.revision[tipo] = [];
+  auditar(estado, { usuario, entidad: "conteo", entidadId: conteo.id, accion: "LIMPIAR_LISTA_REVISION", antes: { lista: tipo, partidas: filas.length } });
+  return filas;
+}
+
+/** Deshacer de `limpiarListaRevision`: vuelve a poner las partidas que tenía la lista. */
+export function reponerListaRevision(estado, conteoId, tipo, filas, usuario = null) {
+  const conteo = revisionDe(estado, conteoId, tipo);
+  const ya = new Set((conteo.revision[tipo] ?? []).map((f) => f.existencia_id));
+  conteo.revision[tipo] = [...filas.filter((f) => !ya.has(f.existencia_id)), ...(conteo.revision[tipo] ?? [])];
+  auditar(estado, { usuario, entidad: "conteo", entidadId: conteo.id, accion: "REPONER_LISTA_REVISION", despues: { lista: tipo, partidas: filas.length } });
 }
 
 /** NP que tenía el código antes del reemplazo (para sugerirlos al anotar el NP de la partida nueva). */

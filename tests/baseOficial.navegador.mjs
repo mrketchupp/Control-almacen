@@ -192,8 +192,17 @@ test("conteo de auditoría como base oficial en Chromium", async (t) => {
     assert.equal(await enGsm.getByRole("button", { name: /Ir a DLTA/ }).count(), 0); // DLTA ya se aplicó
     await enGsm.getByRole("button", { name: "Cerrar" }).first().click();
 
-    // Las listas quedan en Conteo físico para imprimirlas después.
-    await page.locator(".tarjeta", { hasText: "Listas de revisión de la auditoría" }).waitFor();
+    // Las listas quedan en Conteo físico para imprimirlas después y limpiarlas cuando se revisen (con Deshacer).
+    const listas = page.locator(".tarjeta", { hasText: "Listas de revisión de la auditoría" });
+    await listas.waitFor();
+    const listaNp = listas.locator(".detalles", { hasText: "NP que se perdieron" });
+    await listaNp.locator("summary").click();
+    await listaNp.getByRole("button", { name: "Limpiar la lista" }).click();
+    await page.locator(".toast", { hasText: "limpia" }).waitFor();
+    assert.equal(await listas.locator(".detalles", { hasText: "NP que se perdieron" }).count(), 0);
+    assert.deepEqual((await leer("GSM")).conteos.find((c) => c.tipo === "AUDITORIA").revision.np, []);
+    await page.locator(".toast", { hasText: "limpia" }).getByRole("button", { name: /Deshacer/ }).click();
+    await listas.locator(".detalles", { hasText: "NP que se perdieron" }).waitFor();
 
     // FX en el inventario y su libro aparte.
     await page.goto(origen + "/#inventario");
