@@ -52,18 +52,21 @@ export function Boton({ tipo = "secundario", tamano = "", children, ...props }) 
   return html`<button type="button" class=${`boton boton-${tipo} ${tamano ? `boton-${tamano}` : ""}`} ...${props}>${children}</button>`;
 }
 
-/** Botón que abre el selector de archivos. */
-export function ElegirArchivo({ etiqueta, acepta, alElegir, tipo = "secundario", deshabilitado }) {
+/** Botón que abre el selector de archivos. Con `varios`, `alElegir` recibe la lista de archivos. */
+export function ElegirArchivo({ etiqueta, acepta, alElegir, tipo = "secundario", deshabilitado, varios = false }) {
   return html`<label class=${`boton boton-${tipo} ${deshabilitado ? "deshabilitado" : ""}`}>
     ${etiqueta}
     <input
       type="file"
       accept=${acepta}
+      multiple=${varios}
       disabled=${deshabilitado}
       onChange=${(e) => {
-        const archivo = e.currentTarget.files?.[0];
+        const archivos = [...(e.currentTarget.files ?? [])];
         e.currentTarget.value = "";
-        if (archivo) alElegir(archivo);
+        if (!archivos.length) return;
+        if (varios) alElegir(archivos);
+        else alElegir(archivos[0]);
       }}
       hidden
     />

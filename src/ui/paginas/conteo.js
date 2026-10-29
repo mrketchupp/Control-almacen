@@ -23,7 +23,7 @@ import { lugarCorto, ubicacionesOrdenadas } from "../../servicios/inventario.js"
 import { Aviso, Boton, Buscador, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { aplicarConteoIA } from "../../servicios/capturaIA.js";
-import { CargarAuditoria } from "./auditoria.js";
+import { CargarAuditoria, ListasDeRevision } from "./auditoria.js";
 import { CapturaIA } from "./capturaIA.js";
 import { BotonDescripcion } from "./descripcion.js";
 import { CeldaCodigo, ListaErrores, indiceArticulos } from "./vales.js";
@@ -513,6 +513,7 @@ export function PaginaConteo() {
   const enCurso = sesion.estado.conteo_en_curso;
   return html`
     ${enCurso ? html`<${Captura} key=${enCurso.id} />` : html`<${NuevoConteo} /><${CargarAuditoria} />`}
+    <${ListasDeRevision} />
     <${HistorialConteos} />
   `;
 }

@@ -352,7 +352,8 @@ function formasFisico(v) {
 function esExacto(ax, f) {
   const colorOk = !ax.c || ax.c === f.n;
   if (ax.t === f.d && colorOk) return true;
-  if (ax.c && (ax.tc === f.d || ax.tc === f.dn)) return true;
+  // La dimensión escrita como Tamaño + Color, aunque el Color sea "S/N" (que solo no cuenta).
+  if (ax.tc === f.d || (ax.c && ax.tc === f.dn)) return true;
   // AX corta el Tamaño a 10 caracteres: la dimensión física debe empezar igual.
   if (ax.crudo.length === 10 && f.crudo.length > 10 && f.crudo.startsWith(ax.crudo) && (colorOk || f.d.endsWith(ax.c))) return true;
   return false;

@@ -31,7 +31,7 @@ export const CARPETA_RESPALDOS = "respaldos";
 
 export class Sesion {
   /**
-   * @param cambiarInventario  (id) => abre el otro inventario (DLTA / GSM) en esta misma pestaña
+   * @param cambiarInventario  (id, { pagina }) => abre el otro inventario (DLTA / GSM) en esta misma pestaña
    * @param comun              base de lo que comparten los inventarios (la etapa de perforación)
    * @param leerOtroInventario (id) => el estado guardado del otro inventario, o null (solo se lee)
    */

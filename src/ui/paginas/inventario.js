@@ -1,11 +1,13 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { DUENO_FX } from "../../nucleo/inventarios.js";
+import { npAnteriores } from "../../servicios/baseOficial.js";
 import { filasInventario } from "../../servicios/consultas.js";
-import { corregirDimensionNp, lugarCorto, renglonDe, ubicacionesOrdenadas } from "../../servicios/inventario.js";
+import { corregirDimensionNp, lugarCorto, renglonDe, sugerenciasClave, ubicacionesOrdenadas } from "../../servicios/inventario.js";
 import { ErrorReacomodo, historialReacomodos, reacomodar } from "../../servicios/reacomodos.js";
-import { Boton, Buscador, Detalles, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
+import { Boton, Buscador, CampoSugerido, Detalles, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { Icono } from "../iconos.js";
 import { EditorClave, useCorreccion } from "./clave.js";
 import { BotonDescripcion, EditorDescripcion } from "./descripcion.js";
 
@@ -39,6 +41,51 @@ function CorregirClave({ fila, alTerminar }) {
         ).then((r) => r && alTerminar())}
       alCancelar=${alTerminar}
     />
+  <//>`;
+}
+
+/**
+ * Anotar o cambiar solo el NP de una partida (Ronda 24): el NP es una ayuda para identificar el material.
+ * Sugiere los NP que tenía el código antes del conteo de auditoría y los de sus otras partidas.
+ */
+function EditarNp({ fila, alTerminar }) {
+  const sesion = useSesion();
+  const corregir = useCorreccion();
+  const [np, setNp] = useState(fila.np ?? "");
+  const anteriores = useMemo(() => npAnteriores(sesion.estado, fila.codigo), [sesion.estado, fila.codigo]);
+  const sugerencias = useMemo(() => {
+    const otros = sugerenciasClave(sesion.estado, fila.codigo).nps.map((x) => x.valor);
+    return [...new Set([...anteriores.map((x) => x.np), ...otros])].filter((x) => x && x !== fila.np);
+  }, [sesion.estado, anteriores, fila.codigo, fila.np]);
+  const guardar = () =>
+    corregir(
+      (e) => corregirDimensionNp(e, { existenciaId: fila.id }, { dimension: fila.dimension, np: np.trim() }, { usuario: sesion.usuario, motivo: "NP anotado en el inventario" }),
+      (r) => `Listo: ${fila.codigo} quedó como ${r.despues}.`,
+    ).then((r) => r && alTerminar());
+  const cambia = np.trim() !== (fila.np ?? "");
+  return html`<${Ventana} titulo=${fila.np ? "Cambiar el NP" : "Anotar el NP"} alCerrar=${alTerminar}>
+    <p>
+      <strong>${fila.codigo}</strong> ${fila.descripcion} · ${fila.dimension || "SIN DIMENSIÓN"}
+      <${Pastilla} tono="lugar" titulo=${fila.hoja}>${lugarCorto({ contenedor: fila.contenedor, clase: fila.clase === "Inventariable" ? "INV" : "CONS" })}<//>
+      <${Pastilla} tono=${fila.total > 0 ? "ok" : "alerta"}>hay ${num(fila.total)} ${fila.um}<//>
+    </p>
+    <label class="campo">
+      <span>NP (número de parte)</span>
+      <${CampoSugerido} id="np-rapido" valor=${np} alCambiar=${setNp} sugerencias=${sugerencias} placeholder="Vacío = sin NP" ariaLabel="NP" />
+    </label>
+    ${anteriores.length
+      ? html`<div class="np-anteriores">
+          <p class="nota">Antes del conteo de auditoría este código tenía:</p>
+          <ul>
+            ${anteriores.map((a) => html`<li key=${a.np}><button type="button" class="boton boton-texto" onClick=${() => setNp(a.np)}>${a.np}</button> <span class="nota">${a.detalle}</span></li>`)}
+          </ul>
+        </div>`
+      : null}
+    <p class="nota">Solo cambia el NP de esta partida; la dimensión, la cantidad y los vales se quedan igual.</p>
+    <div class="acciones-linea">
+      <${Boton} tipo="primario" disabled=${!cambia || sesion.ocupado} onClick=${guardar}>Guardar<//>
+      <${Boton} onClick=${alTerminar}>Cancelar<//>
+    </div>
   <//>`;
 }
 
@@ -128,6 +175,7 @@ export function PaginaInventario() {
   const [moviendo, setMoviendo] = useState(null);
   const [corrigiendo, setCorrigiendo] = useState(null);
   const [describiendo, setDescribiendo] = useState(null);
+  const [anotandoNp, setAnotandoNp] = useState(null);
   const hojas = useMemo(() => [...new Set(filas.map((f) => f.hoja))], [filas]);
   const porTexto = useFiltroTexto(filas, texto, ["codigo", "descripcion", "dimension", "np", "nota"]);
   const visibles = porTexto.filter((f) => {
@@ -141,9 +189,11 @@ export function PaginaInventario() {
   });
   const fila = moviendo ? filas.find((f) => f.id === moviendo) : null;
   const aCorregir = corrigiendo ? filas.find((f) => f.id === corrigiendo) : null;
+  const conNp = anotandoNp ? filas.find((f) => f.id === anotandoNp) : null;
   return html`
     ${fila ? html`<${MoverRenglon} key=${fila.id} fila=${fila} alTerminar=${() => setMoviendo(null)} />` : null}
     ${aCorregir ? html`<${CorregirClave} key=${aCorregir.id} fila=${aCorregir} alTerminar=${() => setCorrigiendo(null)} />` : null}
+    ${conNp ? html`<${EditarNp} key=${conNp.id} fila=${conNp} alTerminar=${() => setAnotandoNp(null)} />` : null}
     ${describiendo !== null ? html`<${EditorDescripcion} key=${describiendo} codigo=${describiendo} alTerminar=${() => setDescribiendo(null)} />` : null}
     <div class="filtros">
       <${Buscador} valor=${texto} alCambiar=${setTexto} placeholder="Código, descripción, dimensión, NP…" />
@@ -181,6 +231,7 @@ export function PaginaInventario() {
       menuFila=${(f) => ({
         titulo: `Inventario: ${f.codigo} ${f.dimension || ""}`,
         opciones: sesion.ocupado ? [] : [
+          { texto: f.np ? "Cambiar el NP…" : "Anotar el NP…", accion: () => setAnotandoNp(f.id) },
           { texto: "Editar dimensión y NP…", accion: () => setCorrigiendo(f.id) },
           { texto: "Editar la descripción del código…", accion: () => setDescribiendo(f.codigo) },
           { texto: "Mover a otro contenedor…", accion: () => { setMoviendo(f.id); window.scrollTo(0, 0); } },
@@ -197,7 +248,17 @@ export function PaginaInventario() {
           render: (f) => html`${descripcionConLapiz(f)}${f.dueno === DUENO_FX ? html` <${Pastilla} tono="fx" titulo="Material de FX (se descuenta en los vales de GSM)">FX<//>` : null}`,
         },
         { clave: "dimension", titulo: "Dimensión" },
-        { clave: "np", titulo: "NP" },
+        {
+          titulo: "NP",
+          render: (f) => html`<span class="sin-corte">${f.np}<button
+              type="button"
+              class="boton-descripcion"
+              disabled=${Boolean(sesion.ocupado)}
+              title=${f.np ? "Cambiar el NP de esta partida" : "Anotar el NP de esta partida"}
+              aria-label=${`${f.np ? "Cambiar" : "Anotar"} el NP de ${f.codigo} ${f.dimension || ""}`}
+              onClick=${() => setAnotandoNp(f.id)}
+            ><${Icono} nombre="lapiz" tam=${14} /></button></span>`,
+        },
         { clave: "um", titulo: "UM" },
         { titulo: html`<span title="Lo que había al empezar el día">Cantidad</span>`, numero: true, render: (f) => num(f.cantidad) },
         { titulo: html`<span title="Vales de salida de hoy">Consumo</span>`, numero: true, render: (f) => num(f.consumo) },

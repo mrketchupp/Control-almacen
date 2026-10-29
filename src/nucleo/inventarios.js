@@ -70,6 +70,12 @@ export function inventarioDelNombre(nombre) {
 export const DUENO_FX = "FX";
 export const duenoDe = (existencia) => existencia?.dueno ?? null;
 
+/**
+ * Regla de los códigos AX (decisión del usuario): en GSM (y FX, que vive dentro) los códigos de 3 dígitos
+ * siempre son consumibles; los de 4 o más pueden ser inventariables. En DLTA no aplica.
+ */
+export const soloConsumible = (inventario, codigo) => inventarioPorId(inventario).id === "GSM" && Number.isInteger(codigo) && codigo < 1000;
+
 /** ¿El nombre (de una hoja, un almacén o un archivo) dice FX? */
 export const diceFx = (nombre) => conMarca(sinAcentosMayusculas(nombre), DUENO_FX);
 

@@ -265,12 +265,24 @@ previa por secciones (se escriben distinto, cambian con su impacto en $, repetid
 contenedor que anotó el conteo, solo en consumible, inventariables sin Kardex con *No existe*). **FX dentro del
 Inventario B** (comparte vales y folios): el conteo marca sus partidas; en *Inventario* se ven y se filtran; su **libro de
 Excel aparte** (exportar y reporte diario). **Aviso de Kardex equivocado** en la base oficial y en la conciliación
-(códigos que no son del inventario, hoja de otro inventario; un libro con varias hojas ya no toma "la primera"). Probado
+(códigos que no son del inventario, hoja de otro inventario; un libro con varias hojas ya no toma "la primera"; la
+Ronda 24 lo quitó: el usuario une las hojas). Probado
 en local con los archivos reales (sin subirlos): aplicar dos veces el mismo Kardex no cambia nada.
 - ☐ Cargar el Kardex de la auditoría en los dos inventarios, revisar la vista previa y aplicar.
 - ☐ Exportar el inventario del Inventario B y el de FX y compararlos con el Kardex.
 - Siguiente (cuando el inventario quede correcto): marca FX en vales y entradas (LOTE automático), alertas de repetidas
   y de "recibido sin registrar", conteo guiado por el Kardex, resumen de guardia y Kardex esperado.
+
+**Ronda 24 — el Kardex reemplaza lo inventariable (aplicada).** Decisiones del usuario: **unir hojas e inventarios** a
+mano, como el juego de parejas (Inventario A, Inventario B y FX contra las hojas de uno o varios archivos), sin revisar
+códigos; el Kardex **reemplaza** lo inventariable en lugar de emparejar uno a uno: lo idéntico se queda con su NP, lo
+demás sale del Kardex (lo que AX cuenta junto queda en una partida, como las botoneras sin dimensión) y lo que no viene
+en el Kardex se da de baja. **Listas de revisión** impresas: NP que se pierden y lo que sale del inventario (se guardan
+con el conteo). **NP editable** desde *Inventario* (lápiz, con los NP anteriores como sugerencia). **Códigos de 3
+dígitos** en el Inventario B y FX = siempre consumibles (también en entradas y conteos); en el Inventario A no aplica.
+Lo consumible no se toca. Probado en local con los archivos reales (sin subirlos).
+- ☐ Unir las hojas del Kardex, revisar las listas impresas y aplicar en los dos inventarios.
+- ☐ Anotar los NP que hagan falta y revisar en físico lo que salió.
 
 Hecho: página *conciliación con Dynamics AX* (menú, después de *Reporte diario*): importar el corte con vista previa (almacén, fecha
 del nombre, folio de corte opcional, aviso si el archivo ya se importó); resumen (emparejado %, cuadran, sin explicar

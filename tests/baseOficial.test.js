@@ -1,42 +1,57 @@
-// Base oficial: el conteo de la auditoría (Kardex con Conteo y Contenedor) como base oficial del inventario.
-// Kardex SINTÉTICO (tests/fixtures/generar.py, generar_kardex): hojas FX, GSM y PRINCIPAL.
+// Base oficial (Ronda 24): el conteo de la auditoría REEMPLAZA lo inventariable. Lo idéntico se conserva (con
+// su NP); lo demás sale del Kardex; lo que no quedó se da de baja y queda en las listas de revisión.
+// Kardex SINTÉTICO (tests/fixtures/generar.py, generar_kardex): hojas FX, GSM y PRINCIPAL. DLTA usa el
+// inventario sintético de siempre; GSM el suyo (códigos de 4 dígitos).
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { nombreFx } from "../src/almacen/almacen.js";
 import { exportarInventario } from "../src/exportadores/inventario.js";
 import { leerReporteAx } from "../src/importadores/ax.js";
 import { leerInventario } from "../src/importadores/inventario.js";
 import { decTexto } from "../src/nucleo/decimal.js";
 import { FORMATO_ESTADO, Indices, migrarEstado } from "../src/nucleo/estado.js";
 import { calcularSaldos } from "../src/nucleo/existencias.js";
-import { DUENO_FX } from "../src/nucleo/inventarios.js";
-import { nombreFx } from "../src/almacen/almacen.js";
+import { DUENO_FX, soloConsumible } from "../src/nucleo/inventarios.js";
 import * as b from "../src/servicios/baseOficial.js";
 import { conciliar, fisicoPorVariante } from "../src/servicios/conciliacion.js";
 import { historialConteos } from "../src/servicios/conteos.js";
 import { filasInventario } from "../src/servicios/consultas.js";
-import { clasificarHojas, coincidencia, codigosDelInventario, hojaParaConciliar } from "../src/servicios/kardex.js";
+import { estadoAlCierre } from "../src/servicios/corte.js";
+import { ubicacionesSugeridas } from "../src/servicios/inventario.js";
+import { hojaParaConciliar, marcaDeHoja } from "../src/servicios/kardex.js";
 import * as v from "../src/servicios/vales.js";
-import { NOMBRE_KARDEX, bytesInventario, bytesKardex, cargaSintetica } from "./ayuda.js";
+import { NOMBRE_KARDEX, bytesInventarioGsm, bytesKardex, cargaSintetica, cargaSinteticaGsm } from "./ayuda.js";
 
 const USUARIO = "ALMACENISTA UNO";
 const FECHA = "2026-10-26";
+const tablaDe = (reporte, hoja) => reporte.tablas.find((t) => t.hoja === hoja);
 
-function preparar(inventario = "DLTA") {
-  const { estado } = cargaSintetica({ idInventario: inventario });
+/** El usuario relacionó las hojas: en DLTA la PRINCIPAL; en GSM la de GSM y (si se pide) la de FX. */
+function preparar(inventario = "DLTA", { conFx = true } = {}) {
+  const { estado } = inventario === "GSM" ? cargaSinteticaGsm() : cargaSintetica();
   const reporte = leerReporteAx(bytesKardex(), NOMBRE_KARDEX);
-  const hojas = clasificarHojas(estado, reporte.tablas);
+  const hojas =
+    inventario === "GSM"
+      ? [{ hoja: "GSM", uso: "propio", tabla: tablaDe(reporte, "GSM") }, ...(conFx ? [{ hoja: "FX", uso: DUENO_FX, tabla: tablaDe(reporte, "FX") }] : [])]
+      : [{ hoja: "PRINCIPAL", uso: "propio", tabla: tablaDe(reporte, "PRINCIPAL") }];
   const indices = () => new Indices(estado);
   const ubicacion = (texto) => estado.ubicaciones.find((u) => u.hoja_excel.trim() === texto);
-  const partidas = (codigo, dimension = undefined) =>
+  const partidas = (codigo, dimension = undefined, { activas = true } = {}) =>
     estado.existencias.filter((e) => {
       const variante = indices().variante(e.variante_id);
-      return variante.codigo === codigo && (dimension === undefined || (e.dimension_hoja ?? variante.dimension) === dimension);
+      return (!activas || e.activo !== false) && variante.codigo === codigo && (dimension === undefined || (e.dimension_hoja ?? variante.dimension ?? "") === dimension);
     });
   const total = (e) => decTexto(calcularSaldos(estado, [e.id]).get(e.id).total);
   const plan = (decisiones = {}) => b.planBaseOficial(estado, b.analizarKardex(estado, hojas, { fecha: FECHA }), decisiones);
   const aplicar = (decisiones = {}, opciones = {}) => b.aplicarBaseOficial(estado, { hojas, fecha: FECHA, decisiones, archivo: NOMBRE_KARDEX, huella: "kardex", ...opciones }, USUARIO);
-  return { estado, reporte, hojas, ubicacion, partidas, total, plan, aplicar };
+  const salida = (existenciaId, cantidad, fecha) => {
+    const mecanico = estado.plantillas_area.find((x) => x.nombre === "MECANICO");
+    const borrador = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: mecanico.id, fecha });
+    borrador.lineas.push({ ...v.lineaDesdeExistencia(estado, existenciaId), cantidad });
+    return v.emitirBorrador(estado, borrador.id, { usuario: USUARIO })[0];
+  };
+  return { estado, reporte, hojas, ubicacion, partidas, total, plan, aplicar, salida };
 }
 
 test("el lector toma todas las hojas del libro, con Conteo (o Conteo Fisico), Contenedor y Sitio", () => {
@@ -45,216 +60,202 @@ test("el lector toma todas las hojas del libro, con Conteo (o Conteo Fisico), Co
   assert.deepEqual(
     reporte.tablas.map((t) => [t.hoja, t.renglones.length, t.conConteo]),
     [
-      ["FX", 3, true],
-      ["GSM", 3, true],
+      ["FX", 4, true],
+      ["GSM", 11, true],
       ["PRINCIPAL", 13, true],
     ],
   );
-  // La primera hoja sigue arriba (como antes) y es la de FX: por eso hay que elegir.
-  assert.equal(reporte.hoja, "FX");
-  const r = reporte.tablas[2].renglones.find((x) => x.codigo === 707);
+  const r = tablaDe(reporte, "PRINCIPAL").renglones.find((x) => x.codigo === 707);
   assert.deepEqual([r.conteo, r.contenedor, r.disponible, r.cantidad_financiera, r.sitio], ["3", "1", "4", "4", "SITIO-P"]);
   assert.equal(b.contenedorDe("#3"), 3);
   assert.equal(b.contenedorDe("0"), null);
   assert.equal(decTexto(b.costoUnitario(r)), "1500");
+  // La conciliación propone la hoja por su nombre (sin revisar códigos); la de DLTA no dice su nombre.
+  assert.deepEqual(reporte.tablas.map(marcaDeHoja), [DUENO_FX, "GSM", null]);
+  assert.equal(hojaParaConciliar(reporte, "DLTA"), "PRINCIPAL");
+  assert.equal(hojaParaConciliar(reporte, "GSM"), "GSM");
 });
 
-test("cada hoja se usa en su inventario: DLTA toma la que no dice nombre; GSM la de GSM y la de FX", () => {
-  const dlta = preparar("DLTA").hojas.map((h) => [h.hoja, h.uso, h.motivo]);
-  assert.deepEqual(dlta, [
-    ["FX", null, "FX se lleva dentro de GSM"],
-    ["GSM", null, "Es de GSM"],
-    ["PRINCIPAL", "propio", ""],
-  ]);
-  const gsm = preparar("GSM").hojas.map((h) => [h.hoja, h.uso, h.motivo]);
-  assert.deepEqual(gsm, [
-    ["FX", DUENO_FX, ""],
-    ["GSM", "propio", ""],
-    ["PRINCIPAL", null, "Ya se usa la hoja GSM"],
-  ]);
+test("regla de códigos: en GSM y FX los de 3 dígitos son consumibles; en DLTA no aplica", () => {
+  assert.deepEqual([soloConsumible("GSM", 101), soloConsumible("GSM", 1701), soloConsumible("DLTA", 101)], [true, false, false]);
+  const { estado } = cargaSinteticaGsm();
+  // Al dar de alta material de 3 dígitos, las hojas inventariables van al final de las sugerencias.
+  const sugeridas = ubicacionesSugeridas(estado, 102).map((x) => x.ubicacion.clase);
+  assert.deepEqual(sugeridas.slice(-2), ["INV", "INV"]);
+  // Y el Kardex no aplica sus partidas de 3 dígitos (se quedan en consumible).
+  const { plan } = preparar("GSM");
+  assert.deepEqual(plan().porRegla.map((l) => l.codigo), [101]);
 });
 
-test("un Kardex de otro inventario (códigos que no están) no se usa y avisa antes de importar", () => {
-  const { estado } = cargaSintetica();
-  const ajena = { hoja: "rptInventSum", almacenes: [{ nombre: "RIG91-IX25", renglones: 3 }], renglones: [{ codigo: 9001 }, { codigo: 9002 }, { codigo: 701 }] };
-  const c = coincidencia(ajena.renglones, codigosDelInventario(estado));
-  assert.deepEqual([c.codigos, c.conocidos, c.ajenos], [3, 1, [9001, 9002]]);
-  const [h] = clasificarHojas(estado, [ajena]);
-  assert.equal(h.uso, null);
-  assert.match(h.motivo, /Solo 1 de sus 3 códigos está en tu inventario DLTA/);
-  // En Conciliación AX se elige la hoja y se avisa si casi no tiene códigos del inventario.
-  const elegida = hojaParaConciliar(estado, { tablas: [ajena] });
-  assert.equal(elegida.aviso, true);
-  const kardex = hojaParaConciliar(estado, leerReporteAx(bytesKardex(), NOMBRE_KARDEX));
-  assert.deepEqual([kardex.hoja, kardex.aviso], ["PRINCIPAL", false]);
-});
-
-test("vista previa en DLTA: cuadran, cambian, repetidas, nuevas, por confirmar y lo consumible no se toca", () => {
+test("DLTA: lo idéntico se conserva, lo demás sale del Kardex y lo que no quedó se da de baja con sus listas", () => {
   const { plan } = preparar("DLTA");
   const p = plan();
-  const porCodigo = (codigo) => p.grupos.filter((g) => g.lineas[0].codigo === codigo);
-  // 701 6309-2Z/C3: 7 en #1 y 3 en #2, el conteo dice 9 (contenedor 1): queda en #1 y la de #2 se da de baja.
-  const g = porCodigo(701).find((x) => x.lineas[0].tamano === "6309-2Z/C3");
+  const texto = (x) => `${x.codigo} ${x.dimension || "SIN DIMENSIÓN"}${x.np ? ` NP ${x.np}` : ""} ${x.lugar}`;
   assert.deepEqual(
-    g.partidas.map((x) => [x.lugar, decTexto(x.actual), decTexto(x.cantidad), x.baja]),
+    p.conservadas.map((c) => [texto(c), decTexto(c.actual), decTexto(c.cantidad)]),
     [
-      ["#1 Inv.", "7", "9", false],
-      ["#2 Inv.", "3", "0", true],
-    ],
-  );
-  assert.equal(g.revisar, true);
-  // 707 MARIPOSA (Tamaño cortado a 10 en AX): 4 → 3.
-  assert.deepEqual(porCodigo(707)[0].partidas.map((x) => decTexto(x.cantidad)), ["3"]);
-  // 702 P557500 solo está en una hoja de consumible: no se toca.
-  assert.deepEqual(p.soloConsumible.map((s) => [s.lineas[0].codigo, s.partidas[0].lugar]), [[702, "#1 Cons."]]);
-  // 714 "MODELO ZX100" se escribe distinto (MOD:ZX100): por confirmar, con la sugerida por omisión (mismos
-  // números). 705 "3/4 ALTA PRES" no se parece a ninguna de sus partidas: hay que elegir.
-  assert.deepEqual(
-    p.porConfirmar.map((x) => [x.linea.codigo, x.metodo, x.decision === null ? null : typeof x.decision]),
-    [
-      [714, "aproximado", "number"],
-      [705, "sin_sugerencia", null],
-    ],
-  );
-  // Nuevas: 703 en #2, 712 (no está en el catálogo) en #1 y 709 (contenedor 6, no existe): hay que elegir.
-  assert.deepEqual(
-    p.nuevas.map((n) => [n.codigo, n.lugar, decTexto(n.cantidad)]),
-    [
-      [703, "#2 Inv.", "8"],
-      [712, "#1 Inv.", "1"],
-      [709, "", "40"],
+      ["701 6205-2Z #1 Inv.", "6", "6"],
+      ['707 MARIPOSA 4" #1 Inv.', "4", "3"], // AX corta el Tamaño a 10: sigue siendo idéntica
+      ["701 6309-2Z/C3 #1 Inv.", "7", "9"], // estaba en #1 y #2: queda la del contenedor que anotó el conteo
+      ["711 MOD:A1 #2 Inv.", "2", "2"],
+      ["710 S/D NP X00489 #1 Inv.", "0", "0"],
     ],
   );
   assert.deepEqual(
-    p.errores.map((e) => e.clave),
-    ["PRINCIPAL#14", "n:PRINCIPAL#8"],
+    p.nuevas.map((n) => [`${n.codigo} ${n.dimension || "SIN DIMENSIÓN"}`, n.lugar, decTexto(n.cantidad), n.um, n.junta]),
+    [
+      ["703 1/2 X 2", "#2 Inv.", "8", "PZA", 0],
+      ["712 6303 SKF", "#1 Inv.", "1", "PZA", 0],
+      ["709 CABLE 3/4", "", "40", "MTS", 0], // contenedor 6 (no existe): hay que elegir
+      ["714 MODELO ZX100", "#2 Inv.", "7", "PZA", 0], // se escribe distinto: no se pregunta, sale del Kardex
+      ["711 SIN DIMENSIÓN", "#2 Inv.", "6", "PZA", 3], // AX cuenta juntas las 3 sin dimensión (distintos NP)
+      ["705 3/4 ALTA PRES", "#2 Inv.", "2", "MTS", 0], // "m" de AX → "MTS" como en el inventario
+    ],
   );
-  assert.equal(p.resumen.porDecidir, 1);
-  // El diésel (NO INV) no se da de alta; lo inventariable que el Kardex no trae se queda.
-  assert.deepEqual(p.ignoradas.map((i) => i.linea.codigo), [136]);
-  assert.deepEqual(p.sinKardex.map((s) => [s.codigo, s.decision]), [
-    [706, "dejar"],
-    [799, "dejar"],
-    [714, "dejar"],
+  assert.deepEqual(p.errores.map((e) => e.clave), ["n:PRINCIPAL#8"]);
+  assert.deepEqual(p.sustituidas.map(texto), ["701 6309-2Z/C3 #2 Inv.", "711 S/D NP LED 20W #2 Inv.", "711 SIN DIMENSION NP LED 50W #2 Inv.", "711 S/N NP X100 #2 Inv.", "714 MOD:ZX100 #2 Inv.", "714 S/D #2 Inv."]);
+  assert.deepEqual(p.retiradas.map(texto), ["706 555001 #1 Inv.", "799 SIN DIMENSION #2 Inv."]);
+  // Listas para revisar: los NP que se pierden (con lo que los reemplaza) y lo que no viene en el Kardex.
+  assert.deepEqual(
+    p.listaNp.map((x) => [x.np, x.reemplazo]),
+    [
+      ["LED 20W", "SIN DIMENSIÓN · #2 Inv. · 6"],
+      ["LED 50W", "SIN DIMENSIÓN · #2 Inv. · 6"],
+      ["X100", "SIN DIMENSIÓN · #2 Inv. · 6"],
+    ],
+  );
+  assert.deepEqual(p.listaRetiradas.map((x) => [x.codigo, x.cantidad]), [
+    [706, "1"],
+    [799, "1"],
   ]);
-  // Un reparto que no suma el conteo es un error.
-  const mal = plan({ cantidades: { [g.partidas[1].clave]: "1" }, bajas: { [g.partidas[1].clave]: false } });
-  assert.ok(mal.errores.some((e) => e.clave === g.clave && /el conteo es 9 y en las partidas suman 10/.test(e.mensaje)));
+  // Lo consumible no se toca; el diésel (NO INV) no se da de alta.
+  assert.deepEqual(p.soloConsumible.map((s) => [s.linea.codigo, s.partidas[0].lugar]), [[702, "#1 Cons."]]);
+  assert.deepEqual(p.ignoradas.map((i) => i.linea.codigo), [136]);
+  // Por código: lo que había y lo que queda (para revisar el impacto).
+  const r714 = p.porCodigo.find((f) => f.codigo === 714);
+  assert.deepEqual([decTexto(r714.antes), decTexto(r714.despues), decTexto(r714.impacto)], ["8", "7", "-45"]);
 });
 
-test("aplicar en DLTA: el conteo es la nueva CANTIDAD, con corte en el día; lo posterior se descuenta", () => {
-  const { estado, ubicacion, partidas, total, aplicar, plan } = preparar("DLTA");
-  // Un vale del 27 (después del conteo, antes de aplicar) sobre el 6205-2Z.
-  const [r6205] = partidas(701, "6205-2Z");
-  const mecanico = estado.plantillas_area.find((x) => x.nombre === "MECANICO");
-  const borrador = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: mecanico.id, fecha: "2026-10-27" });
-  borrador.lineas.push({ ...v.lineaDesdeExistencia(estado, r6205.id), cantidad: "1" });
-  const [vale] = v.emitirBorrador(estado, borrador.id, { usuario: USUARIO });
-  const consumible = partidas(702, "P557500")[0];
-  const antesConsumible = total(consumible);
-
-  assert.throws(() => aplicar(), (e) => e instanceof b.ErrorBaseOficial && e.errores.length === 2); // 705 sin decidir y el contenedor del 709
+test("DLTA: aplicar deja el inventario como el Kardex; aplicar otra vez no cambia nada", () => {
+  const { estado, ubicacion, partidas, total, plan, aplicar, salida } = preparar("DLTA");
+  // Un vale del 27 (después del conteo) sobre la partida del #2 que el Kardex sustituye: pasa a la del #1.
+  const [p6309c2] = partidas(701, "6309-2Z/C3").filter((e) => e.ubicacion_id === ubicacion("CONTENEDOR #2 INVENTARIABLE").id);
+  const vale = salida(p6309c2.id, "1", "2026-10-27");
+  assert.throws(() => aplicar(), (e) => e instanceof b.ErrorBaseOficial && e.errores.length === 1); // falta el contenedor del 709
   const c2 = ubicacion("CONTENEDOR #2 INVENTARIABLE");
-  const sinKardex799 = plan().sinKardex.find((s) => s.codigo === 799);
-  const { conteo, corteAx } = aplicar(
-    { parejas: { "PRINCIPAL#14": "nueva" }, ubicaciones: { "n:PRINCIPAL#8": c2.id }, sinKardex: { [sinKardex799.existencia.id]: "baja" } },
-    { registrarCorte: true },
-  );
+  const { conteo, corteAx } = aplicar({ ubicaciones: { "n:PRINCIPAL#8": c2.id } }, { registrarCorte: true });
 
   assert.equal(conteo.tipo, "AUDITORIA");
   assert.equal(conteo.ultimo_folio_salida, vale.folio - 1); // el del 27 no estaba en el conteo
-  assert.equal(total(r6205), "5"); // 6 contados − 1 del vale del 27
-  assert.equal(total(partidas(707)[0]), "3");
-  const [d1, d2] = partidas(701, "6309-2Z/C3");
-  assert.deepEqual([total(d1), d2.activo, d2.baja.motivo], ["9", false, "Repetida: el conteo de auditoría quedó en #1 Inv."]);
-  assert.equal(total(consumible), antesConsumible); // lo consumible no se toca
-  // Nuevas: con su contenedor, el artículo nuevo y la variante como la escribe AX.
-  assert.deepEqual(partidas(703).map((e) => [e.ubicacion_id, total(e)]), [[c2.id, "8"]]);
+  const [p6309] = partidas(701, "6309-2Z/C3");
+  assert.deepEqual([partidas(701, "6309-2Z/C3").length, total(p6309)], [1, "8"]); // 9 contados − 1 del vale del 27
+  assert.equal(vale.lineas[0].existencia_id, p6309.id);
+  assert.deepEqual(conteo.religadas.map((r) => [r.de, r.a]), [[p6309c2.id, p6309.id]]);
+  assert.equal(p6309c2.activo, false);
+  assert.match(p6309c2.baja.motivo, /^Sustituida por el conteo de auditoría/);
+  // Las botoneras (711 sin dimensión): una partida con el total; las tres de antes, de baja.
+  const r711 = partidas(711).map((e) => [new Indices(estado).variante(e.variante_id).dimension ?? "", total(e)]);
+  assert.deepEqual(r711.sort(), [["", "6"], ["MOD:A1", "2"]]);
+  assert.deepEqual(partidas(714).map((e) => [new Indices(estado).variante(e.variante_id).dimension, total(e)]), [["MODELO ZX100", "7"]]);
   assert.deepEqual(partidas(709).map((e) => [e.ubicacion_id, total(e)]), [[c2.id, "40"]]);
-  // 705 "nueva": en la hoja inventariable del #2, con la UM como la escribe el inventario (MTS, no "m").
-  const [r705] = partidas(705, "3/4 ALTA PRES");
-  assert.deepEqual([r705.ubicacion_id, total(r705), new Indices(estado).variante(r705.variante_id).um], [c2.id, "2", "MTS"]);
   assert.equal(estado.articulos[712].origen, "AUDITORIA");
-  // 714: la variante toma la escritura de AX.
-  assert.equal(new Indices(estado).variante(partidas(714, "MODELO ZX100")[0].variante_id).dimension, "MODELO ZX100");
-  // 799 "no existe": de baja y fuera del inventario (pero en el historial del conteo).
-  assert.equal(partidas(799)[0].activo, false);
+  // Lo que no viene en el Kardex sale del inventario y del Excel, pero sigue en el historial del conteo.
+  assert.equal(partidas(799).length, 0);
   assert.ok(!filasInventario(estado).some((f) => f.codigo === 799));
-  assert.ok(conteo.bajas.includes(partidas(799)[0].id));
+  assert.match(partidas(799, undefined, { activas: false })[0].baja.motivo, /^No viene en el conteo de auditoría/);
+  // Las listas quedan guardadas para imprimirlas después; los NP sirven de sugerencia al anotarlos.
+  const [listas] = b.listasDeRevision(estado);
+  assert.deepEqual([listas.np.length, listas.retiradas.length], [3, 2]);
+  assert.deepEqual(b.npAnteriores(estado, 711).map((x) => x.np), ["LED 20W", "LED 50W", "X100"]);
   assert.equal(historialConteos(estado)[0].descripcion.startsWith("Conteo de auditoría (base oficial)"), true);
-  // El Disponible de AX como corte de ese día (para justificar faltantes en Conciliación AX).
   assert.deepEqual([corteAx.fecha, corteAx.hoja, corteAx.lineas.length], [FECHA, "PRINCIPAL", 13]);
   assert.equal(estado.auditoria.at(-1).accion, "BASE_OFICIAL");
+
+  // Otra vez el mismo Kardex: todo se conserva.
+  const otra = plan();
+  assert.deepEqual([otra.nuevas.length, otra.sustituidas.length, otra.retiradas.length, otra.errores.length], [0, 0, 0, 0]);
 });
 
-test("una sugerencia con otros números no es segura: '0-500 PSI' no es '0-300 PSI'", () => {
-  assert.equal(b.mismosNumeros({ tamano: "0-500 PSI", color: "" }, { dimension: "0 - 300 PSI", np: "SALIDA 1/2 NPT" }), false);
-  assert.equal(b.mismosNumeros({ tamano: "0-500 PSI", color: "" }, { dimension: null, np: "0 - 500 PSI (SALIDA 1/2 NPT)" }), true);
-  assert.equal(b.mismosNumeros({ tamano: "MODELO ZX100", color: "" }, { dimension: "MOD:ZX100", np: null }), true);
-  // AX corta el Tamaño a 10 caracteres: el último número puede venir incompleto.
-  assert.equal(b.mismosNumeros({ tamano: "1/2 X 1234", color: "" }, { dimension: '1/2" X 12345', np: null }), true);
-});
-
-test("una partida con vales posteriores al conteo no se puede dar de baja", () => {
-  const { estado, partidas, plan } = preparar("DLTA");
+test("lo que no viene en el Kardex pero tiene vales después del conteo no se da de baja", () => {
+  const { partidas, plan, salida } = preparar("DLTA");
   const [r706] = partidas(706);
-  const mecanico = estado.plantillas_area.find((x) => x.nombre === "MECANICO");
-  const borrador = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: mecanico.id, fecha: "2026-10-28" });
-  borrador.lineas.push({ ...v.lineaDesdeExistencia(estado, r706.id), cantidad: "1" });
-  v.emitirBorrador(estado, borrador.id, { usuario: USUARIO });
-  const p = plan({ sinKardex: { [r706.id]: "baja" } });
-  assert.ok(p.errores.some((e) => /tiene vales posteriores al conteo/.test(e.mensaje)));
+  salida(r706.id, "1", "2026-10-28");
+  const p = plan();
+  assert.deepEqual(p.sinRetirar.map((s) => s.codigo), [706]);
+  assert.equal(p.avisos.length, 1);
 });
 
-test("elegir 'partida nueva' en lugar de la sugerida deja la otra sin tocar", () => {
-  const { estado, partidas, aplicar } = preparar("DLTA");
-  const c2 = estado.ubicaciones.find((u) => u.hoja_excel.trim() === "CONTENEDOR #2 INVENTARIABLE");
-  aplicar({ parejas: { "PRINCIPAL#9": "nueva", "PRINCIPAL#14": "nueva" }, ubicaciones: { "n:PRINCIPAL#8": c2.id } });
-  const indices = new Indices(estado);
-  assert.deepEqual(
-    partidas(714)
-      .filter((e) => e.activo !== false)
-      .map((e) => indices.variante(e.variante_id).dimension)
-      .sort(),
-    ["MODELO ZX100", "MOD:ZX100", "S/D"].sort(),
-  );
-});
-
-test("GSM: lo que cuenta la hoja de FX queda como de FX; si el físico lo tenía junto, se separa", () => {
+test("GSM: la hoja de FX marca lo suyo, las botoneras quedan en una partida y lo de 3 dígitos no se toca", () => {
   const { estado, partidas, total, aplicar, plan } = preparar("GSM");
   const p = plan();
   assert.equal(p.errores.length, 0);
+  assert.deepEqual(p.soloConsumible.map((s) => s.linea.codigo), [1702]);
   aplicar();
-  const r6205 = partidas(701, "6205-2Z");
-  assert.deepEqual(r6205.map((e) => [e.dueno ?? null, total(e)]), [
+  // 6205-2Z: el físico tenía GSM y FX juntos; GSM se queda la partida y FX tiene la suya.
+  assert.deepEqual(partidas(1701, "6205-2Z").map((e) => [e.dueno ?? null, total(e)]), [
     [null, "4"],
     [DUENO_FX, "2"],
   ]);
-  assert.deepEqual(partidas(707).map((e) => e.dueno), [DUENO_FX]);
-  assert.deepEqual(partidas(703).map((e) => [e.dueno, total(e)]), [[DUENO_FX, "3"]]);
-  // 6309-2Z/C3: 7 + 3 = 10 = el conteo de GSM: se queda repartido en los dos contenedores.
-  assert.deepEqual(partidas(701, "6309-2Z/C3").map(total), ["7", "3"]);
-  // La lista del inventario lo marca.
-  assert.deepEqual(filasInventario(estado).filter((f) => f.dueno === DUENO_FX).map((f) => f.codigo).sort(), [701, 703, 707]);
+  assert.deepEqual(partidas(1707).map((e) => e.dueno), [DUENO_FX]);
+  assert.deepEqual(partidas(1703).map((e) => [e.dueno, total(e)]), [[DUENO_FX, "3"]]);
+  assert.deepEqual(partidas(1730).map((e) => [new Indices(estado).variante(e.variante_id).np ?? "", total(e)]), [["", "5"]]);
+  assert.deepEqual(b.listasDeRevision(estado)[0].np.map((x) => x.np), ["NP-100", "NP-200", "NP-300"]);
+  assert.deepEqual(partidas(101).map(total), ["25"]); // 3 dígitos: consumible, sin tocar
+  assert.deepEqual(filasInventario(estado).filter((f) => f.dueno === DUENO_FX).map((f) => f.codigo).sort(), [1701, 1703, 1707, 1742]);
 
   // El Excel de GSM sale sin FX y el de FX solo con lo suyo (misma plantilla).
   const leer = (dueno) =>
-    leerInventario(exportarInventario(estado, bytesInventario(), { fecha: "2026-10-28", dueno }).datos, "x.xlsx").hojas.flatMap((h) => h.renglones.map((r) => `${r.codigo} ${r.dimension ?? ""}`.trim()));
+    leerInventario(exportarInventario(estado, bytesInventarioGsm(), { fecha: "2026-10-28", dueno }).datos, "x.xlsx").hojas.flatMap((h) => h.renglones.map((r) => `${r.codigo} ${r.dimension ?? ""}`.trim()));
+  assert.deepEqual(leer(DUENO_FX).sort(), ["1701 6205-2Z", "1703 1/2 X 2", '1707 MARIPOSA 4"', "1742"].sort());
   const gsm = leer(null);
-  const fx = leer(DUENO_FX);
-  assert.deepEqual(fx.sort(), ["701 6205-2Z", "703 1/2 X 2", '707 MARIPOSA 4"'].sort());
-  assert.ok(gsm.includes("701 6205-2Z") && !gsm.includes('707 MARIPOSA 4"') && !gsm.includes("703 1/2 X 2"));
+  assert.ok(gsm.includes("1701 6205-2Z") && !gsm.includes('1707 MARIPOSA 4"') && !gsm.includes("1799 SIN DIMENSION"));
   assert.equal(nombreFx("INVENTARIO DE REFACCIONAMIENTO DE ALMACEN 281026.xlsx"), "INVENTARIO DE REFACCIONAMIENTO FX DE ALMACEN 281026.xlsx");
 
   // La conciliación de GSM no cuenta las partidas de FX.
-  const fisico = fisicoPorVariante(estado, { dueno: null });
-  const v707 = partidas(707)[0].variante_id;
-  assert.equal(fisico.has(v707), false);
+  assert.equal(fisicoPorVariante(estado, { dueno: null }).has(partidas(1707)[0].variante_id), false);
   const reporte = leerReporteAx(bytesKardex(), NOMBRE_KARDEX);
-  const corte = { id: 1, fecha: FECHA, lineas: reporte.tablas[1].renglones.map((r, i) => ({ id: i + 1, ...r })), asignaciones: [] };
-  const r = conciliar(estado, corte);
-  const fila = r.renglones.find((x) => x.codigo === 701 && x.variante.dimension === "6205-2Z");
+  const corte = { id: 1, fecha: FECHA, lineas: tablaDe(reporte, "GSM").renglones.map((r, i) => ({ id: i + 1, ...r })), asignaciones: [] };
+  const fila = conciliar(estado, corte).renglones.find((x) => x.codigo === 1701 && x.variante.dimension === "6205-2Z");
   assert.equal(decTexto(fila.fisico), "4");
+
+  // Otra vez: todo se conserva.
+  const otra = plan();
+  assert.deepEqual([otra.nuevas.length, otra.sustituidas.length, otra.retiradas.length], [0, 0, 0]);
+});
+
+test("casos del Kardex real (datos inventados): dos escrituras, Color S/N y FX sin dimensión; aplicar dos veces no cambia nada", () => {
+  const { estado, partidas, total, aplicar, plan } = preparar("GSM");
+  const p = plan();
+  const conservadas = p.conservadas.filter((c) => c.codigo === 1740).map((c) => [c.dimension, c.np, decTexto(c.cantidad)]);
+  // AX trae la misma pieza como "RX100 AB" y como "RX100AB": cada partida se queda con la suya (y su NP).
+  assert.deepEqual(conservadas.sort(), [
+    ["RX100 AB", "NP-77", "3"],
+    ["RX100AB", "", "5"],
+  ]);
+  aplicar();
+  const clave = (e) => {
+    const v = new Indices(estado).variante(e.variante_id);
+    return [e.dimension_hoja ?? v.dimension ?? "", e.dueno ?? null, total(e)];
+  };
+  // Color "S/N": la partida nueva se escribe como AX y la siguiente vez ya es la idéntica.
+  assert.deepEqual(partidas(1741).map(clave), [["3UX4455K S/N", null, "1"]]);
+  // FX cuenta el código completo sin dimensión: tiene su partida y no toma las de GSM.
+  assert.deepEqual(partidas(1742).map(clave).sort(), [
+    ["", DUENO_FX, "4"],
+    ["M-100", null, "2"],
+    ["M-200", null, "1"],
+  ]);
+  const otra = plan();
+  assert.deepEqual([otra.nuevas.length, otra.sustituidas.length, otra.retiradas.length, otra.resumen.conservadasCambian], [0, 0, 0, 0]);
+});
+
+test("GSM sin la hoja de FX: lo que ya es de FX no se toca", () => {
+  const a = preparar("GSM");
+  a.aplicar();
+  const conGsm = preparar("GSM", { conFx: false });
+  // Mismo estado ya aplicado, ahora solo con la hoja de GSM.
+  const p = b.planBaseOficial(a.estado, b.analizarKardex(a.estado, conGsm.hojas, { fecha: FECHA }), {});
+  assert.ok(![...p.sustituidas, ...p.retiradas].some((x) => x.dueno_antes === DUENO_FX));
 });
 
 test("formato 18: los estados anteriores no tienen partidas de FX ni de baja", () => {
@@ -265,16 +266,13 @@ test("formato 18: los estados anteriores no tienen partidas de FX ni de baja", (
   assert.ok(estado.existencias.every((e) => !e.dueno && e.activo !== false));
 });
 
-test("el reporte de un día anterior a la auditoría deshace sus cambios (cantidades, FX, bajas y nuevas)", async () => {
-  const { estadoAlCierre } = await import("../src/servicios/corte.js");
+test("el reporte de un día anterior a la auditoría deshace sus cambios (cantidades, FX, bajas y nuevas)", () => {
   const { estado, partidas, aplicar } = preparar("GSM");
   const antes = structuredClone(estado.existencias);
   aplicar();
   assert.ok(estado.existencias.some((e) => e.dueno === DUENO_FX));
   const { estado: cierre } = estadoAlCierre(estado, "2026-10-25");
-  assert.deepEqual(
-    cierre.existencias.map((e) => [e.id, e.cantidad_conteo, e.conteo_id, e.dueno ?? null, e.activo]),
-    antes.map((e) => [e.id, e.cantidad_conteo, e.conteo_id, e.dueno ?? null, e.activo]),
-  );
-  assert.equal(partidas(707)[0].dueno, DUENO_FX); // el estado actual no cambia
+  const ver = (e) => [e.id, e.cantidad_conteo, e.conteo_id, e.dueno ?? null, e.activo ?? null, e.baja ?? null];
+  assert.deepEqual(cierre.existencias.map(ver), antes.map(ver));
+  assert.equal(partidas(1707)[0].dueno, DUENO_FX); // el estado actual no cambia
 });

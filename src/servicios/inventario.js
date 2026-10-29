@@ -6,6 +6,7 @@ import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { claveEstricta, claveLaxa, unidad } from "../nucleo/normalizar.js";
+import { inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
@@ -95,7 +96,9 @@ export function ubicacionesSugeridas(estado, codigo, { indices = new Indices(est
   const clases = new Set([...donde.keys()].map((id) => indices.ubicacion(id)?.clase));
   const claseArticulo = indices.articulo(codigo)?.clase ?? null;
   if (claseArticulo) clases.add(claseArticulo);
-  const puntaje = (u) => (donde.has(u.id) ? 0 : clases.has(u.clase) ? 1 : 2);
+  // GSM / FX: un código de 3 dígitos siempre es consumible; las hojas inventariables van al final.
+  const consumible = soloConsumible(inventarioDe(estado).id, codigo);
+  const puntaje = (u) => (consumible && u.clase === "INV" ? 3 : donde.has(u.id) ? 0 : clases.has(u.clase) ? 1 : 2);
   return ubicacionesOrdenadas(estado)
     .map((u) => ({ ubicacion: u, puntaje: puntaje(u), renglones: donde.get(u.id) ?? 0 }))
     .sort((a, b) => a.puntaje - b.puntaje || a.ubicacion.orden - b.ubicacion.orden);

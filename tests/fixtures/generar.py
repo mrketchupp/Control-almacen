@@ -445,10 +445,12 @@ PNG_1PX = bytes.fromhex(
 # ------------------------------------------------------------------ inventario
 
 
-def generar_inventario(ruta: Path) -> Path:
+def generar_inventario(ruta: Path, hojas: dict | None = None, catalogo: dict | None = None) -> Path:
+    hojas = HOJAS_INV if hojas is None else hojas
+    catalogo = CATALOGO if catalogo is None else catalogo
     wb = Workbook()
     wb.remove(wb.active)
-    for numero, (hoja, renglones) in enumerate(HOJAS_INV.items(), start=1):
+    for numero, (hoja, renglones) in enumerate(hojas.items(), start=1):
         ws = wb.create_sheet(hoja)
         tabla = f"Tabla{numero}"
         ws.append(ENCABEZADOS_INV)
@@ -517,7 +519,7 @@ def generar_inventario(ruta: Path) -> Path:
     cat = wb.create_sheet("ARTICULOS_MX")
     cat.append([None, None])
     cat.append(["CODIGO AX", "PRODUCTO"])
-    for codigo, descripcion in CATALOGO.items():
+    for codigo, descripcion in catalogo.items():
         cat.append([codigo, descripcion])
     cat.sheet_state = "hidden"
     wb.save(ruta)
@@ -979,15 +981,66 @@ KARDEX_PRINCIPAL = [
     (136, "", "", "LT", 500, 0, 0, 20.0, "NO INV"),
     (705, "3/4 ALTA PRES", "", "m", 2, 2, 2, 50.0),  # el código solo está en consumible y no se parece: el usuario elige
 ]
+# Inventario GSM sintético (para la base oficial con FX): en GSM los códigos de 3 dígitos son consumibles y
+# los de 4 o más, inventariables. Las botoneras (1730) se distinguen por NP en el físico; AX las cuenta juntas.
+CATALOGO_GSM = {
+    101: "FILTRO DE AIRE",
+    1701: "RODAMIENTO",
+    1702: "ELEMENTO FILTRANTE",
+    1703: "TORNILLO ALLEN",
+    1705: "MANGUERA HIDRAULICA",
+    1706: "SELLO MECANICO",
+    1707: "VALVULA DE BOLA",
+    1730: "BOTONERA",
+    1740: "RODILLO",
+    1741: "CONTACTOR",
+    1742: "MOTOR ELECTRICO",
+    1799: "ARTICULO GSM DESCONTINUADO",
+}
+HOJAS_INV_GSM = {
+    "CONTENEDOR #1 INVENTARIABLE": [
+        (1, 1701, "6205-2Z", None, 6, "PZA", None, None),  # en una sola partida lo de GSM (4) y lo de FX (2)
+        (2, 1707, 'MARIPOSA 4"', None, 4, "PZA", None, None),  # solo en FX
+        (3, 1701, "6309-2Z/C3", None, 7, "PZA", None, None),
+        (4, 1706, "555001", None, 1, "PZA", None, None),
+    ],
+    "CONTENEDOR #1 CONSUMIBLE ": [
+        (1, 101, "PANEL", None, 25, "PZA", None, None),  # 3 dígitos: consumible
+        (2, 1702, "P557500", None, 21, "PZA", None, None),  # 4 dígitos en consumible: no se toca
+    ],
+    "CONTENEDOR #2 INVENTARIABLE": [
+        (1, 1701, "6309-2Z/C3", None, 3, "PZA", None, None),
+        (2, 1730, "S/D", "NP-100", 2, "PZA", None, None),
+        (3, 1730, "S/D", "NP-200", 1, "PZA", None, None),
+        (4, 1730, "SIN DIMENSION", "NP-300", 1, "PZA", None, None),
+        (5, 1799, "SIN DIMENSION", None, 1, "PZA", None, None),  # no viene en el Kardex
+        (6, 1740, "RX100 AB", "NP-77", 3, "PZA", None, None),  # AX lo trae con dos escrituras: cada una la suya
+        (7, 1740, "RX100AB", None, 5, "PZA", None, None),
+        (8, 1742, "M-100", None, 2, "PZA", None, None),  # GSM; FX cuenta el código completo sin dimensión
+        (9, 1742, "M-200", None, 1, "PZA", None, None),
+    ],
+    "CONTENEDOR #2 CONSUMIBLE": [
+        (1, 1705, '1/2"', None, 100, "MTS", None, None),
+    ],
+}
 KARDEX_GSM = [
-    (701, "6205-2Z", "", "PZA", 4, 4, 1, 120.5),  # el mismo artículo en GSM y en FX: el físico tiene una partida
-    (701, "6309-2Z/C3", "", "PZA", 10, 10, 1, 350.0),  # cuadra: 7 en #1 + 3 en #2 (se queda repartido)
-    (706, "555001", "", "PZA", 1, 1, 1, 900.0),
+    (1701, "6205-2Z", "", "PZA", 4, 4, 1, 120.5),  # el mismo artículo en GSM y en FX: el físico tiene una partida
+    (1701, "6309-2Z/C3", "", "PZA", 10, 10, 1, 350.0),  # en #1 y #2 del físico: queda la del #1 con 10
+    (1706, "555001", "", "PZA", 1, 1, 1, 900.0),  # idéntica: se conserva
+    (1730, "", "", "PZA", 5, 5, 2, 80.0),  # botoneras: AX las cuenta juntas → una partida con el total
+    (1702, "P557500", "", "PZA", 20, 20, 1, 85.25),  # solo en consumible: no se toca
+    (101, "PANEL", "", "PZA", 20, 20, 1, 30.0),  # 3 dígitos en GSM: consumible por regla
+    (1740, "RX100 AB", "", "PZA", 3, 3, 2, 60.0),  # la misma pieza escrita separada y junta: AX no las
+    (1740, "RX100AB", "", "PZA", 5, 5, 2, 60.0),  # distingue; cada partida se queda con la suya
+    (1741, "3UX4455K", "S/N", "PZA", 1, 1, 2, 700.0),  # Color "S/N" y sin físico: partida nueva
+    (1742, "M-100", "", "PZA", 2, 2, 2, 5000.0),
+    (1742, "M-200", "", "PZA", 1, 1, 2, 5000.0),
 ]
 KARDEX_FX = [
-    (701, "6205-2Z", "", "PZA", 2, 2, 1, 120.5),  # la otra parte del 6205-2Z: partida FX nueva
-    (707, "MARIPOSA 4", "", "PZA", 4, 4, 1, 1500.0),  # solo en FX: la partida pasa a FX
-    (703, "1/2 X 2", "", "PZA", 3, 3, 2, 4.75),  # FX sin físico: partida FX nueva
+    (1701, "6205-2Z", "", "PZA", 2, 2, 1, 120.5),  # la otra parte del 6205-2Z: partida FX nueva
+    (1707, "MARIPOSA 4", "", "PZA", 4, 4, 1, 1500.0),  # solo en FX: la partida pasa a FX
+    (1703, "1/2 X 2", "", "PZA", 3, 3, 2, 4.75),  # FX sin físico: partida FX nueva
+    (1742, "", "", "PZA", 4, 4, 2, 5000.0),  # FX sin dimensión (el código completo): no toma las de GSM
 ]
 
 
@@ -996,7 +1049,7 @@ def _hoja_kardex(wb: Workbook, titulo: str, renglones: list, conteo: str, sitio:
     ws.append(ENCABEZADOS_KARDEX + [conteo, "Contenedor"])
     for codigo, tamano, color, um, disponible, contado, contenedor, costo, *modelo in renglones:
         valor = round(disponible * costo, 2)
-        ws.append(["Artículo", f"{codigo:09d}", CATALOGO.get(codigo, "ARTICULO NUEVO"), modelo[0] if modelo else "INV", um, sitio,
+        ws.append(["Artículo", f"{codigo:09d}", {**CATALOGO, **CATALOGO_GSM}.get(codigo, "ARTICULO NUEVO"), modelo[0] if modelo else "INV", um, sitio,
                    almacen, tamano, color, disponible, disponible, valor, valor, contado, contenedor])
 
 
@@ -1018,6 +1071,7 @@ def generar_todo(carpeta: Path) -> dict[str, Path]:
         "ax": generar_ax(carpeta / NOMBRE_AX),
         "base": generar_base(carpeta / NOMBRE_BASE),
         "kardex": generar_kardex(carpeta / NOMBRE_KARDEX),
+        "inventario_gsm": generar_inventario(carpeta / "INVENTARIO GSM SINTETICO.xlsx", HOJAS_INV_GSM, CATALOGO_GSM),
     }
 
 

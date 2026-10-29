@@ -263,20 +263,26 @@ vale se repite si se restaura un respaldo: `emitido_en` dice cuál era); la list
 `cambiado_en` (gana el último cambio) y, si venía con etiquetas del formato 10, `juntar: true` (la primera vez se une con
 la del otro). La migración convierte los ids numéricos y los `vales` anteriores.
 
-**Base oficial, FX y bajas (formato 18, Ronda 23):**
+**Base oficial, FX y bajas (formato 18, Rondas 23 y 24):**
 - `existencia.dueno = "FX"` (solo en el Inventario B): partida de **FX**, material que AX lleva en su propio almacén y
   Kardex pero que se descuenta en los vales del Inventario B (LOTE "FX"). Comparte vales, folios y contenedores; sin
   `dueno` = del inventario. El libro de inventario del Inventario B sale sin ellas y el de FX solo con ellas
   (`exportarInventario(…, { dueno })`). La conciliación no las cuenta (`fisicoPorVariante({ dueno })`, `transitoDesde`
   por el dueño del corte).
 - `existencia.activo = false` + `existencia.baja = { fecha, motivo, conteo_id, usuario, en }`: partida **dada de baja**
-  (no existe o estaba repetida). Deja de salir en el inventario y en el Excel, pero no se borra (sus vales y el historial
-  del conteo la siguen viendo). Solo se da de baja si quedó en 0 y no tiene vales posteriores al conteo. Su línea del
-  conteo guarda `activo_anterior` (como al quitar una partida en un conteo).
-- Conteo `tipo: "AUDITORIA"` (conteo de auditoría como base oficial): como un conteo parcial (corte por folio del día del
-  conteo) y además `archivo`, `huella`, `hojas: [{ hoja, dueno }]`, `bajas: [existencia_id]`, `movidas: [{ existencia_id,
-  de, a, orden_anterior }]`; cada línea guarda `dueno_anterior` y `kardex` (las partidas de AX que la contaron). El
-  reporte diario de un día anterior lo deshace todo (`estadoAlCierre`). Auditoría `BASE_OFICIAL`.
+  (sustituida por el Kardex, o el Kardex no la trae). Deja de salir en el inventario y en el Excel, pero no se borra (sus
+  vales y el historial del conteo la siguen viendo). Una partida con vales posteriores al conteo solo se da de baja si
+  hay con qué reemplazarla (sus vales pasan a la nueva); si no, se queda y se avisa. Su línea del conteo guarda
+  `activo_anterior` (como al quitar una partida en un conteo).
+- Conteo `tipo: "AUDITORIA"` (conteo de auditoría, Ronda 24: **reemplaza** lo inventariable): como un conteo parcial
+  (corte por folio del día del conteo) y además `archivo`, `huella`, `hojas: [{ hoja, dueno }]` (las que el usuario unió
+  con el inventario), `nuevos: [existencia_id]` (partidas que salieron del Kardex), `bajas: [existencia_id]`
+  (sustituidas o que el Kardex no trae), `religadas: [{ tipo, vale_id | borrador_id, linea_id, de, a }]` (partidas de
+  vales posteriores al conteo que pasaron de la partida sustituida a la que la reemplaza) y `revision: { np, retiradas }`
+  (las **listas de revisión**: NP que se perdieron, con la partida que quedó, y lo que salió del inventario; texto, para
+  imprimirlas aunque el inventario cambie después). Cada línea guarda `activo_anterior`, `dueno_anterior` y `kardex` (las
+  partidas de AX que la contaron). Los conteos de la Ronda 23 pueden traer `movidas: [{ existencia_id, de, a,
+  orden_anterior }]`. El reporte diario de un día anterior lo deshace todo (`estadoAlCierre`). Auditoría `BASE_OFICIAL`.
 - `corte.hoja` (opcional): la hoja del libro de AX de la que se tomó el corte; `corte.base_oficial`: el conteo de auditoría
   que lo registró.
 La migración solo sube el formato.

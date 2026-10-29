@@ -7558,3 +7558,144 @@ button.mosaico:hover .mosaico-abrir {
   gap: 4px;
   font-size: 0.85rem;
 }
+
+/* ---------------------------------------------------------------- unir hojas con inventarios (Ronda 24)
+   Como el juego de unir parejas: inventarios a la izquierda, hojas del Kardex a la derecha y una línea del
+   color de cada inventario (fijo, no depende del inventario abierto). */
+
+:root {
+  --rel-DLTA: #1f4e8c;
+  --rel-GSM: #6b3fa0;
+  --rel-FX: var(--fx);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --rel-DLTA: #6ea3e8;
+    --rel-GSM: #b99df0;
+  }
+}
+
+:root[data-tema="oscuro"] {
+  --rel-DLTA: #6ea3e8;
+  --rel-GSM: #b99df0;
+}
+
+.auditoria-paso + .auditoria-paso {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+
+.auditoria-paso h3 {
+  margin: 0 0 6px;
+}
+
+.relacionar {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(32px, 96px) minmax(0, 1fr);
+  margin: 12px 0;
+}
+
+.relacionar-lineas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.relacionar-lineas path {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.relacionar-lineas path.rel-DLTA { stroke: var(--rel-DLTA); }
+.relacionar-lineas path.rel-GSM { stroke: var(--rel-GSM); }
+.relacionar-lineas path.rel-FX { stroke: var(--rel-FX); }
+
+.relacionar-columna {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relacionar-item {
+  --rel: var(--borde);
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 2px solid var(--borde);
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.relacionar-item.rel-DLTA { --rel: var(--rel-DLTA); }
+.relacionar-item.rel-GSM { --rel: var(--rel-GSM); }
+.relacionar-item.rel-FX { --rel: var(--rel-FX); }
+
+.relacionar-item small {
+  color: var(--texto-suave);
+}
+
+.relacionar-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.relacionar-item:hover {
+  border-color: var(--rel);
+}
+
+.relacionar-item:active {
+  transform: translateY(2px);
+  border-bottom-width: 2px;
+  margin-bottom: 2px;
+}
+
+.relacionar-item.activo {
+  border-color: var(--rel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rel) 30%, transparent);
+}
+
+.relacionar-item.unido {
+  border-color: var(--rel);
+  background: color-mix(in srgb, var(--rel) 10%, var(--superficie));
+}
+
+.relacionar-pareja {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--rel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relacionar-item { transition: none; }
+  .relacionar-item:active { transform: none; }
+}
+
+.np-anteriores ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.lista-revision + .lista-revision {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--borde);
+}

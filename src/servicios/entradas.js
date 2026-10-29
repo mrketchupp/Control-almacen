@@ -21,6 +21,7 @@ import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, siguien
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
+import { inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { crearRenglon, lugarCorto, renglonDe, ubicacionesSugeridas } from "./inventario.js";
 import { SIN_DIMENSION, claveDeRenglon, disponibles, loteDeRenglon, siguienteFolio } from "./vales.js";
 
@@ -553,6 +554,10 @@ export function validarEntrada(estado, datos, { excluirValeId = null, hoy = hoyI
     const destino = destinoDe(estado, l, indices);
     if (destino.tipo === "pendiente") error(n, "destino", `Partida ${n}: elige a qué partida del inventario o contenedor entra.`);
     if (destino.tipo === "invalido") error(n, "destino", `Partida ${n}: la partida o contenedor elegido ya no existe.`);
+    // GSM / FX: los códigos de 3 dígitos siempre son consumibles (regla del usuario).
+    if (destino.tipo === "nuevo" && destino.ubicacion?.clase === "INV" && soloConsumible(inventarioDe(estado).id, l.codigo)) {
+      error(n, "destino", `Partida ${n}: en ${inventarioDe(estado).id} los códigos de 3 dígitos son consumibles; elige una hoja de consumible.`);
+    }
   });
   if (!errores.some((e) => e.campo === "fecha_recibido")) {
     for (const { conteo, partidas } of conteosDespuesDeRecibir(estado, datos, { excluirValeId, indices })) {

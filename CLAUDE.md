@@ -20,6 +20,10 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   dentro del Inventario B (solo la marca en el inventario y su libro de Excel aparte) y aviso de Kardex equivocado — ver
   "Base oficial y FX" abajo. Lo siguiente (marca FX en vales/entradas, alertas de repetidas y de "recibido sin registrar",
   conteo guiado por el Kardex, resumen de guardia, Kardex esperado) espera a que el usuario deje su inventario correcto.
+- Ronda 24: **el Kardex reemplaza lo inventariable** (en lugar de emparejar uno a uno), el usuario **une las hojas con
+  su inventario** (pantalla de parejas; sin revisar códigos), **listas de revisión** impresas (NP que se pierden y lo que
+  sale), **NP editable** desde Inventario y **códigos de 3 dígitos = consumibles** en el Inventario B y FX — ver "Base
+  oficial y FX" abajo. Entregada, en aceptación.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
@@ -196,29 +200,44 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
   `nombreParaCopia`. Editor `ui/paginas/editorEtiquetas.js` (`EditorDisenos`, pantalla completa) con la lógica sin DOM en
   `impresion/lienzo.js` (zoom, imán, guías, deshacer). En la página: *Hoja y logos* (medidas) y *Editor de diseños*.
 
-## Base oficial y FX (Ronda 23)
-- **Kardex de auditoría** = reporte de AX con una hoja por inventario y columnas `Conteo` / `Conteo Fisico` y `Contenedor`.
-  `leerReporteAx` lee **todas** las hojas (`tablas`; la primera sigue arriba) y, si vienen, `sitio`,
-  `cantidad_financiera`, `conteo`, `contenedor`.
-- `servicios/kardex.js`: `clasificarHojas` (uso "propio" / "FX" / null por el nombre de la hoja o del almacén
-  —`marcaDeHoja`, `diceFx`— y por `coincidencia` de códigos con el inventario: los dos inventarios usan códigos distintos;
-  `COINCIDENCIA_MINIMA`), `hojaParaConciliar` (la conciliación elige la hoja y avisa si es de otro inventario).
-- `servicios/baseOficial.js`: `analizarKardex` (empareja **cada hoja por su lado** con `emparejar`; una variante exacta de
-  una hoja no se sugiere a otra), `planBaseOficial(estado, analisis, decisiones)` (vista previa: `grupos` por variantes
-  compartidas con `partidas` editables, `nuevas`, `porConfirmar`, `soloConsumible`, `sinKardex`, `errores`) y
-  `aplicarBaseOficial` (corrige escrituras a la de AX, conteo AUDITORIA con `corteAlDia`, bajas con `activo_anterior`,
-  nuevas, dueño FX y, opcional, el corte de AX). Reparto: `repartir` (Inventario B/FX: los ya marcados conservan dueño; si
-  no, `repartirEntreDuenos` prueba combinaciones) y `distribuir` (una partida toma el conteo; repartidas que ya suman se
-  quedan; repetidas de la misma variante → el conteo a una y las demás de baja; varias variantes → la diferencia a la
-  mayor). Solo se propone una pareja dudosa si `mismosNumeros`; si no, el usuario elige. **Solo cambia lo inventariable;
-  lo consumible no se toca.** Aplicar dos veces el mismo Kardex no cambia nada (probado con los archivos reales en local).
+## Base oficial y FX (Rondas 23 y 24)
+- **Kardex de auditoría** = reporte de AX (un libro con una hoja por inventario o un archivo por inventario) con columnas
+  `Conteo` / `Conteo Fisico` y `Contenedor`. `leerReporteAx` lee **todas** las hojas (`tablas`; la primera sigue arriba)
+  y, si vienen, `sitio`, `cantidad_financiera`, `conteo`, `contenedor`.
+- **Ronda 24 — qué hoja es de qué inventario lo decide el usuario**: `ui/paginas/auditoria.js` (`Relacionar`, como el
+  juego de unir parejas: DLTA / GSM / FX contra las hojas; colores `--rel-DLTA`, `--rel-GSM`, `--rel-FX`). El Kardex
+  cargado y las parejas viven en `pendiente` (módulo, solo en memoria) para aplicar el otro inventario sin volver a
+  cargarlo: *Ir a …* = `sesion.cambiarInventario(id, { pagina: "#conteo" })`. `servicios/kardex.js` ya no revisa
+  códigos: `marcaDeHoja` (por el nombre) y `hojaParaConciliar` (solo propone; sin aviso ni casilla).
+- `servicios/baseOficial.js` (**reemplazo**): `analizarKardex(estado, hojas, { fecha, folioSalida })` empareja **cada hoja
+  por su lado** (`hojas = [{ hoja, uso: "propio" | "FX", tabla }]`; las líneas de 3 dígitos en el Inventario B / FX van
+  a `porRegla`). `planBaseOficial(estado, analisis, { ubicaciones })`: solo una pareja confirmada de **una** variante
+  conserva su partida (`varianteIdentica`: cuentan las variantes con partidas inventariables vivas y, si las hay, las del
+  mismo dueño; si AX junta varias, la que se escribe exactamente como AX, salvo sin dimensión); una con una, primero el
+  mismo dueño, luego el contenedor del conteo y la cantidad más cercana. Lo demás = `nuevas` con la escritura de AX
+  (`dimensionAx`, `umPara`) en la hoja INV del contenedor anotado (`ubicaciones[clave]` si no existe; si no, donde
+  estaba el código); varias variantes que AX junta → una partida (`junta`). Lo inventariable que no quedó → baja
+  (`sustituidas` si el código viene en el Kardex, `retiradas` si no), solo de los dueños de las hojas unidas; las que
+  tienen vales posteriores pasan sus partidas a la que las reemplaza (`religar`) o, sin reemplazo, quedan en
+  `sinRetirar`. `listaNp` / `listaRetiradas` → `conteo.revision` (texto para imprimir: `impresion/revision.js`,
+  `documentoRevision`; `listasDeRevision`, `npAnteriores`). `porCodigo` = cambios por artículo con impacto en $.
+  **Lo consumible no se toca.** `aplicarBaseOficial` registra el conteo AUDITORIA (`nuevos`, `bajas`, `religadas`,
+  `revision`) y, opcional, el corte de AX. Aplicar dos veces el mismo Kardex no cambia nada (probado con los archivos
+  reales en local; los casos que lo rompían están inventados en la fixture: dos escrituras de AX, Color `S/N`, FX sin
+  dimensión). `esExacto` (conciliación) acepta la dimensión escrita como Tamaño + Color aunque el Color sea `S/N`.
+- **3 dígitos**: `soloConsumible(inventario, codigo)` (`nucleo/inventarios.js`) — en GSM / FX los códigos < 1000 son
+  consumibles: no se aplican del Kardex, no se dan de baja y no se dan de alta en hojas INV (entradas, conteos;
+  `ubicacionesSugeridas` las manda al final). En DLTA no aplica.
+- **NP rápido** en *Inventario*: lápiz en la columna NP (`EditarNp`, `corregirDimensionNp` con la misma dimensión,
+  sugiere `npAnteriores` y los NP del código); tarjeta *Listas de revisión de la auditoría* en *Conteo físico*.
 - FX: `DUENO_FX`, `duenoDe`, `diceFx` en `nucleo/inventarios.js`. `exportarInventario(…, { dueno })`, tipo `INVENTARIO_FX`
   en `Almacen.exportar` con `nombreFx`; `hayPartidasFx`; `fisicoPorVariante({ dueno })` y `transitoDesde` por
-  `corte.dueno`. `filasInventario` ya no lista partidas inactivas y trae `dueno`. UI: `ui/paginas/auditoria.js`
-  (`CargarAuditoria` en *Conteo físico*), pastilla `.pastilla-fx` (tokens `--fx`, `--fx-suave`) y filtro *Material* en
-  *Inventario*. `estadoAlCierre` deshace también dueño, bajas y movidas.
-- Fixture: `generar_kardex` (`KARDEX AUDITORIA SINTETICO 261026.xlsx`, hojas FX, GSM y PRINCIPAL sin nombre de inventario);
-  pruebas `tests/baseOficial.test.js` y Chromium `tests/baseOficial.navegador.mjs`.
+  `corte.dueno`. `filasInventario` ya no lista partidas inactivas y trae `dueno`. Pastilla `.pastilla-fx` (tokens
+  `--fx`, `--fx-suave`) y filtro *Material* en *Inventario*. `estadoAlCierre` deshace también dueño, bajas y nuevas
+  (y las `movidas` de los conteos de la Ronda 23).
+- Fixture: `generar_kardex` (`KARDEX AUDITORIA SINTETICO 261026.xlsx`, hojas FX, GSM y PRINCIPAL sin nombre de
+  inventario) e `inventario_gsm` (códigos de 4 dígitos); pruebas `tests/baseOficial.test.js` y Chromium
+  `tests/baseOficial.navegador.mjs` (unir, imprimir listas, aplicar DLTA y luego GSM en la misma pestaña, NP rápido).
 
 ## Reglas no negociables
 1. **Nunca subir datos reales** (Excel, PDF, respaldos `.zip`, nombres de personal). Solo fixtures sintéticas generadas por `tests/fixtures/generar.py`. Revisa `.gitignore` antes de cada commit.

@@ -139,32 +139,38 @@ parecidos (`renglones`, `clave`, `solicita`, `unidad`…). La herramienta no se 
 6. Aplicar: en cada renglón contado `CANTIDAD` = contado y CONSUMO/INGRESO se reinician; los no capturados conservan su
    conteo anterior. El conteo guarda por renglón lo que había antes y se ve en *Conteos anteriores* con sus diferencias.
 
-### 4.3 Conteo de auditoría como base oficial (Ronda 23)
+### 4.3 Conteo de auditoría: reemplazar lo inventariable (Rondas 23 y 24)
 
-El Kardex de la auditoría (el reporte de AX de cada inventario, una hoja por inventario, con las columnas **Conteo** o
-**Conteo Fisico** y **Contenedor**) se carga en *Conteo físico → Conteo de auditoría (Kardex)*:
-1. **Hojas:** cada hoja se usa en su inventario: la que dice el nombre del inventario o, si ninguna lo dice, la que no dice
-   nombre y tiene más códigos del inventario; la de FX solo en el Inventario B. Los dos inventarios usan códigos
-   distintos: si una hoja casi no tiene códigos del inventario abierto, se avisa y hay que confirmarlo.
+El Kardex de la auditoría (el reporte de AX con las columnas **Conteo** o **Conteo Fisico** y **Contenedor**; un libro con
+una hoja por inventario o un archivo por inventario) se carga en *Conteo físico → Conteo de auditoría (Kardex)*:
+1. **Unir cada hoja con su inventario** (como el juego de unir parejas): a la izquierda Inventario A, Inventario B y FX; a
+   la derecha las hojas de los archivos cargados. Se toca uno de cada lado y queda una línea del color del inventario;
+   tocar otra vez la pareja la separa. **La herramienta no adivina ni revisa códigos**: lo que se une es lo que se usa
+   (los inventarios pueden tener códigos parecidos y cada hoja se registra en su lugar). Lo que no se une no se usa.
 2. **Fecha y corte:** la del nombre del archivo; el corte es el último vale de salida y de entrada de ese día (editable):
    los vales posteriores se descuentan solos del conteo, aunque el almacén ya se haya abierto.
-3. **Vista previa** (nada cambia hasta aplicar):
-   - **Se escriben distinto:** AX y el inventario escriben distinto la dimensión. Solo se propone la partida cuando es muy
-     parecida **y tiene los mismos números** ("0-500 PSI" no es "0-300 PSI"); las demás se eligen (o *partida nueva*). Al
-     confirmar, la variante toma la escritura de AX.
-   - **Cambian** (los de más impacto en $ primero): cada artículo con sus partidas, lo que tenían y lo que quedará
-     (editable). Si el artículo estaba **repetido** (varias partidas de la misma variante que no suman el conteo), el conteo
-     queda en la del contenedor que anotó el conteo y las demás se dan **de baja**. Si ya estaba repartido en dos
-     contenedores y suma el conteo, se queda así. Si el conteo dice otro contenedor, se ofrece *Moverla*.
-   - **FX (Inventario B):** las partidas que cuenta la hoja de FX quedan como de FX. Si el físico tenía las dos en una sola
-     partida, se separan (la de FX, nueva, en el mismo contenedor); si tenía varias, se elige la combinación que deja a cada
-     uno lo que contó su hoja.
-   - **No estaban en tu inventario:** partida nueva en la hoja inventariable del contenedor que anotó el conteo (si no
-     existe, se elige). Las de otro modelo (no INV) o contadas en 0 no se dan de alta.
-   - **Solo en consumible:** el Kardex las contó pero están en una hoja de consumible: **no se tocan** (decisión del usuario).
-   - **Inventariables que el Kardex no trae:** se quedan; las que se comprueba que no existen se marcan *No existe* (baja).
-4. *Aplicar como base oficial*: antes se guarda una copia interna (y un respaldo si hay carpeta). Opcional: guardar el
+3. **Reemplazo** (vista previa; nada cambia hasta aplicar). El Kardex **reemplaza** lo inventariable de las hojas unidas:
+   - **Lo idéntico se queda** (mismo código, dimensión igual a la de AX y una sola variante): conserva su partida, su NP
+     y sus vales y toma el conteo. Si había varias, se queda la del dueño (FX / del inventario), luego la del contenedor
+     que anotó el conteo y luego la de cantidad más cercana.
+   - **Lo demás sale del Kardex:** partida nueva con la escritura de AX en la hoja inventariable del contenedor que anotó
+     el conteo (si no existe, donde estaba el código; si tampoco, se elige). Si AX cuenta junto lo que el inventario
+     separaba por NP (por ejemplo, botoneras sin dimensión con distinto NP), queda **una** partida con el total; el
+     almacenista puede ir a comprobar la que necesite.
+   - **Lo inventariable que no quedó se da de baja**, solo de los dueños de las hojas unidas (sin la hoja de FX, lo de
+     FX no se toca). *Sustituida* si su código viene en el Kardex; *sale* si no viene. Las que tienen vales posteriores
+     al conteo pasan sus partidas de vale a la que las reemplaza; si no hay con qué reemplazarlas, se quedan y se avisa.
+   - **Listas de revisión** (se imprimen antes o después de aplicar): **NP que se pierden** (sustituidas con NP, y con qué
+     partida quedó cada una) y **Salen del inventario** (no vienen en el Kardex). El NP se vuelve a anotar a mano en
+     *Inventario* (lápiz de la columna NP, sugiere los que tenía el código).
+   - **No se tocan:** lo consumible (aunque el Kardex lo cuente) y, en el Inventario B y FX, los códigos de **3 dígitos**
+     (siempre son consumibles; solo los de 4 dígitos son inventariables; en el Inventario A no aplica).
+   - **Cambios por artículo** (los de más impacto en $ primero): cada código con lo que tenía, lo que tendrá y qué pasa
+     con cada partida.
+4. *Reemplazar lo inventariable*: antes se guarda una copia interna (y un respaldo si hay carpeta). Opcional: guardar el
    *Disponible* de AX de la hoja propia como corte de AX de ese día para justificar faltantes en la conciliación.
+5. **El otro inventario:** el Kardex y las parejas se quedan cargados en la pestaña; *Ir a <inventario> para aplicar…*
+   abre el otro y su vista previa sin volver a cargar el archivo. Aplicar otra vez el mismo Kardex no cambia nada.
 
 **Mover material entre contenedores** (*Inventario → Mover*): cantidad y contenedor de destino. El total no cambia; los
 dos renglones quedan como recién contados y el movimiento queda en *Movimientos entre contenedores*.

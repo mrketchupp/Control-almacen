@@ -98,11 +98,11 @@ async function abrirInventario(id) {
   return sesion;
 }
 
-/** Cambia de inventario sin recargar: el otro se abre desde el inicio. */
-async function cambiarInventario(id) {
+/** Cambia de inventario sin recargar: el otro se abre desde el inicio (o en `pagina`, p. ej. "#conteo"). */
+async function cambiarInventario(id, { pagina = "#inicio" } = {}) {
   if (inventarioPorId(id).id === abierta?.almacen.inventario) return abierta;
   await abierta?.compartidos?.terminar(); // que la etapa recién cambiada ya esté guardada
-  if (location.hash && location.hash !== "#inicio") history.replaceState(null, "", "#inicio");
+  if ((location.hash || "#inicio") !== pagina) history.replaceState(null, "", pagina);
   return abrirInventario(id);
 }
 

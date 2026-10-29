@@ -30,6 +30,7 @@ function generar() {
     ax: join(carpeta, "DELTA RIG 91 SINTETICO 050926.xlsx"),
     base: join(carpeta, "VALES DE SALIDA BASE SINTETICO 050926.xlsx"),
     kardex: join(carpeta, "KARDEX AUDITORIA SINTETICO 261026.xlsx"),
+    inventario_gsm: join(carpeta, "INVENTARIO GSM SINTETICO.xlsx"),
     catalogo: datos.catalogo,
     folio_corte: datos.folio_corte,
   };
@@ -56,6 +57,20 @@ export const bytesKardex = () => new Uint8Array(readFileSync(fixtures.kardex));
 export const NOMBRE_KARDEX = "KARDEX AUDITORIA SINTETICO 261026.xlsx";
 export const libroInventario = () => leerInventario(bytesInventario(), "INVENTARIO SINTETICO.xlsx");
 export const libroVales = () => leerVales(bytesVales(), "VALES SINTETICO.xlsm");
+
+export const bytesInventarioGsm = () => new Uint8Array(readFileSync(fixtures.inventario_gsm));
+export const libroInventarioGsm = () => leerInventario(bytesInventarioGsm(), "INVENTARIO GSM SINTETICO.xlsx");
+
+/** Primera carga de GSM con su inventario sintético (códigos de 4 dígitos) y el libro de vales sintético. */
+export function cargaSinteticaGsm(opciones = {}) {
+  return ejecutarPrimeraCarga(libroInventarioGsm(), libroVales(), {
+    folioCorte: FOLIO_CORTE,
+    fechaConteo: "2026-09-03",
+    usuario: "PRUEBA",
+    idInventario: "GSM",
+    ...opciones,
+  });
+}
 
 export function cargaSintetica(opciones = {}) {
   return ejecutarPrimeraCarga(libroInventario(), libroVales(), {

@@ -11,6 +11,7 @@ import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, unidad } from "../nucleo/normalizar.js";
+import { inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { corregirDimensionNp, crearRenglon, describirRenglon, lugarCorto, renglonDe, ubicacionesOrdenadas } from "./inventario.js";
 import { siguienteFolio } from "./vales.js";
 
@@ -191,6 +192,9 @@ export function validarConteo(estado, datos = estado.conteo_en_curso) {
     const n = i + 1;
     if (!Number.isInteger(s.codigo)) error(s.uid, "codigo", `Partida encontrada ${n}: falta el código.`);
     if (!datos.ubicaciones.includes(s.ubicacion_id)) error(s.uid, "ubicacion", `Partida encontrada ${n}: elige el contenedor donde está.`);
+    else if (estado.ubicaciones.find((u) => u.id === s.ubicacion_id)?.clase === "INV" && soloConsumible(inventarioDe(estado).id, s.codigo)) {
+      error(s.uid, "ubicacion", `Partida encontrada ${n}: en ${inventarioDe(estado).id} los códigos de 3 dígitos son consumibles; elige una hoja de consumible.`);
+    }
     const c = dec(s.cantidad);
     if (c === null || c.lte(0)) error(s.uid, "cantidad", `Partida encontrada ${n}: la cantidad debe ser mayor que 0.`);
     if (!unidad(s.um)) error(s.uid, "um", `Partida encontrada ${n}: falta la unidad (UM).`);
