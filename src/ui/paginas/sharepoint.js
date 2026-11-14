@@ -10,7 +10,8 @@ const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado"
  * Exporta un libro: primero "Guardar como" (tiene que abrirse directo desde el clic), luego se
  * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS' | 'AJUSTE'. opciones: { corte }
  * (AAAA-MM-DD, el libro al cierre de ese día) o { corteAx, todos } (solicitud de ajuste).
- * alTerminar recibe { destino, elegido, motivo } (ver Sesion.exportar).
+ * alTerminar recibe { nombre, destino, elegido, motivo, causa } (ver Sesion.exportar). Si no quedó donde
+ * se eligió, se explica con dibujos en una ventana al centro (AvisoNoGuardado) que permite reintentar.
  */
 const enCurso = new Set();
 
@@ -25,7 +26,7 @@ export async function exportarConDialogo(sesion, tipo, alTerminar = null, opcion
     // Se eligió dónde guardar, pero Windows no dejó crear o reemplazar ese archivo (casi siempre está
     // abierto en Excel): el Excel se genera igual y queda en la carpeta de la herramienta o en Descargas.
     console.warn(error);
-    fallo = error.message;
+    fallo = error;
     archivo = undefined;
   }
   if (archivo === null) return; // canceló
@@ -34,6 +35,14 @@ export async function exportarConDialogo(sesion, tipo, alTerminar = null, opcion
     await sesion.tarea("Generando Excel…", async () => {
       const resultado = await sesion.exportar(tipo, archivo, opciones, { fallo });
       if (!resultado.motivo) sesion.avisar("exito", `Listo: ${resultado.destino}`);
+      else {
+        sesion.mostrarDialogo({
+          tipo: "no-guardado",
+          ...resultado,
+          // El clic en "Guardar otra vez" abre «Guardar como» de nuevo (el navegador lo exige desde un clic).
+          reintentar: () => exportarConDialogo(sesion, tipo, alTerminar, opciones),
+        });
+      }
       alTerminar?.(resultado);
     });
   } finally {

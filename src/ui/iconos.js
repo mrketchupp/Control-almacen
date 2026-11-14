@@ -35,6 +35,13 @@ const TRAZOS = {
   lapiz: ["M4 20l4.5-1L19 8.5 15.5 5 5 15.5z", "M13.5 7l3.5 3.5"],
   deshacer: ["M9 14 4 9l5-5", "M4 9h10a6 6 0 0 1 0 12h-2"],
   rehacer: ["M15 14l5-5-5-5", "M20 9H10a6 6 0 0 0 0 12h2"],
+  izquierda: ["M15 5l-7 7 7 7"],
+  derecha: ["M9 5l7 7-7 7"],
+  // Avisos: uno por tipo, dentro de un círculo.
+  ok: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M8 12.5l2.5 2.5L16 9.5"],
+  alerta: ["M12 3.5 2.5 20h19z", "M12 10v4.5", "M12 17.2h.01"],
+  error: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M9 9l6 6", "M15 9l-6 6"],
+  info: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 11v5.5", "M12 7.8h.01"],
 };
 
 /** <Icono nombre="salida" /> */

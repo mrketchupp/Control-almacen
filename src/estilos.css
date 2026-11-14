@@ -1074,15 +1074,17 @@ select {
 /* ---------------------------------------------------------------- avisos flotantes */
 
 .avisos {
-  /* Arriba a la derecha: abajo tapaban el botón "Emitir vale". */
+  /* Arriba al centro, como las notificaciones del teléfono (abajo tapaban el botón "Emitir vale"). */
   position: fixed;
-  right: 16px;
+  left: 50%;
   top: 76px;
   z-index: 70;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-width: min(460px, calc(100vw - 32px));
+  gap: 10px;
+  width: min(460px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 :root[data-avisos="abajo"] .avisos,
@@ -1094,40 +1096,134 @@ body.con-ventana .avisos {
 }
 
 .toast {
-  animation: toast-arriba var(--dur-media) cubic-bezier(0.2, 0.8, 0.2, 1);
+  --color-aviso: var(--primario);
+  position: relative;
+  overflow: hidden;
+  pointer-events: auto;
+  animation: toast-arriba 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.15);
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-radius: var(--radio);
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-left: 4px solid var(--primario);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 14px 12px 14px 14px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--superficie) 92%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid color-mix(in srgb, var(--color-aviso) 35%, var(--borde));
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.22), 0 2px 6px rgba(16, 24, 40, 0.1);
   word-break: break-word;
 }
 
 .toast-exito {
-  border-left-color: var(--ok);
+  --color-aviso: var(--ok);
 }
 
 .toast-advertencia {
-  border-left-color: var(--alerta);
+  --color-aviso: var(--alerta);
 }
 
 .toast-error {
-  border-left-color: var(--error);
+  --color-aviso: var(--error);
 }
 
-.cerrar {
-  border: 0;
-  background: transparent;
+/* Como el ícono de la app en una notificación: un cuadro del color del tipo. */
+.toast-icono {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-aviso);
+  color: var(--sobre-intenso);
+}
+
+.toast-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 1px;
+}
+
+.toast-titulo {
+  font-size: 0.98rem;
+  line-height: 1.25;
+  color: var(--texto);
+}
+
+.toast-cuerpo {
+  font-size: 0.92rem;
+  line-height: 1.4;
   color: var(--texto-suave);
-  font-size: 1.2rem;
-  line-height: 1;
+}
+
+.toast-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Cerrar: un botón redondo que se ve (antes era una × pequeña que nadie encontraba). */
+.toast-cerrar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: -4px -2px 0 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--neutro-suave);
+  color: var(--texto);
   cursor: pointer;
 }
+
+.toast-cerrar:hover {
+  background: var(--borde);
+}
+
+.toast-cerrar:focus-visible {
+  outline: 3px solid var(--primario);
+  outline-offset: 2px;
+}
+
+/* Cuánto le queda antes de quitarse; se detiene mientras se lee. */
+.toast-tiempo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--color-aviso);
+  opacity: 0.7;
+  transform-origin: left;
+  animation: toast-tiempo linear forwards;
+}
+
+.toast:hover .toast-tiempo,
+.toast:focus-within .toast-tiempo {
+  animation-play-state: paused;
+}
+
+:root[data-animaciones="no"] .toast-tiempo {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-tiempo {
+    display: none;
+  }
+}
+
+@keyframes toast-tiempo {
+  to {
+    transform: scaleX(0);
+  }
+}
+
 
 .ocupado {
   position: fixed;
@@ -2592,7 +2688,6 @@ select.con-error {
 .toast-accion {
   flex: none;
   white-space: nowrap;
-  align-self: center;
 }
 
 /* ---------------------------------------------------------------- captura con asistente de IA */
@@ -4102,14 +4197,14 @@ body.con-ventana {
 @keyframes toast-arriba {
   from {
     opacity: 0;
-    transform: translateY(-14px);
+    transform: translateY(-28px) scale(0.96);
   }
 }
 
 @keyframes toast-abajo {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(28px) scale(0.96);
   }
 }
 
@@ -7707,4 +7802,595 @@ button.mosaico:hover .mosaico-abrir {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--borde);
+}
+
+/* ---------------------------------------------------------------- Ronda 27 — aviso con dibujos
+   Cuando el Excel no quedó donde se eligió: la barra de tareas con Excel abierto y el explorador con la
+   carpeta donde sí quedó. Los dibujos (`.ilus`) imitan Windows 11; en oscuro, Windows en modo oscuro. */
+
+.ilus {
+  --ilus-fondo: #ffffff;
+  --ilus-fondo-2: #f3f3f3;
+  --ilus-lado: #f9f9f9;
+  --ilus-borde: #e1e1e1;
+  --ilus-texto: #1f1f1f;
+  --ilus-tenue: #8a8a8a;
+  --ilus-seleccion: #e5e5e5;
+  --ilus-acento: #005fb8;
+  --ilus-nuevo: #cce8ff;
+  --ilus-barra-tareas: rgba(238, 241, 246, 0.92);
+  --ilus-cielo-1: #a9c8f5;
+  --ilus-cielo-2: #dfe9fb;
+  --ilus-cerrar: #c42b1c;
+  --ilus-verde: #107c41;
+  --ilus-verde-2: #33c481;
+  --ilus-amarillo: #ffc83d;
+  --ilus-amarillo-2: #e0a526;
+  --ilus-azul: #0078d4;
+  --ilus-azul-2: #3a96dd;
+  --ilus-verde-azul: #0f8b8d;
+  --ilus-blanco: #ffffff;
+  --ilus-hoja: #ffffff;
+  --ilus-cursor: #111111;
+  --ilus-cursor-borde: #ffffff;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--ilus-borde);
+  background: var(--ilus-fondo);
+  color: var(--ilus-texto);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+  user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .ilus {
+    --ilus-fondo: #202020;
+    --ilus-fondo-2: #2b2b2b;
+    --ilus-lado: #1c1c1c;
+    --ilus-borde: #3a3a3a;
+    --ilus-texto: #f0f0f0;
+    --ilus-tenue: #9a9a9a;
+    --ilus-seleccion: #383838;
+    --ilus-acento: #60cdff;
+    --ilus-nuevo: #164466;
+    --ilus-barra-tareas: rgba(28, 28, 28, 0.92);
+    --ilus-cielo-1: #14305c;
+    --ilus-cielo-2: #26406b;
+    --ilus-hoja: #2b2b2b;
+    --ilus-cursor: #ffffff;
+    --ilus-cursor-borde: #111111;
+  }
+}
+
+:root[data-tema="oscuro"] .ilus {
+  --ilus-fondo: #202020;
+  --ilus-fondo-2: #2b2b2b;
+  --ilus-lado: #1c1c1c;
+  --ilus-borde: #3a3a3a;
+  --ilus-texto: #f0f0f0;
+  --ilus-tenue: #9a9a9a;
+  --ilus-seleccion: #383838;
+  --ilus-acento: #60cdff;
+  --ilus-nuevo: #164466;
+  --ilus-barra-tareas: rgba(28, 28, 28, 0.92);
+  --ilus-cielo-1: #14305c;
+  --ilus-cielo-2: #26406b;
+  --ilus-hoja: #2b2b2b;
+  --ilus-cursor: #ffffff;
+  --ilus-cursor-borde: #111111;
+}
+
+.ilus-svg { display: block; flex: none; overflow: visible; }
+.ilus .f-azul { fill: var(--ilus-azul); }
+.ilus .f-azul2 { fill: var(--ilus-azul-2); }
+.ilus .f-verde { fill: var(--ilus-verde); }
+.ilus .f-verde2 { fill: var(--ilus-verde-2); }
+.ilus .f-verde-azul { fill: var(--ilus-verde-azul); }
+.ilus .f-amarillo { fill: var(--ilus-amarillo); }
+.ilus .f-amarillo2 { fill: var(--ilus-amarillo-2); }
+.ilus .f-blanco { fill: var(--ilus-blanco); }
+.ilus .f-hoja { fill: var(--ilus-hoja); }
+.ilus .f-texto { fill: var(--ilus-texto); }
+.ilus .f-fondo-barra { fill: var(--ilus-fondo-2); }
+.ilus .f-cursor { fill: var(--ilus-cursor); stroke: var(--ilus-cursor-borde); stroke-width: 1.4; stroke-linejoin: round; }
+.ilus svg [class^="t-"], .ilus svg [class*=" t-"] { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ilus .t-texto { stroke: var(--ilus-texto); }
+.ilus .t-tenue { stroke: var(--ilus-tenue); }
+.ilus .t-blanco { stroke: var(--ilus-blanco); stroke-width: 2; }
+.ilus .t-blanco-tenue { stroke: var(--ilus-blanco); opacity: 0.75; }
+.ilus .t-azul { stroke: var(--ilus-azul); }
+.ilus .t-verde-azul { stroke: var(--ilus-verde-azul); }
+.ilus .t-borde { stroke: var(--ilus-tenue); stroke-width: 1.1; }
+.ilus .grueso { stroke-width: 2.4; }
+.ilus .f-hoja.t-borde { fill: var(--ilus-hoja); }
+
+/* 1 — el escritorio con la barra de tareas abajo */
+.ilus-escritorio {
+  height: 208px;
+  background: radial-gradient(120% 90% at 30% 10%, var(--ilus-cielo-2), var(--ilus-cielo-1));
+}
+
+.ilus-tareas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  background: var(--ilus-barra-tareas);
+  border-top: 1px solid var(--ilus-borde);
+}
+
+.ilus-tareas-centro {
+  display: flex;
+  gap: 2px;
+}
+
+.ilus-app {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
+}
+
+/* La rayita de "programa abierto"; más larga y azul en el que está al frente. */
+.ilus-app.abierta::after {
+  content: "";
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  width: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ilus-tenue);
+  transform: translateX(-50%);
+}
+
+.ilus-app.activa {
+  background: var(--ilus-seleccion);
+}
+
+.ilus-app.activa::after {
+  width: 16px;
+  background: var(--ilus-acento);
+}
+
+.ilus-app.resaltada::before,
+.ilus-bandeja-nube.resaltada::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 10px;
+  border: 2px solid var(--alerta);
+  animation: ilus-latido 1.6s ease-in-out infinite;
+}
+
+@keyframes ilus-latido {
+  50% {
+    opacity: 0.25;
+    transform: scale(1.08);
+  }
+}
+
+/* Vista previa de la ventana de Excel al pasar el mouse por su ícono, con la ✕ para cerrarla. */
+.ilus-vista {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  width: 200px;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  background: var(--ilus-fondo-2);
+  border: 1px solid var(--ilus-borde);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  overflow: visible;
+}
+
+.ilus-vista-cabeza {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 8px;
+}
+
+.ilus-vista-nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
+.ilus-vista-x {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--ilus-cerrar);
+  color: var(--ilus-blanco);
+  font-size: 11px;
+}
+
+.ilus-cursor {
+  position: absolute;
+  right: -8px;
+  top: 14px;
+}
+
+.ilus-vista-hoja {
+  display: block;
+  height: 72px;
+  margin: 0 6px 6px;
+  border-radius: 4px;
+  background:
+    linear-gradient(var(--ilus-verde), var(--ilus-verde)) top / 100% 10px no-repeat,
+    repeating-linear-gradient(90deg, transparent 0 27px, var(--ilus-borde) 27px 28px),
+    repeating-linear-gradient(transparent 0 11px, var(--ilus-borde) 11px 12px),
+    var(--ilus-hoja);
+}
+
+.ilus-bandeja {
+  position: absolute;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ilus-bandeja-nube {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+}
+
+.ilus-bandeja-extra {
+  display: flex;
+  gap: 6px;
+}
+
+.ilus-hora {
+  font-size: 10px;
+  text-align: right;
+  line-height: 1.25;
+}
+
+.ilus-gira {
+  transform-origin: 18px 17px;
+  animation: ilus-gira 2.4s linear infinite;
+}
+
+@keyframes ilus-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 2 — el explorador de archivos */
+.ilus-explorador {
+  display: flex;
+  flex-direction: column;
+  height: 208px;
+}
+
+.ilus-exp-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--ilus-fondo-2);
+}
+
+.ilus-exp-nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ilus-exp-controles {
+  display: flex;
+  gap: 14px;
+  color: var(--ilus-tenue);
+  font-size: 11px;
+}
+
+.ilus-exp-ruta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--ilus-borde);
+  background: var(--ilus-fondo-2);
+}
+
+.ilus-exp-flechas {
+  color: var(--ilus-tenue);
+  letter-spacing: 4px;
+}
+
+.ilus-exp-migas {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--ilus-fondo);
+  border: 1px solid var(--ilus-borde);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ilus-exp-sep {
+  color: var(--ilus-tenue);
+}
+
+.ilus-exp-cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.ilus-exp-lado {
+  flex: none;
+  width: 42%;
+  max-width: 150px;
+  margin: 0;
+  padding: 6px 4px;
+  list-style: none;
+  background: var(--ilus-lado);
+  border-right: 1px solid var(--ilus-borde);
+}
+
+.ilus-exp-lado li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.ilus-exp-lado li > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ilus-exp-lado li.activo {
+  background: var(--ilus-seleccion);
+  font-weight: 600;
+}
+
+/* La rayita azul del acceso elegido, como en Windows 11. */
+.ilus-exp-lado li.activo::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--ilus-acento);
+}
+
+.ilus-exp-lado li.ilus-exp-raya {
+  height: 0;
+  margin: 4px 6px;
+  padding: 0;
+  border-top: 1px solid var(--ilus-borde);
+}
+
+.ilus-pin {
+  margin-left: auto;
+}
+
+.ilus-exp-lista {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.ilus-exp-grupo {
+  margin: 2px 0 4px;
+  color: var(--ilus-tenue);
+  font-size: 11px;
+}
+
+.ilus-exp-fila {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 4px;
+}
+
+.ilus-exp-fila.nuevo {
+  background: var(--ilus-nuevo);
+  outline: 2px solid var(--ilus-acento);
+  outline-offset: -2px;
+  font-weight: 600;
+}
+
+.ilus-exp-archivo {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ilus-exp-fila.tenue {
+  opacity: 0.55;
+}
+
+.ilus-exp-barra {
+  flex: 1;
+  height: 7px;
+  border-radius: 4px;
+  background: var(--ilus-seleccion);
+}
+
+.ilus-exp-barra.corta {
+  flex: 0 0 55%;
+}
+
+/* Otra causa (SmartScreen, permiso, disco lleno…): un ícono grande. */
+.ilus-causa {
+  display: grid;
+  place-items: center;
+  height: 208px;
+  background: var(--ilus-fondo-2);
+}
+
+.ilus-causa-icono {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 24px;
+  background: var(--alerta-suave);
+  color: var(--alerta);
+}
+
+/* La ventana */
+.ventana.ventana-no-guardado {
+  width: min(820px, 100%);
+}
+
+.ventana-no-guardado .ventana-cabeza h2 {
+  font-size: 1.25rem;
+}
+
+.no-guardado-archivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  margin: 0 0 16px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--alerta-suave);
+  color: var(--alerta);
+  font-family: var(--mono);
+  font-size: 0.88rem;
+}
+
+.no-guardado-archivo span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.no-guardado-pasos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
+}
+
+.no-guardado-paso {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+}
+
+.paso-numero {
+  position: absolute;
+  z-index: 1;
+  top: -8px;
+  left: -8px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primario);
+  color: var(--sobre-primario);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.no-guardado-paso figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.no-guardado-paso figcaption strong {
+  font-size: 1.1rem;
+}
+
+.no-guardado-paso figcaption span {
+  color: var(--texto-suave);
+  font-size: 0.92rem;
+}
+
+.no-guardado-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* El botón para cerrar: grande y a todo lo ancho. */
+.boton.no-guardado-cerrar {
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 14px;
+}
+
+.no-guardado-acciones .boton-secundario {
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+/* Este aviso ya trae su botón grande para cerrar. */
+.ventana-no-guardado .ventana-cerrar {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .ilus-escritorio,
+  .ilus-explorador,
+  .ilus-causa {
+    height: 176px;
+  }
+
+  /* En el teléfono caben los cuatro accesos fijados si se quita "Inicio". */
+  .ilus-exp-lado li:nth-child(-n + 2) {
+    display: none;
+  }
+
+  .ilus-bandeja-extra {
+    display: none;
+  }
+
+  .ilus-vista {
+    width: 170px;
+  }
 }

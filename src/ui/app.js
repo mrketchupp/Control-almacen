@@ -5,6 +5,7 @@ import { Boton, ContextoSesion, Lista, Ventana, useSesion } from "./componentes.
 import { html } from "./html.js";
 import { MenusContextuales } from "./menuContextual.js";
 import { Icono } from "./iconos.js";
+import { AvisoNoGuardado } from "./avisoGuardado.js";
 import { SelectorInventario } from "./inventario.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
 import { PaginaExportar } from "./paginas/exportar.js";
@@ -113,27 +114,67 @@ function EstadoGuardado() {
   </a>`;
 }
 
+// Como las notificaciones de iOS y Android: ícono del tipo, título corto que se entiende de un vistazo, el
+// detalle debajo y las acciones como botones. El tiempo se ve en una barra y se detiene mientras se lee.
+const TIPOS_AVISO = {
+  exito: { titulo: "Listo", icono: "ok" },
+  info: { titulo: "Aviso", icono: "info" },
+  advertencia: { titulo: "Atención", icono: "alerta" },
+  error: { titulo: "No se pudo", icono: "error" },
+};
+
+/** "Listo: marcado como subido." con título "Listo" → "Marcado como subido." (sin repetir el título). */
+export function cuerpoDeAviso(titulo, texto) {
+  const sin = String(texto ?? "").replace(new RegExp(`^${titulo}\\s*[:.,!]\\s*`, "i"), "");
+  return sin ? sin[0].toUpperCase() + sin.slice(1) : String(texto ?? "");
+}
+
+function Aviso({ aviso }) {
+  const sesion = useSesion();
+  const tipo = TIPOS_AVISO[aviso.tipo] ?? TIPOS_AVISO.info;
+  const pausar = () => sesion.pausarAviso(aviso.id);
+  const reanudar = (e) => {
+    if (e.type === "focusout" && e.currentTarget.contains(e.relatedTarget)) return;
+    sesion.reanudarAviso(aviso.id);
+  };
+  return html`<div
+    class=${`toast toast-${aviso.tipo}`}
+    role=${aviso.tipo === "error" ? "alert" : "status"}
+    onMouseEnter=${pausar}
+    onMouseLeave=${reanudar}
+    onFocusIn=${pausar}
+    onFocusOut=${reanudar}
+  >
+    <span class="toast-icono"><${Icono} nombre=${tipo.icono} tam=${22} /></span>
+    <div class="toast-texto">
+      <strong class="toast-titulo">${tipo.titulo}</strong>
+      <span class="toast-cuerpo">${cuerpoDeAviso(tipo.titulo, aviso.texto)}</span>
+      ${aviso.accion
+        ? html`<div class="toast-acciones">
+            <button
+              type="button"
+              class="boton boton-secundario toast-accion"
+              onClick=${() => {
+                sesion.quitarAviso(aviso.id);
+                sesion.tarea("Recuperando…", () => aviso.accion.alHacer());
+              }}
+            >
+              ${aviso.accion.etiqueta}
+            </button>
+          </div>`
+        : null}
+    </div>
+    <button type="button" class="toast-cerrar" aria-label="Cerrar aviso" title="Cerrar aviso" onClick=${() => sesion.quitarAviso(aviso.id)}>
+      <${Icono} nombre="cerrar" tam=${20} />
+    </button>
+    ${aviso.duracion ? html`<span class="toast-tiempo" style=${`animation-duration: ${aviso.duracion}ms`} aria-hidden="true"></span>` : null}
+  </div>`;
+}
+
 function Avisos() {
   const sesion = useSesion();
   return html`<div class="avisos" aria-live="polite">
-    ${sesion.avisos.map(
-      (a) => html`<div key=${a.id} class=${`toast toast-${a.tipo}`}>
-        <span>${a.texto}</span>
-        ${a.accion
-          ? html`<button
-              type="button"
-              class="boton boton-secundario boton-chico toast-accion"
-              onClick=${() => {
-                sesion.quitarAviso(a.id);
-                sesion.tarea("Recuperando…", () => a.accion.alHacer());
-              }}
-            >
-              ${a.accion.etiqueta}
-            </button>`
-          : null}
-        <button type="button" class="cerrar" aria-label="Cerrar" onClick=${() => sesion.quitarAviso(a.id)}>×</button>
-      </div>`,
-    )}
+    ${sesion.avisos.map((a) => html`<${Aviso} key=${a.id} aviso=${a} />`)}
   </div>`;
 }
 
@@ -365,6 +406,7 @@ function Marco() {
     ${seccion ? html`<${AjustesYMas} seccion=${seccion} alCerrar=${cerrarMas} />` : null}
     ${sesion.ocupado ? html`<div class="ocupado" role="status"><div class="giro"></div>${sesion.ocupado}</div>` : null}
     <${Avisos} />
+    ${sesion.dialogo?.tipo === "no-guardado" ? html`<${AvisoNoGuardado} dialogo=${sesion.dialogo} />` : null}
   </div>`;
 }
 

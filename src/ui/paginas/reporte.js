@@ -1,8 +1,8 @@
 import { useMemo, useState } from "preact/hooks";
-import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
+import { fmtFecha, hoyIso, sumarDias } from "../../nucleo/fechas.js";
 import { hayPartidasFx } from "../../servicios/consultas.js";
 import { describirCorte } from "../../servicios/corte.js";
-import { fechasConVales, reporteDelDia } from "../../servicios/reporte.js";
+import { reporteDelDia } from "../../servicios/reporte.js";
 import { valesPorEnviar } from "../../servicios/vales.js";
 import { Bento, Boton, Pastilla, Tabla, useSesion } from "../componentes.js";
 import { html } from "../html.js";
@@ -62,12 +62,10 @@ export function PaginaReporte() {
     history.replaceState(null, "", `#reporte/${f}`);
   };
   const reporte = useMemo(() => reporteDelDia(estado, fecha), [estado, fecha]);
-  const fechas = useMemo(() => fechasConVales(estado), [estado.vales]);
   const pendientesTotales = useMemo(() => valesPorEnviar(estado).length, [estado]);
-  const anterior = fechas.find((f) => f < fecha);
-  // Después del último día con vales, ▶ lleva a hoy (aunque hoy todavía no haya vales).
-  const siguiente = [...fechas].reverse().find((f) => f > fecha && f <= hoy) ?? (fecha < hoy ? hoy : null);
-  const tituloSiguiente = siguiente === hoy && !fechas.includes(hoy) ? "Hoy" : "Día siguiente con vales";
+  // ◀ ▶ van de un día en un día (aunque ese día no tenga vales); ▶ llega hasta hoy.
+  const anterior = sumarDias(fecha, -1);
+  const siguiente = fecha < hoy ? sumarDias(fecha, 1) : null;
   const { corte } = reporte;
   const nombreVales = sesion.almacen.nombreExportacion("VALES", fecha);
   const nombreInventario = sesion.almacen.nombreExportacion("INVENTARIO", fecha);
@@ -77,12 +75,12 @@ export function PaginaReporte() {
 
   return html`
     <div class="barra-fecha">
-      <${Boton} tipo="texto" disabled=${!anterior} onClick=${() => setFecha(anterior)} title="Día anterior con vales" aria-label="Día anterior con vales">◀<//>
+      <${Boton} tipo="texto" onClick=${() => setFecha(anterior)} title=${`Día anterior (${fmtFecha(anterior)})`} aria-label="Día anterior"><${Icono} nombre="izquierda" tam=${20} /><//>
       <label class="fecha-grande">
         <span class="nota">Día del reporte</span>
         <input type="date" value=${fecha} max=${hoy} onChange=${(e) => setFecha(e.currentTarget.value)} aria-label="Fecha del reporte" />
       </label>
-      <${Boton} tipo="texto" disabled=${!siguiente} onClick=${() => setFecha(siguiente)} title=${tituloSiguiente} aria-label=${tituloSiguiente}>▶<//>
+      <${Boton} tipo="texto" disabled=${!siguiente} onClick=${() => setFecha(siguiente)} title=${siguiente ? `Día siguiente (${fmtFecha(siguiente)})` : "Ya es hoy"} aria-label="Día siguiente"><${Icono} nombre="derecha" tam=${20} /><//>
       <span class="nota">${diaSemana(fecha)} ${fmtFecha(fecha)}${fecha === hoy ? " · hoy" : ""}</span>
       ${fecha !== hoy ? html`<${Boton} tipo="texto" onClick=${() => setFecha(hoy)}>Hoy<//>` : null}
     </div>

@@ -4,7 +4,7 @@
 // cancelar y no pasaba nada después de elegir la carpeta.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ErrorEscritura, canceloDialogo, elegirDondeGuardar, escribirEnArchivo, explicarErrorEscritura } from "../src/almacen/archivos.js";
+import { ErrorEscritura, causaDeError, canceloDialogo, elegirDondeGuardar, escribirEnArchivo, explicarErrorEscritura } from "../src/almacen/archivos.js";
 import { Sesion } from "../src/ui/sesion.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import { hoyIso } from "../src/nucleo/fechas.js";
@@ -20,6 +20,20 @@ test("solo es cancelar el AbortError con el mensaje de siempre (o sin mensaje)",
   assert.equal(canceloDialogo(domError("AbortError", "Blocked by Safe Browsing.")), false);
   assert.equal(canceloDialogo(domError("NotReadableError", "The requested file could not be read")), false);
   assert.equal(canceloDialogo(null), false);
+});
+
+test("cada error trae la causa que decide el dibujo del aviso", () => {
+  assert.equal(causaDeError(domError("NotReadableError")), "abierto");
+  assert.equal(causaDeError(domError("NoModificationAllowedError")), "abierto");
+  assert.equal(causaDeError(domError("AbortError", "Failed to create or truncate file")), "abierto");
+  assert.equal(causaDeError(domError("AbortError", "Blocked by Safe Browsing.")), "bloqueado");
+  assert.equal(causaDeError(domError("InvalidStateError")), "sincronizando");
+  assert.equal(causaDeError(domError("NotAllowedError")), "permiso");
+  assert.equal(causaDeError(domError("QuotaExceededError")), "espacio");
+  assert.equal(causaDeError(domError("NotFoundError")), "carpeta");
+  assert.equal(causaDeError(new Error("otra cosa")), "otro");
+  assert.equal(causaDeError(new ErrorEscritura("x", { cause: domError("InvalidStateError") })), "sincronizando");
+  assert.equal(new ErrorEscritura("quedó incompleto", { causa: "otro" }).causa, "otro");
 });
 
 test("los errores de archivo se explican en palabras del usuario", () => {
@@ -124,17 +138,18 @@ async function sesionConCarpeta(permiso = "granted") {
   return sesion;
 }
 
-test("bloqueado al escribir donde se eligió: el Excel queda en la carpeta de la herramienta y el aviso no se quita", async () => {
+test("bloqueado al escribir donde se eligió: el Excel queda en la carpeta de la herramienta y se dice por qué", async () => {
   const sesion = await sesionConCarpeta();
   const bloqueado = { name: "VALES DE SALIDA GSM.xlsm", createWritable: async () => { throw domError("NoModificationAllowedError"); } };
   const r = await sesion.exportar("VALES", bloqueado, { corte: FECHA_REPORTE_GSM });
   assert.equal(r.elegido, false);
   assert.match(r.motivo, /abierto en Excel/);
+  assert.equal(r.causa, "abierto");
+  assert.equal(r.nombre, "VALES DE SALIDA GSM.xlsm");
   assert.equal(r.destino, `ControlAlmacen/exportaciones/${hoyIso()}/VALES DE SALIDA GSM.xlsm`);
   assert.deepEqual(folios(ruta(sesion.carpeta, "exportaciones", hoyIso(), "VALES DE SALIDA GSM.xlsm").datos), TODOS);
-  const [aviso] = sesion.avisos;
-  assert.equal(aviso.tipo, "advertencia");
-  assert.match(aviso.texto, /No se guardó donde elegiste: .*abierto en Excel.*quedó en ControlAlmacen\/exportaciones\//);
+  // Lo explica la ventana con dibujos (exportarConDialogo), no un aviso de texto.
+  assert.deepEqual(sesion.avisos, []);
   // Queda registrada la exportación con el lugar donde de verdad quedó, y se hizo el respaldo.
   assert.equal(sesion.estado.exportaciones.at(-1).archivo, r.destino);
   assert.equal(ruta(sesion.carpeta, "respaldos").hijos.size, 1);
@@ -142,11 +157,13 @@ test("bloqueado al escribir donde se eligió: el Excel queda en la carpeta de la
 
 test("falló al elegirlo (abierto en Excel): se guarda en la carpeta sin volver a pedir permiso", async () => {
   const sesion = await sesionConCarpeta();
-  const r = await sesion.exportar("INVENTARIO", undefined, { corte: FECHA_REPORTE_GSM }, { fallo: "Windows no dejó crear o reemplazar «x»" });
+  const fallo = new ErrorEscritura("Windows no dejó crear o reemplazar «x»", { cause: domError("AbortError", "Failed to create or truncate file") });
+  const r = await sesion.exportar("INVENTARIO", undefined, { corte: FECHA_REPORTE_GSM }, { fallo });
   assert.equal(r.elegido, false);
+  assert.equal(r.motivo, fallo.message);
+  assert.equal(r.causa, "abierto");
   assert.match(r.destino, new RegExp(`^ControlAlmacen/exportaciones/${hoyIso()}/INVENTARIO GSM .*231026\\.xlsx$`));
   assert.deepEqual(sesion.carpeta.pedidos, []);
-  assert.equal(sesion.avisos.filter((a) => a.tipo === "advertencia").length, 1);
 });
 
 test("falló al elegirlo y la carpeta no tiene permiso: no lo pide (sin clic lo negaría) y descarga", async (t) => {
@@ -162,15 +179,48 @@ test("falló al elegirlo y la carpeta no tiene permiso: no lo pide (sin clic lo 
   assert.deepEqual(descargas, ["VALES DE SALIDA GSM.xlsm"]);
   assert.deepEqual(sesion.carpeta.pedidos, []);
   assert.equal(sesion.permiso, "prompt");
-  assert.match(sesion.avisos[0].texto, /quedó en tu carpeta de Descargas/);
+  assert.equal(r.causa, "otro"); // un texto sin error detrás
 });
 
 test("si se pudo escribir donde se eligió: resultado elegido, sin avisos de advertencia", async () => {
   const sesion = await sesionConCarpeta();
   const elegido = await directorio("OneDrive").getFileHandle("VALES DE SALIDA GSM.xlsm", { create: true });
   const r = await sesion.exportar("VALES", elegido, { corte: FECHA_REPORTE_GSM });
-  assert.deepEqual(r, { destino: "VALES DE SALIDA GSM.xlsm", elegido: true, motivo: null });
+  assert.deepEqual(r, { nombre: "VALES DE SALIDA GSM.xlsm", destino: "VALES DE SALIDA GSM.xlsm", elegido: true, motivo: null, causa: null });
   assert.deepEqual(folios(elegido.datos), TODOS);
   assert.deepEqual(sesion.avisos.filter((a) => a.tipo !== "exito"), []);
   assert.equal(sesion.exportoConDialogo, true);
+});
+
+test("avisos: se quitan solos a su tiempo, se detienen mientras se leen y no pasan de tres", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  const sesion = await sesionConCarpeta();
+  sesion.avisar("exito", "uno");
+  const [uno] = sesion.avisos;
+  assert.equal(uno.duracion, 6000);
+  t.mock.timers.tick(3000);
+  sesion.pausarAviso(uno.id);
+  t.mock.timers.tick(60000);
+  assert.equal(sesion.avisos.length, 1, "en pausa no se quita");
+  sesion.reanudarAviso(uno.id);
+  t.mock.timers.tick(2999);
+  assert.equal(sesion.avisos.length, 1);
+  t.mock.timers.tick(1);
+  assert.equal(sesion.avisos.length, 0, "le quedaban 3 s");
+  sesion.avisar("error", "no se quita solo");
+  for (const texto of ["a", "b", "c"]) sesion.avisar("info", texto);
+  assert.deepEqual(sesion.avisos.map((a) => a.texto), ["a", "b", "c"]);
+  t.mock.timers.tick(6000);
+  assert.deepEqual(sesion.avisos, []);
+});
+
+test("el diálogo con dibujos se muestra y se cierra desde la sesión", async () => {
+  const sesion = await sesionConCarpeta();
+  let cambios = 0;
+  sesion.suscribir(() => cambios++);
+  sesion.mostrarDialogo({ tipo: "no-guardado", nombre: "x.xlsx" });
+  assert.equal(sesion.dialogo.nombre, "x.xlsx");
+  sesion.cerrarDialogo();
+  assert.equal(sesion.dialogo, null);
+  assert.equal(cambios, 2);
 });

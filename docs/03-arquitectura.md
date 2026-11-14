@@ -202,7 +202,7 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
   aceptar la ventana y rechaza con `AbortError` tanto al cancelar como cuando falla (mismo nombre, otro mensaje), así
   que `canceloDialogo` solo toma como cancelar el mensaje de siempre. Si el archivo elegido no se puede crear o escribir
   (abierto en Excel, OneDrive, SmartScreen), `Sesion.exportar` lo guarda en `exportaciones/AAAA-MM-DD` de la carpeta de
-  la herramienta (sin pedir permiso de nuevo) o en Descargas, con aviso persistente; devuelve `{ destino, elegido, motivo }`.
+  la herramienta (sin pedir permiso de nuevo) o en Descargas, y devuelve `{ nombre, destino, elegido, motivo, causa }`; `exportarConDialogo` lo explica en una ventana con dibujos (`ui/avisoGuardado.js`, `ui/ilustraciones.js`).
 - La impresión de vales y hojas de conteo genera HTML propio. La
   interfaz las inserta en `#area-impresion` y llama `window.print()`; Edge ofrece imprimir o *Guardar como PDF*. No se
   usa ninguna biblioteca de PDF ni conexión de red.

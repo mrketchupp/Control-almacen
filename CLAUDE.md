@@ -39,6 +39,13 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   Pruebas `guardarComo.test.js` (Sesion con carpeta en memoria: el Chromium de pruebas se cierra al guardar un
   directorio en IndexedDB) y `guardarComo.navegador.mjs`. En el contenedor de la nube, las pruebas `.navegador.mjs`
   corren con `PLAYWRIGHT_MODULE=/opt/node-tools/node_modules/playwright/index.mjs`.
+- Ronda 27: ◀ ▶ del reporte = ±1 día (`sumarDias`; ▶ hasta hoy). Avisos (`app.js` `Aviso`, `TIPOS_AVISO`,
+  `cuerpoDeAviso` quita el título repetido): arriba al centro, ícono por tipo (`ok`, `alerta`, `error`, `info` en
+  `iconos.js`), cerrar de 40 px, barra `.toast-tiempo` y `Sesion.pausarAviso` / `reanudarAviso` (mouse o foco).
+  «No se guardó donde elegiste»: `exportarConDialogo` llama `sesion.mostrarDialogo({ tipo: "no-guardado", nombre,
+  destino, motivo, causa, reintentar })` → `ui/avisoGuardado.js` (`AvisoNoGuardado`, `CAUSAS`) con los dibujos de
+  `ui/ilustraciones.js` (`BarraDeTareas`, `Explorador`, `ubicacionDe`; colores en variables de `.ilus`, claro y oscuro).
+  `causaDeError` / `ErrorEscritura.causa` en `almacen/archivos.js`. `Sesion.exportar` ya no avisa con texto.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

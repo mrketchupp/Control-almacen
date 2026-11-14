@@ -319,6 +319,14 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 27 — avisos que se entiendan.** Reporte diario: ◀ ▶ van de un día en un día (antes saltaban al día
+con vales). Avisos: como las notificaciones de iOS / Android (arriba al centro, ícono del tipo en un cuadro de
+color, título corto —Listo, Atención, No se pudo, Aviso—, el detalle debajo, acciones como botones), botón redondo
+de 40 px para cerrar, barra del tiempo que les queda y pausa mientras el mouse o el teclado están encima. Cuando el
+Excel no quedó donde se eligió: ventana al centro con dibujos propios de Windows 11 (barra de tareas con Excel
+abierto y la ✕ de su vista previa; explorador con los accesos fijados y la carpeta donde quedó), **Cerrar aviso**
+grande y **Ya lo cerré: guardar otra vez**. **Aplicado.**
+
 **Ronda 26 — reporte diario que no se guardaba.** Reporte: el libro de vales no reflejaba en DIARIO los vales
 de la herramienta, el inventario del día no se guardaba y, tras elegir la carpeta en el explorador, no pasaba nada.
 Causa: Edge crea o vacía el archivo elegido en cuanto se acepta «Guardar como»; si Windows no lo deja (el libro está

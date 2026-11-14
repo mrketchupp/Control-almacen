@@ -45,8 +45,3 @@ export function reporteDelDia(estado, fecha) {
     porSubir: valesPorEnviar(estado, { hastaFolio: corteSalida }),
   };
 }
-
-/** Fechas con vales de salida, de la más reciente a la más antigua (para saltar entre días). */
-export function fechasConVales(estado) {
-  return [...new Set(estado.vales.filter((v) => v.tipo === "SALIDA" && v.estado === "EMITIDO" && v.fecha).map((v) => v.fecha))].sort().reverse();
-}

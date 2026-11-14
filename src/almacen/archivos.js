@@ -40,7 +40,40 @@ export function canceloDialogo(error) {
   return error?.name === "AbortError" && (!error.message || /user aborted|aborted a request|cancel/i.test(error.message));
 }
 
-export class ErrorEscritura extends Error {}
+/**
+ * Error al guardar, explicado. `causa` dice qué dibujar en el aviso: 'abierto' (Excel u otro programa lo
+ * tiene), 'sincronizando' (OneDrive), 'bloqueado' (SmartScreen), 'permiso', 'espacio', 'carpeta' u 'otro'.
+ */
+export class ErrorEscritura extends Error {
+  constructor(mensaje, { cause, causa } = {}) {
+    super(mensaje, cause === undefined ? undefined : { cause });
+    this.causa = causa ?? causaDeError(cause);
+  }
+}
+
+/** Código de la causa de un error de escritura del navegador (ver ErrorEscritura). */
+export function causaDeError(error) {
+  if (error instanceof ErrorEscritura) return error.causa;
+  switch (error?.name) {
+    case "NoModificationAllowedError":
+    case "InvalidModificationError":
+    case "NotReadableError":
+      return "abierto";
+    case "AbortError":
+      return /safe ?browsing|smartscreen/i.test(error.message ?? "") ? "bloqueado" : "abierto";
+    case "InvalidStateError":
+      return "sincronizando";
+    case "NotAllowedError":
+    case "SecurityError":
+      return "permiso";
+    case "QuotaExceededError":
+      return "espacio";
+    case "NotFoundError":
+      return "carpeta";
+    default:
+      return "otro";
+  }
+}
 
 /**
  * Ventana "Guardar como" del explorador de archivos. Recuerda la última carpeta usada.
@@ -113,7 +146,7 @@ export async function escribirEnArchivo(archivo, datos) {
       }
       if (typeof archivo.getFile === "function") {
         const escrito = await archivo.getFile();
-        if (escrito.size !== datos.length) throw new ErrorEscritura(`«${archivo.name}» quedó incompleto`);
+        if (escrito.size !== datos.length) throw new ErrorEscritura(`«${archivo.name}» quedó incompleto`, { causa: "otro" });
       }
       return archivo.name;
     } catch (error) {

@@ -5,6 +5,7 @@ import { hoyIso } from "../nucleo/fechas.js";
 import { usuarioEnTurno } from "../servicios/consultas.js";
 import {
   borrarDeCarpeta,
+  causaDeError,
   descargar,
   elegirCarpeta,
   elegirDondeGuardar,
@@ -47,6 +48,7 @@ export class Sesion {
     this.persistente = null;
     this.uso = null;
     this.avisos = [];
+    this.dialogo = null;
     this.ocupado = null;
     this.oyentes = new Set();
     this.version = 0;
@@ -96,12 +98,54 @@ export class Sesion {
     for (const oyente of this.oyentes) oyente(this.version);
   }
 
-  /** Aviso flotante. `accion` = { etiqueta, alHacer } agrega un botón (p. ej. "Deshacer"). */
+  /**
+   * Aviso flotante. `accion` = { etiqueta, alHacer } agrega un botón (p. ej. "Deshacer"). Con `duracion`
+   * se quita solo; mientras el mouse o el teclado están en el aviso, el tiempo se detiene (pausarAviso).
+   */
   avisar(tipo, texto, duracion = tipo === "error" ? 0 : 6000, accion = null) {
-    const aviso = { id: Date.now() + Math.random(), tipo, texto, accion };
-    this.avisos = [...this.avisos, aviso].slice(-3);
+    const aviso = { id: Date.now() + Math.random(), tipo, texto, accion, duracion };
+    const fuera = this.avisos.slice(0, Math.max(0, this.avisos.length - 2));
+    for (const a of fuera) this._olvidarTiempo(a.id);
+    this.avisos = [...this.avisos.slice(fuera.length), aviso];
     this._cambio();
-    if (duracion) setTimeout(() => this.quitarAviso(aviso.id), duracion);
+    if (duracion) this._programarAviso(aviso.id, duracion);
+  }
+
+  _programarAviso(id, ms) {
+    this._tiempos ??= new Map();
+    this._olvidarTiempo(id);
+    this._tiempos.set(id, { fin: Date.now() + ms, temporizador: setTimeout(() => this.quitarAviso(id), ms) });
+  }
+
+  _olvidarTiempo(id) {
+    const t = this._tiempos?.get(id);
+    if (t) clearTimeout(t.temporizador);
+    this._tiempos?.delete(id);
+  }
+
+  /** Detiene el tiempo de un aviso mientras se lee (mouse encima o foco dentro). */
+  pausarAviso(id) {
+    const t = this._tiempos?.get(id);
+    if (!t || t.resta !== undefined) return;
+    clearTimeout(t.temporizador);
+    t.resta = Math.max(0, t.fin - Date.now());
+  }
+
+  reanudarAviso(id) {
+    const t = this._tiempos?.get(id);
+    if (t?.resta === undefined) return;
+    this._programarAviso(id, t.resta);
+  }
+
+  /** Ventana centrada con dibujos (p. ej. no se pudo guardar donde se eligió). Una a la vez. */
+  mostrarDialogo(dialogo) {
+    this.dialogo = dialogo;
+    this._cambio();
+  }
+
+  cerrarDialogo() {
+    this.dialogo = null;
+    this._cambio();
   }
 
   /**
@@ -127,6 +171,7 @@ export class Sesion {
   }
 
   quitarAviso(id) {
+    this._olvidarTiempo(id);
     this.avisos = this.avisos.filter((a) => a.id !== id);
     this._cambio();
   }
@@ -525,15 +570,16 @@ export class Sesion {
    * Exporta al archivo elegido con "Guardar como" o, sin él, a la carpeta / Descargas.
    * opciones: { corte } (AAAA-MM-DD: como estaba al cierre de ese día, reporte diario) o
    * { corteAx, todos } (solicitud de ajuste de un corte de AX).
-   * `fallo`: por qué no se pudo usar el archivo elegido en «Guardar como» (se supo al elegirlo).
-   * Si el archivo elegido no se puede escribir, el Excel no se pierde: va a la carpeta de la
-   * herramienta (exportaciones/AAAA-MM-DD) o a Descargas, con un aviso que no se quita solo.
-   * @returns {{ destino, elegido: boolean, motivo: string | null }} elegido = quedó donde lo eligió;
-   *   motivo = por qué no
+   * `fallo`: por qué no se pudo usar el archivo elegido en «Guardar como» (se supo al elegirlo; un
+   * ErrorEscritura o un texto). Si el archivo elegido no se puede escribir, el Excel no se pierde: va a
+   * la carpeta de la herramienta (exportaciones/AAAA-MM-DD) o a Descargas; quien llama lo avisa (con
+   * dibujos, `exportarConDialogo`).
+   * @returns {{ nombre, destino, elegido: boolean, motivo: string | null, causa: string | null }}
+   *   elegido = quedó donde lo eligió; motivo = por qué no, en palabras; causa = código (causaDeError)
    */
   async exportar(tipo, archivo = undefined, opciones = {}, { fallo = null } = {}) {
     const hoy = hoyIso();
-    const salida = { destino: null, elegido: false, motivo: fallo };
+    const salida = { nombre: null, destino: null, elegido: false, motivo: fallo?.message ?? fallo, causa: fallo ? causaDeError(fallo) : null };
     const guardar = async (nombre, datos) => {
       if (archivo) {
         try {
@@ -543,24 +589,17 @@ export class Sesion {
         } catch (error) {
           console.warn(error);
           salida.motivo = error.message;
+          salida.causa = causaDeError(error);
         }
       }
       // Sin diálogo se pide el permiso de la carpeta como siempre; tras un «Guardar como» fallido, solo si ya estaba.
       salida.destino = await this.guardarArchivo(`exportaciones/${hoy}`, nombre, datos, { pedirPermiso: !salida.motivo });
       return salida.destino;
     };
-    await this.almacen.exportar(tipo, this.usuario, hoy, { ...opciones, guardar });
+    ({ nombre: salida.nombre } = await this.almacen.exportar(tipo, this.usuario, hoy, { ...opciones, guardar }));
     if (salida.elegido && !this.exportoConDialogo) {
       this.exportoConDialogo = true;
       await this.backend.guardarAjuste("exporto_con_dialogo", true);
-    }
-    if (salida.motivo) {
-      const donde = salida.destino.startsWith("Descargas/") ? "tu carpeta de Descargas" : salida.destino;
-      this.avisar(
-        "advertencia",
-        `No se guardó donde elegiste: ${salida.motivo}. El Excel quedó en ${donde}. Cierra el archivo en Excel y vuelve a intentarlo para reemplazarlo.`,
-        0,
-      );
     }
     if (this.carpetaLista) {
       // El Excel ya quedó guardado: si el respaldo falla, se avisa sin ocultar que la exportación sí salió.
