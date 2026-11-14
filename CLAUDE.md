@@ -46,6 +46,14 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   destino, motivo, causa, reintentar })` → `ui/avisoGuardado.js` (`AvisoNoGuardado`, `CAUSAS`) con los dibujos de
   `ui/ilustraciones.js` (`BarraDeTareas`, `Explorador`, `ubicacionDe`; colores en variables de `.ilus`, claro y oscuro).
   `causaDeError` / `ErrorEscritura.causa` en `almacen/archivos.js`. `Sesion.exportar` ya no avisa con texto.
+- Ronda 28 (revisión de FX): `renglonDe(estado, variante, ubicacion, dueno = null)` solo busca partidas del mismo dueño
+  y `crearRenglon({ dueno })` pone la marca: `reacomodar` conserva FX; entradas (`opcionesEntraA`, `destinoDe`,
+  `conOtroContenedor`) y lo encontrado en conteos usan el del inventario. `destinosDeCodigo` prefiere la partida del
+  inventario como sugerida y `entradaConArticulo` nunca elige sola una de FX. `opcionesDeClave`, `destinosDeCodigo` y
+  `renglonesDelConteo` traen `fx` (pastilla en vales, entradas y conteo); la hoja de conteo impresa pone `FX · `.
+  `candidatos` (justificación) salta salidas de partidas de otro dueño que el corte. `tests/fx.test.js`. Pendientes por
+  decidir: P-26 (LOTE FX en vales), P-29 (entradas de FX), P-30 (marcar FX a mano), P-31 (conciliación de FX:
+  `corte.dueno` ya existe en el cálculo pero ningún reporte se registra como de FX), P-32 (etiquetas de FX).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

@@ -12,6 +12,7 @@ import { CERO, dec, decTexto, sumar } from "../nucleo/decimal.js";
 import { clavesDeBusqueda, clavesPropias, hayInterseccion } from "../nucleo/catalogo.js";
 import { Indices, auditar, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { cuentaParaSaldo } from "../nucleo/existencias.js";
+import { duenoDe } from "../nucleo/inventarios.js";
 import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
 import { fechaIsoValida, fechaMinimaJustificantes, valeAdmitido } from "../nucleo/justificantes.js";
 import { claveEstricta, sinDimension } from "../nucleo/normalizar.js";
@@ -139,6 +140,8 @@ export function candidatos(estado, r, fila, { indices = new Indices(estado), cod
       let estadoCand;
       let otra = null;
       const ligada = hay(linea.existencia_id) ? indices.existencia(linea.existencia_id) : null;
+      // Salió de una partida de otro dueño (FX en un corte del inventario, o al revés): no justifica aquí.
+      if (ligada && duenoDe(ligada) !== (r.corte.dueno ?? null)) continue;
       const varianteLigada = ligada ? varianteVigente(indices, ligada.variante_id) : null;
       if (t?.donde === "variante") {
         const v = varianteVigente(indices, t.variante_id);

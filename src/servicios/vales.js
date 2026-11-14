@@ -10,6 +10,7 @@ import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrad
 import { calcularSaldos, corteDe, cortesVigentes, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
+import { DUENO_FX, duenoDe } from "../nucleo/inventarios.js";
 
 export const CAPACIDAD_DEFECTO = 21;
 export const CAMPOS_ENCABEZADO = [
@@ -143,6 +144,7 @@ export function opcionesDeClave(estado, codigo, { indices = new Indices(estado),
         hoja: u.hoja_excel.trim(),
         total: aNumero(totales.get(e.id)?.total ?? CERO),
         um: umMostrada(e, v) || "",
+        fx: duenoDe(e) === DUENO_FX, // material de FX (GSM): se ve en la lista para no confundirlo
         orden: u.orden * 100000 + e.orden,
       };
     })

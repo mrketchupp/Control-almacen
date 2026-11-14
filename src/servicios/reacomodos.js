@@ -9,6 +9,7 @@ import { dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { duenoDe } from "../nucleo/inventarios.js";
 import { crearRenglon, describirRenglon, lugarCorto, renglonDe } from "./inventario.js";
 import { siguienteFolio } from "./vales.js";
 
@@ -34,10 +35,12 @@ export function reacomodar(estado, { desdeId, ubicacionId, cantidad, motivo = ""
   const total = saldos.get(desde.id).total;
   if (n.gt(total)) throw new ErrorReacomodo(`Solo hay ${decTexto(total)} en esa partida; no se puede mover ${decTexto(n)}.`);
   const antes = describirRenglon(estado, desde.id, { indices, saldos });
-  let hacia = renglonDe(estado, desde.variante_id, destino.id);
+  // Lo de FX se queda de FX: va a la partida de FX del destino o a una nueva con la misma marca.
+  const dueno = duenoDe(desde);
+  let hacia = renglonDe(estado, desde.variante_id, destino.id, dueno);
   const nuevo = !hacia;
   if (nuevo) {
-    hacia = crearRenglon(estado, indices, { varianteId: desde.variante_id, ubicacionId: destino.id, cantidad: "0", origen: `REACOMODO desde ${lugarCorto(antes.ubicacion)}` });
+    hacia = crearRenglon(estado, indices, { varianteId: desde.variante_id, ubicacionId: destino.id, cantidad: "0", origen: `REACOMODO desde ${lugarCorto(antes.ubicacion)}`, dueno });
   }
   const totalHacia = nuevo ? dec(0) : saldos.get(hacia.id).total;
   const conteo = indices.agregarConteo({

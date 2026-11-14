@@ -6,7 +6,7 @@ import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { claveEstricta, claveLaxa, unidad } from "../nucleo/normalizar.js";
-import { inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
+import { duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
@@ -26,11 +26,15 @@ export function ordenSiguiente(estado, ubicacionId) {
   return maximo + 1;
 }
 
-/** Renglón activo de esa variante en esa ubicación (el primero de la hoja), o null. */
-export function renglonDe(estado, varianteId, ubicacionId) {
+/**
+ * Renglón activo de esa variante en esa ubicación (el primero de la hoja), o null. Solo del mismo
+ * dueño (`dueno`: null = del inventario, "FX" = de FX en GSM): lo de FX nunca se suma a una partida
+ * del inventario ni al revés.
+ */
+export function renglonDe(estado, varianteId, ubicacionId, dueno = null) {
   let mejor = null;
   for (const e of estado.existencias) {
-    if (e.activo === false || e.variante_id !== varianteId || e.ubicacion_id !== ubicacionId) continue;
+    if (e.activo === false || e.variante_id !== varianteId || e.ubicacion_id !== ubicacionId || duenoDe(e) !== dueno) continue;
     if (!mejor || e.orden < mejor.orden) mejor = e;
   }
   return mejor;
@@ -38,10 +42,12 @@ export function renglonDe(estado, varianteId, ubicacionId) {
 
 /**
  * Renglón nuevo del inventario (va al final de la hoja de su ubicación). Sin conteo: su
- * CANTIDAD es la inicial y todos sus movimientos cuentan como CONSUMO / INGRESO.
+ * CANTIDAD es la inicial y todos sus movimientos cuentan como CONSUMO / INGRESO. Con `dueno`
+ * ("FX") queda marcado como de FX.
  */
-export function crearRenglon(estado, indices, { varianteId, ubicacionId, cantidad = "0", conteoId = null, origen }) {
+export function crearRenglon(estado, indices, { varianteId, ubicacionId, cantidad = "0", conteoId = null, origen, dueno = null }) {
   return indices.agregarExistencia({
+    ...(dueno ? { dueno } : {}),
     variante_id: varianteId,
     ubicacion_id: ubicacionId,
     orden: ordenSiguiente(estado, ubicacionId),

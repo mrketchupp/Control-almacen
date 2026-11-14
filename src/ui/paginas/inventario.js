@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
-import { DUENO_FX } from "../../nucleo/inventarios.js";
+import { DUENO_FX, duenoDe } from "../../nucleo/inventarios.js";
 import { pareceFecha } from "../../nucleo/normalizar.js";
 import { npAnteriores } from "../../servicios/baseOficial.js";
 import { filasInventario } from "../../servicios/consultas.js";
@@ -102,7 +102,11 @@ function MoverRenglon({ fila, alTerminar }) {
   const [error, setError] = useState(null);
   const opciones = ubicacionesOrdenadas(estado)
     .filter((u) => u.id !== fila.ubicacion_id)
-    .map((u) => ({ valor: String(u.id), etiqueta: u.hoja_excel.trim(), detalle: renglonDe(estado, existencia.variante_id, u.id) ? "ya tiene su partida" : "partida nueva" }));
+    .map((u) => ({
+      valor: String(u.id),
+      etiqueta: u.hoja_excel.trim(),
+      detalle: `${renglonDe(estado, existencia.variante_id, u.id, duenoDe(existencia)) ? "ya tiene su partida" : "partida nueva"}${duenoDe(existencia) === DUENO_FX ? " de FX" : ""}`,
+    }));
   const mover = () =>
     sesion.tarea("Moviendo…", async () => {
       try {

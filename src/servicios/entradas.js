@@ -21,7 +21,7 @@ import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, siguien
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
-import { inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
+import { DUENO_FX, duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { crearRenglon, lugarCorto, renglonDe, ubicacionesSugeridas } from "./inventario.js";
 import { SIN_DIMENSION, claveDeRenglon, disponibles, loteDeRenglon, siguienteFolio } from "./vales.js";
 
@@ -138,15 +138,18 @@ export function destinosDeCodigo(estado, codigo, { indices = new Indices(estado)
       hoja: u.hoja_excel.trim(),
       total: totales.get(e.id)?.total ?? CERO,
       um: umMostrada(e, v) || "",
+      fx: duenoDe(e) === DUENO_FX,
       orden: u.orden * 100000 + e.orden,
     };
   });
+  // La sugerida es la de más existencia, pero primero las del inventario: lo de FX se elige a mano.
+  const antes = (o, m) => (o.fx !== m.fx ? !o.fx : o.total.gt(m.total) || (o.total.eq(m.total) && o.orden < m.orden));
   const mejor = new Map();
   const cuantos = new Map();
   const primero = new Map();
   for (const o of opciones) {
     const m = mejor.get(o.variante_id);
-    if (!m || o.total.gt(m.total) || (o.total.eq(m.total) && o.orden < m.orden)) mejor.set(o.variante_id, o);
+    if (!m || antes(o, m)) mejor.set(o.variante_id, o);
     cuantos.set(o.variante_id, (cuantos.get(o.variante_id) ?? 0) + 1);
     primero.set(o.variante_id, Math.min(primero.get(o.variante_id) ?? Infinity, o.orden));
   }
@@ -204,7 +207,9 @@ export function entradaConArticulo(estado, linea, codigo, { indices = new Indice
   if (linea.material_nuevo) return { ...base, material_nuevo: true, alta: true,
     ubicacion_id: contenedorSugerido(estado, codigo, { indices, opciones }), um: umDelCodigo(opciones) || linea.um };
   const variantes = new Set(opciones.map((o) => o.variante_id));
-  if (variantes.size === 1) return conRenglonExistente(estado, base, opciones.find((o) => o.sugerida).id, indices);
+  const sugerida = opciones.find((o) => o.sugerida);
+  // Una partida de FX nunca se elige sola: si solo hay de FX, se elige a mano (o va a una nueva del inventario).
+  if (variantes.size === 1 && !sugerida.fx) return conRenglonExistente(estado, base, sugerida.id, indices);
   return base;
 }
 
@@ -352,7 +357,8 @@ export function opcionesEntraA(estado, linea, { indices = new Indices(estado), s
   if (!Number.isInteger(linea.codigo)) return [];
   const varianteId = linea.alta ? null : hay(linea.existencia_id) ? indices.existencia(linea.existencia_id)?.variante_id : linea.variante_id;
   const propios = new Map();
-  if (hay(varianteId)) for (const e of estado.existencias) if (e.activo !== false && e.variante_id === varianteId && !propios.has(e.ubicacion_id)) propios.set(e.ubicacion_id, renglonDe(estado, varianteId, e.ubicacion_id));
+  // Solo las partidas del inventario: una entrada no se suma sola a una de FX (se elige a mano en la clave).
+  if (hay(varianteId)) for (const e of estado.existencias) if (e.activo !== false && e.variante_id === varianteId && !duenoDe(e) && !propios.has(e.ubicacion_id)) propios.set(e.ubicacion_id, renglonDe(estado, varianteId, e.ubicacion_id));
   const totales = saldos ?? calcularSaldos(estado, [...propios.values()].map((e) => e.id));
   return ubicacionesSugeridas(estado, linea.codigo, { indices }).map(({ ubicacion }) => {
     const propio = propios.get(ubicacion.id);

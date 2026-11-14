@@ -356,7 +356,10 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
    folios (un vale puede llevar partidas de los dos), así que vive en ese inventario: sus partidas llevan la marca FX (la
    pone el conteo de auditoría). En *Inventario* se filtra *Todo / Inventario B / FX*; en *Exportar* y en el *Reporte
    diario* sale el **libro de FX aparte** con el mismo formato, y el del Inventario B sin ellas. La conciliación no cuenta
-   las partidas de FX; la de FX vendrá después.
+   las partidas de FX; la de FX vendrá después. **Ronda 28:** lo de FX se queda de FX al moverlo de contenedor (va a la
+   partida de FX del destino o a una nueva de FX); una entrada o lo encontrado en un conteo nunca se suman solos a una
+   partida de FX (se elige a mano en la clave, donde se ve la pastilla **FX**); la hoja de conteo impresa marca
+   `FX · ` antes de la descripción.
 
 ## 10. Etiquetas de almacén (Ronda 20)
 

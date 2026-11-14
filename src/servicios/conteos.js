@@ -11,7 +11,7 @@ import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, unidad } from "../nucleo/normalizar.js";
-import { inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
+import { DUENO_FX, duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { corregirDimensionNp, crearRenglon, describirRenglon, lugarCorto, renglonDe, ubicacionesOrdenadas } from "./inventario.js";
 import { siguienteFolio } from "./vales.js";
 
@@ -113,6 +113,7 @@ export function renglonesDelConteo(estado, datos = estado.conteo_en_curso, { ind
         lugar: r.lugar,
         codigo: r.codigo,
         descripcion: r.descripcion,
+        fx: duenoDe(e) === DUENO_FX, // material de FX (GSM): se cuenta aparte
         dimension: r.dimension,
         np: r.np,
         um: r.um,

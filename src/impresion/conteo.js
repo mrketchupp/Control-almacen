@@ -4,6 +4,7 @@
 // HTML y CSS puros: la interfaz los manda al diálogo de impresión.
 
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
+import { DUENO_FX, duenoDe } from "../nucleo/inventarios.js";
 import { fmtFecha } from "../nucleo/fechas.js";
 import { escaparHtml } from "./vale.js";
 
@@ -54,7 +55,8 @@ export function documentoHojaConteo(estado, { ubicaciones, fecha = null, usuario
       const celdas = [
         i + 1,
         v.codigo,
-        indices.articulo(v.codigo)?.descripcion ?? "",
+        // Lo de FX se marca en papel para contarlo aparte de lo del inventario.
+        `${duenoDe(e) === DUENO_FX ? "FX · " : ""}${indices.articulo(v.codigo)?.descripcion ?? ""}`,
         dimensionMostrada(e, v) ?? "",
         npMostrado(e, v) ?? "",
         umMostrada(e, v) ?? "",

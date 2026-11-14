@@ -51,7 +51,7 @@ function CeldaClave({ linea, opciones, alElegir, alEscribir, alSalir, error }) {
   const filtradas = useMemo(() => {
     const q = normal(linea.clave);
     if (!q || (elegida && normal(elegida.clave) === q)) return opciones;
-    return opciones.filter((o) => palabras(q).every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja}`).includes(p)));
+    return opciones.filter((o) => palabras(q).every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja} ${o.fx ? "FX" : ""}`).includes(p)));
   }, [opciones, linea.clave, elegida]);
   if (!Number.isInteger(linea.codigo)) return html`<input class="entrada-clave" disabled placeholder="Primero el código" aria-label="Clave / dimensión" />`;
   return html`<${Combo}
@@ -63,6 +63,7 @@ function CeldaClave({ linea, opciones, alElegir, alEscribir, alSalir, error }) {
     clave=${(o) => o.id}
     render=${(o) => html`<span class="opcion-principal">${o.clave}</span>
       ${o.np ? html`<${Pastilla} titulo="Número de parte">NP ${o.np}<//>` : null}
+      ${o.fx ? html`<${Pastilla} tono="fx" titulo="Material de FX: se descuenta en AX de su propio almacén">FX<//>` : null}
       <${Pastilla} tono="lugar" titulo=${o.hoja}>${o.lugar}<//>
       <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>
       ${o.sugerida && o.enVarios ? html`<${Pastilla} tono="info" titulo="Es el contenedor donde hay más de esta variante">★ sugerido<//>` : null}`}

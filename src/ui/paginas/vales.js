@@ -266,14 +266,15 @@ function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay,
     const q = normal(linea.clave);
     if (!q || (elegida && normal(elegida.clave) === q)) return opciones;
     const ps = palabras(q);
-    return opciones.filter((o) => ps.every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja}`).includes(p)));
+    return opciones.filter((o) => ps.every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja} ${o.fx ? "FX" : ""}`).includes(p)));
   }, [opciones, linea.clave, elegida]);
 
   if (!Number.isInteger(linea.codigo)) {
     return html`<input class="entrada-clave" disabled placeholder="Primero el código" aria-label="Clave almacén" />`;
   }
   const pastillas = elegida
-    ? html`<${Pastilla} tono="lugar" titulo=${elegida.hoja}>${elegida.lugar}<//>
+    ? html`${elegida.fx ? html`<${Pastilla} tono="fx" titulo="Material de FX: se descuenta en AX de su propio almacén">FX<//>` : null}
+        <${Pastilla} tono="lugar" titulo=${elegida.hoja}>${elegida.lugar}<//>
         <${Pastilla} tono=${hay !== null && pedido !== null && pedido.gt(hay) ? "alerta" : hay !== null && hay.lte(0) ? "alerta" : "ok"} titulo="Existencia en ese contenedor antes de este vale">
           hay ${num(aNumero(hay ?? elegida.total))} ${elegida.um}
         <//>`
@@ -310,6 +311,7 @@ function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay,
       clave=${(o) => o.id}
       render=${(o) => html`<span class="opcion-principal">${o.clave}</span>
         ${o.np ? html`<${Pastilla} titulo="Número de parte: va en la columna LOTE">NP ${o.np}<//>` : null}
+        ${o.fx ? html`<${Pastilla} tono="fx" titulo="Material de FX: se descuenta en AX de su propio almacén">FX<//>` : null}
         <${Pastilla} tono="lugar" titulo=${o.hoja}>${o.lugar}<//>
         <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>`}
       alElegir=${(o) => alElegir(o, true)}

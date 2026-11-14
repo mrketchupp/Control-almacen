@@ -319,6 +319,20 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 28 — revisión de FX.** Lo que ya hace: el conteo de auditoría marca las partidas de FX; *Inventario* las muestra
+y las filtra; *Exportar* y el *Reporte diario* sacan el libro de FX aparte (y el del Inventario B sin ellas); la
+conciliación del Inventario B no las cuenta. **Corregido:** mover material de FX a otro contenedor lo volvía del Inventario
+B (o lo sumaba a la partida del Inventario B); una entrada o lo encontrado en un conteo se podía sumar solo a una partida
+de FX del mismo contenedor; al justificar faltantes del Inventario B se ofrecían salidas de partidas de FX. Ahora
+`renglonDe` / `crearRenglon` respetan el dueño y la pastilla **FX** se ve al elegir la clave en vales y entradas, en la
+captura del conteo y en la hoja de conteo impresa (`tests/fx.test.js`). Pendiente, por decidir (docs/09):
+- ☐ P-26: LOTE de las partidas de FX en los vales (hoy sale el NP; la base no sabe que es FX).
+- ☐ P-29: cómo se reconocen las entradas de FX.
+- ☐ P-30: marcar / desmarcar FX a mano en *Inventario*.
+- ☐ P-31: conciliación de FX con AX (con qué archivo y almacén).
+- ☐ P-32: qué dice la etiqueta de una partida de FX.
+- ☐ Del usuario: cargar el Kardex de auditoría, exportar los libros del Inventario B y de FX y compararlos con el Kardex.
+
 **Ronda 27 — avisos que se entiendan.** Reporte diario: ◀ ▶ van de un día en un día (antes saltaban al día
 con vales). Avisos: como las notificaciones de iOS / Android (arriba al centro, ícono del tipo en un cuadro de
 color, título corto —Listo, Atención, No se pudo, Aviso—, el detalle debajo, acciones como botones), botón redondo

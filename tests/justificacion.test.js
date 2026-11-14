@@ -6,7 +6,9 @@ import { HOJA_AJUSTE, HOJA_LEYENDA, HOJA_VALES, exportarSolicitudAjuste } from "
 import { leerArchivoBase } from "../src/importadores/base.js";
 import { delAlmacen, leerReporteAx } from "../src/importadores/ax.js";
 import { dec } from "../src/nucleo/decimal.js";
-import { FORMATO_ESTADO, migrarEstado, siguienteId } from "../src/nucleo/estado.js";
+import { FORMATO_ESTADO, Indices, migrarEstado, siguienteId } from "../src/nucleo/estado.js";
+import { DUENO_FX } from "../src/nucleo/inventarios.js";
+import { crearRenglon } from "../src/servicios/inventario.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import { fechaMinimaJustificantes, fechaMinimaPropuesta } from "../src/nucleo/justificantes.js";
 import { valesPorAplicar } from "../src/exportadores/ajuste.js";
@@ -232,4 +234,21 @@ test("la fecha mínima es válida y nunca posterior al reporte; un folio alto ta
     assert.throws(() => j.fijarFechaMinimaVales(estado, corte.id, fecha, USUARIO), j.ErrorJustificacion);
     assert.equal(JSON.stringify(estado), antes);
   }
+});
+
+test("una salida de una partida de FX no se ofrece para justificar un faltante del inventario", () => {
+  const { estado, corte } = escenario();
+  const indices = new Indices(estado);
+  const lampara = estado.existencias.find((e) => e.activo !== false && indices.variante(e.variante_id).codigo === 710);
+  const fx = crearRenglon(estado, indices, { varianteId: lampara.variante_id, ubicacionId: lampara.ubicacion_id, dueno: DUENO_FX, origen: "PRUEBA" });
+  const vale8 = estado.vales.find((v) => v.folio === 8);
+  const linea = agregarPartida(estado, vale8, { codigo: 710, clave: "S/D", cantidad: "1", descripcion: "LAMPARA DE USO GENERAL" });
+  Object.assign(linea, { existencia_id: fx.id, variante_id: fx.variante_id });
+  const ofrecida = () => {
+    const r = c.conciliar(estado, corte);
+    return j.candidatos(estado, r, fila(r, 710)).some((k) => k.linea.id === linea.id);
+  };
+  assert.equal(ofrecida(), false);
+  delete fx.dueno; // sin la marca de FX es una salida del inventario y sí se ofrece
+  assert.equal(ofrecida(), true);
 });

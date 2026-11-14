@@ -342,7 +342,7 @@ function Captura() {
             (f) => html`<tr key=${f.id} class=${f.quitar ? "conteo-por-quitar" : errorDe(f.id) ? "fila-error" : f.contado !== null && !aCiegas && !f.diferencia.eq(0) ? "fila-diferencia" : ""}>
               <td><span class="sin-corte" title=${f.hoja}>${f.lugar}</span></td>
               <td class="numero">${f.codigo}</td>
-              <td>${f.descripcion}</td>
+              <td>${f.descripcion}${f.fx ? html` <${Pastilla} tono="fx" titulo="Material de FX: cuéntalo aparte">FX<//>` : null}</td>
               <td>${f.dimension}${f.dimension_nueva !== f.dimension && !f.quitar ? html`<div class="conteo-clave-nueva">→ ${f.dimension_nueva || "Sin dimensión"}</div>` : null}</td>
               <td>${f.np}${f.np_nuevo !== f.np && !f.quitar ? html`<div class="conteo-clave-nueva">→ ${f.np_nuevo || "Sin NP"}</div>` : null}</td>
               <td>${f.um}</td>
