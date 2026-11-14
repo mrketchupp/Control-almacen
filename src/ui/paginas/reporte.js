@@ -19,20 +19,29 @@ const diaSemana = (iso) => DIAS[new Date(`${iso}T12:00:00`).getDay()];
 const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
 const extension = (nombre) => (/\.(\w+)$/.exec(nombre ?? "")?.[1] ?? "xlsx").toUpperCase();
 
+/** Qué pasó con el archivo: guardado donde se eligió, o en otro lugar porque ahí no se pudo. */
+function textoResultado(resultado) {
+  if (!resultado) return null;
+  if (!resultado.motivo) return `✓ Guardado: ${resultado.destino}`;
+  const donde = resultado.destino.startsWith("Descargas/") ? "en Descargas" : `en ${resultado.destino}`;
+  return `⚠ No quedó donde elegiste (${resultado.motivo}); se guardó ${donde}`;
+}
+
 /**
  * Tarjeta de descarga de un archivo del reporte (libro de vales o inventario al cierre del día):
- * todo es clicable y dice "Descargar"; después muestra dónde quedó.
+ * todo es clicable y dice "Descargar"; después muestra dónde quedó de verdad.
  */
-function BotonArchivo({ nombre, titulo, detalle, disabled, descargado, onClick }) {
-  return html`<button type="button" class=${`archivo-boton ${descargado ? "descargado" : ""}`} disabled=${disabled} onClick=${onClick} aria-label=${`Descargar ${titulo}`}>
+function BotonArchivo({ nombre, titulo, detalle, disabled, resultado, onClick }) {
+  const clase = resultado ? (resultado.motivo ? "descargado en-otro-lugar" : "descargado") : "";
+  return html`<button type="button" class=${`archivo-boton ${clase}`} disabled=${disabled} onClick=${onClick} aria-label=${`Descargar ${titulo}`}>
     <span class="archivo-icono">${extension(nombre)}</span>
     <span class="archivo-texto">
       <strong>${titulo}</strong>
       <span class="nota">${detalle}</span>
       <span class="archivo-nombre">${nombre ?? "Falta la plantilla: cárgala en Respaldos"}</span>
-      ${descargado ? html`<span class="archivo-listo">✓ Descargado: ${descargado}</span>` : null}
+      ${resultado ? html`<span class="archivo-listo" role="status">${textoResultado(resultado)}</span>` : null}
     </span>
-    <span class="archivo-accion"><${Icono} nombre="descargar" tam=${18} /> ${descargado ? "Otra vez" : "Descargar"}</span>
+    <span class="archivo-accion"><${Icono} nombre="descargar" tam=${18} /> ${resultado ? "Otra vez" : "Descargar"}</span>
   </button>`;
 }
 
@@ -97,23 +106,23 @@ export function PaginaReporte() {
           <span class="cabeza-icono"><${Icono} nombre="descargar" /></span>
           <h2>Descargar los archivos del día</h2>
         </header>
-        <p class="nota">Pulsa cada archivo para descargarlo: se abre «Guardar como» para elegir la carpeta y el nombre.</p>
+        <p class="nota">Pulsa cada archivo para descargarlo: se abre «Guardar como» para elegir la carpeta y el nombre. Si vas a reemplazar uno que ya existe, <strong>ciérralo antes en Excel</strong> (Windows no deja reemplazar un archivo abierto).</p>
         <div class="archivos-dia">
           <${BotonArchivo}
             nombre=${nombreVales}
             titulo="Libro de vales de salida"
             detalle=${corte.salida ? `Hasta el folio ${corte.salida}` : "Aún no había vales a esa fecha"}
             disabled=${!nombreVales || !corte.salida}
-            descargado=${descargados.VALES}
-            onClick=${() => exportarConDialogo(sesion, "VALES", (destino) => setDescargados((d) => ({ ...d, VALES: destino })), { corte: fecha })}
+            resultado=${descargados.VALES}
+            onClick=${() => exportarConDialogo(sesion, "VALES", (r) => setDescargados((d) => ({ ...d, VALES: r })), { corte: fecha })}
           />
           <${BotonArchivo}
             nombre=${nombreInventario}
             titulo="Inventario de refaccionamiento"
             detalle=${`Cerrado al ${fmtFecha(fecha)}`}
             disabled=${!nombreInventario}
-            descargado=${descargados.INVENTARIO}
-            onClick=${() => exportarConDialogo(sesion, "INVENTARIO", (destino) => setDescargados((d) => ({ ...d, INVENTARIO: destino })), { corte: fecha })}
+            resultado=${descargados.INVENTARIO}
+            onClick=${() => exportarConDialogo(sesion, "INVENTARIO", (r) => setDescargados((d) => ({ ...d, INVENTARIO: r })), { corte: fecha })}
           />
           ${fx
             ? html`<${BotonArchivo}
@@ -121,8 +130,8 @@ export function PaginaReporte() {
                 titulo="Inventario de FX"
                 detalle=${`Cerrado al ${fmtFecha(fecha)}`}
                 disabled=${!nombreFx}
-                descargado=${descargados.INVENTARIO_FX}
-                onClick=${() => exportarConDialogo(sesion, "INVENTARIO_FX", (destino) => setDescargados((d) => ({ ...d, INVENTARIO_FX: destino })), { corte: fecha })}
+                resultado=${descargados.INVENTARIO_FX}
+                onClick=${() => exportarConDialogo(sesion, "INVENTARIO_FX", (r) => setDescargados((d) => ({ ...d, INVENTARIO_FX: r })), { corte: fecha })}
               />`
             : null}
         </div>

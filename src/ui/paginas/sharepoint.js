@@ -10,6 +10,7 @@ const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado"
  * Exporta un libro: primero "Guardar como" (tiene que abrirse directo desde el clic), luego se
  * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS' | 'AJUSTE'. opciones: { corte }
  * (AAAA-MM-DD, el libro al cierre de ese día) o { corteAx, todos } (solicitud de ajuste).
+ * alTerminar recibe { destino, elegido, motivo } (ver Sesion.exportar).
  */
 const enCurso = new Set();
 
@@ -17,19 +18,23 @@ export async function exportarConDialogo(sesion, tipo, alTerminar = null, opcion
   const clave = `${tipo}|${opciones.corte ?? ""}|${opciones.corteAx ?? ""}`;
   if (enCurso.has(clave)) return; // doble clic: ya se está generando
   let archivo;
+  let fallo = null;
   try {
     archivo = await sesion.elegirDestinoExportacion(tipo, opciones);
   } catch (error) {
-    sesion.avisar("error", `No se pudo abrir la ventana para guardar: ${error.message}`);
-    return;
+    // Se eligió dónde guardar, pero Windows no dejó crear o reemplazar ese archivo (casi siempre está
+    // abierto en Excel): el Excel se genera igual y queda en la carpeta de la herramienta o en Descargas.
+    console.warn(error);
+    fallo = error.message;
+    archivo = undefined;
   }
   if (archivo === null) return; // canceló
   enCurso.add(clave);
   try {
     await sesion.tarea("Generando Excel…", async () => {
-      const destino = await sesion.exportar(tipo, archivo, opciones);
-      sesion.avisar("exito", `Listo: ${destino}`);
-      alTerminar?.(destino);
+      const resultado = await sesion.exportar(tipo, archivo, opciones, { fallo });
+      if (!resultado.motivo) sesion.avisar("exito", `Listo: ${resultado.destino}`);
+      alTerminar?.(resultado);
     });
   } finally {
     enCurso.delete(clave);

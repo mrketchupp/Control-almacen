@@ -319,6 +319,16 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 26 — reporte diario que no se guardaba.** Reporte: el libro de vales no reflejaba en DIARIO los vales
+de la herramienta, el inventario del día no se guardaba y, tras elegir la carpeta en el explorador, no pasaba nada.
+Causa: Edge crea o vacía el archivo elegido en cuanto se acepta «Guardar como»; si Windows no lo deja (el libro está
+abierto en Excel u OneDrive lo sincroniza) rechaza con `AbortError`, el mismo error que al cancelar, y la herramienta
+lo tomaba como cancelado: no generaba nada y el archivo de la carpeta seguía siendo el anterior. Se descartó el volumen
+como causa (4,000 vales / 16,013 partidas se generan en menos de 1 s y salen completos). **Aplicado:** cancelar solo
+con el mensaje de cancelación; si falla al elegir o al escribir, el Excel queda en la carpeta de la herramienta o en
+Descargas con aviso persistente y la tarjeta dice dónde quedó; pruebas `guardarComo.test.js` y Chromium
+`guardarComo.navegador.mjs`.
+
 **Ronda 25 — formatos (decisiones del usuario).** Inventario: I-1 bordes delgados completos, I-2 sin colores de fila,
 I-3 Calibri 12 negrita, I-4 NP y DIMENSIÓN como texto (fracción como se ve; las fechas accidentales se filtran en
 *Inventario* para corregirlas), I-5 cantidades en General, I-6 mismos anchos, I-7 sin inmovilizar. **Aplicado.**

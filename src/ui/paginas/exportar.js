@@ -68,7 +68,7 @@ export function PaginaExportar() {
       Se generan sobre <strong>tus propios archivos</strong> (las plantillas que subiste en la primera carga), así que
       conservan logos, botones, macros, formatos y la configuración de impresión.${" "}
       ${conDialogo
-        ? "Al exportar se abre el explorador de archivos para que elijas la carpeta (recuerda la última que usaste)."
+        ? "Al exportar se abre el explorador de archivos para que elijas la carpeta (recuerda la última que usaste). Para reemplazar un archivo, ciérralo antes en Excel."
         : html`Se guardan en <code>${destino}</code>.`}
     </p>
     ${pendientes

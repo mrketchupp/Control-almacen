@@ -198,6 +198,11 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
 - **Listas desplegables:** no se usan `<select>` ni `<datalist>` (su lista la dibuja el navegador y no se puede
   estilizar); todas son componentes propios (`Lista`, `Combo`, `CampoSugerido`) con el mismo aspecto y teclado.
 - Los Excel exportados se guardan con la ventana "Guardar como" del navegador (`showSaveFilePicker`, recuerda la última
-  carpeta); si el navegador no la tiene, en la carpeta elegida o en Descargas. La
+  carpeta); si el navegador no la tiene, en la carpeta elegida o en Descargas. Edge crea o vacía el archivo elegido al
+  aceptar la ventana y rechaza con `AbortError` tanto al cancelar como cuando falla (mismo nombre, otro mensaje), así
+  que `canceloDialogo` solo toma como cancelar el mensaje de siempre. Si el archivo elegido no se puede crear o escribir
+  (abierto en Excel, OneDrive, SmartScreen), `Sesion.exportar` lo guarda en `exportaciones/AAAA-MM-DD` de la carpeta de
+  la herramienta (sin pedir permiso de nuevo) o en Descargas, con aviso persistente; devuelve `{ destino, elegido, motivo }`.
+- La impresión de vales y hojas de conteo genera HTML propio. La
   interfaz las inserta en `#area-impresion` y llama `window.print()`; Edge ofrece imprimir o *Guardar como PDF*. No se
   usa ninguna biblioteca de PDF ni conexión de red.

@@ -29,12 +29,26 @@ export function descargar(nombre, datos) {
 
 export const soportaGuardarComo = () => typeof window !== "undefined" && "showSaveFilePicker" in window;
 
-/**
- * Ventana "Guardar como" del explorador de archivos. Recuerda la última carpeta usada.
- * @returns el archivo elegido, o null si el usuario canceló
- */
 const DESCRIPCIONES = { ".xlsm": "Libro de Excel con macros", ".xlsx": "Libro de Excel", ".zip": "Carpeta comprimida (.zip)" };
 
+/**
+ * ¿El usuario cerró «Guardar como» sin elegir? Chromium (Edge) rechaza con AbortError tanto al cancelar
+ * ("The user aborted a request.", el mensaje de siempre) como cuando una operación falla con su propio
+ * mensaje (p. ej. no pudo crear o vaciar el archivo elegido). Solo lo primero es cancelar.
+ */
+export function canceloDialogo(error) {
+  return error?.name === "AbortError" && (!error.message || /user aborted|aborted a request|cancel/i.test(error.message));
+}
+
+export class ErrorEscritura extends Error {}
+
+/**
+ * Ventana "Guardar como" del explorador de archivos. Recuerda la última carpeta usada.
+ * Ojo: el navegador crea el archivo elegido (o lo deja vacío si ya existía) en cuanto se acepta la
+ * ventana; si Windows no lo deja (abierto en Excel, OneDrive sincronizándolo), falla aquí mismo.
+ * @returns el archivo elegido, o null si el usuario canceló
+ * @throws ErrorEscritura con la causa explicada si no se pudo usar el archivo elegido
+ */
 export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "control-almacen-exportar" } = {}) {
   const extension = nombre.slice(nombre.lastIndexOf(".")).toLowerCase();
   try {
@@ -45,12 +59,10 @@ export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "
       types: [{ description: DESCRIPCIONES[extension] ?? "Archivo", accept: { [TIPOS[extension] ?? "application/octet-stream"]: [extension] } }],
     });
   } catch (error) {
-    if (error?.name === "AbortError") return null;
-    throw error;
+    if (canceloDialogo(error)) return null;
+    throw new ErrorEscritura(explicarErrorEscritura(error, nombre), { cause: error });
   }
 }
-
-export class ErrorEscritura extends Error {}
 
 /** Explica en palabras del usuario por qué el navegador no pudo escribir el archivo. */
 export function explicarErrorEscritura(error, nombre) {
@@ -58,6 +70,12 @@ export function explicarErrorEscritura(error, nombre) {
     case "NoModificationAllowedError":
     case "InvalidModificationError":
       return `«${nombre}» está abierto en Excel u otro programa`;
+    case "NotReadableError":
+      // Así llega el archivo ocupado por otro programa (Excel, OneDrive) al crearlo o reemplazarlo.
+      return `Windows no dejó usar «${nombre}»: casi siempre es porque está abierto en Excel o OneDrive lo está sincronizando`;
+    case "AbortError":
+      if (/safe ?browsing|smartscreen/i.test(error.message ?? "")) return `Edge (SmartScreen) bloqueó «${nombre}»`;
+      return `Windows no dejó crear o reemplazar «${nombre}»: casi siempre es porque está abierto en Excel o OneDrive lo está sincronizando`;
     case "InvalidStateError":
       return `«${nombre}» cambió mientras se guardaba (¿OneDrive lo estaba sincronizando?)`;
     case "NotAllowedError":
@@ -73,7 +91,8 @@ export function explicarErrorEscritura(error, nombre) {
 }
 
 const ESPERAS_ESCRITURA = [0, 500, 1500];
-const sinReintento = (error) => ["NotAllowedError", "SecurityError", "QuotaExceededError"].includes(error?.name);
+const sinReintento = (error) =>
+  ["NotAllowedError", "SecurityError", "QuotaExceededError"].includes(error?.name) || /safe ?browsing|smartscreen/i.test(error?.message ?? "");
 
 /**
  * Escribe en el archivo elegido con "Guardar como". Reintenta (OneDrive o un antivirus pueden tener el

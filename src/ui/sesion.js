@@ -205,9 +205,13 @@ export class Sesion {
     this._cambio();
   }
 
-  /** Guarda en la carpeta elegida o, si no hay, descarga. @returns texto del destino */
-  async guardarArchivo(ruta, nombre, datos) {
-    if (this.carpeta && this.permiso !== "granted") this.permiso = await permisoCarpeta(this.carpeta, true);
+  /**
+   * Guarda en la carpeta elegida o, si no hay, descarga. Con `pedirPermiso: false` no pide el permiso
+   * de la carpeta (sin un clic reciente el navegador lo negaría y quedaría negado en la sesión).
+   * @returns texto del destino
+   */
+  async guardarArchivo(ruta, nombre, datos, { pedirPermiso = true } = {}) {
+    if (pedirPermiso && this.carpeta && this.permiso !== "granted") this.permiso = await permisoCarpeta(this.carpeta, true);
     if (this.carpetaLista) {
       try {
         return await escribirEnCarpeta(this.carpeta, ruta, nombre, datos);
@@ -521,31 +525,52 @@ export class Sesion {
    * Exporta al archivo elegido con "Guardar como" o, sin él, a la carpeta / Descargas.
    * opciones: { corte } (AAAA-MM-DD: como estaba al cierre de ese día, reporte diario) o
    * { corteAx, todos } (solicitud de ajuste de un corte de AX).
+   * `fallo`: por qué no se pudo usar el archivo elegido en «Guardar como» (se supo al elegirlo).
+   * Si el archivo elegido no se puede escribir, el Excel no se pierde: va a la carpeta de la
+   * herramienta (exportaciones/AAAA-MM-DD) o a Descargas, con un aviso que no se quita solo.
+   * @returns {{ destino, elegido: boolean, motivo: string | null }} elegido = quedó donde lo eligió;
+   *   motivo = por qué no
    */
-  async exportar(tipo, archivo = undefined, opciones = {}) {
-    let destino;
-    if (archivo) {
-      // Si no se puede escribir en el archivo elegido, el Excel no se pierde: se descarga.
-      const guardar = async (nombre, datos) => {
+  async exportar(tipo, archivo = undefined, opciones = {}, { fallo = null } = {}) {
+    const hoy = hoyIso();
+    const salida = { destino: null, elegido: false, motivo: fallo };
+    const guardar = async (nombre, datos) => {
+      if (archivo) {
         try {
-          return await escribirEnArchivo(archivo, datos);
+          salida.destino = await escribirEnArchivo(archivo, datos);
+          salida.elegido = true;
+          return salida.destino;
         } catch (error) {
           console.warn(error);
-          descargar(nombre, datos);
-          this.avisar("advertencia", `No se pudo guardar donde elegiste: ${error.message}. Se descargó en Descargas.`);
-          return `Descargas/${nombre}`;
+          salida.motivo = error.message;
         }
-      };
-      ({ destino } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), { ...opciones, guardar }));
-      if (!this.exportoConDialogo) {
-        this.exportoConDialogo = true;
-        await this.backend.guardarAjuste("exporto_con_dialogo", true);
       }
-    } else {
-      const { nombre, datos, subcarpeta } = await this.almacen.exportar(tipo, this.usuario, hoyIso(), opciones);
-      destino = await this.guardarArchivo(subcarpeta, nombre, datos);
+      // Sin diálogo se pide el permiso de la carpeta como siempre; tras un «Guardar como» fallido, solo si ya estaba.
+      salida.destino = await this.guardarArchivo(`exportaciones/${hoy}`, nombre, datos, { pedirPermiso: !salida.motivo });
+      return salida.destino;
+    };
+    await this.almacen.exportar(tipo, this.usuario, hoy, { ...opciones, guardar });
+    if (salida.elegido && !this.exportoConDialogo) {
+      this.exportoConDialogo = true;
+      await this.backend.guardarAjuste("exporto_con_dialogo", true);
     }
-    if (this.carpetaLista) await this.respaldar("exportacion", { descargarSiNoHayCarpeta: false });
-    return destino;
+    if (salida.motivo) {
+      const donde = salida.destino.startsWith("Descargas/") ? "tu carpeta de Descargas" : salida.destino;
+      this.avisar(
+        "advertencia",
+        `No se guardó donde elegiste: ${salida.motivo}. El Excel quedó en ${donde}. Cierra el archivo en Excel y vuelve a intentarlo para reemplazarlo.`,
+        0,
+      );
+    }
+    if (this.carpetaLista) {
+      // El Excel ya quedó guardado: si el respaldo falla, se avisa sin ocultar que la exportación sí salió.
+      try {
+        await this.respaldar("exportacion", { descargarSiNoHayCarpeta: false });
+      } catch (error) {
+        console.warn(error);
+        this.avisar("advertencia", `El Excel se guardó, pero no se pudo crear el respaldo: ${error.message}`);
+      }
+    }
+    return salida;
   }
 }

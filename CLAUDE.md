@@ -30,6 +30,15 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   fracción como se ve —`comoFraccion`—, cantidades en General; `conAnchosUniformes` = mismos anchos A–J; sin inmovilizar).
   Lo que había en styles.xml no cambia (prueba en `exportadores.test.js`). *Inventario* filtra los NP/dimensiones que
   Excel volvió fecha (`pareceFecha`). Pendiente: vale impreso uniforme (V-1 a V-4 y V-6; ver `docs/08-plan.md`).
+- Ronda 26 (fallo reportado): el reporte diario «no se guardaba» tras elegir la carpeta. Edge crea o vacía el archivo
+  elegido al aceptar «Guardar como» y, si Windows no lo deja (abierto en Excel, OneDrive), rechaza con `AbortError`
+  como al cancelar. `canceloDialogo` (`almacen/archivos.js`) solo acepta el mensaje de cancelación; `elegirDondeGuardar`
+  lanza `ErrorEscritura` explicado y `exportarConDialogo` sigue con `{ fallo }`: `Sesion.exportar` guarda en
+  `exportaciones/<hoy>` de la carpeta (sin pedir permiso tras un fallo) o en Descargas, aviso persistente, y devuelve
+  `{ destino, elegido, motivo }` (tarjetas del reporte en ámbar si no quedó donde se eligió). El volumen no era la causa.
+  Pruebas `guardarComo.test.js` (Sesion con carpeta en memoria: el Chromium de pruebas se cierra al guardar un
+  directorio en IndexedDB) y `guardarComo.navegador.mjs`. En el contenedor de la nube, las pruebas `.navegador.mjs`
+  corren con `PLAYWRIGHT_MODULE=/opt/node-tools/node_modules/playwright/index.mjs`.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
