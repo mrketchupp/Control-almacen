@@ -53,17 +53,22 @@ test("reporte diario: «Guardar como» que falla no se calla y el Excel no se pi
     const context = await browser.newContext({ viewport, colorScheme, isMobile, hasTouch: isMobile, acceptDownloads: true, timezoneId: "America/Mexico_City" });
     t.after(() => context.close());
     await context.addInitScript(() => {
-      // modo: "ok" | "cancela" | "ocupado" (falla al elegir, como un archivo abierto en Excel) | "bloqueado" (falla al escribir)
+      // modo: "ok" | "cancela" | "ocupado" (falla al elegir, como un archivo abierto en Excel) | "bloqueado"
+      // (falla al escribir) | "colgado" (Edge no responde hasta que la prueba llama window.__soltar()).
       window.__modo = "ok";
       window.__pedidos = 0;
       const error = (name, message) => new DOMException(message, name);
+      const crear = async (nombre) => {
+        const raiz = await navigator.storage.getDirectory();
+        const elegidos = await raiz.getDirectoryHandle("elegidos", { create: true });
+        return elegidos.getFileHandle(nombre, { create: true });
+      };
       window.showSaveFilePicker = async (opciones) => {
         window.__pedidos++;
         if (window.__modo === "cancela") throw error("AbortError", "The user aborted a request.");
         if (window.__modo === "ocupado") throw error("AbortError", "Failed to create or truncate file");
-        const raiz = await navigator.storage.getDirectory();
-        const elegidos = await raiz.getDirectoryHandle("elegidos", { create: true });
-        const archivo = await elegidos.getFileHandle(opciones.suggestedName, { create: true });
+        if (window.__modo === "colgado") return new Promise((resolver) => { window.__soltar = async () => resolver(await crear(opciones.suggestedName)); });
+        const archivo = await crear(opciones.suggestedName);
         if (window.__modo !== "bloqueado") return archivo;
         return { name: archivo.name, getFile: () => archivo.getFile(),
           createWritable: async () => ({ write: async () => {}, abort: async () => {}, close: async () => { throw error("NoModificationAllowedError", "Locked"); } }) };
@@ -114,19 +119,55 @@ test("reporte diario: «Guardar como» que falla no se calla y el Excel no se pi
     return { page, errores, externas, descargas, archivos, pulsar, avisos };
   }
 
-  await t.test("cancelar no hace nada: ni descarga ni aviso", async () => {
+  const CAPTURAS = process.env.GUARDAR_COMO_CAPTURAS; // carpeta para las capturas (opcional)
+  const dialogo = (page) => page.getByRole("dialog", { name: "No se guardó donde elegiste" });
+
+  await t.test("«Guardar como» se cierra sin archivo: nunca en silencio, «Guardar en Descargas» con un clic", async () => {
     const r = await abrir();
     const boton = await r.pulsar(TARJETA_VALES, "cancela");
-    await r.page.waitForTimeout(400);
+    await r.page.locator(".toast-info").waitFor();
     assert.equal(await r.page.evaluate(() => window.__pedidos), 1);
-    assert.deepEqual(r.descargas, []);
-    assert.deepEqual(await r.avisos(), []);
+    assert.deepEqual(r.descargas, [], "cancelar no descarga solo");
+    const toast = r.page.locator(".toast-info");
+    assert.match(await toast.innerText(), /No se guardó «VALES DE SALIDA GSM\.xlsm»/);
     assert.doesNotMatch(await boton.innerText(), /Guardado|No quedó/);
+    if (CAPTURAS) { await r.page.waitForTimeout(500); await r.page.screenshot({ path: join(CAPTURAS, "no-se-guardo.png"), clip: { x: 420, y: 50, width: 600, height: 200 } }); }
+    const esperando = r.page.waitForEvent("download");
+    await toast.getByRole("button", { name: "Guardar en Descargas" }).click();
+    const descarga = await esperando;
+    assert.equal(descarga.suggestedFilename(), VALES);
+    assert.deepEqual(foliosDelLibro(new Uint8Array(await readFile(await descarga.path()))), TODOS);
+    await r.page.waitForFunction(() => /✓ Guardado: Descargas\/VALES DE SALIDA GSM\.xlsm/.test(document.body.innerText));
+    assert.equal(await dialogo(r.page).count(), 0);
     assert.deepEqual(r.errores, []); assert.deepEqual(r.externas, []);
   });
 
-  const CAPTURAS = process.env.GUARDAR_COMO_CAPTURAS; // carpeta para las capturas (opcional)
-  const dialogo = (page) => page.getByRole("dialog", { name: "No se guardó donde elegiste" });
+  await t.test("Edge no responde tras cerrar «Guardar como»: a Descargas con el dibujo de OneDrive; si responde después, también ahí", async () => {
+    const r = await abrir();
+    await r.page.evaluate(() => { window.__modo = "colgado"; });
+    await r.page.getByRole("button", { name: TARJETA_INVENTARIO, exact: true }).click();
+    // El diálogo de Windows quita el foco a la página y lo devuelve al cerrarse.
+    await r.page.evaluate(() => { window.dispatchEvent(new Event("blur")); window.dispatchEvent(new Event("focus")); });
+    const esperando = r.page.waitForEvent("download", { timeout: 15000 });
+    const ventana = dialogo(r.page);
+    await ventana.waitFor({ timeout: 15000 });
+    const descarga = await esperando;
+    assert.match(descarga.suggestedFilename(), /^INVENTARIO GSM .*231026\.xlsx$/);
+    const texto = await ventana.innerText();
+    assert.match(texto, /Espera a que OneDrive termine de subir/);
+    assert.match(texto, /Quedó en Descargas/);
+    assert.equal(await ventana.getByRole("img", { name: /OneDrive subiendo archivos/ }).count(), 1);
+    assert.equal(await ventana.getByRole("button", { name: "Guardar otra vez" }).count(), 1);
+    if (CAPTURAS) await r.page.screenshot({ path: join(CAPTURAS, "aviso-colgado.png") });
+    await ventana.getByRole("button", { name: "Cerrar aviso" }).click();
+    // Edge responde tarde: el archivo elegido no queda vacío, se guarda ahí también.
+    await r.page.evaluate(() => window.__soltar());
+    await r.page.locator(".toast-exito", { hasText: "Edge respondió" }).waitFor();
+    const elegidos = await r.archivos("elegidos");
+    const nombre = Object.keys(elegidos).find((n) => /^INVENTARIO GSM .*231026\.xlsx$/.test(n));
+    assert.ok(nombre && elegidos[nombre].length > 1000);
+    assert.deepEqual(r.errores, []); assert.deepEqual(r.externas, []);
+  });
 
   await t.test("archivo abierto en Excel (falla al elegirlo): se descarga completo y lo explica con dibujos", async () => {
     const r = await abrir();

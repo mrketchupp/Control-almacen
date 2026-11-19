@@ -24,7 +24,8 @@ export function descargar(nombre, datos) {
   document.body.appendChild(enlace);
   enlace.click();
   enlace.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  // (En Node, para las pruebas, el temporizador no detiene la salida.)
+  setTimeout(() => URL.revokeObjectURL(url), 60000)?.unref?.();
 }
 
 export const soportaGuardarComo = () => typeof window !== "undefined" && "showSaveFilePicker" in window;
@@ -42,7 +43,8 @@ export function canceloDialogo(error) {
 
 /**
  * Error al guardar, explicado. `causa` dice qué dibujar en el aviso: 'abierto' (Excel u otro programa lo
- * tiene), 'sincronizando' (OneDrive), 'bloqueado' (SmartScreen), 'permiso', 'espacio', 'carpeta' u 'otro'.
+ * tiene), 'sincronizando' (OneDrive), 'colgado' (Edge o Windows no respondió: pasa mientras OneDrive sube
+ * archivos), 'bloqueado' (SmartScreen), 'permiso', 'espacio', 'carpeta' u 'otro'.
  */
 export class ErrorEscritura extends Error {
   constructor(mensaje, { cause, causa } = {}) {
@@ -64,6 +66,8 @@ export function causaDeError(error) {
     case "InvalidStateError":
       return "sincronizando";
     case "NotAllowedError":
+      // "File picker already active": Edge sigue con el «Guardar como» anterior, que no respondió.
+      return /already active/i.test(error.message ?? "") ? "colgado" : "permiso";
     case "SecurityError":
       return "permiso";
     case "QuotaExceededError":
@@ -112,6 +116,8 @@ export function explicarErrorEscritura(error, nombre) {
     case "InvalidStateError":
       return `«${nombre}» cambió mientras se guardaba (¿OneDrive lo estaba sincronizando?)`;
     case "NotAllowedError":
+      if (/already active/i.test(error.message ?? "")) return "Edge sigue ocupado con el «Guardar como» anterior, que no respondió";
+      return `el navegador no dio permiso para escribir «${nombre}»`;
     case "SecurityError":
       return `el navegador no dio permiso para escribir «${nombre}»`;
     case "QuotaExceededError":
@@ -123,31 +129,51 @@ export function explicarErrorEscritura(error, nombre) {
   }
 }
 
+/** Lo más que se espera a una escritura (OneDrive puede dejarla esperando sin responder). */
+export const LIMITE_ESCRITURA_MS = 30000;
+
+/**
+ * La promesa, o un ErrorEscritura con causa 'colgado' si no termina en `ms`. Lo que quedó corriendo
+ * sigue por su lado; así la herramienta nunca se queda en «Generando Excel…» para siempre.
+ */
+export function conLimite(promesa, ms, nombre) {
+  let temporizador;
+  const limite = new Promise((_, rechazar) => {
+    temporizador = setTimeout(() => rechazar(new ErrorEscritura(`Windows no terminó de guardar «${nombre}» (¿OneDrive está subiendo archivos?)`, { causa: "colgado" })), ms);
+  });
+  return Promise.race([promesa, limite]).finally(() => clearTimeout(temporizador));
+}
+
 const ESPERAS_ESCRITURA = [0, 500, 1500];
 const sinReintento = (error) =>
-  ["NotAllowedError", "SecurityError", "QuotaExceededError"].includes(error?.name) || /safe ?browsing|smartscreen/i.test(error?.message ?? "");
+  ["NotAllowedError", "SecurityError", "QuotaExceededError"].includes(error?.name) ||
+  /safe ?browsing|smartscreen/i.test(error?.message ?? "") ||
+  causaDeError(error) === "colgado";
 
 /**
  * Escribe en el archivo elegido con "Guardar como". Reintenta (OneDrive o un antivirus pueden tener el
  * archivo un instante) y comprueba que quedó completo. @throws ErrorEscritura con la causa explicada
  */
-export async function escribirEnArchivo(archivo, datos) {
+export async function escribirEnArchivo(archivo, datos, { limiteMs = LIMITE_ESCRITURA_MS } = {}) {
   let ultimo = null;
+  const intento = async () => {
+    const escritor = await archivo.createWritable();
+    try {
+      await escritor.write(datos);
+      await escritor.close();
+    } catch (error) {
+      await escritor.abort().catch(() => {});
+      throw error;
+    }
+    if (typeof archivo.getFile === "function") {
+      const escrito = await archivo.getFile();
+      if (escrito.size !== datos.length) throw new ErrorEscritura(`«${archivo.name}» quedó incompleto`, { causa: "otro" });
+    }
+  };
   for (const espera of ESPERAS_ESCRITURA) {
     if (espera) await new Promise((r) => setTimeout(r, espera));
     try {
-      const escritor = await archivo.createWritable();
-      try {
-        await escritor.write(datos);
-        await escritor.close();
-      } catch (error) {
-        await escritor.abort().catch(() => {});
-        throw error;
-      }
-      if (typeof archivo.getFile === "function") {
-        const escrito = await archivo.getFile();
-        if (escrito.size !== datos.length) throw new ErrorEscritura(`«${archivo.name}» quedó incompleto`, { causa: "otro" });
-      }
+      await conLimite(intento(), limiteMs, archivo.name);
       return archivo.name;
     } catch (error) {
       ultimo = error;
@@ -180,13 +206,19 @@ async function subcarpeta(carpeta, ruta, crear = true) {
   return actual;
 }
 
-/** Escribe `datos` en carpeta/ruta/nombre (crea las subcarpetas). Escritura atómica del navegador. */
-export async function escribirEnCarpeta(carpeta, ruta, nombre, datos) {
-  const destino = await subcarpeta(carpeta, ruta);
-  const archivo = await destino.getFileHandle(nombre, { create: true });
-  const escritor = await archivo.createWritable();
-  await escritor.write(datos);
-  await escritor.close();
+/**
+ * Escribe `datos` en carpeta/ruta/nombre (crea las subcarpetas). Escritura atómica del navegador, con
+ * un límite de tiempo (`conLimite`) para no quedarse esperando a OneDrive.
+ */
+export async function escribirEnCarpeta(carpeta, ruta, nombre, datos, { limiteMs = LIMITE_ESCRITURA_MS * 2 } = {}) {
+  const escribir = async () => {
+    const destino = await subcarpeta(carpeta, ruta);
+    const archivo = await destino.getFileHandle(nombre, { create: true });
+    const escritor = await archivo.createWritable();
+    await escritor.write(datos);
+    await escritor.close();
+  };
+  await conLimite(escribir(), limiteMs, nombre);
   return `${carpeta.name}/${ruta ? `${ruta}/` : ""}${nombre}`;
 }
 

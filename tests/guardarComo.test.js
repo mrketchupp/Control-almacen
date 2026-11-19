@@ -4,10 +4,10 @@
 // cancelar y no pasaba nada después de elegir la carpeta.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ErrorEscritura, causaDeError, canceloDialogo, elegirDondeGuardar, escribirEnArchivo, explicarErrorEscritura } from "../src/almacen/archivos.js";
+import { ErrorEscritura, causaDeError, canceloDialogo, conLimite, elegirDondeGuardar, escribirEnArchivo, explicarErrorEscritura } from "../src/almacen/archivos.js";
 import { Sesion } from "../src/ui/sesion.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
-import { hoyIso } from "../src/nucleo/fechas.js";
+import { ahoraIso } from "../src/nucleo/fechas.js";
 import { almacenReporteGsm, FECHA_REPORTE_GSM, PRIMER_FOLIO_GSM, ULTIMO_FOLIO_GSM } from "./ayudaReporteGsm.js";
 
 const domError = (name, message = "") => Object.assign(new Error(message), { name });
@@ -138,7 +138,18 @@ async function sesionConCarpeta(permiso = "granted") {
   return sesion;
 }
 
-test("bloqueado al escribir donde se eligió: el Excel queda en la carpeta de la herramienta y se dice por qué", async () => {
+/** Descargas de prueba: `descargar` usa un <a download> que aquí solo anota el nombre. */
+function conDescargas(t) {
+  const descargas = [];
+  const antes = { document: globalThis.document, crear: URL.createObjectURL };
+  globalThis.document = { createElement: () => { const a = { click: () => descargas.push(a.download), remove() {} }; return a; }, body: { appendChild() {} } };
+  URL.createObjectURL = () => "blob:prueba";
+  t.after(() => { globalThis.document = antes.document; URL.createObjectURL = antes.crear; });
+  return descargas;
+}
+
+test("bloqueado al escribir donde se eligió: el Excel se descarga en Descargas (en el equipo, sin OneDrive) y se dice por qué", async (t) => {
+  const descargas = conDescargas(t);
   const sesion = await sesionConCarpeta();
   const bloqueado = { name: "VALES DE SALIDA GSM.xlsm", createWritable: async () => { throw domError("NoModificationAllowedError"); } };
   const r = await sesion.exportar("VALES", bloqueado, { corte: FECHA_REPORTE_GSM });
@@ -146,40 +157,74 @@ test("bloqueado al escribir donde se eligió: el Excel queda en la carpeta de la
   assert.match(r.motivo, /abierto en Excel/);
   assert.equal(r.causa, "abierto");
   assert.equal(r.nombre, "VALES DE SALIDA GSM.xlsm");
-  assert.equal(r.destino, `ControlAlmacen/exportaciones/${hoyIso()}/VALES DE SALIDA GSM.xlsm`);
-  assert.deepEqual(folios(ruta(sesion.carpeta, "exportaciones", hoyIso(), "VALES DE SALIDA GSM.xlsm").datos), TODOS);
+  assert.equal(r.destino, "Descargas/VALES DE SALIDA GSM.xlsm");
+  assert.deepEqual(descargas, ["VALES DE SALIDA GSM.xlsm"]);
+  assert.equal(ruta(sesion.carpeta, "exportaciones"), undefined, "no se escribe en la carpeta de OneDrive");
   // Lo explica la ventana con dibujos (exportarConDialogo), no un aviso de texto.
   assert.deepEqual(sesion.avisos, []);
-  // Queda registrada la exportación con el lugar donde de verdad quedó, y se hizo el respaldo.
+  // Queda registrada la exportación con el lugar donde de verdad quedó, y se hizo el respaldo (no había).
   assert.equal(sesion.estado.exportaciones.at(-1).archivo, r.destino);
   assert.equal(ruta(sesion.carpeta, "respaldos").hijos.size, 1);
 });
 
-test("falló al elegirlo (abierto en Excel): se guarda en la carpeta sin volver a pedir permiso", async () => {
-  const sesion = await sesionConCarpeta();
+test("falló al elegirlo (abierto en Excel o Edge no respondió): a Descargas, sin pedir permiso de la carpeta", async (t) => {
+  const descargas = conDescargas(t);
+  const sesion = await sesionConCarpeta("prompt");
   const fallo = new ErrorEscritura("Windows no dejó crear o reemplazar «x»", { cause: domError("AbortError", "Failed to create or truncate file") });
   const r = await sesion.exportar("INVENTARIO", undefined, { corte: FECHA_REPORTE_GSM }, { fallo });
   assert.equal(r.elegido, false);
   assert.equal(r.motivo, fallo.message);
   assert.equal(r.causa, "abierto");
-  assert.match(r.destino, new RegExp(`^ControlAlmacen/exportaciones/${hoyIso()}/INVENTARIO GSM .*231026\\.xlsx$`));
-  assert.deepEqual(sesion.carpeta.pedidos, []);
-});
-
-test("falló al elegirlo y la carpeta no tiene permiso: no lo pide (sin clic lo negaría) y descarga", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
-  const descargas = [];
-  const antes = { document: globalThis.document, crear: URL.createObjectURL };
-  globalThis.document = { createElement: () => { const a = { click: () => descargas.push(a.download), remove() {} }; return a; }, body: { appendChild() {} } };
-  URL.createObjectURL = () => "blob:prueba";
-  t.after(() => { globalThis.document = antes.document; URL.createObjectURL = antes.crear; });
-  const sesion = await sesionConCarpeta("prompt");
-  const r = await sesion.exportar("VALES", undefined, { corte: FECHA_REPORTE_GSM }, { fallo: "Windows no dejó crear o reemplazar «x»" });
-  assert.equal(r.destino, "Descargas/VALES DE SALIDA GSM.xlsm");
-  assert.deepEqual(descargas, ["VALES DE SALIDA GSM.xlsm"]);
+  assert.match(r.destino, /^Descargas\/INVENTARIO GSM .*231026\.xlsx$/);
+  assert.equal(descargas.length, 1);
   assert.deepEqual(sesion.carpeta.pedidos, []);
   assert.equal(sesion.permiso, "prompt");
-  assert.equal(r.causa, "otro"); // un texto sin error detrás
+  const colgado = new ErrorEscritura("Edge no respondió", { causa: "colgado" });
+  const r2 = await sesion.exportar("VALES", undefined, { corte: FECHA_REPORTE_GSM }, { fallo: colgado });
+  assert.equal(r2.causa, "colgado");
+  assert.equal(r2.destino, "Descargas/VALES DE SALIDA GSM.xlsm");
+  const r3 = await sesion.exportar("VALES", undefined, { corte: FECHA_REPORTE_GSM }, { fallo: "texto" });
+  assert.equal(r3.causa, "otro"); // un texto sin error detrás
+});
+
+test("«Guardar en Descargas» descarga aunque haya carpeta lista", async (t) => {
+  const descargas = conDescargas(t);
+  const sesion = await sesionConCarpeta();
+  const r = await sesion.exportar("VALES", undefined, { corte: FECHA_REPORTE_GSM }, { descargar: true });
+  assert.deepEqual(r, { nombre: "VALES DE SALIDA GSM.xlsm", destino: "Descargas/VALES DE SALIDA GSM.xlsm", elegido: false, motivo: null, causa: null });
+  assert.deepEqual(descargas, ["VALES DE SALIDA GSM.xlsm"]);
+  assert.equal(ruta(sesion.carpeta, "exportaciones"), undefined);
+});
+
+test("al exportar se respalda en OneDrive solo si el último respaldo tiene más de 4 horas", async () => {
+  const sesion = await sesionConCarpeta();
+  const elegir = async () => directorio("OneDrive").getFileHandle("VALES DE SALIDA GSM.xlsm", { create: true });
+  const hace = (horas) => ({ fecha_hora: ahoraIso(new Date(Date.now() - horas * 3600 * 1000)), destino: "x", nombre: "x" });
+  sesion.ultimoRespaldo = hace(1);
+  assert.equal(sesion.respaldoReciente(), true);
+  await sesion.exportar("VALES", await elegir(), { corte: FECHA_REPORTE_GSM });
+  await sesion.exportar("INVENTARIO", await directorio("OneDrive").getFileHandle("inv.xlsx", { create: true }), { corte: FECHA_REPORTE_GSM });
+  assert.equal(ruta(sesion.carpeta, "respaldos"), undefined, "dos exportaciones seguidas, ningún respaldo nuevo");
+  sesion.ultimoRespaldo = hace(5);
+  assert.equal(sesion.respaldoReciente(), false);
+  await sesion.exportar("VALES", await elegir(), { corte: FECHA_REPORTE_GSM });
+  assert.equal(ruta(sesion.carpeta, "respaldos").hijos.size, 1);
+  assert.equal(sesion.respaldoReciente(), true, "el nuevo cuenta como reciente");
+  sesion.ultimoRespaldo = null;
+  assert.equal(sesion.respaldoReciente(), false);
+});
+
+test("conLimite: una escritura que no termina se vuelve un error «colgado» (sin reintentos)", async () => {
+  assert.equal(await conLimite(Promise.resolve("ok"), 50, "x"), "ok");
+  await assert.rejects(conLimite(Promise.reject(domError("NotFoundError")), 50, "x"), (e) => e.name === "NotFoundError");
+  await assert.rejects(conLimite(new Promise(() => {}), 30, "inv.xlsx"), (e) => e instanceof ErrorEscritura && e.causa === "colgado" && /inv\.xlsx/.test(e.message));
+  let intentos = 0;
+  const nunca = { name: "inv.xlsx", createWritable: () => { intentos++; return new Promise(() => {}); } };
+  await assert.rejects(escribirEnArchivo(nunca, new Uint8Array([1]), { limiteMs: 30 }), (e) => e instanceof ErrorEscritura && e.causa === "colgado");
+  assert.equal(intentos, 1, "si no respondió, no se reintenta");
+  assert.equal(causaDeError(domError("NotAllowedError", "File picker already active.")), "colgado");
+  assert.match(explicarErrorEscritura(domError("NotAllowedError", "File picker already active."), "x"), /sigue ocupado/);
+  assert.equal(causaDeError(domError("NotAllowedError", "otra cosa")), "permiso");
 });
 
 test("si se pudo escribir donde se eligió: resultado elegido, sin avisos de advertencia", async () => {

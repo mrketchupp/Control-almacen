@@ -201,8 +201,14 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
   carpeta); si el navegador no la tiene, en la carpeta elegida o en Descargas. Edge crea o vacía el archivo elegido al
   aceptar la ventana y rechaza con `AbortError` tanto al cancelar como cuando falla (mismo nombre, otro mensaje), así
   que `canceloDialogo` solo toma como cancelar el mensaje de siempre. Si el archivo elegido no se puede crear o escribir
-  (abierto en Excel, OneDrive, SmartScreen), `Sesion.exportar` lo guarda en `exportaciones/AAAA-MM-DD` de la carpeta de
-  la herramienta (sin pedir permiso de nuevo) o en Descargas, y devuelve `{ nombre, destino, elegido, motivo, causa }`; `exportarConDialogo` lo explica en una ventana con dibujos (`ui/avisoGuardado.js`, `ui/ilustraciones.js`).
+  (abierto en Excel, OneDrive, SmartScreen), `Sesion.exportar` lo descarga en Descargas (en el equipo, sin OneDrive de
+  por medio; Ronda 29) y devuelve `{ nombre, destino, elegido, motivo, causa }`; `exportarConDialogo` lo explica en una
+  ventana con dibujos (`ui/avisoGuardado.js`, `ui/ilustraciones.js`). Nunca termina en silencio: si «Guardar como» se
+  cierra sin archivo (cancelar, o Edge que no pudo usar la carpeta y responde igual), un aviso ofrece **Guardar en
+  Descargas**; `vigilarDialogo` detecta a Edge que no responde 5 s después de recuperar el foco (causa `colgado`, dibujo
+  de OneDrive subiendo) y, si responde tarde, guarda también en el archivo elegido. Las escrituras tienen límite de
+  tiempo (`conLimite`, `LIMITE_ESCRITURA_MS`) para no quedarse en «Generando Excel…». Al exportar se respalda en la
+  carpeta solo si el último respaldo tiene más de `HORAS_ENTRE_RESPALDOS_AL_EXPORTAR` (4) horas.
 - La impresión de vales y hojas de conteo genera HTML propio. La
   interfaz las inserta en `#area-impresion` y llama `window.print()`; Edge ofrece imprimir o *Guardar como PDF*. No se
   usa ninguna biblioteca de PDF ni conexión de red.

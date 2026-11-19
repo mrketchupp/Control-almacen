@@ -1,17 +1,64 @@
 import { useMemo } from "preact/hooks";
-import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
+import { ErrorEscritura } from "../../almacen/archivos.js";
+import { fmtFecha, fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
 import { registrarEnvio, ultimoEnvio, valesPorEnviar } from "../../servicios/vales.js";
 import { Boton, Tabla, Tarjeta, confirmar, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
 
+/** Tras cerrarse «Guardar como» (la ventana vuelve a tener el foco), cuánto se espera a que Edge responda. */
+export const ESPERA_TRAS_DIALOGO_MS = 5000;
+
+/**
+ * La respuesta de «Guardar como», vigilada: si la ventana ya recuperó el foco (el diálogo se cerró) y Edge
+ * no responde en `ms`, rechaza con ErrorEscritura 'colgado' (pasa mientras OneDrive sube archivos). Si Edge
+ * responde después con el archivo, `alLlegarTarde(archivo)` lo recibe para guardar ahí de todos modos.
+ */
+export function vigilarDialogo(promesa, { ms = ESPERA_TRAS_DIALOGO_MS, alLlegarTarde = null } = {}) {
+  return new Promise((resolver, rechazar) => {
+    let vencida = false;
+    let temporizador = null;
+    const limpiar = () => {
+      clearTimeout(temporizador);
+      window.removeEventListener("focus", alFoco);
+      window.removeEventListener("blur", alPerderFoco);
+    };
+    function alFoco() {
+      clearTimeout(temporizador);
+      temporizador = setTimeout(() => {
+        if (!document.hasFocus()) return;
+        vencida = true;
+        limpiar();
+        rechazar(new ErrorEscritura("Edge no respondió al guardar en esa carpeta (pasa mientras OneDrive sube archivos)", { causa: "colgado" }));
+      }, ms);
+    }
+    function alPerderFoco() {
+      clearTimeout(temporizador);
+    }
+    window.addEventListener("focus", alFoco);
+    window.addEventListener("blur", alPerderFoco);
+    Promise.resolve(promesa).then(
+      (archivo) => {
+        limpiar();
+        if (!vencida) resolver(archivo);
+        else if (archivo) alLlegarTarde?.(archivo);
+      },
+      (error) => {
+        limpiar();
+        if (!vencida) rechazar(error);
+      },
+    );
+  });
+}
+
 /**
  * Exporta un libro: primero "Guardar como" (tiene que abrirse directo desde el clic), luego se
  * genera el archivo. tipo: 'VALES' | 'INVENTARIO' | 'ENTRADAS' | 'AJUSTE'. opciones: { corte }
  * (AAAA-MM-DD, el libro al cierre de ese día) o { corteAx, todos } (solicitud de ajuste).
- * alTerminar recibe { nombre, destino, elegido, motivo, causa } (ver Sesion.exportar). Si no quedó donde
- * se eligió, se explica con dibujos en una ventana al centro (AvisoNoGuardado) que permite reintentar.
+ * alTerminar recibe { nombre, destino, elegido, motivo, causa } (ver Sesion.exportar). Nunca termina en
+ * silencio: si «Guardar como» se cierra sin archivo, un aviso ofrece guardarlo en Descargas; si no quedó
+ * donde se eligió, se explica con dibujos en una ventana al centro (AvisoNoGuardado) que permite reintentar.
  */
 const enCurso = new Set();
 
@@ -21,33 +68,51 @@ export async function exportarConDialogo(sesion, tipo, alTerminar = null, opcion
   let archivo;
   let fallo = null;
   try {
-    archivo = await sesion.elegirDestinoExportacion(tipo, opciones);
+    archivo = await vigilarDialogo(sesion.elegirDestinoExportacion(tipo, opciones), {
+      // Edge respondió tarde (ya se guardó en Descargas): también se guarda donde se eligió.
+      alLlegarTarde: (tardio) => generar(sesion, tipo, tardio, opciones, alTerminar, { tardio: true }),
+    });
   } catch (error) {
     // Se eligió dónde guardar, pero Windows no dejó crear o reemplazar ese archivo (casi siempre está
-    // abierto en Excel): el Excel se genera igual y queda en la carpeta de la herramienta o en Descargas.
+    // abierto en Excel) o Edge no respondió: el Excel se genera igual y queda en Descargas.
     console.warn(error);
     fallo = error;
     archivo = undefined;
   }
-  if (archivo === null) return; // canceló
+  if (archivo === null) {
+    // Se cerró sin archivo: el usuario canceló o Edge no pudo usar la carpeta (y responde igual que al
+    // cancelar). Que no quede en silencio: se puede guardar en Descargas con un clic.
+    const nombre = sesion.almacen.nombreExportacion(tipo, opciones.corte ?? hoyIso(), opciones);
+    sesion.avisar("info", `No se guardó${nombre ? ` «${nombre}»` : " el Excel"}.`, 12000, {
+      etiqueta: "Guardar en Descargas",
+      ocupado: "Generando Excel…",
+      alHacer: () => generar(sesion, tipo, undefined, opciones, alTerminar, { descargar: true }),
+    });
+    return;
+  }
   enCurso.add(clave);
   try {
-    await sesion.tarea("Generando Excel…", async () => {
-      const resultado = await sesion.exportar(tipo, archivo, opciones, { fallo });
-      if (!resultado.motivo) sesion.avisar("exito", `Listo: ${resultado.destino}`);
-      else {
-        sesion.mostrarDialogo({
-          tipo: "no-guardado",
-          ...resultado,
-          // El clic en "Guardar otra vez" abre «Guardar como» de nuevo (el navegador lo exige desde un clic).
-          reintentar: () => exportarConDialogo(sesion, tipo, alTerminar, opciones),
-        });
-      }
-      alTerminar?.(resultado);
-    });
+    await generar(sesion, tipo, archivo, opciones, alTerminar, { fallo });
   } finally {
     enCurso.delete(clave);
   }
+}
+
+/** Genera y guarda (archivo elegido, o Descargas) y avisa: «Listo» o la ventana con dibujos. */
+function generar(sesion, tipo, archivo, opciones, alTerminar, { fallo = null, descargar = false, tardio = false } = {}) {
+  return sesion.tarea("Generando Excel…", async () => {
+    const resultado = await sesion.exportar(tipo, archivo, opciones, { fallo, descargar });
+    if (!resultado.motivo) sesion.avisar("exito", tardio ? `Edge respondió: también quedó en ${resultado.destino}` : `Listo: ${resultado.destino}`);
+    else {
+      sesion.mostrarDialogo({
+        tipo: "no-guardado",
+        ...resultado,
+        // El clic en "Guardar otra vez" abre «Guardar como» de nuevo (el navegador lo exige desde un clic).
+        reintentar: () => exportarConDialogo(sesion, tipo, alTerminar, opciones),
+      });
+    }
+    alTerminar?.(resultado);
+  });
 }
 
 /**

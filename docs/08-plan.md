@@ -319,6 +319,18 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 29 — «Guardar como» que no hacía nada (reporte diario).** Reporte con grabación: al pulsar *Guardar* en la
+carpeta del inventario diario de OneDrive no aparecía «Generando Excel…» ni el archivo; guardando en otra carpeta sí, y
+otra vez inmediatamente, no. Mientras tanto OneDrive subía `almacen_…_exportacion.zip` (6.8 MB): cada exportación hacía
+un respaldo completo en la carpeta de OneDrive, y el reporte diario exporta dos libros seguidos. Cuando Edge no puede
+usar la carpeta responde igual que al cancelar (o no responde), y la herramienta se quedaba callada. **Aplicado:** el
+respaldo al exportar solo si el último tiene más de 4 horas; si «Guardar como» se cierra sin archivo, aviso *No se
+guardó…* con **Guardar en Descargas**; si Edge no responde 5 s después de cerrarse el diálogo, se guarda en Descargas y
+la ventana con dibujos muestra a OneDrive subiendo (si Edge responde después, también se guarda en el archivo elegido);
+lo que no quedó donde se eligió va a Descargas (en el equipo, sin OneDrive); las escrituras tienen límite de tiempo.
+- ☐ Del usuario: probar el reporte diario de los dos libros seguidos en la carpeta de OneDrive.
+- Propuesta (sin hacer): guardar el reporte directo en su carpeta (elegirla una vez; año y mes solos), sin «Guardar como».
+
 **Ronda 28 — revisión de FX.** Lo que ya hace: el conteo de auditoría marca las partidas de FX; *Inventario* las muestra
 y las filtra; *Exportar* y el *Reporte diario* sacan el libro de FX aparte (y el del Inventario B sin ellas); la
 conciliación del Inventario B no las cuenta. **Corregido:** mover material de FX a otro contenedor lo volvía del Inventario

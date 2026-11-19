@@ -67,32 +67,44 @@ const IcoArchivo = ({ tam = 20 }) => svg(tam, html`<path class="f-hoja t-borde" 
 
 /**
  * La barra de tareas de Windows con Excel abierto y la vista previa de su ventana, con el mouse sobre la
- * ✕ para cerrarla. `sincronizando`: la nube de OneDrive en la bandeja con sus flechas.
+ * ✕ para cerrarla. `sincronizando`: la nube de OneDrive en la bandeja con sus flechas. `subiendo`: en
+ * lugar de Excel, el panel de OneDrive «Cargando archivos…» sobre su nube (como el de Windows).
  */
-export function BarraDeTareas({ archivo, sincronizando = false, ahora = new Date() }) {
+export function BarraDeTareas({ archivo, sincronizando = false, subiendo = false, ahora = new Date() }) {
   const dos = (n) => String(n).padStart(2, "0");
-  return html`<div class="ilus ilus-escritorio" role="img" aria-label=${`Barra de tareas de Windows con Excel abierto en «${archivo}»`}>
+  const etiqueta = subiendo ? "Barra de tareas de Windows con OneDrive subiendo archivos" : `Barra de tareas de Windows con Excel abierto en «${archivo}»`;
+  return html`<div class="ilus ilus-escritorio" role="img" aria-label=${etiqueta}>
+    ${subiendo
+      ? html`<div class="ilus-onedrive">
+          <div class="ilus-onedrive-cabeza"><${IcoNube} tam=${16} /> <strong>OneDrive</strong></div>
+          <div class="ilus-onedrive-estado"><${IcoNube} tam=${14} sincronizando=${true} /> Cargando archivos…</div>
+          <div class="ilus-onedrive-barra"><span></span></div>
+          <div class="ilus-onedrive-fila"><${IcoCarpeta} tam=${18} /><span class="ilus-exp-barra"></span></div>
+        </div>`
+      : null}
     <div class="ilus-tareas">
       <div class="ilus-tareas-centro">
         <span class="ilus-app"><${IcoInicio} /></span>
         <span class="ilus-app"><${IcoBuscar} /></span>
         <span class="ilus-app abierta"><${IcoExplorador} /></span>
-        <span class="ilus-app abierta activa resaltada">
-          <span class="ilus-vista">
-            <span class="ilus-vista-cabeza">
-              <${IcoExcel} tam=${14} />
-              <span class="ilus-vista-nombre">${archivo}</span>
-              <span class="ilus-vista-x">✕</span>
-              <${Cursor} />
-            </span>
-            <span class="ilus-vista-hoja"></span>
-          </span>
-          <${IcoExcel} />
-        </span>
+        ${subiendo
+          ? html`<span class="ilus-app abierta"><${IcoExcel} /></span>`
+          : html`<span class="ilus-app abierta activa resaltada">
+              <span class="ilus-vista">
+                <span class="ilus-vista-cabeza">
+                  <${IcoExcel} tam=${14} />
+                  <span class="ilus-vista-nombre">${archivo}</span>
+                  <span class="ilus-vista-x">✕</span>
+                  <${Cursor} />
+                </span>
+                <span class="ilus-vista-hoja"></span>
+              </span>
+              <${IcoExcel} />
+            </span>`}
         <span class="ilus-app abierta"><${IcoNavegador} /></span>
       </div>
       <div class="ilus-bandeja">
-        <span class=${`ilus-bandeja-nube ${sincronizando ? "resaltada" : ""}`}><${IcoNube} sincronizando=${sincronizando} /></span>
+        <span class=${`ilus-bandeja-nube ${sincronizando || subiendo ? "resaltada" : ""}`}><${IcoNube} sincronizando=${sincronizando || subiendo} /></span>
         <span class="ilus-bandeja-extra"><${IcoWifi} /><${IcoVolumen} /></span>
         <span class="ilus-hora">${ahora.getHours()}:${dos(ahora.getMinutes())}<br />${dos(ahora.getDate())}/${dos(ahora.getMonth() + 1)}</span>
       </div>

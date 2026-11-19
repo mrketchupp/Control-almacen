@@ -30,6 +30,12 @@ import { LibroLeido } from "../xlsx/leer.js";
 
 export const CARPETA_RESPALDOS = "respaldos";
 
+/**
+ * Al exportar se respalda en la carpeta (OneDrive) solo si el último respaldo tiene más de estas horas:
+ * cada respaldo sube varios MB a OneDrive y, mientras sube, Edge puede no lograr guardar el siguiente Excel.
+ */
+export const HORAS_ENTRE_RESPALDOS_AL_EXPORTAR = 4;
+
 export class Sesion {
   /**
    * @param cambiarInventario  (id, { pagina }) => abre el otro inventario (DLTA / GSM) en esta misma pestaña
@@ -99,7 +105,8 @@ export class Sesion {
   }
 
   /**
-   * Aviso flotante. `accion` = { etiqueta, alHacer } agrega un botón (p. ej. "Deshacer"). Con `duracion`
+   * Aviso flotante. `accion` = { etiqueta, alHacer, ocupado? } agrega un botón (p. ej. "Deshacer"); con
+   * `ocupado`, la acción muestra su propio indicador (ver exportarConDialogo). Con `duracion`
    * se quita solo; mientras el mouse o el teclado están en el aviso, el tiempo se detiene (pausarAviso).
    */
   avisar(tipo, texto, duracion = tipo === "error" ? 0 : 6000, accion = null) {
@@ -303,6 +310,12 @@ export class Sesion {
       .map((a) => ({ ...a, info: infoDeNombre(a.nombre, this.almacen.inventario) }))
       .filter((a) => a.info)
       .sort((a, b) => (a.info.fecha_hora < b.info.fecha_hora ? 1 : -1));
+  }
+
+  /** ¿Hay un respaldo de hace menos de `horas`? (para no subir otro a OneDrive en cada exportación) */
+  respaldoReciente(horas = HORAS_ENTRE_RESPALDOS_AL_EXPORTAR, ahora = Date.now()) {
+    const fecha = Date.parse(this.ultimoRespaldo?.fecha_hora ?? "");
+    return Number.isFinite(fecha) && ahora - fecha < horas * 3600 * 1000;
   }
 
   get respaldoDeHoy() {
@@ -571,13 +584,13 @@ export class Sesion {
    * opciones: { corte } (AAAA-MM-DD: como estaba al cierre de ese día, reporte diario) o
    * { corteAx, todos } (solicitud de ajuste de un corte de AX).
    * `fallo`: por qué no se pudo usar el archivo elegido en «Guardar como» (se supo al elegirlo; un
-   * ErrorEscritura o un texto). Si el archivo elegido no se puede escribir, el Excel no se pierde: va a
-   * la carpeta de la herramienta (exportaciones/AAAA-MM-DD) o a Descargas; quien llama lo avisa (con
-   * dibujos, `exportarConDialogo`).
+   * ErrorEscritura o un texto). Si el archivo elegido no se puede escribir, el Excel no se pierde: se
+   * descarga en Descargas (en el equipo, sin OneDrive de por medio); quien llama lo avisa (con dibujos,
+   * `exportarConDialogo`). `descargar`: directo a Descargas (botón «Guardar en Descargas»).
    * @returns {{ nombre, destino, elegido: boolean, motivo: string | null, causa: string | null }}
    *   elegido = quedó donde lo eligió; motivo = por qué no, en palabras; causa = código (causaDeError)
    */
-  async exportar(tipo, archivo = undefined, opciones = {}, { fallo = null } = {}) {
+  async exportar(tipo, archivo = undefined, opciones = {}, { fallo = null, descargar: aDescargas = false } = {}) {
     const hoy = hoyIso();
     const salida = { nombre: null, destino: null, elegido: false, motivo: fallo?.message ?? fallo, causa: fallo ? causaDeError(fallo) : null };
     const guardar = async (nombre, datos) => {
@@ -592,8 +605,14 @@ export class Sesion {
           salida.causa = causaDeError(error);
         }
       }
-      // Sin diálogo se pide el permiso de la carpeta como siempre; tras un «Guardar como» fallido, solo si ya estaba.
-      salida.destino = await this.guardarArchivo(`exportaciones/${hoy}`, nombre, datos, { pedirPermiso: !salida.motivo });
+      if (aDescargas || salida.motivo) {
+        // «Guardar como» falló (o se pidió así): a Descargas, que está en el equipo y no depende de OneDrive.
+        descargar(nombre, datos);
+        salida.destino = `Descargas/${nombre}`;
+        return salida.destino;
+      }
+      // Sin «Guardar como» (otro navegador): a la carpeta de la herramienta o a Descargas, como siempre.
+      salida.destino = await this.guardarArchivo(`exportaciones/${hoy}`, nombre, datos);
       return salida.destino;
     };
     ({ nombre: salida.nombre } = await this.almacen.exportar(tipo, this.usuario, hoy, { ...opciones, guardar }));
@@ -601,7 +620,7 @@ export class Sesion {
       this.exportoConDialogo = true;
       await this.backend.guardarAjuste("exporto_con_dialogo", true);
     }
-    if (this.carpetaLista) {
+    if (this.carpetaLista && !this.respaldoReciente()) {
       // El Excel ya quedó guardado: si el respaldo falla, se avisa sin ocultar que la exportación sí salió.
       try {
         await this.respaldar("exportacion", { descargarSiNoHayCarpeta: false });

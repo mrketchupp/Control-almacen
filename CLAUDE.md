@@ -33,9 +33,9 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
 - Ronda 26 (fallo reportado): el reporte diario «no se guardaba» tras elegir la carpeta. Edge crea o vacía el archivo
   elegido al aceptar «Guardar como» y, si Windows no lo deja (abierto en Excel, OneDrive), rechaza con `AbortError`
   como al cancelar. `canceloDialogo` (`almacen/archivos.js`) solo acepta el mensaje de cancelación; `elegirDondeGuardar`
-  lanza `ErrorEscritura` explicado y `exportarConDialogo` sigue con `{ fallo }`: `Sesion.exportar` guarda en
-  `exportaciones/<hoy>` de la carpeta (sin pedir permiso tras un fallo) o en Descargas, aviso persistente, y devuelve
-  `{ destino, elegido, motivo }` (tarjetas del reporte en ámbar si no quedó donde se eligió). El volumen no era la causa.
+  lanza `ErrorEscritura` explicado y `exportarConDialogo` sigue con `{ fallo }`: `Sesion.exportar` lo guarda en otro
+  lugar (desde la Ronda 29, Descargas) y devuelve `{ destino, elegido, motivo }` (tarjetas del reporte en ámbar si no
+  quedó donde se eligió). El volumen no era la causa.
   Pruebas `guardarComo.test.js` (Sesion con carpeta en memoria: el Chromium de pruebas se cierra al guardar un
   directorio en IndexedDB) y `guardarComo.navegador.mjs`. En el contenedor de la nube, las pruebas `.navegador.mjs`
   corren con `PLAYWRIGHT_MODULE=/opt/node-tools/node_modules/playwright/index.mjs`.
@@ -54,6 +54,15 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `candidatos` (justificación) salta salidas de partidas de otro dueño que el corte. `tests/fx.test.js`. Pendientes por
   decidir: P-26 (LOTE FX en vales), P-29 (entradas de FX), P-30 (marcar FX a mano), P-31 (conciliación de FX:
   `corte.dueno` ya existe en el cálculo pero ningún reporte se registra como de FX), P-32 (etiquetas de FX).
+- Ronda 29 (fallo reportado con grabación: «Guardar como» en la carpeta de OneDrive no hacía nada y OneDrive subía el
+  respaldo de 6.8 MB de cada exportación): `Sesion.exportar` respalda solo si `!respaldoReciente()`
+  (`HORAS_ENTRE_RESPALDOS_AL_EXPORTAR = 4`); lo que no quedó donde se eligió y `{ descargar: true }` van a Descargas
+  (`descargar`, no la carpeta de OneDrive). `exportarConDialogo`: `vigilarDialogo` (foco de vuelta + 5 s sin respuesta →
+  `ErrorEscritura` causa `colgado`; `alLlegarTarde` guarda también en el archivo elegido) y, si se cierra sin archivo,
+  aviso *No se guardó…* con la acción **Guardar en Descargas** (`accion.ocupado` = la acción trae su propio indicador).
+  `conLimite` / `LIMITE_ESCRITURA_MS` en `escribirEnArchivo` y `escribirEnCarpeta`; `NotAllowedError` «File picker
+  already active» = `colgado`. Dibujo `BarraDeTareas({ subiendo })` con el panel de OneDrive (`CAUSAS.colgado`).
+  Pruebas en `guardarComo.test.js` y `guardarComo.navegador.mjs` (cancelar, colgado y respuesta tardía).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

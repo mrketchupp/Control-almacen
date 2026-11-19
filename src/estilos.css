@@ -7922,7 +7922,8 @@ button.mosaico:hover .mosaico-abrir {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
+  /* Los íconos se centran en lo que deja libre la bandeja (nube, wifi, hora), sin encimarse. */
+  padding: 0 128px 0 8px;
   background: var(--ilus-barra-tareas);
   border-top: 1px solid var(--ilus-borde);
 }
@@ -8077,6 +8078,60 @@ button.mosaico:hover .mosaico-abrir {
 @keyframes ilus-gira {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* El panel de OneDrive sobre su nube, como el de Windows: «Cargando archivos…» con su barra. */
+.ilus-onedrive {
+  position: absolute;
+  right: 8px;
+  bottom: 54px;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border-radius: 8px;
+  background: var(--ilus-fondo-2);
+  border: 1px solid var(--ilus-borde);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  font-size: 11px;
+}
+
+.ilus-onedrive-cabeza,
+.ilus-onedrive-estado,
+.ilus-onedrive-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ilus-onedrive-estado {
+  color: var(--ilus-tenue);
+}
+
+.ilus-onedrive-barra {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ilus-seleccion);
+  overflow: hidden;
+}
+
+.ilus-onedrive-barra span {
+  display: block;
+  width: 53%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--ilus-acento);
+  animation: ilus-carga 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes ilus-carga {
+  from {
+    width: 35%;
+  }
+  to {
+    width: 70%;
   }
 }
 
@@ -8390,7 +8445,15 @@ button.mosaico:hover .mosaico-abrir {
     display: none;
   }
 
+  .ilus-tareas {
+    padding-right: 80px;
+  }
+
   .ilus-vista {
+    width: 170px;
+  }
+
+  .ilus-onedrive {
     width: 170px;
   }
 }

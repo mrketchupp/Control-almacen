@@ -156,7 +156,9 @@ function Aviso({ aviso }) {
               class="boton boton-secundario toast-accion"
               onClick=${() => {
                 sesion.quitarAviso(aviso.id);
-                sesion.tarea("Recuperando…", () => aviso.accion.alHacer());
+                // Una acción con su propio «ocupado» (p. ej. «Guardar en Descargas») no lleva otro encima.
+                if (aviso.accion.ocupado) aviso.accion.alHacer();
+                else sesion.tarea("Recuperando…", () => aviso.accion.alHacer());
               }}
             >
               ${aviso.accion.etiqueta}
