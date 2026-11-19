@@ -316,7 +316,10 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 
 ## Verificación antes de cada commit
 - `npm test && npm run build`
-- **Se trabaja y se sube en `main`** (pedido del usuario): sin ramas aparte, salvo que el usuario pida otra cosa.
+- **Se trabaja y se sube en `main`** (permiso explícito del usuario): aunque la sesión indique desarrollar en una rama
+  `claude/…`, no se crea: commit y `git push origin main`. Si un cambio necesita rama (algo largo o arriesgado), se usa
+  **una sola**, `desarrollo`, y al terminar se fusiona en `main`, se sube `main` y se borra `desarrollo` (local y remota).
+  No dejar ramas sueltas en GitHub.
 - **Copia `dist/ControlAlmacen.html` a `versiones/ControlAlmacen.html` y actualiza `versiones/SHA256.txt`**
   (`cd versiones && sha256sum ControlAlmacen.html > SHA256.txt`) en el mismo commit del cambio (pedido del usuario).
 - **Al terminar cada cambio, adjunta `dist/ControlAlmacen.html` en la conversación** (pedido del usuario): recién
