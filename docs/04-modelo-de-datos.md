@@ -240,6 +240,10 @@ para que viaje en los respaldos. Ver `src/impresion/identidad.js` y `src/servici
 `config.preferencias_vale` son los mismos en Inventario A y Inventario B. Cada estado conserva su copia (va en sus respaldos) y se
 sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia el formato del estado.
 
+**Carpetas del reporte diario (Ronda 30):** no están en el estado. Viven solo en la base común de este equipo (`ajustes`,
+clave `destinos_reporte`: carpeta base, ruta de cada inventario y de FX con `{año}` / `{mes}`, libro de vales de cada
+inventario) porque son carpetas y archivos de este Windows, que no se pueden poner en un respaldo JSON ni sirven en otro equipo.
+
 **Quitar áreas (Ronda 19):** un área (`plantillas_area`) que ningún vale ni borrador usa (`plantilla_area_id`) se
 **borra** (`borrarArea`, con *Deshacer* = `reponerArea`); la que se usa solo se **descarta** (`activo: false`,
 `descartarArea`): deja de salir al hacer vales, sus vales se siguen imprimiendo con su formato y se puede recuperar. Los

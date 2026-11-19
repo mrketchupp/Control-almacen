@@ -17,9 +17,10 @@ import {
   soportaGuardarComo,
 } from "../almacen/archivos.js";
 import { Compartidos } from "../almacen/compartidos.js";
+import { CLAVE_DESTINOS, destinoDe, normalizarDestinos, normalizarRuta, proponerRutas, rutaDeCarpetas, RUTAS } from "../almacen/destinos.js";
 import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
-import { inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
+import { deOtroInventario, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
 import { analizarFormulario, hojasFormulario } from "../impresion/formulario.js";
 import { documentoHojaConteo } from "../impresion/conteo.js";
 import { documentoImpresion } from "../impresion/vale.js";
@@ -29,6 +30,8 @@ import { CAPACIDAD_DEFECTO, plantillaArea } from "../servicios/vales.js";
 import { LibroLeido } from "../xlsx/leer.js";
 
 export const CARPETA_RESPALDOS = "respaldos";
+
+const TIPOS_LIBRO = { ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
 
 /**
  * Al exportar se respalda en la carpeta (OneDrive) solo si el último respaldo tiene más de estas horas:
@@ -48,7 +51,9 @@ export class Sesion {
     this.cambiarInventario = cambiarInventario;
     this.leerOtroInventario = leerOtroInventario;
     this.compartidos = comun ? new Compartidos(almacen, comun) : null;
+    this.comun = comun;
     this.carpeta = null;
+    this.destinos = normalizarDestinos(null);
     this.permiso = null;
     this.ultimoRespaldo = null;
     this.persistente = null;
@@ -206,6 +211,7 @@ export class Sesion {
     await this.compartidos?.sincronizar().catch((error) => console.warn("Ajustes compartidos:", error));
     this.carpeta = await this.backend.leerAjuste("carpeta");
     this.permiso = this.carpeta ? await permisoCarpeta(this.carpeta) : null;
+    this.destinos = normalizarDestinos(await this._bdDestinos.leerAjuste(CLAVE_DESTINOS).catch(() => null));
     this.ultimoRespaldo = await this.backend.leerAjuste("ultimo_respaldo");
     this.exportoConDialogo = Boolean(await this.backend.leerAjuste("exporto_con_dialogo"));
     if (navigator.storage?.persisted) {
@@ -274,6 +280,139 @@ export class Sesion {
     }
     descargar(nombre, datos);
     return `Descargas/${nombre}`;
+  }
+
+  // ------------------------------------------------------------ carpetas del reporte diario (Ronda 30)
+
+  /** Los destinos son de este equipo y los mismos en DLTA y GSM: viven en la base común (si no hay, en la propia). */
+  get _bdDestinos() {
+    return this.comun ?? this.backend;
+  }
+
+  /**
+   * Dónde se guarda una exportación del reporte diario sin preguntar, o null («Guardar como»):
+   * { clase: "carpeta", raiz, ruta, id } (inventario) | { clase: "archivo", archivo, id } (libro de vales).
+   */
+  destinoReporte(tipo) {
+    return destinoDe(this.destinos, tipo, this.inventario.id);
+  }
+
+  async _guardarDestinos(destinos) {
+    this.destinos = normalizarDestinos(destinos);
+    await this._bdDestinos.guardarAjuste(CLAVE_DESTINOS, this.destinos);
+    this._cambio();
+  }
+
+  /**
+   * Elige la carpeta base de los inventarios (p. ej. INVENTARIO DIARIO) y propone las rutas que aún no tienen
+   * buscándolas dentro. Edge no deja elegir el Escritorio ni OneDrive completos: se elige una carpeta dentro.
+   * @returns { raiz, propuestas: { [id]: ruta | null } } o null si se canceló
+   */
+  async elegirCarpetaReporte() {
+    let raiz;
+    try {
+      raiz = await window.showDirectoryPicker({ id: "control-almacen-reporte", mode: "readwrite", startIn: this.destinos.raiz ?? "desktop" });
+    } catch (error) {
+      if (error?.name === "AbortError") return null;
+      throw error;
+    }
+    let propuestas = {};
+    try {
+      propuestas = await proponerRutas(raiz);
+    } catch (error) {
+      console.warn("Proponer rutas:", error);
+    }
+    // Con otra base, las rutas que se encontraron reemplazan a las anteriores; con la misma, solo llenan las vacías.
+    const misma = await this._mismaBase(raiz);
+    const rutas = { ...this.destinos.rutas };
+    for (const id of RUTAS) if (propuestas[id] && (!rutas[id] || !misma)) rutas[id] = propuestas[id];
+    await this._guardarDestinos({ ...this.destinos, raiz, rutas });
+    return { raiz, propuestas };
+  }
+
+  /** ¿La carpeta elegida es la misma base que ya había? (entonces se conservan las rutas escritas) */
+  async _mismaBase(raiz) {
+    try {
+      return Boolean(this.destinos.raiz && (await this.destinos.raiz.isSameEntry(raiz)));
+    } catch {
+      return false;
+    }
+  }
+
+  /** Vuelve a buscar las rutas en la carpeta base (botón «Buscar otra vez»). @returns las propuestas */
+  async buscarRutasReporte() {
+    const raiz = this.destinos.raiz;
+    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    const propuestas = await proponerRutas(raiz);
+    const rutas = { ...this.destinos.rutas };
+    for (const id of RUTAS) if (propuestas[id]) rutas[id] = propuestas[id];
+    await this._guardarDestinos({ ...this.destinos, rutas });
+    return propuestas;
+  }
+
+  /** Cambia la ruta de un inventario (DLTA, GSM o FX); vacía = sin carpeta («Guardar como»). */
+  async fijarRutaReporte(id, ruta) {
+    await this._guardarDestinos({ ...this.destinos, rutas: { ...this.destinos.rutas, [id]: normalizarRuta(ruta) || null } });
+  }
+
+  /**
+   * La ruta de un inventario eligiendo su carpeta en el explorador (dentro de la base): el año y el mes
+   * elegidos se vuelven {año} y {mes}. @returns la ruta, o null si se canceló
+   */
+  async explorarRutaReporte(id) {
+    const raiz = this.destinos.raiz;
+    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    let elegida;
+    try {
+      elegida = await window.showDirectoryPicker({ id: "control-almacen-reporte-ruta", mode: "read", startIn: raiz });
+    } catch (error) {
+      if (error?.name === "AbortError") return null;
+      throw error;
+    }
+    const partes = await raiz.resolve(elegida);
+    if (!partes) throw new Error(`«${elegida.name}» no está dentro de «${raiz.name}». Elige una carpeta dentro de la base (o cambia la base).`);
+    const ruta = rutaDeCarpetas(partes);
+    await this.fijarRutaReporte(id, ruta);
+    return ruta;
+  }
+
+  /**
+   * Fija el libro de vales de un inventario: se elige el archivo que ya existe (normalmente en el Escritorio) y
+   * cada «Descargar» del reporte lo reemplaza. @returns el archivo, o null si se canceló
+   */
+  async elegirLibroVales(id) {
+    const propio = id === this.inventario.id ? this.almacen.nombreExportacion("VALES") : null;
+    const extension = propio ? propio.slice(propio.lastIndexOf(".")).toLowerCase() : null;
+    const extensiones = extension ? [extension] : [".xlsm", ".xlsx"];
+    let archivo;
+    try {
+      [archivo] = await window.showOpenFilePicker({
+        id: "control-almacen-vales",
+        startIn: this.destinos.vales[id] ?? "desktop",
+        multiple: false,
+        excludeAcceptAllOption: true,
+        types: [{ description: "Libro de Excel", accept: Object.fromEntries(extensiones.map((e) => [TIPOS_LIBRO[e], [e]])) }],
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") return null;
+      throw error;
+    }
+    if (!archivo) return null;
+    const suya = archivo.name.slice(archivo.name.lastIndexOf(".")).toLowerCase();
+    if (extension && suya !== extension) throw new Error(`«${archivo.name}» es ${suya} y el libro de vales de ${id} sale como ${extension}: elige el ${extension}.`);
+    const otro = deOtroInventario(archivo.name, id);
+    if (otro && !window.confirm(`«${archivo.name}» dice ${otro}. ¿Es el libro de vales de ${id}?`)) return null;
+    await this._guardarDestinos({ ...this.destinos, vales: { ...this.destinos.vales, [id]: archivo } });
+    return archivo;
+  }
+
+  /** Quita un destino: `{ ruta: id }` o `{ vales: id }` (vuelve a abrir «Guardar como»); `{ raiz: true }`, la base. */
+  async quitarDestinoReporte({ ruta = null, vales = null, raiz = false } = {}) {
+    const destinos = { ...this.destinos, rutas: { ...this.destinos.rutas }, vales: { ...this.destinos.vales } };
+    if (ruta) destinos.rutas[ruta] = null;
+    if (vales) destinos.vales[vales] = null;
+    if (raiz) destinos.raiz = null;
+    await this._guardarDestinos(destinos);
   }
 
   // ------------------------------------------------------------ respaldos
@@ -587,13 +726,35 @@ export class Sesion {
    * ErrorEscritura o un texto). Si el archivo elegido no se puede escribir, el Excel no se pierde: se
    * descarga en Descargas (en el equipo, sin OneDrive de por medio); quien llama lo avisa (con dibujos,
    * `exportarConDialogo`). `descargar`: directo a Descargas (botón «Guardar en Descargas»).
+   * `enCarpeta` (Ronda 30, reporte diario): { abrir(nombre) → { archivo, ruta, existia, nuevas, quitar } } abre (y
+   * crea) el archivo en su carpeta fijada cuando el Excel ya está listo; si no se puede, va a Descargas.
    * @returns {{ nombre, destino, elegido: boolean, motivo: string | null, causa: string | null }}
-   *   elegido = quedó donde lo eligió; motivo = por qué no, en palabras; causa = código (causaDeError)
+   *   elegido = quedó donde lo eligió; motivo = por qué no, en palabras; causa = código (causaDeError);
+   *   con `enCarpeta`, además enSuCarpeta y nuevas (las carpetas de año o mes que se crearon)
    */
-  async exportar(tipo, archivo = undefined, opciones = {}, { fallo = null, descargar: aDescargas = false } = {}) {
+  async exportar(tipo, archivo = undefined, opciones = {}, { fallo = null, descargar: aDescargas = false, enCarpeta = null } = {}) {
     const hoy = hoyIso();
     const salida = { nombre: null, destino: null, elegido: false, motivo: fallo?.message ?? fallo, causa: fallo ? causaDeError(fallo) : null };
     const guardar = async (nombre, datos) => {
+      if (enCarpeta) {
+        // Ronda 30: directo a su carpeta (reporte diario). El archivo se crea hasta tener el Excel listo; si no
+        // se pudo escribir y no existía, se quita (que no quede uno vacío) y el Excel va a Descargas.
+        let abierto = null;
+        try {
+          abierto = await enCarpeta.abrir(nombre);
+          await escribirEnArchivo(abierto.archivo, datos);
+          salida.destino = abierto.ruta;
+          salida.elegido = true;
+          salida.enSuCarpeta = true;
+          salida.nuevas = abierto.nuevas ?? [];
+          return salida.destino;
+        } catch (error) {
+          console.warn(error);
+          salida.motivo = error.message;
+          salida.causa = causaDeError(error);
+          if (abierto && !abierto.existia) await abierto.quitar?.().catch(() => {});
+        }
+      }
       if (archivo) {
         try {
           salida.destino = await escribirEnArchivo(archivo, datos);
@@ -616,7 +777,7 @@ export class Sesion {
       return salida.destino;
     };
     ({ nombre: salida.nombre } = await this.almacen.exportar(tipo, this.usuario, hoy, { ...opciones, guardar }));
-    if (salida.elegido && !this.exportoConDialogo) {
+    if (salida.elegido && archivo && !this.exportoConDialogo) {
       this.exportoConDialogo = true;
       await this.backend.guardarAjuste("exporto_con_dialogo", true);
     }

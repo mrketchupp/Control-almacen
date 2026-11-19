@@ -3438,6 +3438,34 @@ select.con-error {
   overflow-wrap: anywhere;
 }
 
+/* Ronda 30: cada tarjeta dice a qué carpeta va y, debajo, «Guardar como…» para otro lugar esa vez. */
+.archivo-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.archivo-otro {
+  align-self: flex-end;
+}
+
+.archivo-destino {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  overflow-wrap: anywhere;
+}
+
+.archivo-destino .icono {
+  flex: none;
+  margin-top: 1px;
+  color: var(--primario);
+}
+
 /* No quedó donde se eligió (p. ej. estaba abierto en Excel): se guardó en otro lugar. */
 .archivo-boton.en-otro-lugar {
   border-color: var(--alerta);
@@ -8455,5 +8483,158 @@ button.mosaico:hover .mosaico-abrir {
 
   .ilus-onedrive {
     width: 170px;
+  }
+}
+
+/* ---------------------------------------------------------------- carpetas del reporte diario (Ronda 30) */
+
+.ventana.ventana-carpetas {
+  width: min(820px, 100%);
+}
+
+.carpetas-seccion + .carpetas-seccion {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+
+.carpetas-seccion h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.carpeta-base {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+}
+
+.carpeta-base .acciones-linea {
+  margin: 0;
+}
+
+.carpeta-icono {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--primario-suave);
+  color: var(--primario);
+}
+
+.carpeta-base-texto {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 180px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.carpeta-permiso {
+  font-size: 0.8rem;
+}
+
+.carpeta-fila {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 8px 0;
+}
+
+.carpeta-fila + .carpeta-fila {
+  border-top: 1px dashed var(--borde);
+}
+
+.carpeta-id {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--sobre-intenso);
+  background: var(--texto-suave);
+}
+
+.carpeta-id-DLTA {
+  background: var(--rel-DLTA);
+}
+
+.carpeta-id-GSM {
+  background: var(--rel-GSM);
+}
+
+.carpeta-id-FX {
+  background: var(--fx);
+}
+
+.carpeta-ruta {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+}
+
+.carpeta-vista {
+  grid-column: 2 / -1;
+  margin: 0;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.carpeta-migas {
+  display: inline;
+  margin-left: 4px;
+}
+
+.carpeta-sep {
+  margin: 0 4px;
+  color: var(--texto-suave);
+}
+
+.carpeta-nueva {
+  color: var(--alerta);
+  font-style: italic;
+}
+
+.carpeta-archivo {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.carpeta-variables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0;
+}
+
+.carpetas-pie {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .carpeta-fila {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .carpeta-id {
+    grid-column: 1 / -1;
+  }
+
+  .carpeta-vista {
+    grid-column: 1 / -1;
   }
 }

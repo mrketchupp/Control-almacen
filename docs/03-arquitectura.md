@@ -115,6 +115,12 @@ desde } }`; claves en `VALORES_COMPARTIDOS`). `almacen/compartidos.js` (`Compart
 (la etapa también en los borradores que traían la anterior) con auditoría `SINCRONIZAR`. El `Almacen` avisa el origen de cada cambio
 (`cambio`, `carga`, `restaurar`, `borrar`). Antes de cambiar de inventario se espera a que quede guardada.
 
+**Carpetas del reporte diario (Ronda 30):** en la misma base común, clave `destinos_reporte` = `{ raiz, rutas: { <inventario>,
+FX }, vales: { <inventario> } }`: `raiz` es la carpeta base (FileSystemDirectoryHandle), las rutas son texto con `{año}` y `{mes}`
+relativas a ella y `vales` el libro de vales de cada inventario (FileSystemFileHandle). Son de este equipo: no van en el estado ni
+en los respaldos. `almacen/destinos.js` (sin navegador: `carpetasPara`, `abrirRuta`, `proponerRutas`, `rutaDeCarpetas`,
+`destinoDe`), `Sesion.destinoReporte` y `ui/paginas/carpetas.js` (`guardarEnSuLugar`, `VentanaCarpetas`).
+
 **Dos inventarios (Ronda 17):** Inventario A y Inventario B usan el mismo formato de archivos pero van **por separado**: cada uno tiene su
 base de IndexedDB (estado, plantillas, ajustes —carpeta, último respaldo— y copias internas), sus folios, respaldos y
 conciliación. `src/nucleo/inventarios.js` los define (base, prefijo de respaldos, almacén de AX propuesto, palabras que

@@ -319,6 +319,23 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 30 — el reporte diario guarda cada archivo en su carpeta.** Pedido del usuario: «Guardar como» en OneDrive no
+funcionaba bien y los archivos siempre van al mismo lugar: el libro de vales de salida, en el Escritorio (se reemplaza); el
+inventario, en `<inventario>/<carpeta de inventarios>/<año>/<mes>/` dentro de la carpeta del inventario diario (el de FX sin
+carpeta de inventarios). Debe pasar **solo al pulsar Descargar** (nada automático), con las carpetas configurables y
+pensando en días anteriores. **Aplicado:** *Reporte diario → Carpetas…* (también en *Ajustes*): una **carpeta base**
+(Edge no deja elegir el Escritorio ni las que lo contienen, como todo OneDrive) con la **ruta de cada inventario y de FX**
+(`{año}`, `{mes}`, `{mm}`, `{nombre_mes}`; se proponen solas buscando las carpetas de cada inventario y la forma de mes que ya
+se usa; **Explorar…** la toma del explorador) y el **libro de vales de cada inventario** como archivo fijo. Se guarda en la
+base común (lo mismo en los dos inventarios, de este equipo, fuera de los respaldos; sin cambio de formato del estado).
+*Descargar*: pide el permiso dentro del clic, encuentra las carpetas aunque se escriban distinto (`05.MAYO` = `05. MAYO`),
+crea la del mes o el año que falte (nunca una fija), pregunta antes de reemplazar el inventario de ese día (o el libro de vales
+si deja fuera vales posteriores), y si no se puede escribir va a Descargas con la ventana de siempre; el archivo nuevo que no se
+pudo escribir no se queda vacío. Cada tarjeta dice a qué carpeta va y tiene **Guardar como…** para otro lugar esa vez. Sin
+carpeta fijada, todo sigue como antes. *Exportar y enviar* sigue con «Guardar como». Pruebas `tests/destinos.test.js` y Chromium
+`tests/destinos.navegador.mjs`.
+- ☐ Del usuario: fijar las carpetas en su equipo y guardar el reporte de un día y el de un día anterior.
+
 **Ronda 29 — «Guardar como» que no hacía nada (reporte diario).** Reporte con grabación: al pulsar *Guardar* en la
 carpeta del inventario diario de OneDrive no aparecía «Generando Excel…» ni el archivo; guardando en otra carpeta sí, y
 otra vez inmediatamente, no. Mientras tanto OneDrive subía `almacen_…_exportacion.zip` (6.8 MB): cada exportación hacía
@@ -329,7 +346,7 @@ guardó…* con **Guardar en Descargas**; si Edge no responde 5 s después de ce
 la ventana con dibujos muestra a OneDrive subiendo (si Edge responde después, también se guarda en el archivo elegido);
 lo que no quedó donde se eligió va a Descargas (en el equipo, sin OneDrive); las escrituras tienen límite de tiempo.
 - ☐ Del usuario: probar el reporte diario de los dos libros seguidos en la carpeta de OneDrive.
-- Propuesta (sin hacer): guardar el reporte directo en su carpeta (elegirla una vez; año y mes solos), sin «Guardar como».
+- ✔ Propuesta: guardar el reporte directo en su carpeta (elegirla una vez; año y mes solos), sin «Guardar como» → Ronda 30.
 
 **Ronda 28 — revisión de FX.** Lo que ya hace: el conteo de auditoría marca las partidas de FX; *Inventario* las muestra
 y las filtra; *Exportar* y el *Reporte diario* sacan el libro de FX aparte (y el del Inventario B sin ellas); la

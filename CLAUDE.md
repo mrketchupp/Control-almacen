@@ -63,6 +63,22 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `conLimite` / `LIMITE_ESCRITURA_MS` en `escribirEnArchivo` y `escribirEnCarpeta`; `NotAllowedError` «File picker
   already active» = `colgado`. Dibujo `BarraDeTareas({ subiendo })` con el panel de OneDrive (`CAUSAS.colgado`).
   Pruebas en `guardarComo.test.js` y `guardarComo.navegador.mjs` (cancelar, colgado y respuesta tardía).
+- Ronda 30 (pedido del usuario): el **reporte diario guarda cada archivo en su carpeta** al pulsar *Descargar* (nunca
+  solo). `almacen/destinos.js` (sin navegador): rutas relativas a una carpeta base con `{año}` / `{mes}` / `{mm}` /
+  `{nombre_mes}` del **día del reporte** (`carpetasPara`), `abrirRuta` (carpetas reconocidas con `claveCarpeta`: `05.MAYO` =
+  `05. MAYO`; crea solo las de año/mes que faltan y nunca una fija; `falta.hay` = parecidas), `proponerRutas` (busca la carpeta
+  de cada inventario y de FX por su marca y la de inventarios con años; forma de mes más usada), `rutaDeCarpetas` (lo elegido
+  con **Explorar…**, vía `raiz.resolve`), `destinoDe`. Se guarda en la base común (`CLAVE_DESTINOS = "destinos_reporte"`, con
+  los handles; fuera del estado y de los respaldos): `Sesion.destinos`, `destinoReporte`, `elegirCarpetaReporte`,
+  `explorarRutaReporte`, `fijarRutaReporte`, `elegirLibroVales` (archivo existente con `showOpenFilePicker`: Edge no deja
+  elegir el Escritorio ni sus carpetas padre como directorio) y `quitarDestinoReporte`. `Sesion.exportar(…, { enCarpeta })`
+  abre/crea el archivo hasta tener el Excel y quita el vacío si falla (resultado `enSuCarpeta`, `nuevas`). UI
+  `ui/paginas/carpetas.js`: `guardarEnSuLugar` (permiso primero, dentro del clic; confirma reemplazar; `antes()` del libro de
+  vales con vales posteriores; sin destino → `exportarConDialogo`), `VentanaCarpetas` (reporte *Carpetas…*) y `TarjetaCarpetas`
+  (*Ajustes*); `generar` / `textoListo` / `carpetaLegible` en `sharepoint.js`; tarjeta con `archivo-destino` y **Guardar como…**.
+  *Exportar y enviar* no cambia. Pruebas `tests/destinos.test.js` (carpetas en memoria `tests/ayudaCarpetas.js`, como Windows
+  sin distinguir mayúsculas) y Chromium `tests/destinos.navegador.mjs` (carpetas de OPFS; guardarlas en IndexedDB sí funciona
+  con el Chromium del contenedor).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

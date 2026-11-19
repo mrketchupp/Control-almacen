@@ -4,10 +4,11 @@ import { hayPartidasFx } from "../../servicios/consultas.js";
 import { describirCorte } from "../../servicios/corte.js";
 import { reporteDelDia } from "../../servicios/reporte.js";
 import { valesPorEnviar } from "../../servicios/vales.js";
-import { Bento, Boton, Pastilla, Tabla, useSesion } from "../componentes.js";
+import { Bento, Boton, Pastilla, Tabla, confirmar, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
-import { BotonSubido, exportarConDialogo } from "./sharepoint.js";
+import { VentanaCarpetas, guardarEnSuLugar, textoDestino } from "./carpetas.js";
+import { BotonSubido, carpetaLegible, exportarConDialogo } from "./sharepoint.js";
 
 export function fechaDeRuta(hash = location.hash) {
   const m = /^#reporte\/(\d{4}-\d{2}-\d{2})/.exec(hash);
@@ -19,30 +20,43 @@ const diaSemana = (iso) => DIAS[new Date(`${iso}T12:00:00`).getDay()];
 const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
 const extension = (nombre) => (/\.(\w+)$/.exec(nombre ?? "")?.[1] ?? "xlsx").toUpperCase();
 
-/** Qué pasó con el archivo: guardado donde se eligió, o en otro lugar porque ahí no se pudo. */
+/** Qué pasó con el archivo: guardado donde se eligió (o en su carpeta), o en otro lugar porque ahí no se pudo. */
 function textoResultado(resultado) {
   if (!resultado) return null;
-  if (!resultado.motivo) return `✓ Guardado: ${resultado.destino}`;
+  if (!resultado.motivo) {
+    if (!resultado.enSuCarpeta) return `✓ Guardado: ${resultado.destino}`;
+    const nuevas = resultado.nuevas?.length ? ` (carpeta nueva: ${resultado.nuevas.join(" › ")})` : "";
+    return `✓ Guardado en ${carpetaLegible(resultado.destino)}${nuevas}`;
+  }
   const donde = resultado.destino.startsWith("Descargas/") ? "en Descargas" : `en ${resultado.destino}`;
   return `⚠ No quedó donde elegiste (${resultado.motivo}); se guardó ${donde}`;
 }
 
 /**
  * Tarjeta de descarga de un archivo del reporte (libro de vales o inventario al cierre del día):
- * todo es clicable y dice "Descargar"; después muestra dónde quedó de verdad.
+ * todo es clicable y dice "Descargar"; después muestra dónde quedó de verdad. `destino`: la carpeta o el
+ * archivo fijado (Ronda 30); entonces abajo hay «Guardar como…» para guardarlo en otro lugar esa vez.
  */
-function BotonArchivo({ nombre, titulo, detalle, disabled, resultado, onClick }) {
+function BotonArchivo({ nombre, titulo, detalle, disabled, resultado, destino, onClick, alGuardarComo }) {
   const clase = resultado ? (resultado.motivo ? "descargado en-otro-lugar" : "descargado") : "";
-  return html`<button type="button" class=${`archivo-boton ${clase}`} disabled=${disabled} onClick=${onClick} aria-label=${`Descargar ${titulo}`}>
-    <span class="archivo-icono">${extension(nombre)}</span>
-    <span class="archivo-texto">
-      <strong>${titulo}</strong>
-      <span class="nota">${detalle}</span>
-      <span class="archivo-nombre">${nombre ?? "Falta la plantilla: cárgala en Respaldos"}</span>
-      ${resultado ? html`<span class="archivo-listo" role="status">${textoResultado(resultado)}</span>` : null}
-    </span>
-    <span class="archivo-accion"><${Icono} nombre="descargar" tam=${18} /> ${resultado ? "Otra vez" : "Descargar"}</span>
-  </button>`;
+  return html`<div class="archivo-dia">
+    <button type="button" class=${`archivo-boton ${clase}`} disabled=${disabled} onClick=${onClick} aria-label=${`Descargar ${titulo}`}>
+      <span class="archivo-icono">${extension(nombre)}</span>
+      <span class="archivo-texto">
+        <strong>${titulo}</strong>
+        <span class="nota">${detalle}</span>
+        <span class="archivo-nombre">${nombre ?? "Falta la plantilla: cárgala en Respaldos"}</span>
+        ${destino
+          ? html`<span class="archivo-destino"><${Icono} nombre="carpeta" tam=${14} /> <span>${destino}</span></span>`
+          : null}
+        ${resultado ? html`<span class="archivo-listo" role="status">${textoResultado(resultado)}</span>` : null}
+      </span>
+      <span class="archivo-accion"><${Icono} nombre="descargar" tam=${18} /> ${resultado ? "Otra vez" : "Descargar"}</span>
+    </button>
+    ${destino && !disabled
+      ? html`<button type="button" class="boton boton-texto boton-chico archivo-otro" onClick=${alGuardarComo} aria-label=${`Guardar ${titulo} en otro lugar`}>Guardar como…</button>`
+      : null}
+  </div>`;
 }
 
 /**
@@ -55,6 +69,7 @@ export function PaginaReporte() {
   const hoy = hoyIso();
   const [fecha, setFechaLocal] = useState(fechaDeRuta() ?? hoy);
   const [descargados, setDescargados] = useState({});
+  const [carpetas, setCarpetas] = useState(false);
   const setFecha = (f) => {
     if (!f) return;
     setFechaLocal(f);
@@ -72,6 +87,17 @@ export function PaginaReporte() {
   const fx = useMemo(() => hayPartidasFx(estado), [estado.existencias]);
   const nombreFx = fx ? sesion.almacen.nombreExportacion("INVENTARIO_FX", fecha) : null;
   const posteriores = pendientesTotales - reporte.porSubir.length;
+  const fijados = ["VALES", "INVENTARIO", ...(fx ? ["INVENTARIO_FX"] : [])].filter((t) => sesion.destinoReporte(t));
+  const anotar = (tipo) => (r) => setDescargados((d) => ({ ...d, [tipo]: r }));
+  // Reporte diario (Ronda 30): a su carpeta si tiene una fijada; si no, «Guardar como» como antes.
+  const descargar = (tipo, extra = {}) => guardarEnSuLugar(sesion, tipo, anotar(tipo), { corte: fecha }, extra);
+  const guardarComo = (tipo) => exportarConDialogo(sesion, tipo, anotar(tipo), { corte: fecha });
+  // El libro de vales fijado se reemplaza: si hay vales después de este día, quedarán fuera de ese archivo.
+  const antesDeVales = () =>
+    !reporte.despues ||
+    confirmar(
+      `El libro de vales queda como estaba al cierre del ${fmtFecha(fecha)} (hasta el folio ${corte.salida}): ${reporte.despues} ${reporte.despues === 1 ? "vale posterior no estará" : "vales posteriores no estarán"} en ${sesion.destinoReporte("VALES")?.archivo.name} hasta que guardes el reporte de un día más reciente.\n\n¿Reemplazarlo?`,
+    );
 
   return html`
     <div class="barra-fecha">
@@ -103,8 +129,16 @@ export function PaginaReporte() {
         <header class="bento-cabeza">
           <span class="cabeza-icono"><${Icono} nombre="descargar" /></span>
           <h2>Descargar los archivos del día</h2>
+          <${Boton} tipo="texto" tamano="chico" onClick=${() => setCarpetas(true)} title="Dónde se guarda cada archivo">
+            <${Icono} nombre="carpeta" tam=${16} /> Carpetas…
+          <//>
         </header>
-        <p class="nota">Pulsa cada archivo para descargarlo: se abre «Guardar como» para elegir la carpeta y el nombre. Si vas a reemplazar uno que ya existe, <strong>ciérralo antes en Excel</strong> (Windows no deja reemplazar un archivo abierto).</p>
+        <p class="nota">
+          ${fijados.length
+            ? html`Pulsa cada archivo para guardarlo: ${fijados.length === (fx ? 3 : 2) ? "cada uno va a su carpeta" : "los que dicen su carpeta van ahí y los demás abren «Guardar como»"} (el año y el mes son los del día del reporte).`
+            : html`Pulsa cada archivo para descargarlo: se abre «Guardar como» para elegir la carpeta y el nombre. En <strong>Carpetas…</strong> puedes fijar dónde va cada uno para no elegirlo cada vez.`}
+          ${" "}Si vas a reemplazar uno que ya existe, <strong>ciérralo antes en Excel</strong> (Windows no deja reemplazar un archivo abierto).
+        </p>
         <div class="archivos-dia">
           <${BotonArchivo}
             nombre=${nombreVales}
@@ -112,7 +146,9 @@ export function PaginaReporte() {
             detalle=${corte.salida ? `Hasta el folio ${corte.salida}` : "Aún no había vales a esa fecha"}
             disabled=${!nombreVales || !corte.salida}
             resultado=${descargados.VALES}
-            onClick=${() => exportarConDialogo(sesion, "VALES", (r) => setDescargados((d) => ({ ...d, VALES: r })), { corte: fecha })}
+            destino=${textoDestino(sesion, "VALES", fecha)}
+            onClick=${() => descargar("VALES", { antes: antesDeVales })}
+            alGuardarComo=${() => guardarComo("VALES")}
           />
           <${BotonArchivo}
             nombre=${nombreInventario}
@@ -120,7 +156,9 @@ export function PaginaReporte() {
             detalle=${`Cerrado al ${fmtFecha(fecha)}`}
             disabled=${!nombreInventario}
             resultado=${descargados.INVENTARIO}
-            onClick=${() => exportarConDialogo(sesion, "INVENTARIO", (r) => setDescargados((d) => ({ ...d, INVENTARIO: r })), { corte: fecha })}
+            destino=${textoDestino(sesion, "INVENTARIO", fecha)}
+            onClick=${() => descargar("INVENTARIO")}
+            alGuardarComo=${() => guardarComo("INVENTARIO")}
           />
           ${fx
             ? html`<${BotonArchivo}
@@ -129,11 +167,14 @@ export function PaginaReporte() {
                 detalle=${`Cerrado al ${fmtFecha(fecha)}`}
                 disabled=${!nombreFx}
                 resultado=${descargados.INVENTARIO_FX}
-                onClick=${() => exportarConDialogo(sesion, "INVENTARIO_FX", (r) => setDescargados((d) => ({ ...d, INVENTARIO_FX: r })), { corte: fecha })}
+                destino=${textoDestino(sesion, "INVENTARIO_FX", fecha)}
+                onClick=${() => descargar("INVENTARIO_FX")}
+                alGuardarComo=${() => guardarComo("INVENTARIO_FX")}
               />`
             : null}
         </div>
         <p class="nota">Salen sobre tus plantillas, igual que en Exportar y enviar.</p>
+        ${carpetas ? html`<${VentanaCarpetas} fecha=${fecha} alCerrar=${() => setCarpetas(false)} />` : null}
       </section>
 
       <section class="bento-celda">

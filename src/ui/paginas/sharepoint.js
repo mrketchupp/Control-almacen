@@ -98,17 +98,34 @@ export async function exportarConDialogo(sesion, tipo, alTerminar = null, opcion
   }
 }
 
-/** Genera y guarda (archivo elegido, o Descargas) y avisa: «Listo» o la ventana con dibujos. */
-function generar(sesion, tipo, archivo, opciones, alTerminar, { fallo = null, descargar = false, tardio = false } = {}) {
+/** "INVENTARIO DIARIO/ALMACEN DLTA/…/archivo.xlsx" → "INVENTARIO DIARIO › ALMACEN DLTA › …" (la carpeta, sin el archivo). */
+export function carpetaLegible(destino) {
+  const partes = String(destino ?? "").split("/").filter(Boolean);
+  return partes.length > 1 ? partes.slice(0, -1).join(" › ") : partes.join("");
+}
+
+/** El aviso de «Listo»: dónde quedó y, si se creó, la carpeta nueva del mes o del año. */
+export function textoListo(resultado, { tardio = false } = {}) {
+  if (tardio) return `Edge respondió: también quedó en ${resultado.destino}`;
+  const nuevas = resultado.nuevas?.length ? ` (carpeta nueva: ${resultado.nuevas.join(" › ")})` : "";
+  return resultado.enSuCarpeta ? `Listo: «${resultado.nombre}» en ${carpetaLegible(resultado.destino)}${nuevas}` : `Listo: ${resultado.destino}`;
+}
+
+/**
+ * Genera y guarda (archivo elegido, su carpeta del reporte o Descargas) y avisa: «Listo» o la ventana con
+ * dibujos. `enCarpeta` (Ronda 30): directo a la carpeta fijada (ver Sesion.exportar); `reintentar`: qué hace
+ * «Guardar otra vez» (por omisión, abrir «Guardar como»).
+ */
+export function generar(sesion, tipo, archivo, opciones, alTerminar, { fallo = null, descargar = false, tardio = false, enCarpeta = null, reintentar = null } = {}) {
   return sesion.tarea("Generando Excel…", async () => {
-    const resultado = await sesion.exportar(tipo, archivo, opciones, { fallo, descargar });
-    if (!resultado.motivo) sesion.avisar("exito", tardio ? `Edge respondió: también quedó en ${resultado.destino}` : `Listo: ${resultado.destino}`);
+    const resultado = await sesion.exportar(tipo, archivo, opciones, { fallo, descargar, enCarpeta });
+    if (!resultado.motivo) sesion.avisar("exito", textoListo(resultado, { tardio }));
     else {
       sesion.mostrarDialogo({
         tipo: "no-guardado",
         ...resultado,
-        // El clic en "Guardar otra vez" abre «Guardar como» de nuevo (el navegador lo exige desde un clic).
-        reintentar: () => exportarConDialogo(sesion, tipo, alTerminar, opciones),
+        // El clic en "Guardar otra vez" vuelve a intentarlo (el navegador exige un clic para «Guardar como» y permisos).
+        reintentar: reintentar ?? (() => exportarConDialogo(sesion, tipo, alTerminar, opciones)),
       });
     }
     alTerminar?.(resultado);
