@@ -10,12 +10,12 @@ import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/es
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { duenoDe } from "../nucleo/inventarios.js";
 import { codigoAx, pareceFecha } from "../nucleo/normalizar.js";
-import { cambiarUltimaFila, desplazarFormula, separarReferencia } from "../xlsx/celdas.js";
+import { cambiarUltimaFila, desplazarFormula, mapaDeFilas, reubicarReferencias, separarReferencia } from "../xlsx/celdas.js";
 import { EstilosUniformes, comoFraccion, conAnchosUniformes } from "../xlsx/estiloUniforme.js";
 import { LibroLeido } from "../xlsx/leer.js";
 import { HojaXML, PaqueteOOXML, ErrorPlantilla, cambiarNombresDefinidos, celda, celdaFormula } from "../xlsx/plantilla.js";
 import { TIPOS } from "../xlsx/rutas.js";
-import { atributos, cambiarEtiqueta, ponerAtributo } from "../xlsx/xml.js";
+import { atributos, cambiarEtiqueta, desescapar, escaparTexto, ponerAtributo } from "../xlsx/xml.js";
 
 export const HOJA_CATALOGO = "ARTICULOS_MX";
 const COLUMNAS = "ABCDEFGHIJ".split("");
@@ -77,8 +77,10 @@ function comoTexto(valor, formato) {
 
 function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias, fecha, uniformes) {
   const hoja = new HojaXML(paquete.texto(parte));
-  const parteTabla = paquete.relacionDeTipo(parte, TIPOS.tabla);
-  if (!parteTabla) throw new ErrorPlantilla(`La hoja ${parte} no tiene tabla de Excel`);
+  // La tabla del inventario (si la hoja tiene más de una, la que tiene CODIGO AX); las demás solo se recorren.
+  const tablas = paquete.relaciones(parte).filter((r) => r.tipo === TIPOS.tabla).map((r) => r.destino);
+  if (!tablas.length) throw new ErrorPlantilla(`La hoja ${parte} no tiene tabla de Excel`);
+  const parteTabla = tablas.find((t) => /<tableColumn\b[^>]*\bname="CODIGO/i.test(paquete.texto(t))) ?? tablas[0];
   let tabla = paquete.texto(parteTabla);
   const atributosTabla = atributos(/<table\b([^>]*?)\/?>/.exec(tabla)[1]);
   const [inicio, fin] = atributosTabla.ref.split(":");
@@ -137,20 +139,38 @@ function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias
     });
     nuevas.push(HojaXML.nuevaFila(numero, celdas, atributosFila));
   });
+  // Sin partidas (p. ej. una hoja sin nada de FX): Excel no acepta una tabla sin filas de datos (la quita al
+  // abrir el libro), así que queda una vacía, como la deja Excel al borrar todas.
+  if (!existencias.length) {
+    const numero = filaEncabezado + 1;
+    const celdas = COLUMNAS.map((columna) => {
+      const referencia = `${columna}${numero}`;
+      const estilo = uniformes.deColumna(estilosModelo[columna], columna);
+      return formulasModelo[columna] ? celdaFormula(referencia, desplazarFormula(formulasModelo[columna], numero - modelo), estilo) : celda(referencia, null, estilo);
+    });
+    nuevas.push(HojaXML.nuevaFila(numero, celdas, atributosModelo));
+  }
 
-  const ultimaDatos = filaEncabezado + existencias.length;
+  const ultimaDatos = filaEncabezado + Math.max(existencias.length, 1);
+  // Lo que queda fuera de las filas de datos se ajusta como Excel al insertar o borrar filas en la tabla: un rango
+  // que cubría los datos (SUBTOTAL(109,F2:F150)) crece o se achica con ellos y lo de abajo se recorre. Copiar las
+  // fórmulas sin más (desplazarFormula) dejaba filas negativas, que Excel quita al abrir el libro.
+  const reubicar = (texto) => reubicarReferencias(texto, mapaDeFilas(filaEncabezado + 1, ultimaDatosPlantilla, ultimaDatos));
   let ultima = ultimaDatos;
   if (filaTotales !== null) {
     ultima = ultimaDatos + 1;
-    nuevas.push(hoja.moverFila(filaTotales, ultima));
+    nuevas.push(hoja.moverFila(filaTotales, ultima, reubicar));
   }
   // Filas debajo de la tabla (formato, celdas sueltas): se recorren como lo haría Excel.
   const delta = ultima - filaFin;
   const debajo = hoja.numerosFila.filter((n) => n > filaFin).sort((a, b) => a - b);
   for (const numero of debajo) {
-    nuevas.push(hoja.moverFila(numero, numero + delta));
+    nuevas.push(hoja.moverFila(numero, numero + delta, reubicar));
     mapaFilas.set(numero, numero + delta);
   }
+  // Celdas combinadas, formatos condicionales, validaciones y vínculos se recorren con sus filas: si se quedaban,
+  // podían quedar encima de la tabla (Excel la repara) o fuera de su lugar.
+  hoja.despues = reubicarDespues(hoja.despues, reubicar);
   // Encabezado con el mismo estilo en todas las hojas y anchos de columna iguales (Ronda 25).
   const encabezado = hoja.filas.get(filaEncabezado);
   if (encabezado) {
@@ -179,10 +199,36 @@ function exportarHoja(paquete, parte, existencias, indices, saldos, advertencias
     );
   }
   paquete.escribir(parteTabla, tabla);
+  // Otras tablas de la hoja (debajo de la del inventario) se recorren con sus filas.
+  for (const otra of tablas.filter((t) => t !== parteTabla)) {
+    let texto = paquete.texto(otra);
+    const movida = cambiarEtiqueta(texto, "table", (e) => ponerAtributo(e, "ref", reubicar(atributos(e).ref)));
+    const inicioOtroFiltro = movida.search(/<autoFilter\b/);
+    texto = inicioOtroFiltro >= 0 ? cambiarEtiqueta(movida, "autoFilter", (e) => ponerAtributo(e, "ref", reubicar(atributos(e).ref)), inicioOtroFiltro) : movida;
+    if (texto !== paquete.texto(otra)) paquete.escribir(otra, texto);
+  }
 
   if (filaTotales !== null) mapaFilas.set(filaTotales, ultima);
   moverNotas(paquete, parte, mapaFilas, advertencias);
   return ultima;
+}
+
+/**
+ * Lo que va después de los datos de la hoja (`<mergeCells>`, `<conditionalFormatting>`, `<dataValidations>`,
+ * `<hyperlinks>`): sus rangos y fórmulas, con `reubicar` (lo demás, como el encabezado de página, no se toca).
+ */
+export function reubicarDespues(xml, reubicar) {
+  const atributo = (nombre) => (etiqueta, attrs) => {
+    const valor = atributos(attrs)[nombre];
+    return valor ? ponerAtributo(etiqueta, nombre, reubicar(valor)) : etiqueta;
+  };
+  return xml
+    .replace(/<mergeCell\b([^>]*?)\/?>/g, atributo("ref"))
+    .replace(/<hyperlink\b([^>]*?)\/?>/g, atributo("ref"))
+    .replace(/<(?:conditionalFormatting|dataValidation)\b([^>]*?)\/?>/g, atributo("sqref"))
+    .replace(/(<(formula[12]?|xm:f)>)([\s\S]*?)(<\/\2>)/g, (_, apertura, nombre, contenido, cierre) => `${apertura}${escaparTexto(reubicar(desescapar(contenido)))}${cierre}`)
+    // Validaciones y formatos de Excel 2010 (lista de otra hoja, barras de datos) van en extLst.
+    .replace(/(<xm:sqref>)([^<]*)(<\/xm:sqref>)/g, (_, apertura, sqref, cierre) => `${apertura}${reubicar(sqref)}${cierre}`);
 }
 
 /** Área de impresión y filtro de la hoja al nuevo último renglón. */

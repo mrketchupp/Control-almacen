@@ -57,6 +57,14 @@ Reglas de la hoja:
 - **Nombres definidos:** `_xlnm.Print_Area` y `_xlnm._FilterDatabase` de esa hoja se ajustan al nuevo número de filas.
 - **Notas de celda:** se mueven a la fila actual de su existencia (`ref` en `commentsN.xml` y `x:Row` en `vmlDrawingN.vml`).
 - **Contenido fuera de la tabla:** se reporta y se descarta. En la muestra solo hay una celda suelta ("Ñ").
+- **Lo de debajo de la tabla (Ronda 32):** la fila de totales y las filas de abajo se recorren con la tabla y sus fórmulas
+  se ajustan **como Excel al insertar o borrar filas** (`mapaDeFilas` / `reubicarReferencias` en `xlsx/celdas.js`): un rango
+  que cubría los datos (`SUBTOTAL(109,F2:F150)`) crece o se achica con ellos, lo de abajo se recorre (también las
+  referencias absolutas) y las de otras hojas o de tablas no se tocan. Igual las celdas combinadas, los formatos
+  condicionales, las validaciones (también las de `extLst`), los vínculos y otras tablas de la hoja. Copiarlas sin más
+  dejaba filas 0 o negativas y combinadas encima de la tabla: Excel reparaba el libro (inventario del Inventario B y FX).
+- **Hoja sin partidas** (p. ej. en el libro de FX): la tabla conserva **una fila vacía** con los estilos y fórmulas del
+  modelo; Excel no acepta una tabla sin filas de datos (la quitaba al abrir).
 
 - **Encabezado de página:** la fecha escrita en el encabezado de impresión (`oddHeader`, p. ej. `&RLUNES 28 SEPTIEMBRE
   DE  2026`) se cambia por la del inventario (hoy, o el día del reporte diario) con la misma forma de escribirla

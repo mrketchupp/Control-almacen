@@ -284,8 +284,11 @@ export class HojaXML {
     return `<row r="${numero}"${atributosATexto(atributos)}>${celdas.join("")}</row>`;
   }
 
-  /** Copia una fila existente a otro número de fila (ajusta referencias y fórmulas). */
-  moverFila(anterior, numero) {
+  /**
+   * Copia una fila existente a otro número de fila (ajusta referencias y fórmulas). Con `reubicar(texto)` sus
+   * fórmulas se ajustan como al insertar o borrar filas (celdas.reubicarReferencias), no como al copiarla.
+   */
+  moverFila(anterior, numero, reubicar = null) {
     const fila = this.filas.get(anterior);
     const delta = numero - anterior;
     const celdas = [];
@@ -302,7 +305,8 @@ export class HojaXML {
           const { inicio, fin } = separarRango(a.ref);
           a.ref = `${inicio.letras}${inicio.fila + delta}:${fin.letras}${fin.fila + delta}`;
         }
-        const nueva = formula === null ? c.formula.crudo : `<f${atributosATexto(a)}>${escaparTexto(desplazarFormula(formula, delta))}</f>`;
+        const movida = reubicar ? reubicar(formula ?? "") : desplazarFormula(formula ?? "", delta);
+        const nueva = formula === null ? c.formula.crudo : `<f${atributosATexto(a)}>${escaparTexto(movida)}</f>`;
         texto = texto.replace(c.formula.crudo, nueva).replace(/<v(?:\s[^>]*)?>[\s\S]*?<\/v>|<v\/>/, "");
       }
       celdas.push(texto);

@@ -445,7 +445,27 @@ PNG_1PX = bytes.fromhex(
 # ------------------------------------------------------------------ inventario
 
 
-def generar_inventario(ruta: Path, hojas: dict | None = None, catalogo: dict | None = None) -> Path:
+def pie_con_formulas(ws, totales: int) -> None:
+    """Como el inventario real de Inventario B (Ronda 32): debajo de la tabla, un pie con fórmulas de rango
+    (incluida una absoluta a la fila de totales), celdas combinadas, una validación de lista en la UM y un formato
+    condicional en el TOTAL. Al crecer o achicarse la tabla tienen que moverse con ella (si no, Excel repara el libro)."""
+    from openpyxl.formatting.rule import CellIsRule
+    from openpyxl.worksheet.datavalidation import DataValidation
+
+    ultima = totales - 1
+    pie = totales + 3
+    ws.cell(pie, 1, "CONTÓ: PERSONA SINTETICA")
+    ws.merge_cells(start_row=pie, start_column=1, end_row=pie, end_column=3)
+    ws.cell(pie, 6, f"=SUBTOTAL(109,F2:F{ultima})")
+    ws.cell(pie, 8, f"=$H${totales}")
+    ws.cell(pie, 10, f"=SUM(J2:J{ultima})")
+    lista = DataValidation(type="list", formula1='"PZA,MTS,LTS"', allow_blank=True)
+    lista.add(f"G2:G{ultima}")
+    ws.add_data_validation(lista)
+    ws.conditional_formatting.add(f"J2:J{ultima}", CellIsRule(operator="lessThan", formula=["0"], fill=PatternFill("solid", fgColor="FFC7CE")))
+
+
+def generar_inventario(ruta: Path, hojas: dict | None = None, catalogo: dict | None = None, pie=None) -> Path:
     hojas = HOJAS_INV if hojas is None else hojas
     catalogo = CATALOGO if catalogo is None else catalogo
     wb = Workbook()
@@ -508,6 +528,8 @@ def generar_inventario(ruta: Path, hojas: dict | None = None, catalogo: dict | N
         ws.print_area = f"A1:J{totales}"
         if hoja in PIE_DE_HOJA:
             ws.cell(totales + 2, 1, PIE_DE_HOJA[hoja])
+        if pie and pie(hoja):
+            pie_con_formulas(ws, totales)
         ws.oddHeader.center.text = f"\n{TITULO_INV}\n&A"
         ws.oddHeader.center.font = "-,Negrita"
         ws.oddHeader.center.size = 16
@@ -1071,7 +1093,9 @@ def generar_todo(carpeta: Path) -> dict[str, Path]:
         "ax": generar_ax(carpeta / NOMBRE_AX),
         "base": generar_base(carpeta / NOMBRE_BASE),
         "kardex": generar_kardex(carpeta / NOMBRE_KARDEX),
-        "inventario_gsm": generar_inventario(carpeta / "INVENTARIO GSM SINTETICO.xlsx", HOJAS_INV_GSM, CATALOGO_GSM),
+        "inventario_gsm": generar_inventario(
+            carpeta / "INVENTARIO GSM SINTETICO.xlsx", HOJAS_INV_GSM, CATALOGO_GSM, pie=lambda hoja: "INVENTARIABLE" in hoja
+        ),
     }
 
 

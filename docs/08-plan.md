@@ -319,6 +319,18 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 32 — el inventario del Inventario B y el de FX salían «con errores» que Excel reparaba.** Con las carpetas ya
+fijadas (arrastrando, el registro mostró que el explorador de Edge responde `AbortError` aunque se elija), los cinco
+archivos quedaron en su lugar; al abrirlos, Excel reparó el inventario del Inventario B y el de FX («Fórmula quitada»
+en cuatro hojas, «Tabla reparada» y, en FX, «Parte quitada» de cinco tablas). Los del Inventario A y los libros de vales,
+bien. **Causas** (reproducidas con datos inventados): las hojas sin partidas de FX dejaban su tabla sin filas de datos
+(Excel la quita) y lo de debajo de la tabla —fórmulas de rango, combinadas, validaciones, formatos— se copiaba en lugar
+de reubicarse (`SUBTOTAL(109,F2:F5)` con 2 partidas quedaba `F0:F3`). **Aplicado:** tabla vacía con una fila en blanco y
+reubicación como Excel al insertar o borrar filas (docs/06). Pruebas `tests/inventarioTablas.test.js` con un pie
+sintético en la plantilla de GSM (`pie_con_formulas` en `generar.py`).
+- ☐ Del usuario: guardar otra vez el inventario de GSM y el de FX y abrirlos en Excel (si aún repara, mandar el registro de
+  Excel y, si se puede, el archivo antes de abrirlo; se revisa solo aquí y nunca se sube).
+
 **Ronda 31 — elegir la carpeta o el libro de vales «no hacía nada».** Reporte del usuario: en *Carpetas…*, al elegir
 la carpeta base en el explorador o el libro de vales, no pasaba nada (tampoco tras recargar), y *Descargar* seguía
 abriendo «Guardar como». No se reproduce aquí; la única forma en que eso queda en silencio es que Edge responda como al

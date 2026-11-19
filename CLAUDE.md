@@ -92,6 +92,14 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   cada *Descargar* del reporte; localStorage, últimas 300; en *Carpetas…* → *Registro de lo que pasó* con **Copiar
   registro** / **Descargar .txt** (con el entorno: versión de Edge, pestaña o ventana de aplicación, funciones) para
   pegarlo en la conversación. Nunca sale del equipo ni va en respaldos.
+- Ronda 32 (fallo reportado: Excel reparaba el inventario del Inventario B y el de FX; el del A, bien; el registro de la
+  Ronda 31 confirmó que el explorador de Edge responde `AbortError` aunque se elija y que arrastrar funciona):
+  `exportarInventario` — hoja sin partidas = **una fila vacía** en la tabla (Excel no acepta tablas sin datos); totales
+  y filas de abajo con `moverFila(…, reubicar)` y `reubicarDespues` (combinadas, formatos condicionales, validaciones,
+  `extLst`, vínculos) y otras tablas de la hoja, con `mapaDeFilas` / `reubicarReferencias` (`xlsx/celdas.js`: como Excel
+  al insertar/borrar filas, también absolutas; no otras hojas ni tablas). La tabla del inventario es la que tiene
+  CODIGO AX. Fixture: `pie_con_formulas` en las hojas INVENTARIABLE de GSM; `tests/inventarioTablas.test.js`
+  (`problemasDelLibro`: tablas sin filas, fórmulas con fila 0 / negativa / #REF!, combinadas encima de una tabla).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
