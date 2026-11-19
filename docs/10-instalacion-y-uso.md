@@ -97,6 +97,12 @@ del reporte diario*). Es lo mismo en los dos inventarios y se queda en este equi
    aunque estén escritas un poco distinto (`05.MAYO` = `05. MAYO`). Vacía = esa sigue abriendo «Guardar como».
 2. **Libros de vales de salida:** **Elegir archivo…** y selecciona el libro de vales de cada inventario que ya tienes
    (normalmente en el Escritorio). *Descargar* lo **reemplaza**.
+3. **Si al elegir no pasa nada** (Edge a veces no entrega lo elegido en carpetas de OneDrive): la ventana lo dice arriba.
+   **Arrastra** la carpeta base desde el Explorador de Windows al recuadro punteado; la carpeta de cada inventario, a su
+   fila; y el libro de vales, a la suya. Hace lo mismo que elegirlo.
+4. **Registro de lo que pasó** (abajo en la ventana): anota qué pidió la herramienta y qué respondió Edge al elegir,
+   arrastrar, pedir permiso y guardar. Si algo falla, **Copiar registro** (o **Descargar .txt**) y pégalo en la
+   conversación de soporte. Se queda solo en este equipo y no lleva rutas completas ni datos del inventario.
 
 Al pulsar *Descargar* (nunca solo): la primera vez de cada sesión Edge pregunta si la página puede editar esa carpeta o ese
 archivo (**Editar archivos** / **Permitir**). El inventario va a la carpeta del **año y mes del día del reporte** (también si es un

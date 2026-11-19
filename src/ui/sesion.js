@@ -4,8 +4,11 @@
 import { hoyIso } from "../nucleo/fechas.js";
 import { usuarioEnTurno } from "../servicios/consultas.js";
 import {
+  SinElegir,
   borrarDeCarpeta,
   causaDeError,
+  conLimite,
+  delExplorador,
   descargar,
   elegirCarpeta,
   elegirDondeGuardar,
@@ -17,6 +20,7 @@ import {
   soportaGuardarComo,
 } from "../almacen/archivos.js";
 import { Compartidos } from "../almacen/compartidos.js";
+import { anotar, describirHandle } from "../almacen/registro.js";
 import { CLAVE_DESTINOS, destinoDe, normalizarDestinos, normalizarRuta, proponerRutas, rutaDeCarpetas, RUTAS } from "../almacen/destinos.js";
 import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
@@ -299,35 +303,53 @@ export class Sesion {
 
   async _guardarDestinos(destinos) {
     this.destinos = normalizarDestinos(destinos);
-    await this._bdDestinos.guardarAjuste(CLAVE_DESTINOS, this.destinos);
-    this._cambio();
+    this._cambio(); // se ve de inmediato aunque guardarlo en el navegador tarde
+    try {
+      await conLimite(this._bdDestinos.guardarAjuste(CLAVE_DESTINOS, this.destinos), 10000, null, "el navegador no respondió");
+    } catch (error) {
+      anotar("carpetas", "no se pudieron guardar en el navegador", error);
+      throw new Error(`Las carpetas quedaron fijadas solo hasta cerrar la herramienta: el navegador no las guardó (${error?.name ?? ""} ${error?.message ?? error}).`, { cause: error });
+    }
   }
 
   /**
-   * Elige la carpeta base de los inventarios (p. ej. INVENTARIO DIARIO) y propone las rutas que aún no tienen
-   * buscándolas dentro. Edge no deja elegir el Escritorio ni OneDrive completos: se elige una carpeta dentro.
-   * @returns { raiz, propuestas: { [id]: ruta | null } } o null si se canceló
+   * Elige la carpeta base de los inventarios (p. ej. INVENTARIO DIARIO) con el explorador y la fija
+   * (`fijarCarpetaReporte`). Edge no deja elegir el Escritorio ni OneDrive completos: se elige una carpeta dentro.
+   * @throws SinElegir si el explorador se cerró sin entregar nada; ErrorEscritura 'colgado' si Edge no respondió
+   *   (si responde después, `alLlegarTarde(carpeta)`)
    */
-  async elegirCarpetaReporte() {
-    let raiz;
-    try {
-      raiz = await window.showDirectoryPicker({ id: "control-almacen-reporte", mode: "readwrite", startIn: this.destinos.raiz ?? "desktop" });
-    } catch (error) {
-      if (error?.name === "AbortError") return null;
-      throw error;
-    }
-    let propuestas = {};
-    try {
-      propuestas = await proponerRutas(raiz);
-    } catch (error) {
-      console.warn("Proponer rutas:", error);
-    }
-    // Con otra base, las rutas que se encontraron reemplazan a las anteriores; con la misma, solo llenan las vacías.
+  async elegirCarpetaReporte({ alLlegarTarde = null } = {}) {
+    const raiz = await delExplorador(
+      "la carpeta",
+      () => window.showDirectoryPicker({ id: "control-almacen-reporte", mode: "readwrite", startIn: this.destinos.raiz ?? "desktop" }),
+      { alLlegarTarde },
+    );
+    return this.fijarCarpetaReporte(raiz);
+  }
+
+  /**
+   * Fija la carpeta base (del explorador o arrastrada desde Windows) y propone las rutas buscándolas dentro. La base
+   * queda guardada antes de buscar: si la búsqueda falla o tarda, se dice y las rutas se escriben a mano.
+   * @returns { raiz, propuestas: { [id]: ruta | null }, error: búsqueda que falló o null }
+   */
+  async fijarCarpetaReporte(raiz) {
+    if (raiz?.kind !== "directory") throw new Error(`«${raiz?.name ?? "Eso"}» no es una carpeta: arrastra la carpeta que tiene adentro las de cada inventario.`);
+    // Con otra base, las rutas que se encuentren reemplazan a las anteriores; con la misma, solo llenan las vacías.
     const misma = await this._mismaBase(raiz);
+    await this._guardarDestinos({ ...this.destinos, raiz });
+    let propuestas = {};
+    let error = null;
+    try {
+      propuestas = await conLimite(proponerRutas(raiz), 20000, null, `Edge tardó demasiado en leer «${raiz.name}» (¿OneDrive está sincronizando?)`);
+    } catch (e) {
+      console.warn("Proponer rutas:", e);
+      error = e;
+    }
     const rutas = { ...this.destinos.rutas };
     for (const id of RUTAS) if (propuestas[id] && (!rutas[id] || !misma)) rutas[id] = propuestas[id];
-    await this._guardarDestinos({ ...this.destinos, raiz, rutas });
-    return { raiz, propuestas };
+    await this._guardarDestinos({ ...this.destinos, rutas });
+    anotar("carpetas", `base ${describirHandle(raiz)}; encontradas: ${RUTAS.map((id) => `${id}=${propuestas[id] ?? "—"}`).join(", ")}`, error);
+    return { raiz, propuestas, error };
   }
 
   /** ¿La carpeta elegida es la misma base que ya había? (entonces se conservan las rutas escritas) */
@@ -343,7 +365,7 @@ export class Sesion {
   async buscarRutasReporte() {
     const raiz = this.destinos.raiz;
     if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
-    const propuestas = await proponerRutas(raiz);
+    const propuestas = await conLimite(proponerRutas(raiz), 20000, null, `Edge tardó demasiado en leer «${raiz.name}» (¿OneDrive está sincronizando?)`);
     const rutas = { ...this.destinos.rutas };
     for (const id of RUTAS) if (propuestas[id]) rutas[id] = propuestas[id];
     await this._guardarDestinos({ ...this.destinos, rutas });
@@ -357,52 +379,70 @@ export class Sesion {
 
   /**
    * La ruta de un inventario eligiendo su carpeta en el explorador (dentro de la base): el año y el mes
-   * elegidos se vuelven {año} y {mes}. @returns la ruta, o null si se canceló
+   * elegidos se vuelven {año} y {mes}. @returns la ruta @throws SinElegir / ErrorEscritura como elegirCarpetaReporte
    */
-  async explorarRutaReporte(id) {
+  async explorarRutaReporte(id, { alLlegarTarde = null } = {}) {
     const raiz = this.destinos.raiz;
     if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
-    let elegida;
-    try {
-      elegida = await window.showDirectoryPicker({ id: "control-almacen-reporte-ruta", mode: "read", startIn: raiz });
-    } catch (error) {
-      if (error?.name === "AbortError") return null;
-      throw error;
+    const elegida = await delExplorador("la carpeta", () => window.showDirectoryPicker({ id: "control-almacen-reporte-ruta", mode: "read", startIn: raiz }), { alLlegarTarde });
+    return this.fijarRutaDesdeCarpeta(id, elegida);
+  }
+
+  /** La ruta de un inventario desde una carpeta de dentro de la base (elegida o arrastrada). @returns la ruta */
+  async fijarRutaDesdeCarpeta(id, carpeta) {
+    const raiz = this.destinos.raiz;
+    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    if (carpeta?.kind !== "directory") throw new Error(`«${carpeta?.name ?? "Eso"}» no es una carpeta.`);
+    const partes = await raiz.resolve(carpeta);
+    if (!partes) {
+      anotar("carpetas", `${describirHandle(carpeta)} no está dentro de ${describirHandle(raiz)}`);
+      throw new Error(`«${carpeta.name}» no está dentro de «${raiz.name}». Elige una carpeta dentro de la base (o cambia la base).`);
     }
-    const partes = await raiz.resolve(elegida);
-    if (!partes) throw new Error(`«${elegida.name}» no está dentro de «${raiz.name}». Elige una carpeta dentro de la base (o cambia la base).`);
     const ruta = rutaDeCarpetas(partes);
     await this.fijarRutaReporte(id, ruta);
+    anotar("carpetas", `ruta de ${id} desde ${describirHandle(carpeta)}: ${ruta}`);
     return ruta;
   }
 
   /**
-   * Fija el libro de vales de un inventario: se elige el archivo que ya existe (normalmente en el Escritorio) y
-   * cada «Descargar» del reporte lo reemplaza. @returns el archivo, o null si se canceló
+   * Fija el libro de vales de un inventario eligiendo con el explorador el archivo que ya existe (normalmente en el
+   * Escritorio): cada «Descargar» del reporte lo reemplaza. @returns el archivo, o null si no se quiso usar
+   * @throws SinElegir / ErrorEscritura como elegirCarpetaReporte
    */
-  async elegirLibroVales(id) {
-    const propio = id === this.inventario.id ? this.almacen.nombreExportacion("VALES") : null;
-    const extension = propio ? propio.slice(propio.lastIndexOf(".")).toLowerCase() : null;
-    const extensiones = extension ? [extension] : [".xlsm", ".xlsx"];
-    let archivo;
-    try {
-      [archivo] = await window.showOpenFilePicker({
+  async elegirLibroVales(id, { alLlegarTarde = null } = {}) {
+    const extensiones = this._extensionLibro(id) ? [this._extensionLibro(id)] : [".xlsm", ".xlsx"];
+    const elegidos = await delExplorador(
+      "el archivo",
+      () => window.showOpenFilePicker({
         id: "control-almacen-vales",
         startIn: this.destinos.vales[id] ?? "desktop",
         multiple: false,
         excludeAcceptAllOption: true,
         types: [{ description: "Libro de Excel", accept: Object.fromEntries(extensiones.map((e) => [TIPOS_LIBRO[e], [e]])) }],
-      });
-    } catch (error) {
-      if (error?.name === "AbortError") return null;
-      throw error;
-    }
-    if (!archivo) return null;
+      }),
+      { alLlegarTarde: alLlegarTarde && ((lista) => lista?.[0] && alLlegarTarde(lista[0])) },
+    );
+    if (!elegidos?.[0]) throw new SinElegir("el archivo");
+    return this.fijarLibroVales(id, elegidos[0]);
+  }
+
+  /** La extensión del libro de vales de ese inventario (solo se sabe la del abierto). */
+  _extensionLibro(id) {
+    const propio = id === this.inventario.id ? this.almacen.nombreExportacion("VALES") : null;
+    return propio ? propio.slice(propio.lastIndexOf(".")).toLowerCase() : null;
+  }
+
+  /** Fija el libro de vales (elegido o arrastrado desde Windows). @returns el archivo, o null si no se quiso usar */
+  async fijarLibroVales(id, archivo) {
+    if (archivo?.kind !== "file") throw new Error(`«${archivo?.name ?? "Eso"}» no es un archivo: arrastra el libro de vales de ${id}.`);
+    const extension = this._extensionLibro(id);
     const suya = archivo.name.slice(archivo.name.lastIndexOf(".")).toLowerCase();
+    if (![".xlsm", ".xlsx"].includes(suya)) throw new Error(`«${archivo.name}» no es un libro de Excel: arrastra el libro de vales de ${id}.`);
     if (extension && suya !== extension) throw new Error(`«${archivo.name}» es ${suya} y el libro de vales de ${id} sale como ${extension}: elige el ${extension}.`);
     const otro = deOtroInventario(archivo.name, id);
     if (otro && !window.confirm(`«${archivo.name}» dice ${otro}. ¿Es el libro de vales de ${id}?`)) return null;
     await this._guardarDestinos({ ...this.destinos, vales: { ...this.destinos.vales, [id]: archivo } });
+    anotar("carpetas", `libro de vales de ${id}: ${describirHandle(archivo)}`);
     return archivo;
   }
 
@@ -750,6 +790,7 @@ export class Sesion {
           return salida.destino;
         } catch (error) {
           console.warn(error);
+          anotar("guardar", `«${nombre}» no quedó en su carpeta${abierto ? "" : " (no se pudo abrir o crear)"}; va a Descargas`, error);
           salida.motivo = error.message;
           salida.causa = causaDeError(error);
           if (abierto && !abierto.existia) await abierto.quitar?.().catch(() => {});

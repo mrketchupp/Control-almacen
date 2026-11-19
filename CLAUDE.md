@@ -79,6 +79,19 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   *Exportar y enviar* no cambia. Pruebas `tests/destinos.test.js` (carpetas en memoria `tests/ayudaCarpetas.js`, como Windows
   sin distinguir mayúsculas) y Chromium `tests/destinos.navegador.mjs` (carpetas de OPFS; guardarlas en IndexedDB sí funciona
   con el Chromium del contenedor).
+- Ronda 31 (fallo reportado: en *Carpetas…* elegir la carpeta base o el libro de vales «no hacía nada»; no se reproduce
+  aquí, como «Guardar como» en OneDrive en las Rondas 26 y 29): el explorador se abre con `delExplorador`
+  (`almacen/archivos.js`): `vigilarDialogo` (movido ahí; `sharepoint.js` lo reexporta) + `AbortError` → `SinElegir`
+  (mensaje con lo que respondió Edge y la salida: arrastrar); si responde tarde, `alLlegarTarde` lo usa. Sesion separa
+  elegir de fijar: `fijarCarpetaReporte` (guarda la base antes de buscar; búsqueda con `conLimite`, `error` en el
+  resultado), `fijarRutaDesdeCarpeta`, `fijarLibroVales`; `_guardarDestinos` pinta antes de guardar y explica si el
+  navegador no lo guarda. **Arrastrar desde el Explorador de Windows** (sin el diálogo de Edge): `ZonaSoltar` en la base,
+  cada ruta y cada libro (`DataTransferItem.getAsFileSystemHandle`, pedido dentro del evento; soltar fuera no abre el
+  archivo). Resultado de cada acción dentro de la ventana (`.carpetas-resultado`). **Registro** (`almacen/registro.js`,
+  sugerencia del usuario): `anotar` en el explorador, permisos pedidos, «Guardar como», escrituras, arrastres, carpetas y
+  cada *Descargar* del reporte; localStorage, últimas 300; en *Carpetas…* → *Registro de lo que pasó* con **Copiar
+  registro** / **Descargar .txt** (con el entorno: versión de Edge, pestaña o ventana de aplicación, funciones) para
+  pegarlo en la conversación. Nunca sale del equipo ni va en respaldos.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

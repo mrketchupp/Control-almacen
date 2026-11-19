@@ -1,56 +1,13 @@
 import { useMemo } from "preact/hooks";
-import { ErrorEscritura } from "../../almacen/archivos.js";
+import { vigilarDialogo } from "../../almacen/archivos.js";
+
+export { ESPERA_TRAS_DIALOGO_MS, vigilarDialogo } from "../../almacen/archivos.js";
 import { fmtFecha, fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
 import { registrarEnvio, ultimoEnvio, valesPorEnviar } from "../../servicios/vales.js";
 import { Boton, Tabla, Tarjeta, confirmar, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
 const MOTIVOS = { nuevo: "Nuevo", corregido: "Corregido", cancelado: "Cancelado" };
-
-/** Tras cerrarse «Guardar como» (la ventana vuelve a tener el foco), cuánto se espera a que Edge responda. */
-export const ESPERA_TRAS_DIALOGO_MS = 5000;
-
-/**
- * La respuesta de «Guardar como», vigilada: si la ventana ya recuperó el foco (el diálogo se cerró) y Edge
- * no responde en `ms`, rechaza con ErrorEscritura 'colgado' (pasa mientras OneDrive sube archivos). Si Edge
- * responde después con el archivo, `alLlegarTarde(archivo)` lo recibe para guardar ahí de todos modos.
- */
-export function vigilarDialogo(promesa, { ms = ESPERA_TRAS_DIALOGO_MS, alLlegarTarde = null } = {}) {
-  return new Promise((resolver, rechazar) => {
-    let vencida = false;
-    let temporizador = null;
-    const limpiar = () => {
-      clearTimeout(temporizador);
-      window.removeEventListener("focus", alFoco);
-      window.removeEventListener("blur", alPerderFoco);
-    };
-    function alFoco() {
-      clearTimeout(temporizador);
-      temporizador = setTimeout(() => {
-        if (!document.hasFocus()) return;
-        vencida = true;
-        limpiar();
-        rechazar(new ErrorEscritura("Edge no respondió al guardar en esa carpeta (pasa mientras OneDrive sube archivos)", { causa: "colgado" }));
-      }, ms);
-    }
-    function alPerderFoco() {
-      clearTimeout(temporizador);
-    }
-    window.addEventListener("focus", alFoco);
-    window.addEventListener("blur", alPerderFoco);
-    Promise.resolve(promesa).then(
-      (archivo) => {
-        limpiar();
-        if (!vencida) resolver(archivo);
-        else if (archivo) alLlegarTarde?.(archivo);
-      },
-      (error) => {
-        limpiar();
-        if (!vencida) rechazar(error);
-      },
-    );
-  });
-}
 
 /**
  * Exporta un libro: primero "Guardar como" (tiene que abrirse directo desde el clic), luego se

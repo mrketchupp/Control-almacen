@@ -319,6 +319,17 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 31 — elegir la carpeta o el libro de vales «no hacía nada».** Reporte del usuario: en *Carpetas…*, al elegir
+la carpeta base en el explorador o el libro de vales, no pasaba nada (tampoco tras recargar), y *Descargar* seguía
+abriendo «Guardar como». No se reproduce aquí; la única forma en que eso queda en silencio es que Edge responda como al
+cancelar (`AbortError`) aunque se eligió, como «Guardar como» en la carpeta de OneDrive (Rondas 26 y 29). **Aplicado:**
+nunca en silencio (dentro de la ventana y en un aviso, con lo que respondió Edge); si Edge no responde 5 s después de
+cerrarse el explorador, se dice, y si responde después se usa lo elegido; la base se guarda antes de buscar adentro (y la
+búsqueda tiene límite de tiempo); **arrastrar desde el Explorador de Windows** la carpeta base, la de cada inventario o el
+libro de vales (no pasa por el diálogo de Edge); y un **registro** (sugerencia del usuario) de lo que pidió la herramienta
+y lo que respondió Edge en cada paso, que se copia o descarga desde *Carpetas…* para pegarlo en la conversación.
+- ☐ Del usuario: volver a fijar las carpetas (elegir o arrastrar) y, si algo falla, mandar el registro.
+
 **Ronda 30 — el reporte diario guarda cada archivo en su carpeta.** Pedido del usuario: «Guardar como» en OneDrive no
 funcionaba bien y los archivos siempre van al mismo lugar: el libro de vales de salida, en el Escritorio (se reemplaza); el
 inventario, en `<inventario>/<carpeta de inventarios>/<año>/<mes>/` dentro de la carpeta del inventario diario (el de FX sin

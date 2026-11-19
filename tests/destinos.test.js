@@ -18,6 +18,8 @@ import {
   proponerRutas,
   rutaDeCarpetas,
 } from "../src/almacen/destinos.js";
+import { SinElegir } from "../src/almacen/archivos.js";
+import { MAXIMO_REGISTRO, anotar, borrarRegistro, registro, textoError, textoRegistro } from "../src/almacen/registro.js";
 import { guardarEnSuLugar, textoDestino } from "../src/ui/paginas/carpetas.js";
 import { Sesion } from "../src/ui/sesion.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
@@ -422,8 +424,23 @@ test("los destinos se eligen con el explorador, se guardan en la base común y s
   window.confirm = () => false;
   assert.equal(await sesion.elegirLibroVales("GSM"), null, "dice DLTA: se pregunta y no se cambia");
   assert.equal(sesion.destinos.vales.GSM, libro);
+  // El explorador se cerró sin entregar nada: nunca en silencio, con lo que respondió Edge.
   window.showOpenFilePicker = async () => { throw Object.assign(new Error("The user aborted a request."), { name: "AbortError" }); };
-  assert.equal(await sesion.elegirLibroVales("GSM"), null);
+  await assert.rejects(sesion.elegirLibroVales("GSM"), (e) => e instanceof SinElegir && /No llegó el archivo del explorador/.test(e.message) && /arrástralo desde el Explorador de Windows/.test(e.message) && /AbortError — The user aborted a request\./.test(e.message));
+  window.showDirectoryPicker = async () => { throw Object.assign(new Error(""), { name: "AbortError" }); };
+  await assert.rejects(sesion.elegirCarpetaReporte(), (e) => e instanceof SinElegir && /No llegó la carpeta/.test(e.message) && /arrástrala/.test(e.message));
+  const anotado = registro().slice(-2);
+  assert.deepEqual(anotado.map((e) => [e.que, e.detalle, e.error ?? null]), [
+    ["explorador", "se abre para elegir la carpeta", null],
+    ["explorador", "se cerró sin entregar nada", "AbortError"],
+  ], "el registro dice qué respondió Edge");
+  // Arrastrado desde Windows (sin el diálogo): lo mismo que elegido, con las mismas revisiones.
+  assert.equal(await sesion.fijarLibroVales("GSM", libro), libro);
+  await assert.rejects(sesion.fijarLibroVales("GSM", arbol("CARPETA")), /no es un archivo/);
+  await assert.rejects(sesion.fijarLibroVales("GSM", new ArchivoFalso("vale.pdf")), /no es un libro de Excel/);
+  await assert.rejects(sesion.fijarCarpetaReporte(libro), /no es una carpeta/);
+  assert.equal(await sesion.fijarRutaDesdeCarpeta("FX", raiz.en("FX", "2026")), "FX/{año}/{mes}");
+  await assert.rejects(sesion.fijarRutaDesdeCarpeta("FX", libro), /no es una carpeta/);
 
   await sesion.quitarDestinoReporte({ vales: "GSM", ruta: "FX" });
   assert.equal(sesion.destinos.vales.GSM, null);
@@ -434,4 +451,35 @@ test("los destinos se eligen con el explorador, se guardan en la base común y s
   otra.destinos = normalizarDestinos(await otra._bdDestinos.leerAjuste(CLAVE_DESTINOS));
   assert.equal(otra.destinos.raiz, raiz);
   assert.equal(otra.destinos.rutas.GSM, RUTA_GSM);
+});
+
+test("la carpeta base queda fijada aunque no se pueda leer adentro; se dice por qué", async (t) => {
+  navegador(t);
+  const { almacen } = await almacenReporteGsm({ inventario: "GSM", conTabla: true });
+  const sesion = new Sesion(almacen, almacen.backend);
+  sinAvisosAlTerminar(t, sesion);
+  const raiz = base();
+  raiz.entries = async function* () { throw Object.assign(new Error("Access is denied."), { name: "NotAllowedError" }); };
+  const r = await sesion.fijarCarpetaReporte(raiz);
+  assert.equal(sesion.destinos.raiz, raiz);
+  assert.equal(r.error.name, "NotAllowedError");
+  assert.deepEqual(r.propuestas, {});
+  assert.equal((await almacen.backend.leerAjuste(CLAVE_DESTINOS)).raiz, raiz, "guardada en el equipo");
+});
+
+test("registro: qué pidió la herramienta y qué respondió Edge, para pegarlo en la conversación", () => {
+  borrarRegistro();
+  anotar("explorador", "se abre para elegir la carpeta");
+  const causa = Object.assign(new Error("Access is denied."), { name: "NotAllowedError" });
+  anotar("escribir", "«x.xlsx»: falló", new Error("no quedó", { cause: causa }));
+  assert.equal(textoError(Object.assign(new Error("The user aborted a request."), { name: "AbortError" })), "AbortError — The user aborted a request.");
+  const texto = textoRegistro([["Navegador", "Edge 142"], ["Carpeta base", "INVENTARIO DIARIO"]]);
+  assert.match(texto, /^Registro de carpetas y archivos — Control de Almacén\nNavegador: Edge 142\nCarpeta base: INVENTARIO DIARIO\n\n/);
+  assert.match(texto, /\[explorador\] se abre para elegir la carpeta\n/);
+  assert.match(texto, /\[escribir\] «x\.xlsx»: falló  ✗ Error — no quedó \(causa: NotAllowedError — Access is denied\.\)$/);
+  for (let i = 0; i < MAXIMO_REGISTRO + 10; i++) anotar("prueba", String(i));
+  assert.equal(registro().length, MAXIMO_REGISTRO, "solo las últimas");
+  assert.equal(registro().at(-1).detalle, String(MAXIMO_REGISTRO + 9));
+  borrarRegistro();
+  assert.match(textoRegistro(), /\(sin entradas\)$/);
 });

@@ -58,7 +58,7 @@ test("reporte diario: cada archivo a su carpeta (año y mes del día), sin «Gua
   const CAPTURAS = process.env.DESTINOS_CAPTURAS; // carpeta para las capturas (opcional)
 
   async function abrir({ viewport = { width: 1440, height: 1000 }, colorScheme = "light", isMobile = false } = {}) {
-    const context = await browser.newContext({ viewport, colorScheme, isMobile, hasTouch: isMobile, acceptDownloads: true, timezoneId: "America/Mexico_City" });
+    const context = await browser.newContext({ viewport, colorScheme, isMobile, hasTouch: isMobile, acceptDownloads: true, timezoneId: "America/Mexico_City", permissions: ["clipboard-read", "clipboard-write"] });
     t.after(() => context.close());
     await context.addInitScript(() => {
       // El explorador de Windows, simulado: devuelve la carpeta (o el archivo) de OPFS que diga la prueba.
@@ -69,8 +69,23 @@ test("reporte diario: cada archivo a su carpeta (año y mes del día), sin «Gua
       };
       window.__elegirCarpeta = "INVENTARIO DIARIO";
       window.__guardarComo = 0;
-      window.showDirectoryPicker = async () => abrirRuta(window.__elegirCarpeta);
-      window.showOpenFilePicker = async () => [await (await abrirRuta("Escritorio")).getFileHandle("VALES DE SALIDA GSM.xlsm")];
+      // __modo: "ok" | "aborta" (Edge responde como al cancelar aunque se eligió) | "colgado" (no responde hasta
+      // que la prueba llama window.__responder()).
+      window.__modo = "ok";
+      const responder = (dar) => {
+        if (window.__modo === "aborta") return Promise.reject(new DOMException("The user aborted a request.", "AbortError"));
+        if (window.__modo === "colgado") return new Promise((resolver) => { window.__responder = async () => resolver(await dar()); });
+        return dar();
+      };
+      const libro = async () => (await abrirRuta("Escritorio")).getFileHandle("VALES DE SALIDA GSM.xlsm");
+      window.showDirectoryPicker = () => responder(() => abrirRuta(window.__elegirCarpeta));
+      window.showOpenFilePicker = () => responder(async () => [await libro()]);
+      // Arrastrar desde el Explorador de Windows: el elemento soltado entrega la carpeta o el archivo de OPFS.
+      window.__arrastrado = null;
+      DataTransferItem.prototype.getAsFileSystemHandle = async function () {
+        if (window.__arrastrado === "libro") return libro();
+        return window.__arrastrado ? abrirRuta(window.__arrastrado) : null;
+      };
       window.showSaveFilePicker = async () => {
         window.__guardarComo++;
         throw new DOMException("The user aborted a request.", "AbortError");
@@ -203,6 +218,87 @@ test("reporte diario: cada archivo a su carpeta (año y mes del día), sin «Gua
     await page.getByRole("button", { name: "Guardar Inventario de refaccionamiento en otro lugar" }).click();
     await page.locator(".toast-info", { hasText: "No se guardó" }).waitFor();
     assert.equal(await page.evaluate(() => window.__guardarComo), 1);
+    assert.deepEqual(r.errores, []);
+    assert.deepEqual(r.externas, []);
+  });
+
+  await t.test("si el explorador no entrega nada lo dice; arrastrar desde Windows sí funciona; Edge tarde también", async () => {
+    const r = await abrir();
+    const { page } = r;
+    await page.getByRole("button", { name: "Carpetas…" }).click();
+    const v = r.ventana();
+    await v.waitFor();
+    const resultado = v.locator(".carpetas-resultado");
+    // Edge responde como al cancelar aunque se eligió: ya no queda en silencio.
+    await page.evaluate(() => { window.__modo = "aborta"; });
+    await v.getByRole("button", { name: "Elegir carpeta…" }).click();
+    await resultado.filter({ hasText: "No llegó la carpeta del explorador" }).waitFor();
+    assert.match(await resultado.innerText(), /arrástrala desde el Explorador de Windows al recuadro punteado/);
+    assert.match(await resultado.innerText(), /Edge respondió: AbortError — The user aborted a request\./);
+    await page.locator(".toast-advertencia", { hasText: "No llegó la carpeta" }).waitFor();
+    if (CAPTURAS) await v.screenshot({ path: join(CAPTURAS, "carpetas-sin-respuesta.png") });
+
+    // Arrastrar la carpeta base al recuadro punteado: se fija y se proponen las rutas.
+    const soltar = (zona, que) => page.evaluate(([zona, que]) => {
+      window.__arrastrado = que;
+      const dt = new DataTransfer();
+      dt.items.add(new File(["x"], "arrastrado"));
+      const destino = document.querySelector(`[data-zona="${zona}"]`);
+      for (const tipo of ["dragenter", "dragover", "drop"]) destino.dispatchEvent(new DragEvent(tipo, { bubbles: true, cancelable: true, dataTransfer: dt }));
+    }, [zona, que]);
+    await soltar("Carpeta base", "INVENTARIO DIARIO");
+    await resultado.filter({ hasText: "Carpeta base: INVENTARIO DIARIO. Encontré las de DLTA, GSM, FX" }).waitFor();
+    assert.equal(await v.getByRole("textbox", { name: "Ruta del inventario de GSM dentro de la carpeta base" }).inputValue(), RUTA_GSM);
+    // Un archivo donde va una carpeta se explica.
+    await soltar("Carpeta de FX", "libro");
+    await resultado.filter({ hasText: "es un archivo: aquí va una carpeta" }).waitFor();
+    // La carpeta de un inventario soltada en su fila: su ruta con {año} y {mes}.
+    await soltar("Carpeta de FX", "INVENTARIO DIARIO/FX/2026/10. OCTUBRE");
+    await resultado.filter({ hasText: "Ruta de FX: FX/{año}/{mes}" }).waitFor();
+    // El libro de vales soltado en su fila.
+    await soltar("Libro de vales de GSM", "libro");
+    await v.locator(".carpeta-archivo", { hasText: VALES }).waitFor();
+    assert.match(await resultado.innerText(), /Libro de vales de GSM: «Descargar» reemplazará VALES DE SALIDA GSM\.xlsm/);
+
+    // Edge no responde tras cerrar el explorador: se dice a los 5 s y, si responde después, se usa lo elegido.
+    await v.getByRole("button", { name: "Quitar el libro de vales de GSM" }).click();
+    await page.evaluate(() => { window.__modo = "colgado"; });
+    await page.evaluate(() => { window.__responder = null; });
+    await v.getByRole("button", { name: "Elegir el libro de vales de GSM" }).click();
+    await page.waitForFunction(() => typeof window.__responder === "function"); // el explorador ya se abrió
+    await page.evaluate(() => { window.dispatchEvent(new Event("blur")); window.dispatchEvent(new Event("focus")); });
+    await resultado.filter({ hasText: "Edge no respondió después de elegir el archivo" }).waitFor({ timeout: 15000 });
+    await page.evaluate(() => window.__responder());
+    await v.locator(".carpeta-archivo", { hasText: VALES }).waitFor();
+    await resultado.filter({ hasText: "Libro de vales de GSM" }).waitFor();
+    // Soltar un archivo fuera de los recuadros no lo abre en Edge.
+    await page.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File(["x"], "otro.xlsx"));
+      const fuera = document.querySelector(".ventana-carpetas h3");
+      fuera.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      window.__soltadoFuera = !fuera.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    });
+    assert.equal(await page.evaluate(() => window.__soltadoFuera), true, "el navegador no hace nada con lo soltado fuera");
+    // El registro dice qué respondió Edge en cada paso, para pegarlo en la conversación.
+    await v.locator("summary", { hasText: "Registro de lo que pasó" }).click();
+    const pre = await v.locator(".registro-archivos").innerText();
+    assert.match(pre, /\[explorador\] se cerró sin entregar nada {2}✗ AbortError — The user aborted a request\./);
+    assert.match(pre, /\[arrastrar\] Edge entregó carpeta «INVENTARIO DIARIO»/);
+    assert.match(pre, /\[carpetas\] base carpeta «INVENTARIO DIARIO»; encontradas: DLTA=ALMACEN DLTA\/01\. INVENTARIOS\/\{año\}\/\{mes\}/);
+    assert.match(pre, /\[explorador\] respondió tarde: entregó archivo «VALES DE SALIDA GSM\.xlsm»/);
+    await v.getByRole("button", { name: "Copiar registro" }).click();
+    await page.locator(".toast-exito", { hasText: "Registro copiado" }).waitFor();
+    const copiado = await page.evaluate(() => navigator.clipboard.readText());
+    assert.match(copiado, /^Registro de carpetas y archivos — Control de Almacén\nHerramienta: /);
+    assert.match(copiado, /Funciones: elegir carpeta sí, elegir archivo sí, guardar como sí, arrastrar sí/);
+    assert.match(copiado, /Carpeta base: INVENTARIO DIARIO/);
+    const esperando = page.waitForEvent("download");
+    await v.getByRole("button", { name: "Descargar .txt" }).click();
+    const descarga = await esperando;
+    assert.match(descarga.suggestedFilename(), /^registro carpetas \d{4}-\d{2}-\d{2}\.txt$/);
+    assert.match(await readFile(await descarga.path(), "utf8"), /\[explorador\] se cerró sin entregar nada/);
+    if (CAPTURAS) await v.screenshot({ path: join(CAPTURAS, "carpetas-registro.png") });
     assert.deepEqual(r.errores, []);
     assert.deepEqual(r.externas, []);
   });

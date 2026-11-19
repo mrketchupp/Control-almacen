@@ -137,7 +137,9 @@ export function PaginaAyuda() {
           cuentan el día en que se <strong>recibieron</strong>, no el de su vale). Al subirlo,
           <em>Ya lo subí</em> marca solo los vales hasta ese folio; los posteriores siguen pendientes para el reporte de su día.
           En <em>Carpetas…</em> fijas dónde va cada uno (el inventario a la carpeta del año y mes del día, el libro de vales a su
-          archivo del Escritorio) y <em>Descargar</em> lo guarda ahí sin preguntar; sin carpeta, abre «Guardar como».
+          archivo del Escritorio) y <em>Descargar</em> lo guarda ahí sin preguntar; sin carpeta, abre «Guardar como». Si al elegir
+          una carpeta no pasa nada, arrástrala desde el Explorador de Windows al recuadro; el <em>Registro de lo que pasó</em> de esa
+          ventana se copia para pegarlo en la conversación de soporte.
         </dd>
         <dt>¿Cómo concilio contra AX?</dt>
         <dd>

@@ -8620,6 +8620,74 @@ button.mosaico:hover .mosaico-abrir {
   margin: 6px 0 0;
 }
 
+/* Recuadros para soltar lo arrastrado desde el Explorador de Windows (sin el diálogo de Edge). */
+.carpeta-base.zona-soltar {
+  border: 2px dashed var(--borde);
+}
+
+.zona-soltar.encima {
+  outline: 2px dashed var(--primario);
+  outline-offset: 2px;
+  background: var(--primario-suave);
+  border-radius: var(--radio);
+}
+
+.zona-pista {
+  display: block;
+  font-size: 0.78rem;
+}
+
+.carpetas-resultado {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radio);
+  border: 1px solid var(--borde);
+  border-left-width: 4px;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.carpetas-resultado .icono {
+  flex: none;
+  margin-top: 1px;
+}
+
+.carpetas-resultado-ok {
+  border-left-color: var(--ok);
+  background: var(--ok-suave);
+}
+
+.carpetas-resultado-ok .icono {
+  color: var(--ok);
+}
+
+.carpetas-resultado-alerta {
+  border-left-color: var(--alerta);
+  background: var(--alerta-suave);
+}
+
+.carpetas-resultado-alerta .icono {
+  color: var(--alerta);
+}
+
+.registro-archivos {
+  max-height: 260px;
+  overflow: auto;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .carpetas-pie {
   justify-content: flex-end;
   margin-bottom: 0;

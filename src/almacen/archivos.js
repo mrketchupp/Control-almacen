@@ -1,12 +1,15 @@
 // Archivos del usuario en SU equipo: carpeta elegida (p. ej. OneDrive\ControlAlmacen)
 // con la API de acceso a archivos del navegador, o descargas normales si no hay carpeta.
 
+import { anotar, describirHandle } from "./registro.js";
+
 export const soportaCarpetas = () => typeof window !== "undefined" && "showDirectoryPicker" in window;
 
 const TIPOS = {
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
   ".zip": "application/zip",
+  ".txt": "text/plain;charset=utf-8",
 };
 
 export async function leerArchivoSubido(archivo) {
@@ -88,15 +91,22 @@ export function causaDeError(error) {
  */
 export async function elegirDondeGuardar(nombre, { startIn = "documents", id = "control-almacen-exportar" } = {}) {
   const extension = nombre.slice(nombre.lastIndexOf(".")).toLowerCase();
+  anotar("guardar como", `abre «Guardar como» para «${nombre}»`);
   try {
-    return await window.showSaveFilePicker({
+    const archivo = await window.showSaveFilePicker({
       id,
       startIn,
       suggestedName: nombre,
       types: [{ description: DESCRIPCIONES[extension] ?? "Archivo", accept: { [TIPOS[extension] ?? "application/octet-stream"]: [extension] } }],
     });
+    anotar("guardar como", `entregó ${describirHandle(archivo)}`);
+    return archivo;
   } catch (error) {
-    if (canceloDialogo(error)) return null;
+    if (canceloDialogo(error)) {
+      anotar("guardar como", "se cerró sin archivo", error);
+      return null;
+    }
+    anotar("guardar como", "falló al elegir", error);
     throw new ErrorEscritura(explicarErrorEscritura(error, nombre), { cause: error });
   }
 }
@@ -129,6 +139,89 @@ export function explicarErrorEscritura(error, nombre) {
   }
 }
 
+/** Tras cerrarse un diálogo del explorador (la ventana vuelve a tener el foco), cuánto se espera a que Edge responda. */
+export const ESPERA_TRAS_DIALOGO_MS = 5000;
+
+/**
+ * La respuesta de un diálogo del explorador («Guardar como», elegir carpeta o archivo), vigilada: si la ventana ya
+ * recuperó el foco (el diálogo se cerró) y Edge no responde en `ms`, rechaza con ErrorEscritura 'colgado' (pasa
+ * mientras OneDrive sube archivos). Si Edge responde después, `alLlegarTarde(resultado)` lo recibe para usarlo de
+ * todos modos. `mensaje`: qué decir si no respondió.
+ */
+export function vigilarDialogo(promesa, { ms = ESPERA_TRAS_DIALOGO_MS, alLlegarTarde = null, mensaje = null } = {}) {
+  return new Promise((resolver, rechazar) => {
+    let vencida = false;
+    let temporizador = null;
+    const limpiar = () => {
+      clearTimeout(temporizador);
+      window.removeEventListener("focus", alFoco);
+      window.removeEventListener("blur", alPerderFoco);
+    };
+    function alFoco() {
+      clearTimeout(temporizador);
+      temporizador = setTimeout(() => {
+        if (!document.hasFocus()) return;
+        vencida = true;
+        limpiar();
+        rechazar(new ErrorEscritura(mensaje ?? "Edge no respondió al guardar en esa carpeta (pasa mientras OneDrive sube archivos)", { causa: "colgado" }));
+      }, ms);
+    }
+    function alPerderFoco() {
+      clearTimeout(temporizador);
+    }
+    window.addEventListener("focus", alFoco);
+    window.addEventListener("blur", alPerderFoco);
+    Promise.resolve(promesa).then(
+      (resultado) => {
+        limpiar();
+        if (!vencida) resolver(resultado);
+        else if (resultado) alLlegarTarde?.(resultado);
+      },
+      (error) => {
+        limpiar();
+        if (!vencida) rechazar(error);
+      },
+    );
+  });
+}
+
+/**
+ * El explorador se cerró sin entregar nada (AbortError). Puede ser que se canceló o que Edge no entregó lo elegido
+ * (le pasa con carpetas de OneDrive, como a «Guardar como» en las Rondas 26 y 29): el mensaje lo dice con el detalle
+ * técnico, para que nunca quede en silencio. `que`: "la carpeta" o "el archivo".
+ */
+export class SinElegir extends Error {
+  constructor(que, causa = null) {
+    const detalle = causa ? ` (Edge respondió: ${causa.name}${causa.message ? ` — ${causa.message}` : ""})` : "";
+    super(
+      `No llegó ${que} del explorador. Si sí ${que === "el archivo" ? "lo" : "la"} elegiste, Edge no ${que === "el archivo" ? "lo" : "la"} entregó (le pasa con algunas carpetas de OneDrive): arrástra${que === "el archivo" ? "lo" : "la"} desde el Explorador de Windows al recuadro punteado.${detalle}`,
+      causa ? { cause: causa } : undefined,
+    );
+    this.name = "SinElegir";
+    this.que = que;
+  }
+}
+
+/** Abre un diálogo del explorador vigilado: AbortError → SinElegir; sin respuesta → ErrorEscritura 'colgado'. */
+export async function delExplorador(que, abrir, { alLlegarTarde = null } = {}) {
+  anotar("explorador", `se abre para elegir ${que}`);
+  try {
+    const resultado = await vigilarDialogo(abrir(), {
+      alLlegarTarde: (tardio) => {
+        anotar("explorador", `respondió tarde: entregó ${describirHandle(tardio)}`);
+        alLlegarTarde?.(tardio);
+      },
+      mensaje: `Edge no respondió después de elegir ${que} (pasa mientras OneDrive sincroniza). Espera un momento o arrástra${que === "el archivo" ? "lo" : "la"} desde el Explorador de Windows al recuadro punteado.`,
+    });
+    anotar("explorador", `entregó ${describirHandle(resultado)}`);
+    return resultado;
+  } catch (error) {
+    anotar("explorador", error?.name === "AbortError" ? "se cerró sin entregar nada" : "falló", error);
+    if (error?.name === "AbortError") throw new SinElegir(que, error);
+    throw error;
+  }
+}
+
 /** Lo más que se espera a una escritura (OneDrive puede dejarla esperando sin responder). */
 export const LIMITE_ESCRITURA_MS = 30000;
 
@@ -136,10 +229,10 @@ export const LIMITE_ESCRITURA_MS = 30000;
  * La promesa, o un ErrorEscritura con causa 'colgado' si no termina en `ms`. Lo que quedó corriendo
  * sigue por su lado; así la herramienta nunca se queda en «Generando Excel…» para siempre.
  */
-export function conLimite(promesa, ms, nombre) {
+export function conLimite(promesa, ms, nombre, mensaje = null) {
   let temporizador;
   const limite = new Promise((_, rechazar) => {
-    temporizador = setTimeout(() => rechazar(new ErrorEscritura(`Windows no terminó de guardar «${nombre}» (¿OneDrive está subiendo archivos?)`, { causa: "colgado" })), ms);
+    temporizador = setTimeout(() => rechazar(new ErrorEscritura(mensaje ?? `Windows no terminó de guardar «${nombre}» (¿OneDrive está subiendo archivos?)`, { causa: "colgado" })), ms);
   });
   return Promise.race([promesa, limite]).finally(() => clearTimeout(temporizador));
 }
@@ -174,9 +267,11 @@ export async function escribirEnArchivo(archivo, datos, { limiteMs = LIMITE_ESCR
     if (espera) await new Promise((r) => setTimeout(r, espera));
     try {
       await conLimite(intento(), limiteMs, archivo.name);
+      anotar("escribir", `«${archivo.name}»: ${datos.length} bytes escritos${espera ? " (tras reintentar)" : ""}`);
       return archivo.name;
     } catch (error) {
       ultimo = error;
+      anotar("escribir", `«${archivo.name}»: falló${espera ? " otra vez" : ""}`, error);
       if (sinReintento(error)) break;
     }
   }
@@ -192,10 +287,13 @@ export async function permisoCarpeta(carpeta, pedir = false) {
   if (!carpeta) return "denied";
   const opciones = { mode: "readwrite" };
   try {
-    let estado = await carpeta.queryPermission(opciones);
-    if (estado !== "granted" && pedir) estado = await carpeta.requestPermission(opciones);
+    const antes = await carpeta.queryPermission(opciones);
+    if (antes === "granted" || !pedir) return antes;
+    const estado = await carpeta.requestPermission(opciones);
+    anotar("permiso", `${describirHandle(carpeta)} (editar): estaba «${antes}», Edge respondió «${estado}»`);
     return estado;
-  } catch {
+  } catch (error) {
+    if (pedir) anotar("permiso", `${describirHandle(carpeta)} (editar): no se pudo pedir`, error);
     return "denied";
   }
 }
