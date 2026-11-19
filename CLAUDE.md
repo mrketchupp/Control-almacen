@@ -316,6 +316,9 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 
 ## Verificación antes de cada commit
 - `npm test && npm run build`
+- **Se trabaja y se sube en `main`** (pedido del usuario): sin ramas aparte, salvo que el usuario pida otra cosa.
+- **Copia `dist/ControlAlmacen.html` a `versiones/ControlAlmacen.html` y actualiza `versiones/SHA256.txt`**
+  (`cd versiones && sha256sum ControlAlmacen.html > SHA256.txt`) en el mismo commit del cambio (pedido del usuario).
 - **Al terminar cada cambio, adjunta `dist/ControlAlmacen.html` en la conversación** (pedido del usuario): recién
   compilado, del mismo commit que se subió.
 - En cambios a exportadores: prueba de "partes intactas" (las partes que no se debían tocar deben ser idénticas byte a byte a la plantilla).
