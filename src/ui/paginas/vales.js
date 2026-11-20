@@ -34,6 +34,7 @@ import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, c
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { BotonDescripcion } from "./descripcion.js";
+import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
 
 // ---------------------------------------------------------------- utilidades
 
@@ -811,7 +812,7 @@ export function VistaPrevia({ vales, alCerrar }) {
 
 // ---------------------------------------------------------------- página
 
-function EmitidoOk({ vales, alNuevo }) {
+function EmitidoOk({ vales, alNuevo, alCopiar }) {
   const sesion = useSesion();
   const folios = vales.map((v) => v.folio).join(", ");
   return html`<${Tarjeta} titulo=${vales.length === 1 ? `✓ Vale ${folios} emitido` : `✓ Vales ${folios} emitidos`} clase="tarjeta-exito">
@@ -822,6 +823,7 @@ function EmitidoOk({ vales, alNuevo }) {
       <${Boton} tipo="primario" tamano="grande" onClick=${() => sesion.tarea("Preparando impresión…", () => sesion.imprimirVales(vales))}>🖨 Imprimir ${vales.length === 1 ? "vale" : "vales"}<//>
       ${vales.map((v) => html`<a class="boton boton-secundario" href=${`#vale/${v.id}`}>Ver vale ${v.folio}</a>`)}
       <${Boton} onClick=${alNuevo}>＋ Nuevo vale<//>
+      <${Boton} onClick=${alCopiar}><${Icono} nombre="copiar" /> Desde un vale…<//>
     </div>
   <//>`;
 }
@@ -852,6 +854,7 @@ export function PaginaValesSalida() {
   }, []);
   const [previa, setPrevia] = useState(null);
   const [capacidad, setCapacidad] = useState(null);
+  const [copiando, setCopiando] = useState(false);
   const pendiente = useRef(null);
   const porGuardar = useRef(null);
 
@@ -902,6 +905,15 @@ export function PaginaValesSalida() {
         b.lineas.push(lineaVacia());
         return b.id;
       });
+      setEmitidos(null);
+      setActivo(creado);
+    });
+  // Ronda 33: las partidas de una entrada (o de otro vale de salida) en un borrador nuevo.
+  const desdeVale = (valeId) =>
+    sesion.tarea("Creando vale de salida…", async () => {
+      if (datos && pendiente.current) await guardar(datos);
+      const creado = await crearSalidaDesdeVale(sesion, valeId);
+      setCopiando(false);
       setEmitidos(null);
       setActivo(creado);
     });
@@ -981,14 +993,23 @@ export function PaginaValesSalida() {
             </button>`;
           })}
           <button type="button" class="pestana nueva" onClick=${nuevo}>＋ Nuevo vale</button>
+          <button type="button" class="pestana nueva" onClick=${() => setCopiando(true)} title="Copia las partidas de una entrada o de otro vale de salida">
+            <${Icono} nombre="copiar" tam=${15} /> Desde un vale…
+          </button>
         </div>`
       : null}
 
-    ${emitidos ? html`<${EmitidoOk} vales=${emitidos} alNuevo=${nuevo} />` : null}
+    ${emitidos ? html`<${EmitidoOk} vales=${emitidos} alNuevo=${nuevo} alCopiar=${() => setCopiando(true)} />` : null}
 
     ${!emitidos && datos
       ? html`<div class="barra-borrador">
-            <span>Borrador · se emitirá con el folio <strong class="folio-grande">${folio}</strong></span>
+            <span>
+              Borrador · se emitirá con el folio <strong class="folio-grande">${folio}</strong>
+              ${datos.copia_de
+                ? html` · <span class="copia-de">${datos.copia_de.tipo === "ENTRADA" ? "partidas de la entrada " : "partidas del vale "}<a
+                      href=${`#${datos.copia_de.tipo === "ENTRADA" ? "entrada" : "vale"}/${datos.copia_de.vale_id}`}>${datos.copia_de.folio}</a></span>`
+                : null}
+            </span>
             <span class="nota">Se guarda solo · creado ${fmtFecha(datos.creado_en)}</span>
           </div>
           <${EditorVale}
@@ -1012,9 +1033,20 @@ export function PaginaValesSalida() {
             Cada vale se guarda solo como <strong>borrador</strong> mientras lo llenas y no gasta folio hasta que lo emites.
             Puedes tener varios abiertos a la vez.
           </p>
-          <${Boton} tipo="primario" tamano="grande" onClick=${nuevo}>＋ Nuevo vale · folio ${folio}<//>
+          <div class="acciones-linea">
+            <${Boton} tipo="primario" tamano="grande" onClick=${nuevo}>＋ Nuevo vale · folio ${folio}<//>
+            <${Boton} tamano="grande" onClick=${() => setCopiando(true)} title="Copia las partidas de una entrada o de otro vale de salida">
+              <${Icono} nombre="copiar" /> Desde un vale…
+            <//>
+          </div>
+          <p class="nota">
+            ¿Recibiste material y ya se entregó? <strong>Desde un vale…</strong> toma las partidas de su entrada (o repite un
+            vale de salida) y solo eliges el área y ajustas las cantidades.
+          </p>
         <//>`
       : null}
+
+    ${copiando ? html`<${VentanaCopiarVale} alElegir=${desdeVale} alCerrar=${() => setCopiando(false)} />` : null}
 
     ${previa ? html`<${VistaPrevia} vales=${previa} alCerrar=${() => setPrevia(null)} />` : null}
   `;

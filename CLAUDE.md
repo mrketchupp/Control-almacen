@@ -100,6 +100,18 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   al insertar/borrar filas, también absolutas; no otras hojas ni tablas). La tabla del inventario es la que tiene
   CODIGO AX. Fixture: `pie_con_formulas` en las hojas INVENTARIABLE de GSM; `tests/inventarioTablas.test.js`
   (`problemasDelLibro`: tablas sin filas, fórmulas con fila 0 / negativa / #REF!, combinadas encima de una tabla).
+- Ronda 33 (pedido del usuario): **vale de salida desde otro vale** — lo recibido y entregado el mismo día no se vuelve a
+  capturar. `servicios/copiarVale.js`: `borradorDesdeVale(estado, valeId, { usuario })` (borrador nuevo vía `nuevoBorrador`;
+  cada partida sale de la partida del inventario a la que entró / de la que salió; si ya no está activa, la de la misma
+  variante, luego misma clave o `clavesPropias`, la de más existencia; sin opciones → sin existencia; varias → elegir
+  clave, con aviso; cantidad con `cantidadEnInventario` si hubo conversión de UM; O.C. igual; LOTE = NP en entradas, el
+  mismo en salidas). De una salida, `conEncabezadoDe`: área (`aplicarPlantilla`), quién recibe, origen/destino y
+  observaciones si el área no tiene datos fijos; autoriza y firmas extra solo si el área las muestra. `buscarValesParaCopiar`
+  (sin consulta: recibidas hoy por `fechaDelDia` + recientes), `nombreDeVale`, `deVale`, `folioDeVale`. El borrador guarda
+  `copia_de: { tipo, vale_id, folio }` (opcional, sin subir formato) y `emitirBorrador` lo anota en la auditoría. UI
+  `ui/paginas/copiarVale.js` (`VentanaCopiarVale`, `crearSalidaDesdeVale`, `useSalidaDesdeVale` → `Sesion.abrirBorrador`);
+  botones en `entrada.js` / `vale.js`, menú de fila en `historial.js`, pestaña *Desde un vale…* en `vales.js`; ícono
+  `copiar`; `.toast-cuerpo` respeta saltos de línea. Pruebas `copiarVale.test.js` y Chromium `copiarVale.navegador.mjs`.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

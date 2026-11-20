@@ -11,6 +11,7 @@ import { PastillaAx } from "./base.js";
 import { CorreccionPorLotes } from "./correccionLotes.js";
 import { EstadoEtiquetas } from "./etiquetas.js";
 import { entradasEnLista, impresionesPorVale, marcaDe } from "../../servicios/etiquetas.js";
+import { useSalidaDesdeVale } from "./copiarVale.js";
 
 const SIN_FILTROS = { texto: "", codigo: "", depto: "", recibio: "", estado: "", desde: "", hasta: "", revisar: "" };
 
@@ -34,6 +35,7 @@ const FILTRO_ETIQUETAS = [
 
 function HistorialEntradas() {
   const sesion = useSesion();
+  const aSalida = useSalidaDesdeVale();
   const [corrigiendoLote, setCorrigiendoLote] = useState(false);
   const filas = useMemo(() => filasEntradas(sesion.estado), [sesion.estado]);
   const { filtros, setFiltros, limpiar, raiz, mostrar, cambiarMostrar } = useMemoriaHistorial(sesion, "entradas", SIN_FILTROS_ENTRADAS);
@@ -78,6 +80,7 @@ function HistorialEntradas() {
           { texto: "Abrir entrada", accion: () => { location.hash = `#entrada/${f.vale_id}`; } },
           valesPorId.get(f.vale_id)?.estado === "EMITIDO" && { texto: "Corregir entrada…", accion: () => { location.hash = `#entrada/${f.vale_id}/corregir`; } },
           valesPorId.get(f.vale_id)?.estado === "EMITIDO" && { texto: "Hacer etiquetas…", accion: () => { location.hash = `#entrada/${f.vale_id}/etiquetas`; } },
+          valesPorId.get(f.vale_id)?.estado === "EMITIDO" && { texto: "Hacer vale de salida con estas partidas", separador: true, accion: () => aSalida(f.vale_id) },
         ],
       })}
       columnas=${[
@@ -139,6 +142,7 @@ export function PaginaHistorial() {
 
 function HistorialSalidas() {
   const sesion = useSesion();
+  const aSalida = useSalidaDesdeVale();
   const [imprimiendoLote, setImprimiendoLote] = useState(false);
   const [corrigiendoLote, setCorrigiendoLote] = useState(false);
   const ax = useMemo(() => estadoAxDeVales(sesion.estado), [sesion.estado]);
@@ -230,6 +234,7 @@ function HistorialSalidas() {
           { texto: "Abrir vale", accion: () => { location.hash = `#vale/${f.vale_id}`; } },
           f.estado === "EMITIDO" && { texto: "Imprimir vale", accion: () => sesion.tarea("Preparando impresión…", () => sesion.imprimirVales([sesion.estado.vales.find((v) => v.id === f.vale_id)])) },
           f.estado === "EMITIDO" && { texto: "Corregir vale…", accion: () => { location.hash = `#vale/${f.vale_id}/corregir`; } },
+          f.estado === "EMITIDO" && { texto: "Copiar a un vale nuevo", separador: true, accion: () => aSalida(f.vale_id) },
         ],
       })}
       columnas=${[

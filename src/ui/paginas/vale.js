@@ -21,6 +21,8 @@ import { html } from "../html.js";
 import { useMenuContextual } from "../menuContextual.js";
 import { PastillaAx } from "./base.js";
 import { EditorVale, ListaErrores, VistaPrevia } from "./vales.js";
+import { useSalidaDesdeVale } from "./copiarVale.js";
+import { Icono } from "../iconos.js";
 
 const ACCIONES = { EMITIR: "Emitido", CORREGIR: "Corregido", CANCELAR: "Cancelado", UBICAR: "Ubicado" };
 
@@ -124,6 +126,7 @@ export function PaginaVale() {
   const [previa, setPrevia] = useState(false);
   const indices = useMemo(() => new Indices(estado), [estado]);
   const ax = useMemo(() => estadoAxDeVales(estado), [estado]);
+  const aSalida = useSalidaDesdeVale();
   if (!vale) return html`<${Aviso} tipo="advertencia" titulo="No se encontró el vale">Vuelve al <a href="#historial">historial</a>.<//>`;
 
   const area = plantillaArea(estado, vale.plantilla_area_id);
@@ -145,6 +148,7 @@ export function PaginaVale() {
       opciones: sesion.ocupado ? [] : [
         !corrigiendo && { texto: "Vista previa e imprimir…", accion: () => setPrevia(true) },
         !cancelado && !corrigiendo && { texto: "Corregir vale…", accion: () => setCorrigiendo(true) },
+        !cancelado && !corrigiendo && { texto: "Copiar a un vale nuevo", accion: () => aSalida(vale.id) },
         { texto: "Volver al historial", separador: true, accion: () => { location.hash = "#historial"; } },
       ],
     }))}>
@@ -157,6 +161,11 @@ export function PaginaVale() {
       <div class="acciones-linea">
         <${Boton} tipo="primario" onClick=${() => setPrevia(true)}>🖨 Imprimir<//>
         ${!cancelado && !corrigiendo ? html`<${Boton} onClick=${() => setCorrigiendo(true)}>Corregir<//>` : null}
+        ${!cancelado && !corrigiendo
+          ? html`<${Boton} onClick=${() => aSalida(vale.id)} disabled=${Boolean(sesion.ocupado)} title="Un borrador nuevo con estas partidas, la misma área y quién recibe">
+              <${Icono} nombre="copiar" /> Copiar a un vale nuevo
+            <//>`
+          : null}
         <a class="boton boton-texto" href="#historial">← Historial</a>
       </div>
     </div>

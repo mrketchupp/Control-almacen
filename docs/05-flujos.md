@@ -20,6 +20,15 @@ flowchart TD
 ```
 
 - **Borradores:** se pueden tener varios abiertos en pestañas. No consumen folio y se guardan automáticamente (sobreviven a cerrar la pestaña). Descartar uno es inmediato y el aviso ofrece **Deshacer**.
+- **Desde otro vale (Ronda 33):** material que se recibió y se entregó el mismo día. En el detalle de la entrada,
+  **Vale de salida**; en *Vales de salida*, **Desde un vale…** (lo recibido hoy primero; se busca por `E-0005`, folio de la
+  base o folio de salida); en el historial, el menú de la fila. Se abre un borrador nuevo con las partidas: cada una sale
+  de la partida del inventario a la que entró (si ya no está: la de la misma variante o clave con más existencia; si no
+  hay, se pide elegir la clave o va sin existencia), con su cantidad (en la unidad vigente si se convirtió con AX) y O.C.
+  El LOTE es el NP de la partida (en la entrada era quien solicita). Desde un **vale de salida** (*Copiar a un vale nuevo*)
+  también se repiten el área, quién recibe, el LOTE y, si el área los lleva, quién autoriza y las firmas de la segunda
+  fila. La fecha es hoy y entrega quien está en turno. La barra del borrador enlaza al vale de origen y la bitácora de
+  *Emitir* lo anota (`copia_de`); el vale original no cambia (`servicios/copiarVale.js`).
 - **Pantalla:** a la izquierda los datos del vale: primero lo que se captura (área, fecha; en transferencias origen y destino; personas, etapa) y al final, en "Se llenan solos", lo automático (quién entrega, de dónde sale, a dónde llega y las observaciones fijas). Al centro las **partidas** y, debajo, en su propia sección, las **fotos** (NOV). Las partidas van con las mismas columnas y en el mismo orden que el vale impreso (O.C., cantidad, código, descripción, clave almacén, presentación, lote). Lo que viene del inventario (contenedor, existencia) se muestra en **pastillas grises**, aparte de lo que se imprime.
 - **Pantalla de cada almacenista (Ajustes → Mi pantalla de vales):** el orden de los bloques del panel de datos se cambia arrastrándolos por sus puntitos (o con ↑ ↓) en una vista previa, y un botón pasa los datos al otro lado de las partidas. Se guarda por almacenista y se aplica según quién está en turno; lo descrito arriba es el acomodo de fábrica (*Restablecer como venía*).
 - **Vales internos** (todo menos NOV y transferencias): salen de `EQUIPO · ALMACEN` y llegan a `EQUIPO · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.

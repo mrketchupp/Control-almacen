@@ -173,7 +173,12 @@ export class Sesion {
       if (e[coleccion].some((b) => b.id === copia.id)) return;
       e[coleccion].splice(Math.max(0, Math.min(indice, e[coleccion].length)), 0, copia);
     });
-    this.pestanaPorAbrir = { coleccion, id: copia.id };
+    this.abrirBorrador(coleccion, copia.id, pagina);
+  }
+
+  /** Abre la pestaña de un borrador en su página (va a ella si hace falta). */
+  abrirBorrador(coleccion, id, pagina) {
+    this.pestanaPorAbrir = { coleccion, id };
     if (location.hash.replace(/^#\/?/, "").split("/")[0] !== pagina) location.hash = `#${pagina}`;
     window.dispatchEvent(new CustomEvent("borrador-restaurado", { detail: { coleccion } }));
   }

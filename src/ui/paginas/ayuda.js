@@ -98,6 +98,14 @@ export function PaginaAyuda() {
           bitácora). La conciliación con AX sigue usando la fecha del vale: AX mueve el material cuando la base lo envía. El libro
           exportado trae las dos (FECHA y, al final, FECHA RECIBIDO).
         </dd>
+        <dt>Recibí material y se entregó el mismo día: ¿capturo otra vez las partidas en el vale de salida?</dt>
+        <dd>
+          No. Registra la entrada y en su detalle pulsa <em>Vale de salida</em> (o, en <a href="#vales">Vales de salida</a>,
+          <em>Desde un vale…</em>, que muestra primero lo recibido hoy). Se abre un borrador con sus partidas: cada una sale de la
+          partida del inventario a la que entró, con su cantidad y O.C.; el LOTE es el NP de la partida, no quien solicita. Solo
+          eliges el área, quién recibe y ajustas las cantidades si no salió todo. También sirve para repetir un vale de salida:
+          <em>Copiar a un vale nuevo</em> trae además el área y quién recibe. Es un borrador: no gasta folio hasta que lo emites.
+        </dd>
         <dt>¿Qué hace un conteo parcial?</dt>
         <dd>
           Solo cambia las partidas que capturas: su CANTIDAD pasa a ser lo contado y CONSUMO / INGRESO vuelven a empezar. Las demás

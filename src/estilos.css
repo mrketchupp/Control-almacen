@@ -1157,6 +1157,7 @@ body.con-ventana .avisos {
   font-size: 0.92rem;
   line-height: 1.4;
   color: var(--texto-suave);
+  white-space: pre-line;
 }
 
 .toast-acciones {
@@ -1303,6 +1304,10 @@ body.con-ventana .avisos {
   border-style: dashed;
   color: var(--primario);
   font-weight: 600;
+}
+
+.pestana .icono {
+  vertical-align: -2px;
 }
 
 .editor-encabezado {
@@ -2070,6 +2075,80 @@ select.con-error {
 
 .tarjeta-inicio-vales {
   max-width: 720px;
+}
+
+.tarjeta-inicio-vales .nota {
+  margin: 12px 0 0;
+}
+
+/* Ronda 33: vale de salida desde otro vale (entrada o salida). */
+.copia-de {
+  color: var(--texto-suave);
+}
+
+.ventana.ventana-copiar-vale {
+  width: min(680px, 100%);
+}
+
+.copiar-vale-titulo {
+  margin: 14px 0 6px;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+}
+
+.copiar-vales {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.copiar-vale-fila {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie-2);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.copiar-vale-fila:hover:not(:disabled) {
+  border-color: var(--primario);
+}
+
+.copiar-vale-fila:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.copiar-vale-fila:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.copiar-vale-folio,
+.copiar-vale-datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.copiar-vale-datos {
+  font-size: 0.9rem;
+}
+
+.copiar-vale-partidas {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .opciones-radio {

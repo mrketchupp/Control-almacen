@@ -604,7 +604,12 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
     entidad: "vale",
     entidadId: emitidos.map((v) => v.id).join(","),
     accion: "EMITIR",
-    despues: { folios: emitidos.map((v) => v.folio), renglones: datos.lineas.length },
+    despues: {
+      folios: emitidos.map((v) => v.folio),
+      renglones: datos.lineas.length,
+      // Partidas copiadas de otro vale (Ronda 33): queda de cuál, solo en la bitácora.
+      ...(guardado.copia_de ? { copia_de: { tipo: guardado.copia_de.tipo, folio: guardado.copia_de.folio } } : {}),
+    },
   });
   return emitidos;
 }

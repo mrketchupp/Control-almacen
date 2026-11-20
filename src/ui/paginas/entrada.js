@@ -18,6 +18,8 @@ import { html } from "../html.js";
 import { useMenuContextual } from "../menuContextual.js";
 import { EditorEntrada } from "./entradas.js";
 import { EstadoEtiquetas, EtiquetasDeEntrada } from "./etiquetas.js";
+import { useSalidaDesdeVale } from "./copiarVale.js";
+import { Icono } from "../iconos.js";
 import { ListaErrores } from "./vales.js";
 
 const ACCIONES = { EMITIR: "Registrada", CORREGIR: "Corregida", ETIQUETAS: "Etiquetas impresas" };
@@ -102,6 +104,7 @@ export function PaginaEntrada() {
   const [corrigiendo, setCorrigiendo] = useState(() => location.hash.endsWith("/corregir") && vale?.estado === "EMITIDO");
   const [etiquetas, setEtiquetas] = useState(() => location.hash.endsWith("/etiquetas") && vale?.estado === "EMITIDO");
   const indices = useMemo(() => new Indices(estado), [estado]);
+  const aSalida = useSalidaDesdeVale();
   if (!vale) return html`<${Aviso} tipo="advertencia" titulo="No se encontró la entrada">Vuelve al <a href="#historial">historial</a>.<//>`;
   const lugar = (l) => {
     if (l.existencia_id === null || l.existencia_id === undefined) return l.no_inventariado ? "Sin existencia" : "—";
@@ -116,6 +119,7 @@ export function PaginaEntrada() {
     <div class="cabeza-vale" tabindex="0" ...${menu(() => ({
       titulo: `Entrada ${folioEntrada(vale.folio)}`,
       opciones: sesion.ocupado ? [] : [
+        !corrigiendo && vale.estado === "EMITIDO" && { texto: "Hacer vale de salida con estas partidas", accion: () => aSalida(vale.id) },
         !corrigiendo && vale.estado === "EMITIDO" && { texto: "Hacer etiquetas…", accion: () => setEtiquetas(true) },
         !corrigiendo && vale.estado === "EMITIDO" && { texto: "Corregir entrada…", accion: () => setCorrigiendo(true) },
         { texto: "Volver al historial de entradas", separador: true, accion: () => { location.hash = "#historial/entradas"; } },
@@ -128,6 +132,11 @@ export function PaginaEntrada() {
         <${EstadoEtiquetas} estado=${estado} vale=${vale} />
       </div>
       <div class="acciones-linea">
+        ${!corrigiendo && vale.estado === "EMITIDO"
+          ? html`<${Boton} onClick=${() => aSalida(vale.id)} disabled=${Boolean(sesion.ocupado)} title="Material que se entregó tal como llegó: un borrador de salida con estas partidas, de la misma partida del inventario">
+              <${Icono} nombre="salida" /> Vale de salida
+            <//>`
+          : null}
         ${!corrigiendo ? html`<${Boton} onClick=${() => setEtiquetas(true)}>Etiquetas…<//>` : null}
         ${!corrigiendo ? html`<${Boton} onClick=${() => setCorrigiendo(true)}>Corregir<//>` : null}
         <a class="boton boton-texto" href="#historial/entradas">← Historial de entradas</a>

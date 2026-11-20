@@ -319,6 +319,16 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 33 — vale de salida a partir de otro vale.** Pedido del usuario: el material que se recibe y se entrega el mismo
+día ya está capturado en su entrada; volver a escribir las partidas en el vale de salida es doble trabajo. **Aplicado:**
+*Vale de salida* en el detalle de la entrada, *Desde un vale…* en *Vales de salida* (ventana con lo recibido hoy primero y
+búsqueda por folio de entrada, de la base o de salida) y la opción en el menú del historial y del detalle del vale de
+salida (*Copiar a un vale nuevo*, que además repite área y personas). Crea un borrador (no gasta folio): cada partida sale
+de la partida del inventario a la que entró, con cantidad y O.C.; LOTE = NP. Ver docs/05 §1. `servicios/copiarVale.js`,
+`ui/paginas/copiarVale.js`; pruebas `tests/copiarVale.test.js` y Chromium `tests/copiarVale.navegador.mjs`. El borrador
+guarda `copia_de` (opcional, no cambia el formato del estado; el vale emitido no lo lleva, solo la bitácora).
+- ☐ Del usuario: registrar una entrada real, hacer su vale de salida con *Vale de salida* y revisar el impreso.
+
 **Ronda 32 — el inventario del Inventario B y el de FX salían «con errores» que Excel reparaba.** Con las carpetas ya
 fijadas (arrastrando, el registro mostró que el explorador de Edge responde `AbortError` aunque se elija), los cinco
 archivos quedaron en su lugar; al abrirlos, Excel reparó el inventario del Inventario B y el de FX («Fórmula quitada»
