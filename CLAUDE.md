@@ -135,7 +135,16 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   propio, Lote y **O.C.** por partida, UM editable solo sin existencia, Tab entre cantidades, Quitar con Deshacer, alto con
   `useAltoDisponible` (sin scroll de la página), < 700 px una columna y la lista desde `.barra-lista`). **Ajuste
   `np_en_lote`** (`AJUSTES` y `VALORES_COMPARTIDOS`, por omisión apagado; tarjeta *NP en el lote* en *Ajustes*):
-  `conExistencia` solo pone el NP en el LOTE con él (`npEnLote`); el NP se muestra como referencia.
+  `conExistencia` solo pone el NP en el LOTE con él (`npEnLote`); el NP se muestra como referencia. Etapa 4 (con la
+  revisión del usuario de la 3): a la derecha dos tarjetas separadas (*Para quién* y *Partidas*); Lote y O.C. ya no se
+  ven como campos en la lista (solo en letra chica si tienen); **un solo botón *Editar*** en las partidas: se elige una y
+  `EditarPartida` (a la izquierda) cambia su clave u otro material (`conOtraClave`, conserva cantidad, lote y O.C.), lote,
+  O.C., UM y la descripción del código; *Terminar* vuelve a la búsqueda de antes (que se conserva; ✕ *Limpiar búsqueda*).
+  Clave que no está (`claveNueva` → «Usar «…»», `conClaveManual`, no descuenta), código que no está (`codigoNuevo`,
+  `lineaCodigoNuevo`, descripción en la partida, por confirmar al emitir), *Traer partidas de E-0005 · hoy* / *Otra entrada
+  o vale…* al vale abierto (`conPartidasDeVale`, `agregarPartidasDesdeVale`, `entradasDeHoy`). **Material de FX: LOTE
+  «FX» por omisión** (`conLoteDeFx` en `conExistencia`, decisión del usuario; `lote_fx` marca lo puesto solo). Los cambios
+  de partidas se encadenan sobre `actual.current` (dos campos seguidos no se pisan).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

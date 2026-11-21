@@ -147,6 +147,9 @@ test("corregir la descripción de un código desde el inventario, la corrección
     borrador.paso = 2; // Ronda 34: las partidas se capturan en el paso 2
     const { page, leer, errores, externas, cerrar } = await abrir(estado);
     await page.goto(`${origen}/#vales`);
+    // Ronda 34: se corrige al editar la partida (un solo «Editar» para las partidas).
+    await page.getByRole("button", { name: "Editar las partidas", exact: true }).click();
+    await page.getByRole("button", { name: /^Editar la partida 1:/ }).click();
     await lapiz(page, 706).click();
     await campo(page, 706).fill("descripción corregida de prueba");
     await campo(page, 706).press("Enter");

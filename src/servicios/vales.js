@@ -180,7 +180,7 @@ export const npEnLote = (estado) => Boolean(estado.config?.np_en_lote);
  */
 export function conExistencia(estado, linea, existenciaId, indices = new Indices(estado)) {
   const d = lineaDesdeExistencia(estado, existenciaId, indices);
-  return conLoteDeNp(
+  return conLoteDeFx(estado, existenciaId, indices, conLoteDeNp(
     {
       ...linea,
       codigo: d.codigo,
@@ -192,7 +192,19 @@ export function conExistencia(estado, linea, existenciaId, indices = new Indices
       no_inventariado: false,
     },
     npEnLote(estado) ? d.lote : null,
-  );
+  ));
+}
+
+/**
+ * Material de FX (Ronda 34, decisión del usuario): su LOTE es «FX» por omisión, como lo anota la base; manda sobre el NP
+ * puesto solo. Al cambiar a una partida que no es de FX, el «FX» puesto solo se quita. Lo escrito a mano no se toca.
+ */
+function conLoteDeFx(estado, existenciaId, indices, linea) {
+  const fx = duenoDe(indices.existencia(existenciaId)) === DUENO_FX;
+  const automatico = !texto(linea.lote) || (linea.lote_np && texto(linea.lote) === linea.lote_np);
+  if (fx && automatico) return { ...linea, lote: DUENO_FX, lote_np: null, lote_fx: true };
+  if (!fx && linea.lote_fx && texto(linea.lote) === DUENO_FX) return { ...linea, lote: "", lote_fx: null };
+  return linea;
 }
 
 /** Pone el NP como LOTE (y recuerda que se puso solo, para cambiarlo si cambia el renglón). */

@@ -4,7 +4,25 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Indices } from "../src/nucleo/estado.js";
-import { agregarPartida, buscarMaterial, contarPartidas, filasEnOrden, indiceMaterial, partidasDelVale, ultimasDeArea } from "../src/servicios/buscarMaterial.js";
+import {
+  agregarPartida,
+  agregarPartidasDesdeVale,
+  buscarMaterial,
+  claveNueva,
+  codigoNuevo,
+  conClaveManual,
+  conOtraClave,
+  conPartidasDeVale,
+  contarPartidas,
+  entradasDeHoy,
+  filasEnOrden,
+  indiceMaterial,
+  lineaCodigoNuevo,
+  partidasDelVale,
+  ultimasDeArea,
+} from "../src/servicios/buscarMaterial.js";
+import { hoyIso } from "../src/nucleo/fechas.js";
+import * as en from "../src/servicios/entradas.js";
 import { fijarAjuste } from "../src/servicios/catalogos.js";
 import * as v from "../src/servicios/vales.js";
 import { cargaSintetica } from "./ayuda.js";
@@ -81,4 +99,70 @@ test("la última clave que se llevó el área, del vale de salida más reciente"
   const soldador = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: area(estado, "SOLDADOR").id });
   assert.notEqual(ultimasDeArea(estado, soldador).get(711), focos[1].id);
   assert.equal(ultimasDeArea(estado, v.nuevoBorrador(estado, { usuario: USUARIO })).size, 0);
+});
+
+test("editar una partida: otra clave conserva cantidad, lote y O.C.; una clave escrita no descuenta", () => {
+  const { estado, indices, items } = preparar();
+  const baleros = items.filter((i) => i.codigo === 701);
+  assert.ok(baleros.length >= 2);
+  const linea = { ...v.conExistencia(estado, v.lineaVacia(), baleros[0].id, indices), cantidad: "3", lote: "NUEVO", oc: "OC-1" };
+  const otra = conOtraClave(estado, linea, baleros[1], { indices });
+  assert.deepEqual([otra.uid, otra.existencia_id, otra.cantidad, otra.lote, otra.oc], [linea.uid, baleros[1].id, "3", "NUEVO", "OC-1"]);
+  // Otro material (el diésel) reemplaza la partida: no inventariado, la UM se escribe.
+  const diesel = conOtraClave(estado, linea, items.find((i) => i.codigo === 136), { indices });
+  assert.deepEqual([diesel.codigo, diesel.no_inventariado, diesel.existencia_id, diesel.cantidad, diesel.lote, diesel.um], [136, true, null, "3", "NUEVO", ""]);
+  const manual = conClaveManual(linea, "6309-2z/c");
+  assert.deepEqual([manual.clave, manual.existencia_id, manual.no_inventariado, manual.lote, manual.cantidad], ["6309-2Z/C", null, true, "NUEVO", "3"]);
+  // El lote que se puso solo (NP) se quita con la clave escrita; el escrito a mano se queda.
+  estado.config.np_en_lote = true;
+  const conNp = v.conExistencia(estado, v.lineaVacia(), items.find((i) => i.codigo === 711 && i.np === "LED 20W").id, indices);
+  assert.equal(conNp.lote, "LED 20W");
+  assert.equal(conClaveManual(conNp, "OTRA").lote, "");
+});
+
+test("clave que no está y código que no está en el catálogo (§4.5, §4.6)", () => {
+  const { estado, items } = preparar();
+  assert.deepEqual(claveNueva(items, "balero 6309-2Z/C"), { codigo: 701, descripcion: items.find((i) => i.codigo === 701).descripcion, clave: "6309-2Z/C" });
+  assert.equal(claveNueva(items, "balero 6309-2Z/C3"), null, "esa sí existe");
+  assert.equal(claveNueva(items, "balero"), null, "sin clave escrita");
+  assert.equal(claveNueva(items, "6309-2Z/C"), null, "sin código no se sabe de cuál");
+  assert.equal(claveNueva(items, "701 ABC-1").clave, "ABC-1");
+  assert.equal(claveNueva(items, "foco led", { alcance: "descripcion" }), null);
+  // Al editar, en «Solo código» lo escrito es una clave del código de la partida.
+  assert.equal(claveNueva(items, "704 8 1/2", { codigo: 704 }).clave, "8 1/2");
+  assert.deepEqual(codigoNuevo(estado, "1399 bomba sintetica"), { codigo: 1399, descripcion: "BOMBA SINTETICA" });
+  assert.equal(codigoNuevo(estado, "701"), null, "ya está en el catálogo");
+  assert.equal(codigoNuevo(estado, "1399", { hayResultados: true }), null);
+  assert.equal(codigoNuevo(estado, "foco"), null);
+  const nuevo = lineaCodigoNuevo(1399, "bomba", "FX");
+  assert.deepEqual([nuevo.codigo, nuevo.descripcion, nuevo.no_inventariado, nuevo.existencia_id, nuevo.lote, nuevo.cantidad], [1399, "BOMBA", true, null, "FX", ""]);
+});
+
+test("traer partidas de una entrada al vale abierto, no a uno nuevo (§4.7)", () => {
+  const { estado, indices } = preparar();
+  const balero = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 701);
+  const be = en.nuevoBorradorEntrada(estado, { usuario: USUARIO });
+  Object.assign(be, { folio_externo: "B-9", origen: "BASE PRUEBA" });
+  be.lineas = [{ ...en.conRenglonExistente(estado, en.lineaEntradaVacia(), balero.id, indices), cantidad: "2", oc: "OC-5" }];
+  const entrada = en.confirmarEntrada(estado, be.id, { usuario: USUARIO });
+  assert.deepEqual(entradasDeHoy(estado, hoyIso()).map((v2) => v2.id), [entrada.id]);
+  const b = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: area(estado, "MECANICO").id });
+  b.lineas.push({ ...v.lineaDesdeExistencia(estado, balero.id), cantidad: "1" });
+  const antes = estado.borradores.length;
+  const r = agregarPartidasDesdeVale(estado, b.id, entrada.id);
+  assert.equal(estado.borradores.length, antes, "no crea otro borrador");
+  assert.deepEqual([r.partidas, b.lineas.length, b.lineas[1].cantidad, b.lineas[1].oc, b.lineas[1].existencia_id], [1, 2, "2", "OC-5", balero.id]);
+  assert.throws(() => conPartidasDeVale(estado, b, 99999), /No se encontró/);
+});
+
+test("material de FX: su lote es «FX» por omisión y se quita al cambiar a una partida que no es de FX", () => {
+  const { estado, indices } = preparar();
+  const [fx, normalE] = estado.existencias.filter((e) => indices.variante(e.variante_id).codigo === 701);
+  fx.dueno = "FX";
+  const conFx = v.conExistencia(estado, v.lineaVacia(), fx.id, indices);
+  assert.deepEqual([conFx.lote, conFx.lote_fx], ["FX", true]);
+  const sinFx = v.conExistencia(estado, conFx, normalE.id, indices);
+  assert.equal(sinFx.lote, "");
+  // Lo escrito a mano no se toca.
+  assert.equal(v.conExistencia(estado, { ...v.lineaVacia(), lote: "PRESTAMO" }, fx.id, indices).lote, "PRESTAMO");
 });

@@ -9410,7 +9410,7 @@ button.mosaico:hover .mosaico-abrir {
 }
 
 .buscar-en > span,
-.buscador-grande > span {
+.buscador-grande > span:first-child {
   color: var(--texto-suave);
   font-size: 0.75rem;
   font-weight: 600;
@@ -9430,13 +9430,41 @@ button.mosaico:hover .mosaico-abrir {
   min-width: 0;
 }
 
+.buscador-caja {
+  position: relative;
+  display: block;
+}
+
 .campo.buscador-grande input {
+  width: 100%;
   min-height: 60px;
-  padding: 0 18px;
+  padding: 0 56px 0 18px;
   border: 2px solid var(--primario);
   border-radius: 12px;
   font-size: 1.25rem;
   font-weight: 500;
+}
+
+.limpiar-busqueda {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie-2);
+  color: var(--texto-suave);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.limpiar-busqueda:hover {
+  border-color: var(--primario);
+  color: var(--primario);
 }
 
 .resultados-material {
@@ -9459,9 +9487,10 @@ button.mosaico:hover .mosaico-abrir {
   top: 0;
   z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
+  gap: 2px 12px;
   padding: 12px 18px;
   border-top: 1px solid var(--borde);
   background: var(--superficie);
@@ -9473,6 +9502,7 @@ button.mosaico:hover .mosaico-abrir {
 }
 
 .grupo-titulo {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -9497,6 +9527,11 @@ button.mosaico:hover .mosaico-abrir {
   align-items: center;
   gap: 14px;
   padding: 8px 18px;
+}
+
+.editar-partida .encabezado-resultados,
+.editar-partida .fila-resultado {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 96px 92px;
 }
 
 .encabezado-resultados {
@@ -9575,6 +9610,73 @@ button.mosaico:hover .mosaico-abrir {
   background: var(--primario-hover);
 }
 
+.res-usar {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--primario);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--primario);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.res-actual {
+  justify-self: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--ok-suave);
+  color: var(--ok);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Clave o código que no está: estilo distinto a propósito (borde punteado, §4.5). */
+.fila-especial {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 14px 14px;
+  padding: 12px 14px;
+  border: 2px dashed var(--borde);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.fila-especial.marcada,
+.fila-especial:hover {
+  border-color: var(--alerta);
+  background: var(--alerta-suave);
+}
+
+.especial-icono {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px dashed var(--alerta);
+  border-radius: 8px;
+  color: var(--alerta);
+}
+
+.especial-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.especial-texto > span {
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+}
+
 .ayuda-resultados {
   display: flex;
   flex-wrap: wrap;
@@ -9588,14 +9690,88 @@ button.mosaico:hover .mosaico-abrir {
   color: var(--texto);
 }
 
+.traer-partidas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+.traer-partidas .boton {
+  min-height: 40px;
+}
+
+/* Sólido = acción; punteado = agregar algo opcional (§6). */
+.boton-opcional {
+  border-style: dashed;
+  color: var(--texto-suave);
+}
+
+/* Editar una partida (a la izquierda). */
+.editar-partida {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.franja-editando {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--alerta);
+  border-radius: 12px;
+  background: var(--alerta-suave);
+  color: var(--texto);
+}
+
+.franja-editando > div {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.datos-partida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+}
+
+.datos-partida .campo {
+  flex: 1 1 140px;
+}
+
+.datos-partida .campo-um {
+  flex: 0 1 100px;
+}
+
+.corregir-descripcion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+}
+
 /* Resultados en dos líneas cuando la columna es angosta: dimensión · NP / contenedor · hay (§8). */
 @container buscar (max-width: 520px) {
   .encabezado-resultados {
     display: none;
   }
 
-  .fila-resultado {
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr) 40px;
+  .fila-resultado,
+  .editar-partida .fila-resultado {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
     grid-template-areas: "clave np mas" "lugar hay mas";
     row-gap: 2px;
     column-gap: 10px;
@@ -9606,16 +9782,32 @@ button.mosaico:hover .mosaico-abrir {
   .res-np::before { content: "NP "; color: var(--texto-suave); font-weight: 400; }
   .res-contenedor { grid-area: lugar; }
   .res-hay { grid-area: hay; font-size: 0.875rem; }
-  .res-agregar { grid-area: mas; }
+  .res-agregar,
+  .res-usar,
+  .res-actual { grid-area: mas; }
 
   .ayuda-resultados {
     display: none;
   }
 }
 
-.vale-en-curso {
+/* Derecha: dos tarjetas separadas, Para quién y las partidas. */
+.columna-vale {
   container: curso / inline-size;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tarjeta-resumen-vale .resumen-vale {
+  padding: 14px 20px;
+}
+
+.vale-en-curso {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
@@ -9626,21 +9818,13 @@ button.mosaico:hover .mosaico-abrir {
   box-shadow: var(--sombra);
 }
 
-.vale-en-curso .resumen-vale {
-  flex-shrink: 0;
-  padding: 14px 20px;
-  border: 0;
-  border-bottom: 1px solid var(--borde);
-  border-radius: 0;
-  box-shadow: none;
-}
-
 .partidas-titulo {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  padding: 12px 20px 6px;
+  padding: 12px 20px 8px;
+  border-bottom: 1px solid var(--neutro-suave);
 }
 
 .partidas-titulo h2 {
@@ -9651,8 +9835,15 @@ button.mosaico:hover .mosaico-abrir {
 
 .partidas-pendientes {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.editar-partidas.activo {
+  border-color: var(--ok);
+  background: var(--ok-suave);
+  color: var(--ok);
 }
 
 .cerrar-lista,
@@ -9679,12 +9870,26 @@ button.mosaico:hover .mosaico-abrir {
 .partida-vale {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto auto;
-  grid-template-areas: "num cuerpo cantidad quitar" "num extra cantidad quitar";
+  grid-template-areas: "num cuerpo cantidad quitar";
   align-items: start;
   column-gap: 8px;
-  row-gap: 6px;
   padding: 12px 0;
   border-bottom: 1px solid var(--neutro-suave);
+}
+
+.partida-vale.seleccionable {
+  cursor: pointer;
+}
+
+.partida-vale.seleccionable:hover {
+  background: color-mix(in srgb, var(--alerta-suave) 50%, var(--superficie));
+}
+
+.partida-vale.editando {
+  margin: 0 -20px;
+  padding: 12px 20px;
+  background: var(--alerta-suave);
+  box-shadow: inset 4px 0 0 var(--alerta);
 }
 
 .partida-numero {
@@ -9702,7 +9907,27 @@ button.mosaico:hover .mosaico-abrir {
   min-width: 0;
 }
 
+.partida-elegir {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 8px;
+  margin: -2px -8px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.partida-elegir[aria-pressed="true"] {
+  border-color: var(--alerta);
+}
+
 .partida-clave {
+  display: block;
   overflow: hidden;
   font-family: var(--mono);
   font-size: 0.9375rem;
@@ -9717,7 +9942,8 @@ button.mosaico:hover .mosaico-abrir {
 }
 
 .partida-desc,
-.partida-lugar {
+.partida-lugar,
+.partida-lote {
   min-width: 0;
   overflow: hidden;
   color: var(--texto-suave);
@@ -9741,44 +9967,32 @@ button.mosaico:hover .mosaico-abrir {
   flex-shrink: 0;
 }
 
+.partida-lote {
+  font-size: 0.6875rem;
+}
+
+.partida-desc-nueva {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.partida-desc-nueva input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 2px solid var(--alerta);
+  border-radius: 6px;
+  background: var(--alerta-suave);
+  color: var(--texto);
+  font-size: 0.8125rem;
+}
+
 .partida-aviso {
   color: var(--alerta);
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.partida-extra {
-  grid-area: extra;
-  display: flex;
-  gap: 8px;
-  min-width: 0;
-}
-
-.partida-extra label {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.partida-extra label span {
-  flex-shrink: 0;
-  color: var(--texto-suave);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.partida-extra input {
-  flex: 1;
-  min-width: 0;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid var(--borde);
-  border-radius: 6px;
-  background: var(--superficie-2);
-  color: var(--texto);
-  font-size: 0.8125rem;
 }
 
 .partida-cantidad {
@@ -9887,31 +10101,31 @@ button.mosaico:hover .mosaico-abrir {
   display: none;
 }
 
-/* Columna del vale angosta: resumen en una línea con ✎ y lote / O.C. uno debajo del otro (§8). */
+/* Columna del vale angosta: resumen en una línea con ✎ y la partida en dos filas (§8). */
 @container curso (max-width: 360px) {
-  .vale-en-curso .resumen-vale {
+  .columna-vale .resumen-vale {
     flex-direction: row;
     align-items: center;
     padding: 10px 14px;
   }
 
-  .vale-en-curso .resumen-cabeza {
+  .columna-vale .resumen-cabeza {
     order: 2;
   }
 
-  .vale-en-curso .resumen-cabeza h2,
-  .vale-en-curso .resumen-datos,
-  .vale-en-curso .boton-editar-texto {
+  .columna-vale .resumen-cabeza h2,
+  .columna-vale .resumen-datos,
+  .columna-vale .boton-editar-texto {
     display: none;
   }
 
-  .vale-en-curso .resumen-linea {
+  .columna-vale .resumen-linea {
     display: block;
     flex: 1;
     min-width: 0;
   }
 
-  .vale-en-curso .boton-editar {
+  .columna-vale .resumen-cabeza .boton-editar {
     min-width: 44px;
     justify-content: center;
     padding: 0;
@@ -9922,18 +10136,19 @@ button.mosaico:hover .mosaico-abrir {
     padding-inline: 14px;
   }
 
+  .partida-vale.editando {
+    margin-inline: -14px;
+    padding-inline: 14px;
+  }
+
   .partida-vale {
     grid-template-columns: 16px minmax(0, 1fr) 62px;
-    grid-template-areas: "num cuerpo quitar" "num extra cantidad";
+    grid-template-areas: "num cuerpo quitar" "num cuerpo cantidad";
+    row-gap: 6px;
   }
 
   .partida-quitar {
     justify-self: end;
-  }
-
-  .partida-extra {
-    flex-direction: column;
-    gap: 4px;
   }
 
   .pie-material {
@@ -9974,17 +10189,34 @@ button.mosaico:hover .mosaico-abrir {
     width: 130px;
   }
 
-  .vale-en-curso {
+  .columna-vale {
     display: none;
   }
 
-  .lista-abierta .vale-en-curso {
+  .lista-abierta .columna-vale,
+  .modo-editar .columna-vale {
     position: fixed;
     inset: 12vh 0 calc(120px + env(safe-area-inset-bottom, 0px)) 0;
     z-index: 30;
     display: flex;
+    gap: 0;
+    overflow: hidden;
     border-radius: 12px 12px 0 0;
+    background: var(--superficie);
     box-shadow: 0 -8px 24px rgba(16, 24, 40, 0.18);
+  }
+
+  .modo-editar:has(.editar-partida) .columna-vale {
+    display: none;
+  }
+
+  .lista-abierta .columna-vale .resumen-vale,
+  .modo-editar .columna-vale .resumen-vale,
+  .lista-abierta .vale-en-curso,
+  .modo-editar .vale-en-curso {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .lista-abierta .cerrar-lista {
@@ -9993,7 +10225,6 @@ button.mosaico:hover .mosaico-abrir {
     align-items: center;
     width: 44px;
     height: 44px;
-    margin-left: auto;
     border: 1px solid var(--borde);
     border-radius: 8px;
     background: var(--superficie);
@@ -10021,18 +10252,19 @@ button.mosaico:hover .mosaico-abrir {
   }
 }
 
-.partida-desc {
-  display: flex;
+.boton-descripcion.con-texto {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-}
-
-.partida-desc-texto {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.partida-desc .boton-descripcion {
-  flex-shrink: 0;
+  gap: 6px;
+  width: auto;
+  height: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--borde);
+  background: var(--superficie);
+  color: var(--primario);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }

@@ -73,7 +73,12 @@ function FilaVale({ estado, vale, por, hoy, alElegir }) {
  * Buscar el vale (entrada o salida) del que salen las partidas. Sin escribir nada propone lo que se
  * recibió hoy y lo más reciente.
  */
-export function VentanaCopiarVale({ alElegir, alCerrar }) {
+export function VentanaCopiarVale({
+  alElegir,
+  alCerrar,
+  titulo = "Vale nuevo desde otro vale",
+  nota = "Las partidas pasan a un borrador de salida que sale de la misma partida del inventario. De una salida también se repiten el área y quién recibe. El vale original no cambia.",
+}) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const hoy = hoyIso();
@@ -84,11 +89,8 @@ export function VentanaCopiarVale({ alElegir, alCerrar }) {
   const lista = (filas) => html`<ul class="copiar-vales">
     ${filas.map(({ vale, por }) => html`<${FilaVale} key=${vale.id} estado=${estado} vale=${vale} por=${por} hoy=${hoy} alElegir=${alElegir} />`)}
   </ul>`;
-  return html`<${Ventana} titulo="Vale nuevo desde otro vale" clase="ventana-copiar-vale" alCerrar=${alCerrar}>
-    <p class="nota">
-      Las partidas pasan a un borrador de salida que sale de la misma partida del inventario. De una salida
-      también se repiten el área y quién recibe. El vale original no cambia.
-    </p>
+  return html`<${Ventana} titulo=${titulo} clase="ventana-copiar-vale" alCerrar=${alCerrar}>
+    <p class="nota">${nota}</p>
     <label class="campo">
       <span>Folio de la entrada (E-0005), del vale de la base o del vale de salida</span>
       <input

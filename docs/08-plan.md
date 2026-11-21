@@ -331,7 +331,10 @@ revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
   referencia y ya no llena el LOTE, salvo con el ajuste *NP en el lote* (apagado por omisión, igual en los dos
   inventarios); cada partida lleva Lote y O.C.; la UM se escribe solo en lo que no sale del inventario; «Buscar en» con
   la lista propia (sin `<select>`).
-- ☐ Etapa 4: paso 2 — editar partida, clave nueva, código nuevo, traer partidas.
+- ☑ Etapa 4: paso 2 — editar partida, clave nueva, código nuevo, traer partidas. Con la revisión del usuario: Para
+  quién y Partidas en tarjetas separadas; lote y O.C. solo al editar (en letra chica si tienen); un solo botón *Editar*
+  y la partida elegida se edita a la izquierda (sin lápiz por partida); la búsqueda se conserva y tiene ✕ para limpiarla;
+  el material de FX lleva LOTE «FX» por omisión; los títulos de las firmas de NOV son solo de pantalla.
 - ☐ Etapa 5: paso 3 — pendientes, resumen, vista previa real y ampliada.
 - ☐ Etapa 6: menú lateral y anchos de ventana.
 - ☐ Etapa 7: limpieza (*Mi pantalla de vales*, *Captura de partidas*) y documentación.

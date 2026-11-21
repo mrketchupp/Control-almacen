@@ -93,7 +93,7 @@ export function EditorDescripcion({ codigo, alTerminar }) {
  * Botón ✎ junto a la descripción de un código del catálogo: abre la ventana para corregirla.
  * alCambiar(descripcion): la descripción nueva, para que la pantalla actualice las partidas que está editando.
  */
-export function BotonDescripcion({ codigo, alCambiar = null }) {
+export function BotonDescripcion({ codigo, alCambiar = null, texto = null }) {
   const sesion = useSesion();
   const [abierta, setAbierta] = useState(false);
   // La ventana guarda de forma asíncrona: al terminar se llama a la versión más reciente del que edita.
@@ -101,13 +101,13 @@ export function BotonDescripcion({ codigo, alCambiar = null }) {
   ultimo.current = alCambiar;
   return html`<button
       type="button"
-      class="boton-descripcion"
+      class=${`boton-descripcion ${texto ? "con-texto" : ""}`}
       disabled=${Boolean(sesion.ocupado)}
       title="Corregir la descripción de este código en el catálogo"
       aria-label=${`Corregir la descripción del código ${codigo}`}
       onClick=${() => setAbierta(true)}
     >
-      <${Icono} nombre="lapiz" tam=${14} />
+      <${Icono} nombre="lapiz" tam=${14} />${texto ? html`<span aria-hidden="true">${texto}</span>` : null}
     </button>
     ${abierta
       ? html`<${EditorDescripcion}

@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Almacen } from "../src/almacen/almacen.js";
 import { BackendMemoria } from "../src/almacen/bd.js";
+import { Indices } from "../src/nucleo/estado.js";
+import { confirmarEntrada, conRenglonExistente, entradaSinExistencia, lineaEntradaVacia, nuevoBorradorEntrada } from "../src/servicios/entradas.js";
 import { bytesInventario, bytesVales, cargaSintetica } from "./ayuda.js";
 
 const USUARIO = "ALMACENISTA UNO";
@@ -32,6 +34,16 @@ test("vale de salida en 3 pasos", async (t) => {
 
   const almacen = new Almacen(new BackendMemoria()); await almacen.iniciar();
   const { estado } = cargaSintetica(); estado.config.usuario_en_turno = USUARIO;
+  // Una entrada recibida hoy (para «Traer partidas de E-0001»): un balero a su partida y diésel sin existencia.
+  const indices = new Indices(estado);
+  const balero = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 701);
+  const be = nuevoBorradorEntrada(estado, { usuario: USUARIO });
+  Object.assign(be, { modo: "manual", folio_externo: "B-400", origen: "BASE PRUEBA" });
+  be.lineas = [
+    { ...conRenglonExistente(estado, lineaEntradaVacia(), balero.id, indices), cantidad: "4", oc: "OC-91" },
+    { ...entradaSinExistencia({ ...lineaEntradaVacia(), codigo: 136, descripcion: "DIESEL", um: "LTS" }), cantidad: "300" },
+  ];
+  confirmarEntrada(estado, be.id, { usuario: USUARIO });
   await almacen.cargarPrimeraVez(estado, [
     { tipo: "INVENTARIO", nombre: "INVENTARIO SINTETICO.xlsx", datos: bytesInventario() },
     { tipo: "VALES", nombre: "VALES SINTETICO.xlsm", datos: bytesVales() },
@@ -250,6 +262,60 @@ test("vale de salida en 3 pasos", async (t) => {
     await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
     await esperar((e) => e.borradores.length === 1, "No se recuperó");
     await page.waitForFunction(() => document.querySelector('li[aria-current="step"] .paso-nombre')?.textContent.includes("2 · Material"));
+  });
+
+  await t.test("paso 2: traer partidas, código nuevo, clave que no está y editar una partida desde un solo botón", async () => {
+    await cerrarAvisos();
+    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    // Lo recibido hoy se trae al vale abierto (no a uno nuevo), con sus cantidades.
+    await page.getByRole("button", { name: "Traer partidas de E-0001 · hoy · 2", exact: true }).click();
+    await esperarPartidas(2);
+    await cerrarAvisos();
+    let e = await esperar((x) => x.borradores[0]?.lineas.length === 2, "No se trajeron las partidas");
+    assert.deepEqual(e.borradores[0].lineas.map((l) => [l.codigo, l.cantidad, l.oc]), [[701, "4", "OC-91"], [136, "300", ""]]);
+    // Código que no está en el catálogo: se agrega «por confirmar» con la descripción escrita.
+    await buscador.fill("1399 bomba sintetica");
+    await page.getByRole("option", { name: /Agregar código 1399 · BOMBA SINTETICA/ }).waitFor();
+    await buscador.press("Enter");
+    await esperarPartidas(3);
+    assert.equal(await page.getByLabel("Descripción del código nuevo 1399").inputValue(), "BOMBA SINTETICA");
+    // Dimensión que no existe: arriba las claves reales del código y abajo «Usar «…»», que no descuenta.
+    await buscador.fill("balero 6309-2Z/C");
+    const usar = page.getByRole("option", { name: /Usar «6309-2Z\/C»/ });
+    await usar.waitFor();
+    await page.getByText("Ninguna clave coincide con «6309-2Z/C»", { exact: true }).waitFor();
+    await capturar("paso-2-clave-nueva");
+    await usar.click();
+    await esperarPartidas(4);
+    assert.match(await page.locator(".partida-vale").nth(3).innerText(), /6309-2Z\/C[\s\S]*No descuenta/);
+    // Un solo «Editar» para las partidas: se elige una y se edita a la izquierda; al terminar vuelve la búsqueda.
+    await buscador.fill("foco led");
+    await page.getByRole("button", { name: "Editar las partidas", exact: true }).click();
+    await page.getByText("— elige en la lista la partida que quieres cambiar.", { exact: false }).waitFor();
+    await page.getByRole("button", { name: /^Editar la partida 1:/ }).click();
+    await page.getByText("Editando la partida 1", { exact: true }).waitFor();
+    // Al abrir la edición el foco va al buscador de claves; se espera para no escribir mientras se mueve.
+    await page.waitForFunction(() => document.activeElement?.id === "editar-material");
+    await page.getByRole("textbox", { name: "Lote" }).fill("NUEVO");
+    await page.getByRole("textbox", { name: "O.C." }).fill("OC-77");
+    assert.equal(await page.getByText("Actual", { exact: true }).count(), 1);
+    await capturar("paso-2-editar");
+    const otras = page.getByRole("button", { name: /^Usar 701 / });
+    assert.ok((await otras.count()) >= 1, "las otras claves del código");
+    await otras.first().click();
+    // Una clave escrita que no tiene el código, desde la edición.
+    const editar = page.getByRole("combobox", { name: "Otra clave u otro material" });
+    await editar.fill("XYZ-9");
+    await page.getByRole("option", { name: /Usar «XYZ-9»/ }).click();
+    await page.getByRole("button", { name: "Terminar · Esc", exact: true }).click();
+    assert.equal(await buscador.inputValue(), "foco led", "vuelve la búsqueda de antes");
+    await page.getByRole("group", { name: /^711 · FOCO LED/ }).waitFor();
+    assert.match(await page.locator(".partida-vale").first().innerText(), /XYZ-9[\s\S]*Lote NUEVO · O\.C\. OC-77/);
+    e = await esperar((x) => x.borradores[0]?.lineas[0]?.clave === "XYZ-9", "No se guardó la edición");
+    const [primera] = e.borradores[0].lineas;
+    assert.deepEqual([primera.cantidad, primera.lote, primera.oc, primera.existencia_id, primera.no_inventariado], ["4", "NUEVO", "OC-77", null, true]);
+    await buscador.fill("");
+    assert.deepEqual(errores, []);
   });
 
   await t.test("paso 1: transferencia (destino, quién transporta y quién autoriza) y NOV con sus firmas extra", async () => {
