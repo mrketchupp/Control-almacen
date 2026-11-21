@@ -319,7 +319,7 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
-**Ronda 34 — rediseño del vale de salida en 3 pasos** (en curso, rama `ronda-34-vale-salida`). Especificación:
+**Ronda 34 — rediseño del vale de salida en 3 pasos** (en curso, en `main`). Especificación:
 `docs/13-rediseno-vale-salida.md`; diseño aprobado: `docs/diseno/ronda-34/`. Se entrega por etapas (§13) y el usuario
 revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
 - ☑ Etapa 1: el borrador guarda su paso; indicador de pasos; la página repartida en *Para quién*, *Material* y
@@ -335,7 +335,10 @@ revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
   quién y Partidas en tarjetas separadas; lote y O.C. solo al editar (en letra chica si tienen); un solo botón *Editar*
   y la partida elegida se edita a la izquierda (sin lápiz por partida); la búsqueda se conserva y tiene ✕ para limpiarla;
   el material de FX lleva LOTE «FX» por omisión; los títulos de las firmas de NOV son solo de pantalla.
-- ☐ Etapa 5: paso 3 — pendientes, resumen, vista previa real y ampliada.
+- ☑ Etapa 5: paso 3 — pendientes (con *Ir a la partida*, la justificación ahí mismo y *Corregir*), resumen, vista
+  previa real (el mismo HTML de impresión) y ampliada con zoom; *Emitir* bloqueado mientras falte algo (también las
+  fotos de NOV). Decisión del usuario: lote y O.C. en el resumen solo si tienen algo. Desde esta etapa se trabaja en
+  `main` (las 1–4 se fusionaron ahí).
 - ☐ Etapa 6: menú lateral y anchos de ventana.
 - ☐ Etapa 7: limpieza (*Mi pantalla de vales*, *Captura de partidas*) y documentación.
 

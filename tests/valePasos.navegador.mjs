@@ -226,7 +226,7 @@ test("vale de salida en 3 pasos", async (t) => {
     assert.match(await material.innerText(), /Material · 2 partidas/);
     assert.match(await material.innerText(), /SELLOS/);
     assert.equal(await page.locator(".pasos-vale li.paso-completo").count(), 2);
-    await capturar("paso-3");
+    await capturar("paso-3-listo");
     // Editar para quién → paso 1 con todo como estaba; las partidas siguen.
     await page.getByRole("button", { name: "Editar para quién", exact: true }).click();
     assert.equal(await pasoActual(), "1 · Para quién");
@@ -315,6 +315,74 @@ test("vale de salida en 3 pasos", async (t) => {
     const [primera] = e.borradores[0].lineas;
     assert.deepEqual([primera.cantidad, primera.lote, primera.oc, primera.existencia_id, primera.no_inventariado], ["4", "NUEVO", "OC-77", null, true]);
     await buscador.fill("");
+    assert.deepEqual(errores, []);
+  });
+
+  await t.test("paso 3: lo que falta, ir a la partida, justificar ahí mismo, vista previa real y ampliada", async () => {
+    await cerrarAvisos();
+    await revisar.click();
+    assert.equal(await pasoActual(), "3 · Revisar y emitir");
+    const emitirBoton = page.locator(".emitir-fijo").getByRole("button", { name: /^Emitir vale · folio/ });
+    const pendientes = page.getByRole("region", { name: /antes de emitir/ });
+    await pendientes.waitFor();
+    assert.match(await pendientes.innerText(), /Faltan 3 cosas antes de emitir/);
+    assert.match(await pendientes.innerText(), /Partida 3 · BOMBA SINTETICA: falta la cantidad\./);
+    assert.equal(await emitirBoton.isDisabled(), true);
+    await page.getByText("Se habilita al resolver lo pendiente.", { exact: true }).waitFor();
+    // Lote y O.C. solo cuando tienen algo.
+    const material = page.getByRole("region", { name: "Material" });
+    assert.match(await material.innerText(), /Lote NUEVO · O\.C\. OC-77/);
+    assert.doesNotMatch(await material.innerText(), /sin lote/);
+    await page.locator(".miniatura-vale .vale-pagina").first().waitFor();
+    await capturar("paso-3-pendiente");
+    // «Ir a la partida» lleva a su cantidad en el paso 2.
+    await pendientes.getByRole("button", { name: "Ir a la partida", exact: true }).first().click();
+    assert.equal(await pasoActual(), "2 · Material");
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 3");
+    await page.keyboard.type("2");
+    await page.getByLabel("Unidad de la partida 3").fill("PZA");
+    await page.getByLabel("Cantidad de la partida 4").fill("1");
+    // Más de lo que hay: se justifica en el paso 3.
+    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    await buscador.fill("706");
+    await buscador.press("Shift+Enter");
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 5");
+    await page.keyboard.type("5");
+    await page.getByText(/^Solo hay \d+ · al emitir pedirá justificación$/).waitFor();
+    await buscador.fill("");
+    await revisar.click();
+    const justificacion = page.getByRole("textbox", { name: /SELLOS 555001: sacas 5 y el inventario dice que hay \d+/ });
+    await justificacion.waitFor();
+    assert.equal(await emitirBoton.isDisabled(), true);
+    await justificacion.fill("PRESTAMO SINTETICO");
+    await page.getByRole("heading", { name: "Justificaciones", exact: true }).waitFor();
+    assert.equal(await emitirBoton.isDisabled(), false);
+    // La miniatura es el vale impreso real, con BORRADOR en el folio.
+    assert.match(await page.locator(".miniatura-vale").innerText(), /BORRADOR/);
+    await capturar("paso-3");
+    // Vista ampliada: zoom, ajustar al ancho y Emitir siempre a la vista.
+    await page.getByRole("button", { name: "Ampliar", exact: true }).click();
+    const ampliada = page.getByRole("dialog", { name: "Así saldrá impreso" });
+    await ampliada.waitFor();
+    await ampliada.getByText("100 %", { exact: true }).waitFor();
+    await ampliada.getByRole("button", { name: "Acercar", exact: true }).click();
+    await ampliada.getByText("125 %", { exact: true }).waitFor();
+    await page.keyboard.press("Control+-");
+    await ampliada.getByText("100 %", { exact: true }).waitFor();
+    await ampliada.getByText("✓ Todo listo", { exact: true }).waitFor();
+    await capturar("paso-3-ampliada");
+    await page.keyboard.press("Escape");
+    await ampliada.waitFor({ state: "detached" });
+    await page.locator(".miniatura-vale").click();
+    const e0 = await leer();
+    const siguiente = Math.max(...e0.vales.filter((v) => v.tipo === "SALIDA").map((v) => v.folio)) + 1;
+    await ampliada.getByRole("button", { name: `Emitir vale · folio ${siguiente}`, exact: true }).click();
+    await page.getByText(`✓ Vale ${siguiente} emitido`, { exact: true }).waitFor();
+    const e = await esperar((x) => x.vales.some((v) => v.tipo === "SALIDA" && v.folio === siguiente), "No se emitió desde la vista ampliada");
+    const vale = e.vales.find((v) => v.tipo === "SALIDA" && v.folio === siguiente);
+    assert.equal(vale.lineas.length, 5);
+    assert.equal(vale.lineas[4].justificacion, "PRESTAMO SINTETICO");
+    assert.ok(e.articulos[1399], "el código nuevo quedó dado de alta");
     assert.deepEqual(errores, []);
   });
 

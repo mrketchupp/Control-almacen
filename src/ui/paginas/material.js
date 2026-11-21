@@ -430,7 +430,7 @@ function EditarPartida({ linea, n, items, estado, indices, np, ultimas, nombreAr
  * Paso 2. `datos` / `alCambiar(nuevo)`: el borrador. `resumen` y `alEditar`: el resumen de *Para quién*. `capacidad`:
  * partidas del formato impreso del área. `alRegresar` / `avanzar`: los botones de abajo (los pone la página).
  */
-export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, alRegresar, avanzar }) {
+export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, alRegresar, avanzar, inicio = null, alUsarInicio = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -466,7 +466,24 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
   const alto = useAltoDisponible(raiz);
   const [nueva, setNueva] = useState(null);
 
-  useEffect(() => enfocar("buscar-material"), []);
+  // Al entrar: el buscador o, si se viene de «Ir a la partida» / «Corregir» del paso 3, esa partida.
+  useEffect(() => {
+    const destino = inicio && partidasDelVale(datos.lineas).some((l) => l.uid === inicio.uid) ? inicio : null;
+    alUsarInicio?.();
+    if (!destino) return enfocar("buscar-material");
+    const en = (selector) => requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-partida="${destino.uid}"] ${selector}`);
+      el?.scrollIntoView?.({ block: "nearest" });
+      el?.focus();
+    });
+    if (destino.campo === "cantidad" || destino.campo === "justificacion") en(".cantidad-partida");
+    else if (destino.campo === "descripcion") en(".partida-desc-nueva input");
+    else if (destino.campo === "um") en(".partida-um-campo");
+    else {
+      setEditando(true);
+      setElegida(destino.uid);
+    }
+  }, []);
   // Al volver de otra ventana o pestaña, el foco regresa al buscador.
   useEffect(() => {
     const volver = () => {

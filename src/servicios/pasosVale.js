@@ -3,7 +3,18 @@
 // (`paso`, opcional como `copia_de`: no cambia el formato del estado) y nunca llega al vale emitido.
 
 import { ORIGEN_EQUIPO, tipoDeArea } from "../nucleo/areas.js";
-import { aplicarPlantilla, lineasCapturadas, pideEtapa, plantillaArea, requiereAutoriza } from "./vales.js";
+import { decTexto } from "../nucleo/decimal.js";
+import {
+  aplicarPlantilla,
+  conDatosFijos,
+  conEntregaEnTurno,
+  lineasCapturadas,
+  observacionesDelVale,
+  pideEtapa,
+  plantillaArea,
+  requiereAutoriza,
+  validarVale,
+} from "./vales.js";
 
 export const PASOS = Object.freeze([
   Object.freeze({ numero: 1, nombre: "Para quién" }),
@@ -130,4 +141,58 @@ export function textoObservaciones(estado, datos) {
   if (!area) return "";
   const etapa = texto(datos.etapa_perforacion);
   return pideEtapa(estado, datos) && etapa ? `Observaciones de ${area.nombre} y etapa ${etapa} se llenan solas.` : `Observaciones de ${area.nombre} se llenan solas.`;
+}
+
+// ---------------------------------------------------------------- paso 3 · revisar y emitir (§5)
+
+/** Los datos del vale tal como se emitirán (entrega quien está en turno, datos fijos del área, sin filas en blanco). */
+export function paraEmitir(estado, datos, usuario) {
+  const listo = conDatosFijos(estado, conEntregaEnTurno(estado, datos, usuario));
+  return { ...listo, observaciones: observacionesDelVale(estado, listo), lineas: lineasCapturadas(listo.lineas) };
+}
+
+// A qué paso lleva «Corregir» cada dato del encabezado.
+const PASO_DEL_CAMPO = { fecha: 1, depto_destino: 1, recibio_nombre: 1, autorizo_nombre: 1, etapa_perforacion: 1, lineas: 2 };
+
+/**
+ * Lo que falta antes de emitir (§5.1), una fila por problema: partida sin cantidad («Ir a la partida»), cantidad mayor
+ * que la existencia (la justificación se escribe ahí mismo; la fila se queda aunque ya tenga texto, para no perder el
+ * campo al escribir), fotos del formato que faltan y cualquier otro error de `validarVale` con el paso que lo corrige.
+ * `espacios`: cuántas fotos pide el formato del área (NOV: 3); faltar una bloquea *Emitir* (decisión del usuario).
+ * @returns { pendientes: [{ tipo, mensaje, paso, campo, uid, pendiente, … }], bloquea }
+ */
+export function pendientesParaEmitir(estado, datos, { usuario = null, espacios = 0 } = {}) {
+  const listo = paraEmitir(estado, datos, usuario);
+  const lineas = listo.lineas;
+  const { errores, avisos } = validarVale(estado, listo);
+  const nombre = (l) => [l?.descripcion, l?.clave].filter(Boolean).join(" ") || `código ${l?.codigo ?? "—"}`;
+  const pendientes = [];
+  for (const e of errores) {
+    if (e.campo === "justificacion") continue; // va con su aviso de existencia
+    const l = e.renglon ? lineas[e.renglon - 1] : null;
+    if (e.campo === "cantidad") {
+      pendientes.push({ tipo: "cantidad", mensaje: `Partida ${e.renglon} · ${nombre(l)}: falta la cantidad.`, paso: 2, campo: "cantidad", uid: l?.uid ?? null, pendiente: true });
+    } else if (e.renglon) {
+      pendientes.push({ tipo: "corregir", mensaje: e.mensaje, paso: 2, campo: e.campo, uid: l?.uid ?? null, pendiente: true });
+    } else {
+      pendientes.push({ tipo: e.campo === "entrego_nombre" ? "aviso" : "corregir", mensaje: e.mensaje, paso: PASO_DEL_CAMPO[e.campo] ?? null, campo: e.campo, uid: null, pendiente: true });
+    }
+  }
+  for (const a of avisos) {
+    const l = lineas[a.renglon - 1];
+    pendientes.push({
+      tipo: "justificacion",
+      mensaje: `${nombre(l)}: sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}. ¿Por qué?`,
+      paso: 3,
+      campo: "justificacion",
+      uid: l?.uid ?? null,
+      pendiente: !String(l?.justificacion ?? "").trim(),
+    });
+  }
+  const puestas = (datos.fotos ?? []).slice(0, espacios).filter(Boolean).length;
+  if (espacios > puestas) {
+    const faltan = espacios - puestas;
+    pendientes.push({ tipo: "fotos", mensaje: `${faltan === 1 ? "Falta 1 foto" : `Faltan ${faltan} fotos`} del formato (${puestas} de ${espacios}).`, paso: 3, campo: "fotos", uid: null, pendiente: true });
+  }
+  return { pendientes, bloquea: pendientes.filter((p) => p.pendiente).length };
 }

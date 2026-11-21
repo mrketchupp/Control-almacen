@@ -9030,7 +9030,7 @@ button.mosaico:hover .mosaico-abrir {
 
 .resumen-partidas li {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1.2fr) minmax(0, 2fr) minmax(0, 0.8fr);
+  grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1.3fr);
   align-items: baseline;
   gap: 12px;
   padding: 8px 0;
@@ -10267,4 +10267,313 @@ button.mosaico:hover .mosaico-abrir {
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- paso 3 · revisar y emitir (Ronda 34, §5) */
+
+.paso-emitir {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  align-items: start;
+  gap: 20px;
+}
+
+.emitir-revision {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pendientes-vale {
+  padding: 16px 20px;
+  border: 1px solid var(--alerta);
+  border-radius: 12px;
+  background: var(--alerta-suave);
+}
+
+.pendientes-vale.resuelto {
+  border-color: var(--borde);
+  background: var(--superficie);
+}
+
+.pendientes-vale h2 {
+  margin: 0 0 10px;
+  color: var(--alerta);
+  font-size: 1rem;
+}
+
+.pendientes-vale.resuelto h2 {
+  color: var(--texto);
+}
+
+.pendientes-vale ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pendientes-vale li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.pendientes-vale li > span {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.pendientes-vale li .boton {
+  min-height: 40px;
+}
+
+.pendientes-vale li .campo {
+  flex: 1;
+  color: var(--texto);
+}
+
+.pendientes-vale li .campo > span {
+  font-weight: 600;
+}
+
+.pendientes-vale li.pendiente .campo input {
+  border: 2px solid var(--alerta);
+}
+
+.pendientes-vale li.listo .campo > span::after {
+  content: " ✓";
+  color: var(--ok);
+}
+
+.emitir-previa {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.previa-cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.previa-cabeza h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.miniatura-vale {
+  display: block;
+  width: 100%;
+  max-height: 62vh;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: #fff;
+  cursor: zoom-in;
+}
+
+.miniatura-vale:hover {
+  border-color: var(--primario);
+}
+
+.miniatura-vacia {
+  margin: 0;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.hojas-escaladas {
+  position: relative;
+  overflow: hidden;
+}
+
+.hojas-vale {
+  transform-origin: 0 0;
+}
+
+.hojas-vale .vale-pagina {
+  box-sizing: border-box;
+  width: 9.3in;
+  padding: 0.6in 0.4in;
+  margin: 0 0 24px;
+  background: #fff;
+}
+
+.hojas-vale .vale-pagina:last-child {
+  margin-bottom: 0;
+}
+
+.emitir-fijo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.emitir-fijo .boton-primario {
+  justify-content: center;
+  width: 100%;
+  min-height: 56px;
+}
+
+.emitir-fijo .nota {
+  margin: 0;
+  text-align: center;
+}
+
+/* Vista ampliada a pantalla completa (§5.3). */
+.vista-ampliada {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 22, 32, 0.82);
+}
+
+.ampliada-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 10px 16px;
+  background: #1c2733;
+  color: #fff;
+}
+
+.ampliada-titulo {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ampliada-titulo h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ampliada-titulo span {
+  overflow: hidden;
+  color: #c9d3de;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ampliada-zoom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ampliada-zoom span {
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ampliada-zoom button,
+.ampliada-cerrar {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #4a5a6c;
+  border-radius: 8px;
+  background: #26343f;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ampliada-zoom button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ampliada-cerrar {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.ampliada-hojas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+}
+
+.ampliada-centro {
+  margin: 0 auto;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ampliada-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--borde);
+  background: var(--superficie);
+}
+
+.ampliada-estado {
+  flex: 1 1 280px;
+  min-width: 0;
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.ampliada-estado.listo {
+  color: var(--ok);
+}
+
+/* 700–899 px y menos: una columna, la miniatura después de la revisión y *Emitir* fijo abajo (§8). */
+@media (max-width: 899px) {
+  .paso-emitir {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .emitir-previa {
+    position: static;
+  }
+
+  .miniatura-vale {
+    max-height: 48vh;
+  }
+
+  .emitir-fijo {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 10px 0 4px;
+    background: var(--superficie);
+  }
+}
+
+@media (max-width: 700px) {
+  .emitir-fijo {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
 }

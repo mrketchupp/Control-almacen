@@ -80,7 +80,7 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién" }) {
 
 /**
  * Las partidas del vale, una fila cada una: cantidad + UM · dimensión · NP · código · descripción (recortada; completa
- * al pasar el cursor) · lote. `partidas`: [{ cantidad, um, clave, np, codigo, descripcion, lote }].
+ * al pasar el cursor) · lote y O.C. si tienen. `partidas`: [{ cantidad, um, clave, np, codigo, descripcion, lote, oc }].
  */
 export function ResumenMaterial({ partidas, alEditar }) {
   return html`<section class="resumen-vale" aria-label="Material">
@@ -91,12 +91,14 @@ export function ResumenMaterial({ partidas, alEditar }) {
     ${partidas.length
       ? html`<ol class="resumen-partidas">
           ${partidas.map((p, i) => {
-            const titulo = [p.codigo, p.descripcion, p.clave, p.np ? `NP ${p.np}` : null, p.lote ? `lote ${p.lote}` : null].filter(Boolean).join(" · ");
+            // Lote y O.C. solo si tienen algo: casi nunca se usan (decisión del usuario, Ronda 34).
+            const extra = [p.lote ? `Lote ${p.lote}` : null, p.oc ? `O.C. ${p.oc}` : null].filter(Boolean).join(" · ");
+            const titulo = [p.codigo, p.descripcion, p.clave, p.np ? `NP ${p.np}` : null, extra].filter(Boolean).join(" · ");
             return html`<li key=${i} title=${titulo}>
               <span class=${`resumen-cantidad ${p.cantidad ? "" : "falta"}`}>${p.cantidad || "sin cantidad"} ${p.cantidad ? p.um : ""}</span>
               <span class="resumen-clave">${p.clave || "—"}${p.np ? html`<span class="resumen-np"> · NP ${p.np}</span>` : null}</span>
               <span class="resumen-descripcion">${p.codigo ?? "—"} · ${p.descripcion || "—"}</span>
-              <span class="resumen-lote">${p.lote ? `lote ${p.lote}` : "sin lote"}</span>
+              <span class="resumen-lote">${extra}</span>
             </li>`;
           })}
         </ol>`

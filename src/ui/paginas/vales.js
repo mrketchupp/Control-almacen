@@ -39,7 +39,8 @@ import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
 import { PasosVale, ResumenMaterial, ResumenParaQuien, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
 import { PasoParaQuien } from "./paraQuien.js";
 import { PasoMaterial } from "./material.js";
-import { faltaParaAvanzar, nombrePaso, pasoDe } from "../../servicios/pasosVale.js";
+import { faltaParaAvanzar, nombrePaso, paraEmitir, pasoDe, pendientesParaEmitir } from "../../servicios/pasosVale.js";
+import { PasoEmitir } from "./emitir.js";
 
 // ---------------------------------------------------------------- utilidades
 
@@ -843,11 +844,6 @@ function EmitidoOk({ vales, alNuevo, alCopiar }) {
   <//>`;
 }
 
-/** Datos del vale tal como se emitirán (para validar y para la vista previa). */
-function paraEmitir(estado, datos, usuario) {
-  const listo = conDatosFijos(estado, conEntregaEnTurno(estado, datos, usuario));
-  return { ...listo, observaciones: observacionesDelVale(estado, listo), lineas: lineasCapturadas(listo.lineas) };
-}
 
 export function PaginaValesSalida() {
   const sesion = useSesion();
@@ -867,9 +863,10 @@ export function PaginaValesSalida() {
     window.addEventListener("borrador-restaurado", abrir);
     return () => window.removeEventListener("borrador-restaurado", abrir);
   }, []);
-  const [previa, setPrevia] = useState(null);
   const [capacidad, setCapacidad] = useState(null);
   const [copiando, setCopiando] = useState(false);
+  const [espacios, setEspacios] = useState(0); // fotos que pide el formato del área (NOV)
+  const [inicioMaterial, setInicioMaterial] = useState(null); // al ir del paso 3 a una partida: { uid, campo }
   const pendiente = useRef(null);
   const porGuardar = useRef(null);
   // Al cambiar de paso, el foco va al paso nuevo (y la página, arriba).
@@ -877,9 +874,12 @@ export function PaginaValesSalida() {
   const contenedorPaso = useRef(null);
   useLayoutEffect(() => {
     if (!enfocarPaso.current) return;
+    const foco = enfocarPaso.current;
     enfocarPaso.current = false;
     contenedorPaso.current?.focus({ preventScroll: true });
     window.scrollTo?.({ top: 0 });
+    // «Corregir» desde el paso 3: el campo que lo arregla.
+    if (typeof foco === "string") requestAnimationFrame(() => document.querySelector(foco)?.focus());
   });
 
   // Carga el borrador activo en el editor (solo al cambiar de pestaña).
@@ -888,14 +888,18 @@ export function PaginaValesSalida() {
     setDatos(b ? structuredClone(b) : null);
     setErrores([]);
   }, [activo]);
-  // Capacidad del formato impreso del área elegida.
+  // Capacidad del formato impreso del área elegida y cuántas fotos pide.
   useEffect(() => {
     if (!datos) return;
     sesion
       .capacidadPara(datos)
       .then(setCapacidad)
       .catch(() => setCapacidad(null));
-  }, [datos?.id, datos?.plantilla_area_id]);
+    sesion
+      .espaciosFotos(datos)
+      .then((e) => setEspacios(e.length))
+      .catch(() => setEspacios(0));
+  }, [datos?.id, datos?.plantilla_area_id, datos?.depto_destino]);
 
   const guardar = async (valor) => {
     clearTimeout(pendiente.current);
@@ -1007,9 +1011,25 @@ export function PaginaValesSalida() {
   const falta = datos ? faltaParaAvanzar(estado, datos, paso) : [];
 
   // Ronda 34: cambiar de paso nunca borra nada; el paso se guarda con el borrador.
-  const irA = (n) => {
-    enfocarPaso.current = true;
+  const irA = (n, foco = null) => {
+    enfocarPaso.current = foco ?? true;
     cambiar({ ...datos, paso: n });
+  };
+  // Lo que falta antes de emitir (paso 3) y a dónde lleva cada «Corregir».
+  const revision = datos && paso === 3 ? pendientesParaEmitir(estado, datos, { usuario: sesion.usuario, espacios }) : { pendientes: [], bloquea: 0 };
+  const FOCO_PASO_1 = {
+    recibio_nombre: "#quien-recibe",
+    autorizo_nombre: "#quien-autoriza",
+    etapa_perforacion: "#etapa-vale",
+    depto_destino: "#paso-vale .rejilla-opciones button[tabindex='0']",
+    fecha: "#paso-vale .boton-fecha",
+  };
+  const irAPendiente = (p) => {
+    if (p.paso === 1) irA(1, FOCO_PASO_1[p.campo] ?? null);
+    else if (p.paso === 2) {
+      setInicioMaterial(p.uid ? { uid: p.uid, campo: p.campo } : null);
+      irA(2);
+    }
   };
   // Enter avanza; en el paso 3 emite (siempre con la confirmación del folio, como el clic).
   const listaAbierta = useRef(false);
@@ -1017,7 +1037,7 @@ export function PaginaValesSalida() {
     if (!enterParaAvanzar(e, { abiertaAlPresionar: listaAbierta.current })) return;
     e.preventDefault();
     if (paso === 3) {
-      if (lineasCapturadas(datos.lineas).length) emitir();
+      if (lineasCapturadas(datos.lineas).length && !revision.bloquea) emitir();
     } else if (!falta.length) irA(paso + 1);
   };
 
@@ -1075,10 +1095,11 @@ export function PaginaValesSalida() {
         capacidad=${capacidad}
         alRegresar=${html`<${Boton} tamano="grande" onClick=${() => irA(1)}>← Para quién<//>`}
         avanzar=${avanzar("Revisar y emitir →")}
+        inicio=${inicioMaterial}
+        alUsarInicio=${() => setInicioMaterial(null)}
       />`;
     } else {
       const listo = paraEmitir(estado, datos, sesion.usuario);
-      const pendientes = errores.length ? errores : validarVale(estado, listo).errores;
       const indicesVale = new Indices(estado);
       const partidas = capturadas.map((l) => {
         const existencia = l.existencia_id !== null && l.existencia_id !== undefined ? indicesVale.existencia(l.existencia_id) : null;
@@ -1090,23 +1111,25 @@ export function PaginaValesSalida() {
           np: variante ? loteDeRenglon(npMostrado(existencia, variante)) : "",
           codigo: l.codigo,
           descripcion: l.descripcion,
-          lote: l.lote,
+          lote: normal(l.lote) ? l.lote : "",
+          oc: normal(l.oc) ? l.oc : "",
         };
       });
-      cuerpo = html`
-        <${ListaErrores} errores=${pendientes} />
-        <div class="paso-revisar">
-          ${paraQuien}
-          <${ResumenMaterial} partidas=${partidas} alEditar=${() => irA(2)} />
-          <${EditorVale} seccion="fotos" datos=${datos} alCambiar=${cambiar} />
-        </div>
-        <div class="pie-paso">
-          <span class="espaciador"></span>
-          <${Boton} tamano="grande" disabled=${!capturadas.length} onClick=${() => setPrevia([{ ...listo, folio: null, tipo: "SALIDA" }])}>Vista previa<//>
-          <${Boton} tipo="primario" tamano="grande" disabled=${!capturadas.length} onClick=${emitir}>
-            Emitir vale · folio ${folio} <span class="tecla-boton" aria-hidden="true">Enter</span>
-          <//>
-        </div>`;
+      cuerpo = html`<${PasoEmitir}
+        datos=${datos}
+        alCambiar=${cambiar}
+        listo=${listo}
+        resumen=${resumen}
+        partidas=${partidas}
+        pendientes=${revision.pendientes}
+        bloquea=${revision.bloquea}
+        errores=${errores.filter((e) => e.campo === "vale")}
+        capacidad=${capacidad}
+        folio=${folio}
+        alIrA=${irA}
+        alIr=${irAPendiente}
+        alEmitir=${emitir}
+      />`;
     }
     contenido = html`
       <p class="linea-borrador">
@@ -1150,6 +1173,5 @@ export function PaginaValesSalida() {
 
     ${copiando ? html`<${VentanaCopiarVale} alElegir=${desdeVale} alCerrar=${() => setCopiando(false)} />` : null}
 
-    ${previa ? html`<${VistaPrevia} vales=${previa} alCerrar=${() => setPrevia(null)} />` : null}
   `;
 }

@@ -112,7 +112,8 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `ui/paginas/copiarVale.js` (`VentanaCopiarVale`, `crearSalidaDesdeVale`, `useSalidaDesdeVale` → `Sesion.abrirBorrador`);
   botones en `entrada.js` / `vale.js`, menú de fila en `historial.js`, pestaña *Desde un vale…* en `vales.js`; ícono
   `copiar`; `.toast-cuerpo` respeta saltos de línea. Pruebas `copiarVale.test.js` y Chromium `copiarVale.navegador.mjs`.
-- Ronda 34 (en curso, rama `ronda-34-vale-salida` por pedido del usuario; se revisa etapa por etapa, §13 de
+- Ronda 34 (en curso; las etapas 1–4 se hicieron en la rama `ronda-34-vale-salida` y se fusionaron en `main` por pedido
+  del usuario, que pidió seguir en `main`; se revisa etapa por etapa, §13 de
   `docs/13-rediseno-vale-salida.md`, diseño en `docs/diseno/ronda-34/`): **vale de salida en 3 pasos**. Etapa 1:
   `servicios/pasosVale.js` (`PASOS`, `pasoDe` — sin paso = 1 —, `faltaParaQuien`, `faltaMaterial`, `faltaParaAvanzar`,
   `estadoDePasos`); `nuevoBorrador` pone `paso: 1` (opcional como `copia_de`, sin subir formato; no pasa al vale emitido).
@@ -144,7 +145,14 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `lineaCodigoNuevo`, descripción en la partida, por confirmar al emitir), *Traer partidas de E-0005 · hoy* / *Otra entrada
   o vale…* al vale abierto (`conPartidasDeVale`, `agregarPartidasDesdeVale`, `entradasDeHoy`). **Material de FX: LOTE
   «FX» por omisión** (`conLoteDeFx` en `conExistencia`, decisión del usuario; `lote_fx` marca lo puesto solo). Los cambios
-  de partidas se encadenan sobre `actual.current` (dos campos seguidos no se pisan).
+  de partidas se encadenan sobre `actual.current` (dos campos seguidos no se pisan). Etapa 5 (paso 3): `paraEmitir` y
+  `pendientesParaEmitir(estado, datos, { usuario, espacios })` en `servicios/pasosVale.js` (sin cantidad → *Ir a la
+  partida*; más que la existencia → la justificación ahí mismo, la fila se queda aunque ya tenga texto; fotos del formato
+  que faltan bloquean, decisión del usuario; otros errores con el paso de *Corregir*). `ui/paginas/emitir.js`
+  (`PasoEmitir`, `PendientesVale`, miniatura `HojasEscaladas` con el HTML real de `sesion.documentoVales` y BORRADOR en el
+  folio, una hoja por folio si se divide; `VistaAmpliada` a pantalla completa con zoom 50–200 %, Ctrl ± , *Ajustar al
+  ancho*, *Seguir revisando* y *Emitir* siempre a la vista). *Emitir* y Enter solo sin pendientes. Lote y O.C. en el
+  resumen solo si tienen algo (decisión del usuario). La página pasa `inicio` a `PasoMaterial` para llegar a la partida.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

@@ -319,7 +319,7 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
       ? html`<div class="tarjeta-paso editor-etapa">
           <label class="campo">
             <span>Etapa de perforación</span>
-            <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })}
+            <input id="etapa-vale" value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })}
               onKeyDown=${(e) => {
                 if (e.key === "Enter" && texto(datos.etapa_perforacion)) {
                   e.preventDefault();

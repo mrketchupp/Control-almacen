@@ -18,7 +18,9 @@ import {
   faltaParaAvanzar,
   faltaParaQuien,
   nombrePaso,
+  paraEmitir,
   pasoDe,
+  pendientesParaEmitir,
   textoObservaciones,
 } from "../src/servicios/pasosVale.js";
 import * as v from "../src/servicios/vales.js";
@@ -128,4 +130,40 @@ test("paso 1: áreas de consumo, destinos de transferencia sin el RIG propio y c
   // El pie del paso: de qué área salen las observaciones y con qué etapa.
   assert.equal(textoObservaciones(estado, { ...mecanico, etapa_perforacion: '12 1/4"' }), 'Observaciones de MECANICO y etapa 12 1/4" se llenan solas.');
   assert.equal(textoObservaciones(estado, b), "");
+});
+
+test("paso 3: lo que falta antes de emitir, a dónde lleva cada cosa y las fotos del formato", () => {
+  const { estado } = cargaSintetica();
+  const indices = new Indices(estado);
+  const sellos = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 706);
+  const b = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: area(estado, "MECANICO").id, fecha: "2026-10-03" });
+  Object.assign(b, { recibio_nombre: "", etapa_perforacion: '12 1/4"', paso: 3 });
+  const foco = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 711);
+  b.lineas.push(v.lineaVacia(), { ...v.lineaDesdeExistencia(estado, foco.id) }, { ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "50" });
+  let r = pendientesParaEmitir(estado, b, { usuario: USUARIO });
+  const porTipo = (t) => r.pendientes.filter((p) => p.tipo === t);
+  // Falta quién recibe (paso 1), la cantidad de la partida 1 (paso 2) y justificar lo que excede (aquí mismo).
+  assert.deepEqual(porTipo("corregir").map((p) => [p.campo, p.paso]), [["recibio_nombre", 1]]);
+  assert.deepEqual(porTipo("cantidad").map((p) => [p.paso, p.uid]), [[2, b.lineas[1].uid]]);
+  assert.match(porTipo("cantidad")[0].mensaje, /^Partida 1 · FOCO LED .+: falta la cantidad\.$/);
+  assert.equal(porTipo("justificacion").length, 1);
+  assert.match(porTipo("justificacion")[0].mensaje, /^SELLOS 555001: sacas 50 y el inventario dice que hay \d+\. ¿Por qué\?$/);
+  assert.equal(r.bloquea, 3);
+  // Con todo resuelto la justificación se queda (para no perder el campo al escribir), ya sin bloquear.
+  b.recibio_nombre = "MECANICO UNO";
+  b.lineas[1].cantidad = "1";
+  b.lineas[2].justificacion = "PRESTAMO";
+  r = pendientesParaEmitir(estado, b, { usuario: USUARIO });
+  assert.deepEqual(r.pendientes.map((p) => [p.tipo, p.pendiente]), [["justificacion", false]]);
+  assert.equal(r.bloquea, 0);
+  // NOV: faltar una foto del formato bloquea Emitir (decisión del usuario).
+  r = pendientesParaEmitir(estado, { ...b, fotos: ["f1", null] }, { usuario: USUARIO, espacios: 3 });
+  assert.deepEqual(r.pendientes.filter((p) => p.tipo === "fotos").map((p) => p.mensaje), ["Faltan 2 fotos del formato (1 de 3)."]);
+  assert.equal(r.bloquea, 1);
+  // Sin almacenista en turno: se avisa, sin paso al que ir.
+  const sinTurno = pendientesParaEmitir(estado, { ...b, entrego_nombre: "" }, { usuario: null });
+  assert.deepEqual(sinTurno.pendientes.filter((p) => p.campo === "entrego_nombre").map((p) => [p.tipo, p.paso]), [["aviso", null]]);
+  // Los datos para emitir: entrega quien está en turno, sin filas en blanco.
+  const listo = paraEmitir(estado, b, "OTRO ALMACENISTA");
+  assert.deepEqual([listo.entrego_nombre, listo.lineas.length], ["OTRO ALMACENISTA", 2]);
 });
