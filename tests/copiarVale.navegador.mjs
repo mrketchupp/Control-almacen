@@ -115,11 +115,11 @@ test("vale de salida a partir de una entrada o de otro vale", async (t) => {
     await cerrarAvisos();
     await page.getByRole("tab").first().click();
     // Área MECANICO y quién recibe (como en cualquier vale).
-    await page.getByRole("button", { name: "Área que recibe", exact: true }).click();
-    await page.getByRole("option", { name: "MECANICO", exact: true }).click();
-    await page.getByLabel("Recibió", { exact: true }).fill("MECANICO UNO");
-    await page.getByLabel("Puesto de quien recibe", { exact: true }).fill("MECANICO");
-    const etapa = page.getByLabel(/Etapa de perforación/);
+    await page.getByRole("radio", { name: "MECANICO", exact: true }).click();
+    await page.locator("#quien-recibe").fill("MECANICO UNO");
+    await page.locator("#quien-recibe").press("Escape");
+    await page.getByRole("combobox", { name: "Puesto (quién lo lleva)" }).fill("MECANICO");
+    const etapa = page.getByLabel("Etapa de perforación", { exact: true });
     if (await etapa.count()) await etapa.fill('12 1/4" SINTETICA');
     // Ronda 34: el borrador copiado empieza en *Para quién*; las partidas ya vienen cargadas.
     await page.getByRole("button", { name: /^Continuar a material/ }).click();

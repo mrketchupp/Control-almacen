@@ -79,11 +79,11 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
 
     await ir("#vales");
     await page.getByRole("button", { name: /Nuevo vale · folio/ }).click();
-    await page.getByRole("button", { name: "Área que recibe", exact: true }).click();
-    await page.getByRole("option", { name: "MECANICO", exact: true }).click();
-    await page.getByLabel("Recibió", { exact: true }).fill("MECANICO UNO");
-    await page.getByLabel("Puesto de quien recibe", { exact: true }).fill("MECANICO");
-    const etapa = page.getByLabel(/Etapa de perforación/);
+    await page.getByRole("radio", { name: "MECANICO", exact: true }).click();
+    await page.locator("#quien-recibe").fill("MECANICO UNO");
+    await page.locator("#quien-recibe").press("Escape");
+    await page.getByRole("combobox", { name: "Puesto (quién lo lleva)" }).fill("MECANICO");
+    const etapa = page.getByLabel("Etapa de perforación", { exact: true });
     if (await etapa.count()) await etapa.fill('12 1/4" SINTETICA');
     await page.getByRole("button", { name: /^Continuar a material/ }).click();
     const codigo = page.getByRole("combobox", { name: "Código AX", exact: true }).first();

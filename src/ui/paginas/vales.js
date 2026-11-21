@@ -36,7 +36,8 @@ import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { BotonDescripcion } from "./descripcion.js";
 import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
-import { PasosVale, ResumenMaterial, ResumenParaQuien, enterParaAvanzar } from "./pasosVale.js";
+import { PasosVale, ResumenMaterial, ResumenParaQuien, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
+import { PasoParaQuien } from "./paraQuien.js";
 import { faltaParaAvanzar, nombrePaso, pasoDe } from "../../servicios/pasosVale.js";
 
 // ---------------------------------------------------------------- utilidades
@@ -137,11 +138,10 @@ export function listas(estado) {
   };
 }
 
-export function Campo({ etiqueta, error, children, ayuda, clase = "", falta = null }) {
-  return html`<label class=${`campo ${error ? "con-error" : ""} ${falta ? "con-falta" : ""} ${clase}`}>
+export function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
+  return html`<label class=${`campo ${error ? "con-error" : ""} ${clase}`}>
     <span>${etiqueta}</span>
     ${children}
-    ${falta ? html`<small class="falta">${falta}</small>` : null}
     ${ayuda ? html`<small class="ayuda">${ayuda}</small>` : null}
   </label>`;
 }
@@ -346,11 +346,10 @@ export function partidaConFoco(raiz, lineas) {
 }
 
 /**
- * Editor del vale. Ronda 34: con `seccion` dibuja solo una parte, para el vale en pasos — "datos" (para quién),
- * "partidas" o "fotos"; sin ella, todo junto (corrección desde el historial). `faltan`: [{ campo, mensaje }] que se
- * marcan debajo de su campo («Falta el nombre»).
+ * Editor del vale. Ronda 34: con `seccion` dibuja solo una parte para el vale en pasos — "partidas" o "fotos" (el paso 1
+ * es `PasoParaQuien`); sin ella, todo junto (corrección desde el historial).
  */
-export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null, seccion = null, faltan = [] }) {
+export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null, seccion = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -382,7 +381,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     };
   }, [datos.plantilla_area_id, datos.depto_destino, conFotos]);
   const errorEn = (campo, renglon = null) => errores.find((e) => e.campo === campo && e.renglon === renglon);
-  const faltaEn = (campo) => faltan.find((f) => f.campo === campo)?.mensaje ?? null;
   const cambiar = (cambios) => alCambiar({ ...datos, ...cambios });
 
   // Foco: al elegir el código pasa a la clave; al elegir la clave, a la cantidad.
@@ -458,7 +456,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
 
   // Bloques del panel de datos, en el orden que eligió quien está en turno (Ajustes).
   const persona = (id, etiqueta, campo, { ayuda = null, error = null, puestos = [] } = {}) => html`
-    <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda} falta=${faltaEn(`${campo}_nombre`)}>
+    <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda}>
       <${SelectorPersona}
         id=${id}
         ariaLabel=${etiqueta}
@@ -479,7 +477,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   `;
   const bloques = {
     area: html`
-      <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")} falta=${datos.plantilla_area_id ? null : faltaEn("depto_destino")}>
+      <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
         <${Lista}
           id="area-vale"
           valor=${datos.plantilla_area_id ?? ""}
@@ -509,7 +507,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
             <div class="rejilla-campos">
               <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
               <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
-              <${Campo} etiqueta="Destino" falta=${datos.plantilla_area_id ? faltaEn("depto_destino") : null}><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
+              <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
               <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
                 <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
               <//>
@@ -602,7 +600,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     ${preferencias.orden.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
   </aside>`;
   const panelFotos = espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null;
-  if (seccion === "datos") return html`<div ref=${raiz} class="editor-vale solo-datos">${panelDatos}</div>`;
   if (seccion === "fotos") return panelFotos;
   const panelPartidas = html`<section class="vale-partidas" aria-label="Partidas del vale" data-sin-avanzar>
         <header class="partidas-cabeza">
@@ -1015,10 +1012,14 @@ export function PaginaValesSalida() {
     enfocarPaso.current = true;
     cambiar({ ...datos, paso: n });
   };
+  // Enter avanza; en el paso 3 emite (siempre con la confirmación del folio, como el clic).
+  const listaAbierta = useRef(false);
   const teclaPaso = (e) => {
-    if (paso === 3 || !enterParaAvanzar(e)) return;
+    if (!enterParaAvanzar(e, { abiertaAlPresionar: listaAbierta.current })) return;
     e.preventDefault();
-    if (!falta.length) irA(paso + 1);
+    if (paso === 3) {
+      if (lineasCapturadas(datos.lineas).length) emitir();
+    } else if (!falta.length) irA(paso + 1);
   };
 
   const pestanas = borradores.length
@@ -1065,11 +1066,7 @@ export function PaginaValesSalida() {
     let cuerpo;
     if (paso === 1) {
       cuerpo = html`
-        <${EditorVale} seccion="datos" datos=${datos} alCambiar=${cambiar} errores=${errores} faltan=${falta} capacidad=${capacidad} />
-        <div class="pie-paso">
-          <span class="espaciador"></span>
-          ${avanzar("Continuar a material →")}
-        </div>`;
+        <${PasoParaQuien} datos=${datos} alCambiar=${cambiar} faltan=${falta} pie=${avanzar("Continuar a material →")} />`;
     } else if (paso === 2) {
       cuerpo = html`
         ${paraQuien}
@@ -1107,7 +1104,9 @@ export function PaginaValesSalida() {
         <div class="pie-paso">
           <span class="espaciador"></span>
           <${Boton} tamano="grande" disabled=${!capturadas.length} onClick=${() => setPrevia([{ ...listo, folio: null, tipo: "SALIDA" }])}>Vista previa<//>
-          <${Boton} tipo="primario" tamano="grande" disabled=${!capturadas.length} onClick=${emitir}>Emitir vale · folio ${folio}<//>
+          <${Boton} tipo="primario" tamano="grande" disabled=${!capturadas.length} onClick=${emitir}>
+            Emitir vale · folio ${folio} <span class="tecla-boton" aria-hidden="true">Enter</span>
+          <//>
         </div>`;
     }
     contenido = html`
@@ -1118,7 +1117,8 @@ export function PaginaValesSalida() {
           : null}Se guarda solo
       </p>
       <${PasosVale} paso=${paso} />
-      <div id="paso-vale" ref=${contenedorPaso} class=${`paso-vale paso-vale-${paso}`} tabindex="-1" aria-label=${`Paso ${paso} · ${nombrePaso(paso)}`} onKeyDown=${teclaPaso}>
+      <div id="paso-vale" ref=${contenedorPaso} class=${`paso-vale paso-vale-${paso}`} tabindex="-1" aria-label=${`Paso ${paso} · ${nombrePaso(paso)}`}
+        onKeyDownCapture=${(e) => (listaAbierta.current = enterAlBajar(e))} onKeyDown=${teclaPaso}>
         ${cuerpo}
       </div>`;
   }

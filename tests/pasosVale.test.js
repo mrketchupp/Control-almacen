@@ -4,7 +4,23 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { borradorDesdeVale } from "../src/servicios/copiarVale.js";
 import * as en from "../src/servicios/entradas.js";
-import { PASOS, estadoDePasos, faltaMaterial, faltaParaAvanzar, faltaParaQuien, nombrePaso, pasoDe } from "../src/servicios/pasosVale.js";
+import {
+  PASOS,
+  areaTransferencia,
+  areasConsumo,
+  conArea,
+  conTipoDeVale,
+  destinosTransferencia,
+  esDestinoConocido,
+  esTransferencia,
+  estadoDePasos,
+  faltaMaterial,
+  faltaParaAvanzar,
+  faltaParaQuien,
+  nombrePaso,
+  pasoDe,
+  textoObservaciones,
+} from "../src/servicios/pasosVale.js";
 import * as v from "../src/servicios/vales.js";
 import { Indices } from "../src/nucleo/estado.js";
 import { cargaSintetica } from "./ayuda.js";
@@ -80,4 +96,36 @@ test("el indicador: anteriores completos, el actual y los siguientes pendientes;
   b.lineas.push({ ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "1" });
   const [vale] = v.emitirBorrador(estado, b.id, { usuario: USUARIO });
   assert.equal("paso" in vale, false);
+});
+
+test("paso 1: áreas de consumo, destinos de transferencia sin el RIG propio y cambiar de tipo empieza de cero", () => {
+  const { estado } = cargaSintetica();
+  assert.deepEqual(areasConsumo(estado).map((a) => a.nombre), ["SOLDADOR", "MECANICO", "NOV"]);
+  assert.equal(areaTransferencia(estado).nombre, "TRANSFERENCIAS");
+  assert.deepEqual(destinosTransferencia(), ["RIG 48", "RIG 90", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
+  assert.deepEqual(destinosTransferencia("RIG 48"), ["RIG 90", "RIG 91", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
+  assert.equal(esDestinoConocido("rig  165"), true);
+  assert.equal(esDestinoConocido("POZO 7"), false);
+
+  const indices = new Indices(estado);
+  const sellos = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 706);
+  const b = v.nuevoBorrador(estado, { usuario: USUARIO, fecha: "2026-10-03" });
+  b.lineas.push({ ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "1" });
+  const mecanico = conArea(estado, b, area(estado, "MECANICO").id);
+  assert.equal(b.plantilla_area_id, null, "no cambia el original");
+  assert.deepEqual([mecanico.depto_destino, mecanico.recibio_nombre, mecanico.lineas.length], ["MECANICO", "MECANICO UNO", 1]);
+  assert.equal(esTransferencia(estado, mecanico), false);
+  // A transferencia: el área TRANSFERENCIAS sin destino (se elige); las partidas, fecha y etapa se quedan.
+  const t = conTipoDeVale(estado, { ...mecanico, etapa_perforacion: '8 1/2"' }, true);
+  assert.equal(esTransferencia(estado, t), true);
+  assert.deepEqual([t.plantilla_area_id, t.destino, t.naturaleza, t.fecha, t.etapa_perforacion, t.lineas.length], [area(estado, "TRANSFERENCIAS").id, "", "TRANSFERENCIA", "2026-10-03", '8 1/2"', 1]);
+  assert.deepEqual(campos(faltaParaQuien(estado, t)).map(([c]) => c).includes("depto_destino"), true);
+  assert.equal(faltaParaQuien(estado, t)[0].mensaje, "Falta el destino");
+  // De vuelta a consumo: sin área ni personas.
+  const c = conTipoDeVale(estado, { ...t, destino: "RIG 165" }, false);
+  assert.deepEqual([c.plantilla_area_id, c.destino, c.recibio_nombre, c.autorizo_nombre, c.naturaleza, c.lineas.length], [null, "", "", "", "CONSUMO", 1]);
+  assert.deepEqual(campos(faltaParaQuien(estado, c)), [["depto_destino", "Falta el área"], ["recibio_nombre", "Falta el nombre"]]);
+  // El pie del paso: de qué área salen las observaciones y con qué etapa.
+  assert.equal(textoObservaciones(estado, { ...mecanico, etapa_perforacion: '12 1/4"' }), 'Observaciones de MECANICO y etapa 12 1/4" se llenan solas.');
+  assert.equal(textoObservaciones(estado, b), "");
 });

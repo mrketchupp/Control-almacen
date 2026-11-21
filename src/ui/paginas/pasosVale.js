@@ -106,12 +106,16 @@ export function ResumenMaterial({ partidas, alEditar }) {
  * líneas, un botón o enlace, una lista de sugerencias abierta, o lo que el paso marcó con `data-sin-avanzar` (las
  * partidas, donde Enter pasa de un campo al siguiente). Un campo con sugerencias cerradas sí avanza.
  */
-export function enterParaAvanzar(e) {
+export function enterParaAvanzar(e, { abiertaAlPresionar = false } = {}) {
   if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return false;
   const t = e.target;
   if (!t || typeof t.closest !== "function") return false;
   if (t.closest("textarea, button, a, [role=option], [role=listbox], [data-sin-avanzar]")) return false;
-  if (t.getAttribute("aria-expanded") === "true") return false;
+  // La lista se cierra al elegir antes de que el Enter llegue aquí: cuenta cómo estaba al presionar (`enterAlBajar`).
+  if (abiertaAlPresionar || t.getAttribute("aria-expanded") === "true") return false;
   // Un combo cerrado también "usa" Enter (lo cancela), pero no hace nada con él: ese sí avanza.
   return !e.defaultPrevented || t.getAttribute("role") === "combobox";
 }
+
+/** Al bajar (fase de captura, antes que el campo): ¿el Enter llegó con una lista de sugerencias abierta? */
+export const enterAlBajar = (e) => e.key === "Enter" && e.target?.getAttribute?.("aria-expanded") === "true";

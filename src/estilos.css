@@ -8912,22 +8912,11 @@ button.mosaico:hover .mosaico-abrir {
   opacity: 0.85;
 }
 
-/* Paso 1 mientras llega su diseño propio (etapa 2): los bloques del editor en columnas. */
-.editor-vale.solo-datos,
 .editor-vale.solo-partidas {
   display: block;
 }
 
-.editor-vale.solo-datos > .vale-datos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  align-items: start;
-  gap: 16px 28px;
-  padding: 20px;
-  resize: none;
-}
-
-.campo .falta {
+.falta {
   color: var(--alerta);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -9106,5 +9095,286 @@ button.mosaico:hover .mosaico-abrir {
 @media (max-width: 700px) {
   .editor-vale.solo-partidas .tabla-partidas .c-clave {
     width: 136px;
+  }
+}
+
+/* ---------------------------------------------------------------- paso 1 · para quién (Ronda 34, §3) */
+
+.paso-quien {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.paso-quien-barra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.interruptor {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+}
+
+.interruptor button {
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.interruptor button[aria-checked="true"] {
+  background: var(--primario);
+  color: var(--sobre-primario);
+  font-weight: 600;
+}
+
+.fecha-vale {
+  position: relative;
+}
+
+.boton-fecha {
+  min-height: 44px;
+}
+
+.boton-fecha.fecha-distinta {
+  border-color: var(--alerta);
+  color: var(--alerta);
+}
+
+.fecha-oculta {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.paso-quien-mitades {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px;
+}
+
+.tarjeta-paso {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.tarjeta-paso h2 {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 700;
+}
+
+.columna-personas {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.rejilla-opciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.opcion-grande {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-corta) ease, background var(--dur-corta) ease;
+}
+
+.opcion-grande > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.opcion-grande:hover {
+  border-color: var(--primario);
+}
+
+.opcion-grande.elegida {
+  padding: 0 13px;
+  border: 2px solid var(--primario);
+  background: var(--primario-suave);
+  color: var(--primario);
+}
+
+.tecla-opcion {
+  flex-shrink: 0;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.persona-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.campo-grande > span:first-child {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.campo-grande input {
+  min-height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.tarjeta-persona .nota {
+  margin: 0;
+}
+
+.lista-personas {
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+}
+
+.lista-personas-titulo {
+  padding: 10px 14px;
+  background: var(--superficie-2);
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lista-personas ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-personas li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--borde);
+  background: var(--superficie);
+  cursor: pointer;
+}
+
+.lista-personas li:hover,
+.lista-personas li.marcado,
+.lista-personas li.elegida {
+  background: var(--primario-suave);
+}
+
+.lista-personas li.marcado {
+  box-shadow: inset 3px 0 0 var(--primario);
+}
+
+.persona-nombre {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--texto);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.persona-puesto {
+  flex-shrink: 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+.editor-etapa,
+.observaciones-transferencia {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.editor-etapa .campo,
+.observaciones-transferencia .campo {
+  flex: 1 1 260px;
+}
+
+.pie-observaciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* El botón para continuar siempre a la vista con las dos mitades (§3.3); apiladas, el pie va al final. */
+@media (min-width: 900px) {
+  .paso-vale-1 .pie-paso {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 12px 0;
+    background: linear-gradient(to top, var(--fondo) 80%, transparent);
+  }
+}
+
+/* Áreas como NOV, con varias firmas: la mitad derecha con su propio scroll. */
+@media (min-width: 900px) and (min-height: 700px) {
+  .columna-personas.varias {
+    max-height: calc(100vh - 330px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+}
+
+/* 700–899 px: el área arriba y la persona abajo (§8). */
+@media (max-width: 899px) {
+  .paso-quien-mitades {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .persona-campos {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

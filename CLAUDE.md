@@ -119,7 +119,16 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   UI `ui/paginas/pasosVale.js` (`PasosVale`, `BotonEditar`, `ResumenParaQuien`, `ResumenMaterial`, `enterParaAvanzar`) y
   `EditorVale({ seccion: "datos" | "partidas" | "fotos", faltan })` dentro de cada paso; *Descartar borrador* en la franja
   de pestañas y debajo «Partidas de la entrada E-0001 · Se guarda solo» (decisiones del usuario). Capturas de cada etapa en
-  `capturas/ronda-34/etapa-N/` (ignorada por git) con `CAPTURAS=… node --test tests/valePasos.navegador.mjs`.
+  `capturas/ronda-34/etapa-N/` (ignorada por git) con `CAPTURAS=… [CAPTURAS_FILTRO=^paso-1] node --test
+  tests/valePasos.navegador.mjs`. Etapa 2 (paso 1): `ui/paginas/paraQuien.js` (`PasoParaQuien`: interruptor *Consumo
+  interno* / *Enviar a otro RIG o pozo*, botón de fecha con `showPicker`, `RejillaOpciones` de áreas con teclas 1…0 y de
+  destinos, `TarjetaPersona` nombre + puesto con lista «Suelen recibir en…» como `listbox`, firmas extra de NOV, etapa y
+  observaciones de la transferencia en el pie fijo). Servicio: `DESTINOS_TRANSFERENCIA` (decisión del usuario: RIG 48, 90,
+  165, 256, BASE IXACHI, BASE MARIN; el `ORIGEN_EQUIPO` no se ofrece), `conTipoDeVale` (cambiar de tipo empieza de cero:
+  sin área ni destino), `conArea`, `areasConsumo`, `esTransferencia`, `textoObservaciones`; en transferencia falta el
+  *destino*. Sin área preseleccionada. Enter en el paso 3 emite (con la confirmación del folio); `enterAlBajar` (captura)
+  evita que el Enter que elige en una lista también avance. Pendiente para la etapa 3: ajuste `np_en_lote` (por omisión
+  apagado: el NP solo se muestra; decisión del usuario).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
