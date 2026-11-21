@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vale de salida · Paso 2 · Material</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1c2733;background:#f4f6f9}
+a{color:#1f4e8c}a:hover{color:#183f72}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="min-height: 900px; width: 100%; display: flex; flex-wrap: wrap; background: #f4f6f9">
+
+<nav aria-label="Principal" style="flex: 0 0 236px; background: #ffffff; border-right: 1px solid #dde3ea; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 4px 16px 8px">
+<div style="width: 32px; height: 32px; border-radius: 8px; background: #1f4e8c; flex-shrink: 0"></div>
+<div style="font-weight: 700; font-size: 15px; flex-grow: 1">Control de Almacén</div>
+<button type="button" aria-label="Contraer menú" title="Contraer menú (Ctrl + B)" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #5b6b7c; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="m16 15-3-3 3-3"></path></svg></button>
+</div>
+<a href="#" aria-current="page" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; background: #e6eef8; color: #1f4e8c; font-weight: 600"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 15V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Sacar material</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Recibir material<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px; white-space: nowrap">2 por ubicar</span></a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>Consultar</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg>Cierre del día<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px; white-space: nowrap">sin respaldo</span></a>
+<div style="flex-grow: 1"></div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #5b6b7c; font-size: 14px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg>Más</a>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+
+<ol aria-label="Pasos del vale" style="list-style: none; margin: 0; padding: 20px 32px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<li style="border-top: 4px solid #1d7a46; padding-top: 8px"><span style="font-size: 13px; font-weight: 600; color: #1d7a46">✓ 1 · Para quién</span></li>
+<li style="border-top: 4px solid #1f4e8c; padding-top: 8px"><span style="font-size: 13px; font-weight: 600; color: #1f4e8c">2 · Material</span></li>
+<li style="border-top: 4px solid #dde3ea; padding-top: 8px"><span style="font-size: 13px; font-weight: 600; color: #5b6b7c">3 · Revisar y emitir</span></li>
+</ol>
+
+<div style="flex-grow: 1; display: flex; flex-wrap: wrap; align-items: flex-start; padding: 16px 32px 28px; gap: 20px">
+
+<main style="flex: 3 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+
+<div style="display: flex; gap: 10px; align-items: stretch">
+<div style="display: flex; flex-direction: column; gap: 6px; width: 200px; flex-shrink: 0">
+<label for="alcance" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Buscar en</label>
+<select id="alcance" style="height: 60px; padding: 0 14px; border: 1px solid #dde3ea; border-radius: 12px; background: #ffffff; font: 600 16px Inter, sans-serif; color: #1c2733">
+<option>Todo</option>
+<option>Solo código</option>
+<option>Solo descripción</option>
+<option>Dimensión o NP</option>
+</select>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1; min-width: 0">
+<label for="q" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Siguiente material · código, descripción, dimensión o NP</label>
+<input id="q" value="foco led" style="height: 60px; padding: 0 18px; border: 2px solid #1f4e8c; border-radius: 12px; font: 500 20px Inter, sans-serif; color: #1c2733; outline: none; box-shadow: 0 0 0 4px rgba(31, 78, 140, 0.14)">
+</div>
+</div>
+
+<section aria-label="Resultados" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 14px 18px; border-bottom: 1px solid #eef1f5">
+<div style="font-size: 16px; font-weight: 600"><span style="color: #5b6b7c; font-weight: 500">711</span> · FOCO LED</div>
+<div style="font-size: 13px; color: #5b6b7c">3 claves · el NP las distingue</div>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 80px 44px; gap: 16px; padding: 8px 18px; font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em; background: #f8fafc">
+<span>Dimensión</span><span>NP</span><span>Contenedor</span><span>Hay</span><span></span>
+</div>
+<div role="listbox" aria-label="Claves de 711" style="display: flex; flex-direction: column">
+<sc-for list="{{ resultados }}" as="r" hint-placeholder-count="3">
+<div role="option" aria-selected="{{ r.sel }}" style="{{ r.estilo }}">
+<span style="font: 600 18px 'JetBrains Mono', monospace; color: #1c2733; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ r.clave }}</span>
+<span style="font: 600 18px 'JetBrains Mono', monospace; color: #1c2733; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ r.np }}</span>
+<span style="font-size: 14px; color: #5b6b7c; display: flex; flex-direction: column; gap: 2px">{{ r.cont }}<sc-if value="{{ r.ultima }}" hint-placeholder-val="{{ false }}"><span style="font-size: 12px; font-weight: 600; color: #1d7a46">La última de Mecánico</span></sc-if></span>
+<span style="font-size: 15px"><strong>{{ r.exist }}</strong> PZA</span>
+<button type="button" aria-label="{{ r.aria }}" title="Agregar al vale" style="width: 40px; height: 40px; border-radius: 10px; border: none; background: #1f4e8c; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; gap: 18px; flex-wrap: wrap; padding: 12px 18px; background: #f8fafc; border-top: 1px solid #eef1f5; font-size: 13px; color: #5b6b7c">
+<span><strong style="color: #1c2733">+</strong> o <strong style="color: #1c2733">doble clic</strong> agrega</span>
+<span><strong style="color: #1c2733">↑ ↓ Enter</strong> agrega la resaltada</span>
+<span><strong style="color: #1c2733">Shift + Enter</strong> agrega y vas a su cantidad</span>
+</div>
+</section>
+
+<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+<span style="font-size: 14px; color: #5b6b7c">¿Es material que acabas de recibir?</span>
+<button type="button" style="height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; font: 600 14px Inter, sans-serif; color: #1c2733">Traer partidas de E-0005 · hoy · 14</button>
+<button type="button" style="height: 40px; padding: 0 14px; border-radius: 8px; border: 1px dashed #dde3ea; background: #ffffff; font: 500 14px Inter, sans-serif; color: #5b6b7c">Otra entrada…</button>
+</div>
+</main>
+
+<aside aria-label="Vale en curso" style="flex: 2 1 400px; min-width: 0; height: 780px; background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden">
+
+<section aria-labelledby="t-resumen" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 id="t-resumen" style="margin: 0; font-size: 15px; font-weight: 700">Para quién</h2>
+<a href="V2Quien.dc.html" aria-label="Editar para quién" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #b9c9de; background: #f1f5fb; color: #1f4e8c; font: 600 14px Inter, sans-serif; text-decoration: none; display: inline-flex; align-items: center; gap: 6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Editar</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px">
+<div><div style="font-size: 12px; color: #5b6b7c">Área</div><div style="font-size: 15px; font-weight: 600">Mecánico</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Recibe</div><div style="font-size: 15px; font-weight: 600">Mecánico Uno</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Puesto</div><div style="font-size: 15px; font-weight: 600">Mecánico</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Fecha</div><div style="font-size: 15px; font-weight: 600">Hoy · 20 nov</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Entrega</div><div style="font-size: 15px; font-weight: 600">Almacenista Uno</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Folio</div><div style="font-size: 15px; font-weight: 600">10 <span style="font-weight: 400; color: #5b6b7c; font-size: 12px">al emitir</span></div></div>
+</div>
+</section>
+
+<div style="height: 1px; background: #dde3ea; margin: 0 20px"></div>
+
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 14px 20px 6px">
+<h2 style="margin: 0; font-size: 15px; font-weight: 700">Partidas · 6</h2>
+<span style="font-size: 12px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 3px 10px; border-radius: 99px">2 sin cantidad</span>
+</div>
+
+<ol aria-label="Partidas del vale" style="list-style: none; margin: 0; padding: 0 20px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column">
+<sc-for list="{{ partidas }}" as="p" hint-placeholder-count="6">
+<li style="display: flex; align-items: flex-start; gap: 8px; padding: 12px 0; border-bottom: 1px solid #f4f6f9">
+<span style="width: 16px; font-size: 12px; color: #5b6b7c; flex-shrink: 0">{{ p.n }}</span>
+<div style="flex-grow: 1; min-width: 0" title="{{ p.titulo }}">
+<div style="font: 600 15px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.clave }}<sc-if value="{{ p.np }}" hint-placeholder-val="{{ false }}"><span style="font-weight: 500; color: #5b6b7c"> · NP {{ p.np }}</span></sc-if></div>
+<div style="font-size: 12px; color: #5b6b7c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.cod }} · {{ p.desc }}</div>
+<div style="font-size: 12px; color: #5b6b7c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.cont }}</div>
+<div style="display: flex; align-items: center; gap: 8px; margin-top: 6px"><label for="{{ p.idLote }}" style="font-size: 12px; font-weight: 600; color: #5b6b7c; width: 34px">Lote</label><input id="{{ p.idLote }}" value="{{ p.lote }}" placeholder="opcional" style="flex-grow: 1; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid #dde3ea; border-radius: 6px; font: 500 13px Inter, sans-serif; color: #1c2733; background: #f8fafc"></div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0">
+<label for="{{ p.id }}" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Cantidad</label>
+<input id="{{ p.id }}" value="{{ p.cant }}" placeholder="Cant." style="{{ p.estiloCant }}">
+<span style="font-size: 11px; color: #5b6b7c">{{ p.um }}</span>
+</div>
+<button type="button" aria-label="Editar partida" title="Editar: la pasa al buscador" style="width: 30px; height: 30px; border: none; background: transparent; color: #1f4e8c; border-radius: 6px; flex-shrink: 0"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+<button type="button" aria-label="Quitar partida" style="width: 30px; height: 30px; border: none; background: transparent; color: #5b6b7c; font-size: 18px; border-radius: 6px; flex-shrink: 0">×</button>
+</li>
+</sc-for>
+</ol>
+
+<div style="padding: 14px 20px 18px; border-top: 1px solid #eef1f5; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 12px; color: #5b6b7c">Tab salta entre cantidades · pasa el cursor sobre una partida para ver su descripción completa · cabe en 1 hoja (21)</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<a href="V2Quien.dc.html" style="height: 50px; border-radius: 10px; border: 2px solid #1f4e8c; color: #1f4e8c; font: 600 15px Inter, sans-serif; text-decoration: none; display: flex; align-items: center; justify-content: center">← Para quién</a>
+<a href="V2Emitir.dc.html" style="height: 50px; border-radius: 10px; background: #1f4e8c; color: #ffffff; font: 600 15px Inter, sans-serif; text-decoration: none; display: flex; align-items: center; justify-content: center">Revisar y emitir →</a>
+</div>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const fila = 'display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 80px 44px; gap: 16px; align-items: center; padding: 14px 18px; border-top: 1px solid #eef1f5; cursor: pointer; user-select: none';
+    const cantOk = 'width: 62px; height: 38px; border: 1px solid #dde3ea; border-radius: 8px; padding: 0 8px; font: 700 16px Inter, sans-serif; text-align: right';
+    const cantFalta = 'width: 62px; height: 38px; border: 2px solid #d08a1c; background: #fff9ef; border-radius: 8px; padding: 0 8px; font: 700 16px Inter, sans-serif; text-align: right';
+    const resultados = [
+      { clave: 'S/D', np: 'LED 20W', cont: 'Contenedor #2 · Inv.', exist: 4, ultima: true, sel: true },
+      { clave: 'SIN DIMENSION', np: 'LED 50W', cont: 'Contenedor #2 · Inv.', exist: 3, ultima: false, sel: false },
+      { clave: 'S/N', np: 'X100', cont: 'Contenedor #2 · Inv.', exist: 0, ultima: false, sel: false }
+    ];
+    const partidas = [
+      { n: 1, id: 'c1', cod: 702, desc: 'FILTROS', clave: 'P551317', np: '', cont: 'C1 Cons. · hay 21', lote: '', cant: '2', um: 'PZA', ok: true },
+      { n: 2, id: 'c2', cod: 707, desc: 'VALVULA (INVENTARIABLE-REFACCIONES)', clave: 'MARIPOSA 4"', np: '', cont: 'C1 Inv. · hay 4', lote: '', cant: '1', um: 'PZA', ok: true },
+      { n: 3, id: 'c3', cod: 704, desc: 'EMPAQUE', clave: '6"', np: 'FLEXITALIC', cont: 'C1 Cons. · hay 65', lote: 'NUEVO', cant: '1', um: 'PZA', ok: true },
+      { n: 4, id: 'c4', cod: 136, desc: 'SUMINISTRO DE DIESEL Y COMBUSTIBLE', clave: 'DIESEL', np: '', cont: 'Sin existencia · no descuenta', lote: '', cant: '200', um: 'LTS', ok: true },
+      { n: 5, id: 'c5', cod: 706, desc: 'SELLOS', clave: '555001', np: '', cont: 'C1 Inv. · hay 1', lote: '', cant: '', um: 'PZA', ok: false },
+      { n: 6, id: 'c6', cod: 711, desc: 'FOCO LED', clave: 'S/D', np: 'LED 20W', cont: 'C2 Inv. · hay 4', lote: '', cant: '', um: 'PZA', ok: false }
+    ];
+    return {
+      resultados: resultados.map((r) => ({ ...r, aria: 'Agregar ' + r.clave + ' ' + r.np, estilo: fila + (r.sel ? '; background: #e6eef8' : '; background: #ffffff') })),
+      partidas: partidas.map((p) => ({ ...p, idLote: p.id + 'l', titulo: p.cod + ' · ' + p.desc + ' · ' + p.clave + (p.np ? ' · NP ' + p.np : ''), estiloCant: p.ok ? cantOk : cantFalta }))
+    };
+  }
+}
+</script>
+</body>
+</html>

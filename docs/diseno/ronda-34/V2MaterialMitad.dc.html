@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vale de salida · Paso 2 · Media pantalla</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1c2733;background:#f4f6f9}
+a{color:#1f4e8c}a:hover{color:#183f72}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="height: 760px; width: 100%; display: flex; background: #f4f6f9; overflow: hidden">
+<nav aria-label="Principal" style="flex: 0 0 64px; background: #ffffff; border-right: 1px solid #dde3ea; padding: 12px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px">
+<button type="button" aria-label="Expandir menú" title="Expandir menú (Ctrl + B)" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #5b6b7c; display: flex; align-items: center; justify-content: center; margin-bottom: 8px"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="m14 9 3 3-3 3"></path></svg></button>
+<a href="#" aria-current="page" aria-label="Sacar material" title="Sacar material" style="position: relative; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-decoration: none; background: #e6eef8; color: #1f4e8c"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 15V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg></a>
+<a href="#" aria-label="Recibir material, 2 por ubicar" title="Recibir material · 2 por ubicar" style="position: relative; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: #d08a1c; border: 2px solid #ffffff"></span></a>
+<a href="#" aria-label="Consultar" title="Consultar" style="position: relative; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></a>
+<a href="#" aria-label="Cierre del día, sin respaldo" title="Cierre del día · sin respaldo" style="position: relative; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg><span aria-hidden="true" style="position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-radius: 50%; background: #d08a1c; border: 2px solid #ffffff"></span></a>
+<div style="flex-grow: 1"></div>
+<a href="#" aria-label="Más" title="Más" style="position: relative; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #5b6b7c"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg></a>
+</nav>
+<div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding: 14px 16px 16px; gap: 12px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<div style="font-size: 13px; font-weight: 600; color: #1f4e8c">Paso 2 de 3 · Material</div>
+<div aria-hidden="true" style="display: flex; gap: 4px"><span style="width: 28px; height: 4px; border-radius: 2px; background: #1d7a46"></span><span style="width: 28px; height: 4px; border-radius: 2px; background: #1f4e8c"></span><span style="width: 28px; height: 4px; border-radius: 2px; background: #dde3ea"></span></div>
+</div>
+
+<div style="flex-grow: 1; min-height: 0; display: flex; gap: 12px">
+
+<main style="flex: 1.25 1 0; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; gap: 6px">
+<label for="alc" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Buscar en</label>
+<select id="alc" style="width: 104px; flex-shrink: 0; height: 48px; padding: 0 8px; border: 1px solid #dde3ea; border-radius: 10px; background: #ffffff; font: 600 14px Inter, sans-serif; color: #1c2733"><option>Todo</option><option>Código</option><option>Descripción</option><option>Dim. o NP</option></select>
+<label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Siguiente material</label>
+<input id="q" value="foco led" style="flex-grow: 1; min-width: 0; height: 48px; padding: 0 14px; border: 2px solid #1f4e8c; border-radius: 10px; font: 500 17px Inter, sans-serif; outline: none">
+</div>
+<section aria-label="Resultados" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; min-height: 0">
+<div style="padding: 10px 12px; border-bottom: 1px solid #eef1f5; font-size: 14px; font-weight: 600"><span style="color: #5b6b7c; font-weight: 500">711</span> · FOCO LED <span style="font-weight: 400; color: #5b6b7c; font-size: 12px">· 3 claves</span></div>
+<sc-for list="{{ resultados }}" as="r" hint-placeholder-count="3">
+<div style="{{ r.estilo }}">
+<div style="flex-grow: 1; min-width: 0">
+<div style="font: 600 15px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ r.clave }} <span style="color: #5b6b7c">· NP {{ r.np }}</span></div>
+<div style="font-size: 12px; color: #5b6b7c">{{ r.cont }} · hay <strong style="color: #1c2733">{{ r.exist }}</strong></div>
+</div>
+<button type="button" aria-label="{{ r.aria }}" style="width: 38px; height: 38px; flex-shrink: 0; border-radius: 9px; border: none; background: #1f4e8c; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+</div>
+</sc-for>
+<div style="padding: 8px 12px; background: #f8fafc; border-top: 1px solid #eef1f5; font-size: 12px; color: #5b6b7c">+, doble clic o Enter agrega</div>
+</section>
+<button type="button" style="height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; font: 600 13px Inter, sans-serif; color: #1c2733; text-align: left">Traer partidas de material recibido…</button>
+</main>
+
+<aside aria-label="Vale en curso" style="flex: 1 1 0; min-width: 0; background: #ffffff; border: 1px solid #dde3ea; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden">
+<div style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #dde3ea">
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Mecánico · Mecánico Uno</div>
+<div style="font-size: 12px; color: #5b6b7c">Mecánico · hoy · folio 10</div>
+</div>
+<a href="V2Quien.dc.html" aria-label="Editar para quién" title="Editar para quién" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; border: 1px solid #b9c9de; background: #f1f5fb; color: #1f4e8c; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></a>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 2px">
+<span style="font-size: 14px; font-weight: 700">Partidas · 6</span>
+<span style="font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px">2 sin cant.</span>
+</div>
+<ol aria-label="Partidas del vale" style="list-style: none; margin: 0; padding: 0 12px; flex-grow: 1; overflow-y: auto">
+<sc-for list="{{ partidas }}" as="p" hint-placeholder-count="6">
+<li style="display: flex; gap: 8px; padding: 9px 0; border-bottom: 1px solid #f4f6f9" title="{{ p.titulo }}">
+<div style="flex-grow: 1; min-width: 0">
+<div style="font: 600 13px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.clave }}</div>
+<div style="font-size: 11px; color: #5b6b7c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.cod }} · {{ p.desc }}</div>
+<div style="display: flex; align-items: center; gap: 6px; margin-top: 5px"><label for="{{ p.idLote }}" style="font-size: 11px; font-weight: 600; color: #5b6b7c">Lote</label><input id="{{ p.idLote }}" value="{{ p.lote }}" placeholder="opcional" style="flex-grow: 1; min-width: 0; height: 26px; padding: 0 8px; border: 1px solid #dde3ea; border-radius: 6px; font: 500 12px Inter, sans-serif; background: #f8fafc"></div>
+</div>
+<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0">
+<label for="{{ p.id }}" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Cantidad</label>
+<input id="{{ p.id }}" value="{{ p.cant }}" placeholder="Cant." style="{{ p.estiloCant }}">
+<div style="display: flex; gap: 2px">
+<button type="button" aria-label="Editar partida" style="width: 26px; height: 26px; border: none; background: transparent; color: #1f4e8c; border-radius: 6px; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+<button type="button" aria-label="Quitar partida" style="width: 26px; height: 26px; border: none; background: transparent; color: #5b6b7c; font-size: 16px; border-radius: 6px">×</button>
+</div>
+</div>
+</li>
+</sc-for>
+</ol>
+<div style="padding: 10px 12px; border-top: 1px solid #eef1f5; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 8px">
+<a href="V2Quien.dc.html" style="height: 44px; border-radius: 9px; border: 2px solid #1f4e8c; color: #1f4e8c; font: 600 14px Inter, sans-serif; text-decoration: none; display: flex; align-items: center; justify-content: center">← Atrás</a>
+<a href="V2Emitir.dc.html" style="height: 44px; border-radius: 9px; background: #1f4e8c; color: #ffffff; font: 600 14px Inter, sans-serif; text-decoration: none; display: flex; align-items: center; justify-content: center">Revisar →</a>
+</div>
+</aside>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":768,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const fila = 'display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid #eef1f5';
+    const cantOk = 'width: 54px; height: 34px; border: 1px solid #dde3ea; border-radius: 7px; padding: 0 8px; font: 700 15px Inter, sans-serif; text-align: right';
+    const cantFalta = 'width: 54px; height: 34px; border: 2px solid #d08a1c; background: #fff9ef; border-radius: 7px; padding: 0 8px; font: 700 15px Inter, sans-serif; text-align: right';
+    const res = [
+      { clave: 'S/D', np: 'LED 20W', cont: 'C2 Inv.', exist: 4, sel: true },
+      { clave: 'SIN DIMENSION', np: 'LED 50W', cont: 'C2 Inv.', exist: 3, sel: false },
+      { clave: 'S/N', np: 'X100', cont: 'C2 Inv.', exist: 0, sel: false }
+    ];
+    const par = [
+      { id: 'm1', cod: 702, desc: 'FILTROS', clave: 'P551317', lote: '', cant: '2', ok: true },
+      { id: 'm2', cod: 707, desc: 'VALVULA (INVENTARIABLE-REFACCIONES)', clave: 'MARIPOSA 4"', lote: '', cant: '1', ok: true },
+      { id: 'm3', cod: 704, desc: 'EMPAQUE', clave: '6" · NP FLEXITALIC', lote: 'NUEVO', cant: '1', ok: true },
+      { id: 'm4', cod: 136, desc: 'SUMINISTRO DE DIESEL Y COMBUSTIBLE', clave: 'DIESEL', lote: '', cant: '200', ok: true },
+      { id: 'm5', cod: 706, desc: 'SELLOS', clave: '555001', lote: '', cant: '', ok: false },
+      { id: 'm6', cod: 711, desc: 'FOCO LED', clave: 'S/D · NP LED 20W', lote: '', cant: '', ok: false }
+    ];
+    return {
+      resultados: res.map((r) => ({ ...r, aria: 'Agregar ' + r.clave + ' ' + r.np, estilo: fila + (r.sel ? '; background: #e6eef8' : '; background: #ffffff') })),
+      partidas: par.map((p) => ({ ...p, idLote: p.id + 'l', titulo: p.cod + ' · ' + p.desc + ' · ' + p.clave, estiloCant: p.ok ? cantOk : cantFalta }))
+    };
+  }
+}
+</script>
+</body>
+</html>

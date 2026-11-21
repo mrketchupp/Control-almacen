@@ -43,3 +43,6 @@ desktop.ini
 .idea/
 ~$*
 *.egg-info/
+
+# Capturas de pantalla para revisar cada etapa (no se suben)
+capturas/

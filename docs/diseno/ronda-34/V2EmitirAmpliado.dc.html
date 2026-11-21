@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vale de salida · Vista previa ampliada</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1c2733;background:#1c2733}
+a{color:#1f4e8c}a:hover{color:#183f72}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div role="dialog" aria-modal="true" aria-labelledby="t-vista" style="height: 900px; width: 100%; display: flex; flex-direction: column; background: #2b3542">
+
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 24px; background: #1c2733; color: #ffffff">
+<div style="display: flex; align-items: baseline; gap: 14px">
+<h1 id="t-vista" style="margin: 0; font-size: 17px; font-weight: 700">Vista previa del vale</h1>
+<span style="font-size: 14px; color: #c6d0dc">Mecánico · Mecánico Uno · 6 partidas · folio 10 al emitir</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<button type="button" aria-label="Alejar" style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #4a5868; background: transparent; color: #ffffff; font-size: 18px">−</button>
+<span style="min-width: 56px; text-align: center; font-size: 14px; font-weight: 600">125%</span>
+<button type="button" aria-label="Acercar" style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #4a5868; background: transparent; color: #ffffff; font-size: 18px">+</button>
+<button type="button" style="height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid #4a5868; background: transparent; color: #ffffff; font: 500 14px Inter, sans-serif">Ajustar al ancho</button>
+<a href="V2Emitir.dc.html" aria-label="Cerrar vista previa" style="width: 38px; height: 38px; border-radius: 8px; color: #ffffff; text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-left: 8px">×</a>
+</div>
+</div>
+
+<div style="flex-grow: 1; overflow: auto; padding: 28px 24px; display: flex; justify-content: center">
+<article aria-label="Vale impreso" style="width: 900px; flex-shrink: 0; background: #ffffff; box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35); padding: 36px 40px; display: flex; flex-direction: column; gap: 14px; font-size: 13px; color: #1c2733">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="width: 140px; height: 48px; background: #eef1f5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #5b6b7c; font-size: 12px">[LOGO ALMACÉN]</div>
+<div style="text-align: right">
+<div style="font-size: 18px; font-weight: 700">VALE DE SALIDA</div>
+<div style="font-size: 13px">Folio <strong style="color: #b42318">BORRADOR</strong> · Fecha 20/11/2026</div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; background: #fff1a8; color: #3d3200; padding: 12px 14px; font-size: 13px">
+<span><strong>Origen:</strong> EQUIPO · ALMACÉN</span><span><strong>Depto. origen:</strong> ALMACÉN</span>
+<span><strong>Destino:</strong> EQUIPO · MECÁNICO</span><span><strong>Depto. destino:</strong> MECÁNICO</span>
+</div>
+<table style="width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed">
+<thead>
+<tr style="background: #fff1a8; color: #3d3200; text-align: left">
+<th style="padding: 6px; border: 1px solid #d9c96a; width: 60px">O.C.</th>
+<th style="padding: 6px; border: 1px solid #d9c96a; width: 52px">CANT.</th>
+<th style="padding: 6px; border: 1px solid #d9c96a; width: 58px">CÓDIGO</th>
+<th style="padding: 6px; border: 1px solid #d9c96a; background: #fbd3b0">DESCRIPCIÓN</th>
+<th style="padding: 6px; border: 1px solid #d9c96a; width: 150px">CLAVE ALMACÉN</th>
+<th style="padding: 6px; border: 1px solid #d9c96a; width: 62px">PRES.</th>
+<th style="padding: 6px; border: 1px solid #d9c96a; width: 80px">LOTE</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{ filas }}" as="f" hint-placeholder-count="21">
+<tr style="height: 24px">
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec">{{ f.oc }}</td>
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec; text-align: right">{{ f.cant }}</td>
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec">{{ f.cod }}</td>
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec">{{ f.desc }}</td>
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec">{{ f.clave }}</td>
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec">{{ f.um }}</td>
+<td style="padding: 3px 6px; border: 1px solid #e3e7ec">{{ f.lote }}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<div style="border: 1px solid #e3e7ec; padding: 10px 12px; font-size: 12px; color: #5b6b7c"><strong style="color: #1c2733">Observaciones:</strong> [Texto fijo de Mecánico] · Etapa de perforación 8 1/2"</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 60px; padding-top: 40px; text-align: center; font-size: 12px">
+<div style="border-top: 1px solid #1c2733; padding-top: 6px"><strong>ENTREGÓ</strong><br>ALMACENISTA UNO · ALMACENISTA</div>
+<div style="border-top: 1px solid #1c2733; padding-top: 6px"><strong>RECIBIÓ</strong><br>LUIS HERNÁNDEZ · MECÁNICO</div>
+</div>
+</article>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 24px; background: #ffffff; border-top: 1px solid #dde3ea">
+<span style="font-size: 14px; color: #1d7a46; font-weight: 600">✓ Todo listo · justificación de SELLOS escrita</span>
+<div style="display: flex; gap: 12px">
+<a href="V2Emitir.dc.html" style="height: 50px; padding: 0 22px; border-radius: 10px; border: 2px solid #1f4e8c; color: #1f4e8c; font: 600 15px Inter, sans-serif; text-decoration: none; display: flex; align-items: center">← Seguir revisando</a>
+<button type="button" style="height: 50px; padding: 0 30px; border-radius: 10px; border: none; background: #1f4e8c; color: #ffffff; font: 600 16px Inter, sans-serif">Emitir vale · folio 10</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const llenas = [
+      { oc: 'S/OC', cant: 2, cod: 702, desc: 'FILTROS', clave: 'P551317', um: 'PZA', lote: '' },
+      { oc: 'S/OC', cant: 1, cod: 707, desc: 'VALVULA (INVENTARIABLE-REFACCIONES)', clave: 'MARIPOSA 4"', um: 'PZA', lote: '' },
+      { oc: '11536', cant: 1, cod: 704, desc: 'EMPAQUE', clave: '6" FLEXITALIC', um: 'PZA', lote: 'NUEVO' },
+      { oc: 'S/OC', cant: 200, cod: 136, desc: 'SUMINISTRO DE DIESEL Y COMBUSTIBLE', clave: 'DIESEL', um: 'LTS', lote: '' },
+      { oc: 'S/OC', cant: 2, cod: 706, desc: 'SELLOS', clave: '555001', um: 'PZA', lote: '' },
+      { oc: 'S/OC', cant: 1, cod: 711, desc: 'FOCO LED', clave: 'S/D LED 20W', um: 'PZA', lote: '' }
+    ];
+    const vacia = { oc: '', cant: '', cod: '', desc: '', clave: '', um: '', lote: '' };
+    const filas = llenas.concat(Array.from({ length: 21 - llenas.length }, () => vacia));
+    return { filas };
+  }
+}
+</script>
+</body>
+</html>

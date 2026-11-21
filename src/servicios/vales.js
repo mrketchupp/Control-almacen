@@ -322,6 +322,8 @@ export function nuevoBorrador(estado, { usuario = null, plantillaId = null, fech
     naturaleza: "CONSUMO",
     fotos: [],
     lineas: [],
+    // Ronda 34: en qué paso se quedó (1 · Para quién, 2 · Material, 3 · Revisar y emitir); no pasa al vale emitido.
+    paso: 1,
   };
   if (plantillaId) aplicarPlantilla(estado, borrador, plantillaId);
   estado.borradores.push(borrador);

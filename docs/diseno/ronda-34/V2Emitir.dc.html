@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vale de salida · Paso 3 · Revisar y emitir</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1c2733;background:#f4f6f9}
+a{color:#1f4e8c}a:hover{color:#183f72}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="min-height: 900px; width: 100%; display: flex; flex-wrap: wrap; background: #f4f6f9">
+
+<nav aria-label="Principal" style="flex: 0 0 236px; background: #ffffff; border-right: 1px solid #dde3ea; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 4px 16px 8px">
+<div style="width: 32px; height: 32px; border-radius: 8px; background: #1f4e8c; flex-shrink: 0"></div>
+<div style="font-weight: 700; font-size: 15px; flex-grow: 1">Control de Almacén</div>
+<button type="button" aria-label="Contraer menú" title="Contraer menú (Ctrl + B)" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #5b6b7c; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="m16 15-3-3 3-3"></path></svg></button>
+</div>
+<a href="#" aria-current="page" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; background: #e6eef8; color: #1f4e8c; font-weight: 600"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 15V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Sacar material</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Recibir material<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px; white-space: nowrap">2 por ubicar</span></a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>Consultar</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg>Cierre del día<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px; white-space: nowrap">sin respaldo</span></a>
+<div style="flex-grow: 1"></div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #5b6b7c; font-size: 14px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg>Más</a>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+
+<ol aria-label="Pasos del vale" style="list-style: none; margin: 0; padding: 20px 32px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<li style="border-top: 4px solid #1d7a46; padding-top: 10px"><span style="font-size: 13px; font-weight: 600; color: #1d7a46">✓ 1 · Para quién</span></li>
+<li style="border-top: 4px solid #1d7a46; padding-top: 10px"><span style="font-size: 13px; font-weight: 600; color: #1d7a46">✓ 2 · Material</span></li>
+<li style="border-top: 4px solid #1f4e8c; padding-top: 10px"><span style="font-size: 13px; font-weight: 600; color: #1f4e8c">3 · Revisar y emitir</span></li>
+</ol>
+
+<div style="flex-grow: 1; display: flex; flex-wrap: wrap; align-items: flex-start; padding: 18px 32px 32px; gap: 20px">
+
+<main style="flex: 3 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<section aria-labelledby="t-pendiente" style="background: #fff4e0; border: 1px solid #e7c48a; border-radius: 12px; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 id="t-pendiente" style="margin: 0; font-size: 16px; font-weight: 700; color: #6b3d00">Falta 1 cosa antes de emitir</h2>
+<label for="just" style="font-size: 14px; color: #1c2733">SELLOS 555001: sacas 2 y el inventario dice que hay 1. ¿Por qué?</label>
+<input id="just" placeholder="Ej. llegaron con la entrada E-0005, aún sin ubicar" style="height: 44px; padding: 0 14px; border: 1px solid #e7c48a; border-radius: 8px; font: 500 15px Inter, sans-serif; background: #ffffff">
+</section>
+
+<section aria-labelledby="t-quien" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; padding: 18px 20px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+<div style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center">
+<h2 id="t-quien" style="margin: 0; font-size: 16px; font-weight: 700">Para quién</h2>
+<a href="V2Quien.dc.html" aria-label="Editar para quién" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #b9c9de; background: #f1f5fb; color: #1f4e8c; font: 600 14px Inter, sans-serif; text-decoration: none; display: inline-flex; align-items: center; gap: 6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Editar</a>
+</div>
+<div><div style="font-size: 12px; color: #5b6b7c">Área</div><div style="font-size: 15px; font-weight: 600">Mecánico</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Recibe</div><div style="font-size: 15px; font-weight: 600">Mecánico Uno</div><div style="font-size: 12px; color: #5b6b7c">Mecánico</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Entrega</div><div style="font-size: 15px; font-weight: 600">Almacenista Uno</div></div>
+<div><div style="font-size: 12px; color: #5b6b7c">Fecha</div><div style="font-size: 15px; font-weight: 600">20 nov 2026</div></div>
+</section>
+
+<section aria-labelledby="t-mat" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 id="t-mat" style="margin: 0; font-size: 16px; font-weight: 700">Material · 6 partidas</h2>
+<a href="V2Material.dc.html" aria-label="Editar material" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #b9c9de; background: #f1f5fb; color: #1f4e8c; font: 600 14px Inter, sans-serif; text-decoration: none; display: inline-flex; align-items: center; gap: 6px"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Editar</a>
+</div>
+<sc-for list="{{ partidas }}" as="p" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 70px minmax(0, 1fr) minmax(0, 1.2fr) 110px; gap: 14px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #f4f6f9; font-size: 14px" title="{{ p.titulo }}">
+<span style="font-weight: 700">{{ p.cant }} {{ p.um }}</span>
+<span style="font: 600 14px 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.clave }}{{ p.npTxt }}</span>
+<span style="color: #5b6b7c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.cod }} · {{ p.desc }}</span>
+<span style="color: #5b6b7c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.loteTxt }}</span>
+</div>
+</sc-for>
+</section>
+</main>
+
+<aside aria-labelledby="t-impreso" style="flex: 2 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<h2 id="t-impreso" style="margin: 0; font-size: 16px; font-weight: 700">Así saldrá impreso</h2>
+<a href="V2EmitirAmpliado.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #1f4e8c; color: #1f4e8c; font: 600 14px Inter, sans-serif; text-decoration: none; display: flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>Ampliar</a>
+</div>
+<a href="V2EmitirAmpliado.dc.html" aria-label="Ampliar vista previa" style="display: block; text-decoration: none; color: inherit; cursor: zoom-in"><div style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 4px; box-shadow: 0 8px 24px rgba(16, 24, 40, 0.10); padding: 22px; aspect-ratio: 8.5 / 11; display: flex; flex-direction: column; gap: 10px; font-size: 10px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="width: 70px; height: 26px; background: #eef1f5; border-radius: 3px; display: flex; align-items: center; justify-content: center; color: #5b6b7c">[LOGO]</div>
+<div style="font-weight: 700; font-size: 12px">VALE DE SALIDA · <span style="color: #b42318">BORRADOR</span></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; background: #fff1a8; padding: 8px; color: #3d3200">
+<span>Origen: EQUIPO · ALMACÉN</span><span>Destino: EQUIPO · MECÁNICO</span>
+<span>Fecha: 20/11/2026</span><span>Folio: se asigna al emitir</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 3px">
+<sc-for list="{{ partidas }}" as="p" hint-placeholder-count="6">
+<div style="display: flex; gap: 8px; border-bottom: 1px solid #eef1f5; padding: 2px 0"><span style="width: 22px">{{ p.cant }}</span><span style="flex-grow: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ p.desc }}</span><span style="white-space: nowrap">{{ p.clave }}</span></div>
+</sc-for>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; text-align: center; color: #5b6b7c">
+<div style="border-top: 1px solid #1c2733; padding-top: 4px">Entregó · Almacenista Uno</div>
+<div style="border-top: 1px solid #1c2733; padding-top: 4px">Recibió · Mecánico Uno</div>
+</div>
+</div></a>
+<button type="button" disabled style="height: 56px; border-radius: 10px; border: none; background: #9fb3cf; color: #ffffff; font: 600 17px Inter, sans-serif">Emitir vale · folio 10</button>
+<div style="font-size: 13px; color: #5b6b7c; text-align: center">Se habilita al escribir la justificación. Al emitir se asigna el folio y se abre la impresión.</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const lista = [
+      { cant: 2, um: 'PZA', cod: 702, desc: 'FILTROS', clave: 'P551317', np: '', lote: '' },
+      { cant: 1, um: 'PZA', cod: 707, desc: 'VALVULA (INVENTARIABLE-REFACCIONES)', clave: 'MARIPOSA 4"', np: '', lote: '' },
+      { cant: 1, um: 'PZA', cod: 704, desc: 'EMPAQUE', clave: '6"', np: 'FLEXITALIC', lote: 'NUEVO' },
+      { cant: 200, um: 'LTS', cod: 136, desc: 'SUMINISTRO DE DIESEL Y COMBUSTIBLE', clave: 'DIESEL', np: '', lote: '' },
+      { cant: 2, um: 'PZA', cod: 706, desc: 'SELLOS', clave: '555001', np: '', lote: '' },
+      { cant: 1, um: 'PZA', cod: 711, desc: 'FOCO LED', clave: 'S/D', np: 'LED 20W', lote: '' }
+    ];
+    return {
+      partidas: lista.map((p) => ({ ...p, npTxt: p.np ? ' · NP ' + p.np : '', loteTxt: p.lote ? 'Lote ' + p.lote : 'sin lote', titulo: p.cod + ' · ' + p.desc + ' · ' + p.clave + (p.np ? ' · NP ' + p.np : '') }))
+    };
+  }
+}
+</script>
+</body>
+</html>

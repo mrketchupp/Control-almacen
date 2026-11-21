@@ -144,6 +144,7 @@ test("corregir la descripción de un código desde el inventario, la corrección
     const sellos = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 706);
     const borrador = v.nuevoBorrador(estado, { usuario: "ALMACENISTA UNO", plantillaId: mecanico.id, fecha: "2026-10-01" });
     borrador.lineas.push({ ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "1" });
+    borrador.paso = 2; // Ronda 34: las partidas se capturan en el paso 2
     const { page, leer, errores, externas, cerrar } = await abrir(estado);
     await page.goto(`${origen}/#vales`);
     await lapiz(page, 706).click();

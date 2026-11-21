@@ -22,6 +22,7 @@ import {
   lineaEnBlanco,
   lineaVacia,
   lineasCapturadas,
+  loteDeRenglon,
   nuevoBorrador,
   observacionesDelVale,
   opcionesDeClave,
@@ -35,6 +36,8 @@ import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { BotonDescripcion } from "./descripcion.js";
 import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
+import { PasosVale, ResumenMaterial, ResumenParaQuien, enterParaAvanzar } from "./pasosVale.js";
+import { faltaParaAvanzar, nombrePaso, pasoDe } from "../../servicios/pasosVale.js";
 
 // ---------------------------------------------------------------- utilidades
 
@@ -134,10 +137,11 @@ export function listas(estado) {
   };
 }
 
-export function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
-  return html`<label class=${`campo ${error ? "con-error" : ""} ${clase}`}>
+export function Campo({ etiqueta, error, children, ayuda, clase = "", falta = null }) {
+  return html`<label class=${`campo ${error ? "con-error" : ""} ${falta ? "con-falta" : ""} ${clase}`}>
     <span>${etiqueta}</span>
     ${children}
+    ${falta ? html`<small class="falta">${falta}</small>` : null}
     ${ayuda ? html`<small class="ayuda">${ayuda}</small>` : null}
   </label>`;
 }
@@ -341,7 +345,12 @@ export function partidaConFoco(raiz, lineas) {
   return lineas.find((l) => String(l.uid) === fila.dataset.partida)?.uid ?? null;
 }
 
-export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null }) {
+/**
+ * Editor del vale. Ronda 34: con `seccion` dibuja solo una parte, para el vale en pasos — "datos" (para quién),
+ * "partidas" o "fotos"; sin ella, todo junto (corrección desde el historial). `faltan`: [{ campo, mensaje }] que se
+ * marcan debajo de su campo («Falta el nombre»).
+ */
+export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null, seccion = null, faltan = [] }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -360,7 +369,9 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   const [editarObservaciones, setEditarObservaciones] = useState(false);
   useEffect(() => setEditarObservaciones(false), [datos.id, datos.plantilla_area_id, excluirValeId]);
   const [espacios, setEspacios] = useState([]);
+  const conFotos = seccion === null || seccion === "fotos";
   useEffect(() => {
+    if (!conFotos) return undefined;
     let vivo = true;
     sesion
       .espaciosFotos(datos)
@@ -369,8 +380,9 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     return () => {
       vivo = false;
     };
-  }, [datos.plantilla_area_id, datos.depto_destino]);
+  }, [datos.plantilla_area_id, datos.depto_destino, conFotos]);
   const errorEn = (campo, renglon = null) => errores.find((e) => e.campo === campo && e.renglon === renglon);
+  const faltaEn = (campo) => faltan.find((f) => f.campo === campo)?.mensaje ?? null;
   const cambiar = (cambios) => alCambiar({ ...datos, ...cambios });
 
   // Foco: al elegir el código pasa a la clave; al elegir la clave, a la cantidad.
@@ -446,7 +458,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
 
   // Bloques del panel de datos, en el orden que eligió quien está en turno (Ajustes).
   const persona = (id, etiqueta, campo, { ayuda = null, error = null, puestos = [] } = {}) => html`
-    <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda}>
+    <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda} falta=${faltaEn(`${campo}_nombre`)}>
       <${SelectorPersona}
         id=${id}
         ariaLabel=${etiqueta}
@@ -467,7 +479,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   `;
   const bloques = {
     area: html`
-      <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
+      <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")} falta=${datos.plantilla_area_id ? null : faltaEn("depto_destino")}>
         <${Lista}
           id="area-vale"
           valor=${datos.plantilla_area_id ?? ""}
@@ -497,7 +509,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
             <div class="rejilla-campos">
               <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
               <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
-              <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
+              <${Campo} etiqueta="Destino" falta=${datos.plantilla_area_id ? faltaEn("depto_destino") : null}><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
               <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
                 <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
               <//>
@@ -586,14 +598,13 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     `,
   };
 
-  return html`
-    <div ref=${raiz} class=${`editor-vale ${preferencias.lado}`}>
-      <aside class="vale-datos" aria-label="Datos del vale">
-        ${preferencias.orden.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
-      </aside>
-
-      <div class="vale-principal">
-      <section class="vale-partidas" aria-label="Partidas del vale">
+  const panelDatos = html`<aside class="vale-datos" aria-label="Datos del vale">
+    ${preferencias.orden.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
+  </aside>`;
+  const panelFotos = espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null;
+  if (seccion === "datos") return html`<div ref=${raiz} class="editor-vale solo-datos">${panelDatos}</div>`;
+  if (seccion === "fotos") return panelFotos;
+  const panelPartidas = html`<section class="vale-partidas" aria-label="Partidas del vale" data-sin-avanzar>
         <header class="partidas-cabeza">
           <h2>Partidas</h2>
           <span class=${`contador-partidas ${capacidad && capturadas.length > capacidad ? "excedido" : ""}`}>
@@ -738,9 +749,16 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           <${Boton} onClick=${() => agregarLinea()} title="Agregar partida (Alt + N)">＋ Agregar partida <${Teclas} teclas=${["Alt", "N"]} /><//>
           <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida. Alt + N agrega una partida desde cualquier campo.</span>
         </div>
-      </section>
-      ${espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null}
-      ${pie ? html`<div class="vale-pie">${pie}</div>` : null}
+      </section>`;
+  if (seccion === "partidas") return html`<div ref=${raiz} class="editor-vale solo-partidas">${panelPartidas}</div>`;
+
+  return html`
+    <div ref=${raiz} class=${`editor-vale ${preferencias.lado}`}>
+      ${panelDatos}
+      <div class="vale-principal">
+        ${panelPartidas}
+        ${panelFotos}
+        ${pie ? html`<div class="vale-pie">${pie}</div>` : null}
       </div>
     </div>
   `;
@@ -857,6 +875,15 @@ export function PaginaValesSalida() {
   const [copiando, setCopiando] = useState(false);
   const pendiente = useRef(null);
   const porGuardar = useRef(null);
+  // Al cambiar de paso, el foco va al paso nuevo (y la página, arriba).
+  const enfocarPaso = useRef(false);
+  const contenedorPaso = useRef(null);
+  useLayoutEffect(() => {
+    if (!enfocarPaso.current) return;
+    enfocarPaso.current = false;
+    contenedorPaso.current?.focus({ preventScroll: true });
+    window.scrollTo?.({ top: 0 });
+  });
 
   // Carga el borrador activo en el editor (solo al cambiar de pestaña).
   useEffect(() => {
@@ -980,9 +1007,23 @@ export function PaginaValesSalida() {
   // Sin área todavía: "Borrador 1", "Borrador 2"… (varios "Sin área" no se distinguían).
   const nombreDe = (b, i) => estado.plantillas_area.find((p) => p.id === b.plantilla_area_id)?.nombre ?? `Borrador ${i + 1}`;
   const folio = siguienteFolio(estado);
-  return html`
-    ${borradores.length
-      ? html`<div class="pestanas" role="tablist" aria-label="Vales en borrador">
+  const paso = datos ? pasoDe(datos) : 1;
+  const falta = datos ? faltaParaAvanzar(estado, datos, paso) : [];
+
+  // Ronda 34: cambiar de paso nunca borra nada; el paso se guarda con el borrador.
+  const irA = (n) => {
+    enfocarPaso.current = true;
+    cambiar({ ...datos, paso: n });
+  };
+  const teclaPaso = (e) => {
+    if (paso === 3 || !enterParaAvanzar(e)) return;
+    e.preventDefault();
+    if (!falta.length) irA(paso + 1);
+  };
+
+  const pestanas = borradores.length
+    ? html`<div class="franja-borradores">
+        <div class="pestanas" role="tablist" aria-label="Vales en borrador">
           ${borradores.map((b, i) => {
             const actual = b.id === datos?.id ? datos : b;
             const n = lineasCapturadas(actual.lineas).length;
@@ -992,40 +1033,102 @@ export function PaginaValesSalida() {
               <span class="pastilla-conteo" title=${`${n} ${n === 1 ? "partida" : "partidas"}`}>${n}</span>
             </button>`;
           })}
-          <button type="button" class="pestana nueva" onClick=${nuevo}>＋ Nuevo vale</button>
-          <button type="button" class="pestana nueva" onClick=${() => setCopiando(true)} title="Copia las partidas de una entrada o de otro vale de salida">
-            <${Icono} nombre="copiar" tam=${15} /> Desde un vale…
-          </button>
-        </div>`
-      : null}
+        </div>
+        <button type="button" class="pestana nueva" onClick=${nuevo}>＋ Nuevo vale</button>
+        <button type="button" class="pestana nueva" onClick=${() => setCopiando(true)} title="Copia las partidas de una entrada o de otro vale de salida">
+          <${Icono} nombre="copiar" tam=${15} /> Desde un vale…
+        </button>
+        ${!emitidos && datos ? html`<button type="button" class="boton boton-peligro-texto descartar-borrador" onClick=${descartar}>Descartar borrador</button>` : null}
+      </div>`
+    : null;
+
+  let contenido = null;
+  if (!emitidos && datos) {
+    const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
+    const transferencia = (area ? tipoDeArea(area) : datos.naturaleza === "TRANSFERENCIA" ? "TRANSFERENCIA" : null) === "TRANSFERENCIA";
+    const enTurno = sesion.usuario ? conEntregaEnTurno(estado, datos, sesion.usuario) : null;
+    const resumen = {
+      area: area?.nombre ?? (datos.depto_destino || null),
+      transferencia,
+      destino: datos.destino || null,
+      recibe: datos.recibio_nombre,
+      puesto: datos.recibio_puesto,
+      fecha: datos.fecha,
+      entrega: enTurno?.entrego_nombre ?? null,
+      folio,
+    };
+    const paraQuien = html`<${ResumenParaQuien} datos=${resumen} alEditar=${() => irA(1)} />`;
+    const capturadas = lineasCapturadas(datos.lineas);
+    const avanzar = (etiqueta) => html`<${Boton} tipo="primario" tamano="grande" disabled=${falta.length > 0} onClick=${() => irA(paso + 1)}>
+      ${etiqueta} <span class="tecla-boton" aria-hidden="true">Enter</span>
+    <//>`;
+    let cuerpo;
+    if (paso === 1) {
+      cuerpo = html`
+        <${EditorVale} seccion="datos" datos=${datos} alCambiar=${cambiar} errores=${errores} faltan=${falta} capacidad=${capacidad} />
+        <div class="pie-paso">
+          <span class="espaciador"></span>
+          ${avanzar("Continuar a material →")}
+        </div>`;
+    } else if (paso === 2) {
+      cuerpo = html`
+        ${paraQuien}
+        <${EditorVale} seccion="partidas" datos=${datos} alCambiar=${cambiar} errores=${errores} capacidad=${capacidad} />
+        <div class="pie-paso">
+          <${Boton} tamano="grande" onClick=${() => irA(1)}>← Para quién<//>
+          <span class="espaciador"></span>
+          ${falta.length ? html`<span class="nota">${falta[0].mensaje}.</span>` : null}
+          ${avanzar("Revisar y emitir →")}
+        </div>`;
+    } else {
+      const listo = paraEmitir(estado, datos, sesion.usuario);
+      const pendientes = errores.length ? errores : validarVale(estado, listo).errores;
+      const indicesVale = new Indices(estado);
+      const partidas = capturadas.map((l) => {
+        const existencia = l.existencia_id !== null && l.existencia_id !== undefined ? indicesVale.existencia(l.existencia_id) : null;
+        const variante = existencia ? indicesVale.variante(existencia.variante_id) : null;
+        return {
+          cantidad: normal(l.cantidad) ? l.cantidad : "",
+          um: l.um,
+          clave: l.clave,
+          np: variante ? loteDeRenglon(npMostrado(existencia, variante)) : "",
+          codigo: l.codigo,
+          descripcion: l.descripcion,
+          lote: l.lote,
+        };
+      });
+      cuerpo = html`
+        <${ListaErrores} errores=${pendientes} />
+        <div class="paso-revisar">
+          ${paraQuien}
+          <${ResumenMaterial} partidas=${partidas} alEditar=${() => irA(2)} />
+          <${EditorVale} seccion="fotos" datos=${datos} alCambiar=${cambiar} />
+        </div>
+        <div class="pie-paso">
+          <span class="espaciador"></span>
+          <${Boton} tamano="grande" disabled=${!capturadas.length} onClick=${() => setPrevia([{ ...listo, folio: null, tipo: "SALIDA" }])}>Vista previa<//>
+          <${Boton} tipo="primario" tamano="grande" disabled=${!capturadas.length} onClick=${emitir}>Emitir vale · folio ${folio}<//>
+        </div>`;
+    }
+    contenido = html`
+      <p class="linea-borrador">
+        ${datos.copia_de
+          ? html`<span class="copia-de">${datos.copia_de.tipo === "ENTRADA" ? "Partidas de la entrada " : "Partidas del vale "}<a
+                href=${`#${datos.copia_de.tipo === "ENTRADA" ? "entrada" : "vale"}/${datos.copia_de.vale_id}`}>${datos.copia_de.folio}</a></span> · `
+          : null}Se guarda solo
+      </p>
+      <${PasosVale} paso=${paso} />
+      <div id="paso-vale" ref=${contenedorPaso} class=${`paso-vale paso-vale-${paso}`} tabindex="-1" aria-label=${`Paso ${paso} · ${nombrePaso(paso)}`} onKeyDown=${teclaPaso}>
+        ${cuerpo}
+      </div>`;
+  }
+
+  return html`
+    ${pestanas}
 
     ${emitidos ? html`<${EmitidoOk} vales=${emitidos} alNuevo=${nuevo} alCopiar=${() => setCopiando(true)} />` : null}
 
-    ${!emitidos && datos
-      ? html`<div class="barra-borrador">
-            <span>
-              Borrador · se emitirá con el folio <strong class="folio-grande">${folio}</strong>
-              ${datos.copia_de
-                ? html` · <span class="copia-de">${datos.copia_de.tipo === "ENTRADA" ? "partidas de la entrada " : "partidas del vale "}<a
-                      href=${`#${datos.copia_de.tipo === "ENTRADA" ? "entrada" : "vale"}/${datos.copia_de.vale_id}`}>${datos.copia_de.folio}</a></span>`
-                : null}
-            </span>
-            <span class="nota">Se guarda solo · creado ${fmtFecha(datos.creado_en)}</span>
-          </div>
-          <${EditorVale}
-            datos=${datos}
-            alCambiar=${cambiar}
-            errores=${errores}
-            capacidad=${capacidad}
-            pie=${html`<${ListaErrores} errores=${errores} />
-              <div class="acciones-linea pie-editor">
-                <${Boton} tipo="peligro-texto" onClick=${descartar}>Descartar borrador<//>
-                <span class="espaciador"></span>
-                <${Boton} disabled=${!lineasCapturadas(datos.lineas).length} onClick=${() => setPrevia([{ ...paraEmitir(estado, datos, sesion.usuario), folio: null, tipo: "SALIDA" }])}>Vista previa<//>
-                <${Boton} tipo="primario" tamano="grande" disabled=${!lineasCapturadas(datos.lineas).length} onClick=${emitir}>Emitir vale · folio ${folio}<//>
-              </div>`}
-          />`
-      : null}
+    ${contenido}
 
     ${!emitidos && !datos && !borradores.length
       ? html`<${Tarjeta} clase="tarjeta-inicio-vales">

@@ -85,11 +85,13 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     await page.getByLabel("Puesto de quien recibe", { exact: true }).fill("MECANICO");
     const etapa = page.getByLabel(/Etapa de perforación/);
     if (await etapa.count()) await etapa.fill('12 1/4" SINTETICA');
+    await page.getByRole("button", { name: /^Continuar a material/ }).click();
     const codigo = page.getByRole("combobox", { name: "Código AX", exact: true }).first();
     await codigo.fill("136");
     await page.getByRole("option").filter({ hasText: /^136\b/ }).click();
     await page.getByLabel("Cantidad", { exact: true }).first().fill("2");
     await page.getByLabel("Presentación (UM)", { exact: true }).first().fill("LTS");
+    await page.getByRole("button", { name: /^Revisar y emitir/ }).click();
     await page.getByRole("button", { name: `Emitir vale · folio ${ultimo + 1}`, exact: true }).click();
     await page.getByText(`✓ Vale ${ultimo + 1} emitido`, { exact: true }).waitFor({ state: "visible" });
     const emitido = (await leerEstado()).vales.find((v) => v.tipo === "SALIDA" && v.folio === ultimo + 1);

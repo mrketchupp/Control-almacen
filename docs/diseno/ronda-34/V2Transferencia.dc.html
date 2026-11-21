@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Vale de salida · Paso 1 · Transferencia</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;color:#1c2733;background:#f4f6f9}
+a{color:#1f4e8c}a:hover{color:#183f72}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="min-height: 900px; width: 100%; display: flex; flex-wrap: wrap; background: #f4f6f9">
+
+<nav aria-label="Principal" style="flex: 0 0 236px; background: #ffffff; border-right: 1px solid #dde3ea; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 4px 16px 8px">
+<div style="width: 32px; height: 32px; border-radius: 8px; background: #1f4e8c; flex-shrink: 0"></div>
+<div style="font-weight: 700; font-size: 15px; flex-grow: 1">Control de Almacén</div>
+<button type="button" aria-label="Contraer menú" title="Contraer menú (Ctrl + B)" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #5b6b7c; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="m16 15-3-3 3-3"></path></svg></button>
+</div>
+<a href="#" aria-current="page" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; background: #e6eef8; color: #1f4e8c; font-weight: 600"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 15V3"></path><path d="m7 8 5-5 5 5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Sacar material</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg>Recibir material<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px; white-space: nowrap">2 por ubicar</span></a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>Consultar</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #1c2733"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path><path d="m9 16 2 2 4-4"></path></svg>Cierre del día<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #a15c00; background: #fff4e0; padding: 2px 8px; border-radius: 99px; white-space: nowrap">sin respaldo</span></a>
+<div style="flex-grow: 1"></div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 0 12px; height: 44px; border-radius: 8px; text-decoration: none; font-size: 15px; color: #5b6b7c; font-size: 14px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0"><circle cx="5" cy="12" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle></svg>Más</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 20px 32px 32px; display: flex; flex-direction: column; gap: 20px">
+
+<ol aria-label="Pasos del vale" style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<li style="border-top: 4px solid #1f4e8c; padding-top: 8px"><span style="font-size: 13px; font-weight: 600; color: #1f4e8c">1 · Para quién</span></li>
+<li style="border-top: 4px solid #dde3ea; padding-top: 8px"><span style="font-size: 13px; font-weight: 600; color: #5b6b7c">2 · Material</span></li>
+<li style="border-top: 4px solid #dde3ea; padding-top: 8px"><span style="font-size: 13px; font-weight: 600; color: #5b6b7c">3 · Revisar y emitir</span></li>
+</ol>
+
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap">
+<div role="radiogroup" aria-label="Tipo de vale" style="display: flex; background: #ffffff; border: 1px solid #dde3ea; border-radius: 10px; padding: 4px">
+<a href="V2Quien.dc.html" role="radio" aria-checked="false" style="height: 42px; padding: 0 20px; border-radius: 8px; color: #1c2733; font: 500 15px Inter, sans-serif; text-decoration: none; display: flex; align-items: center">Consumo interno</a>
+<button type="button" role="radio" aria-checked="true" style="height: 42px; padding: 0 20px; border-radius: 8px; border: none; background: #1f4e8c; color: #ffffff; font: 600 15px Inter, sans-serif">Enviar a otro RIG o pozo</button>
+</div>
+<button type="button" style="height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; font: 500 14px Inter, sans-serif; color: #1c2733">Fecha: hoy · 20 nov ▾</button>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start">
+
+<section aria-labelledby="t-destino" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="t-destino" style="margin: 0; font-size: 17px; font-weight: 700">¿A dónde se envía?</h2>
+<div role="radiogroup" aria-labelledby="t-destino" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button type="button" role="radio" aria-checked="true" style="height: 48px; padding: 0 14px; border-radius: 8px; border: 2px solid #1f4e8c; background: #e6eef8; color: #1f4e8c; font: 600 15px Inter, sans-serif; text-align: left">RIG 48</button>
+<button type="button" role="radio" aria-checked="false" style="height: 48px; padding: 0 14px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #1c2733; font: 600 15px Inter, sans-serif; text-align: left">RIG 33</button>
+<button type="button" role="radio" aria-checked="false" style="height: 48px; padding: 0 14px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #1c2733; font: 600 15px Inter, sans-serif; text-align: left">[POZO 1]</button>
+<button type="button" role="radio" aria-checked="false" style="height: 48px; padding: 0 14px; border-radius: 8px; border: 1px solid #dde3ea; background: #ffffff; color: #1c2733; font: 600 15px Inter, sans-serif; text-align: left">[POZO 2]</button>
+</div>
+<label for="dest" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Otro destino</label>
+<input id="dest" placeholder="Escribe un RIG o pozo…" style="height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid #dde3ea; font: 500 15px Inter, sans-serif">
+</section>
+
+<div style="display: flex; flex-direction: column; gap: 20px">
+<section aria-labelledby="t-transp" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="t-transp" style="margin: 0; font-size: 17px; font-weight: 700">¿Quién lo transporta?</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="t-nombre" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Nombre</label>
+<input id="t-nombre" value="Chofer Uno" style="height: 48px; padding: 0 14px; border: 2px solid #1f4e8c; border-radius: 10px; font: 600 16px Inter, sans-serif; outline: none">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="t-puesto" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Puesto</label>
+<input id="t-puesto" value="Chofer" style="height: 48px; padding: 0 14px; border: 1px solid #dde3ea; border-radius: 10px; font: 600 16px Inter, sans-serif">
+</div>
+</div>
+<div style="font-size: 13px; color: #5b6b7c">Sugerencias al escribir: Chofer Uno · Chofer Dos</div>
+</section>
+
+<section aria-labelledby="t-aut" style="background: #ffffff; border: 1px solid #dde3ea; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 id="t-aut" style="margin: 0; font-size: 17px; font-weight: 700">¿Quién autoriza?</h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="a-nombre" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Nombre</label>
+<input id="a-nombre" value="Ing. Responsable Uno" style="height: 48px; padding: 0 14px; border: 1px solid #dde3ea; border-radius: 10px; font: 600 16px Inter, sans-serif">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="a-puesto" style="font-size: 12px; font-weight: 600; color: #5b6b7c; text-transform: uppercase; letter-spacing: 0.04em">Puesto</label>
+<input id="a-puesto" value="ITP" style="height: 48px; padding: 0 14px; border: 1px solid #dde3ea; border-radius: 10px; font: 600 16px Inter, sans-serif">
+</div>
+</div>
+<div style="display: flex; flex-direction: column; border: 1px solid #eef1f5; border-radius: 10px; overflow: hidden">
+<button type="button" style="display: flex; justify-content: space-between; padding: 12px 14px; border: none; background: #e6eef8; font-family: Inter, sans-serif; width: 100%"><span style="font-size: 15px; font-weight: 600">Ing. Responsable Uno</span><span style="font-size: 14px; color: #5b6b7c">ITP</span></button>
+<button type="button" style="display: flex; justify-content: space-between; padding: 12px 14px; border: none; border-top: 1px solid #eef1f5; background: #ffffff; font-family: Inter, sans-serif; width: 100%"><span style="font-size: 15px; font-weight: 600">Rig Manager Uno</span><span style="font-size: 14px; color: #5b6b7c">Rig Manager</span></button>
+</div>
+</section>
+</div>
+</div>
+
+<div style="display: flex; justify-content: flex-end">
+<a href="V2Material.dc.html" style="height: 52px; padding: 0 28px; border-radius: 10px; background: #1f4e8c; color: #ffffff; font: 600 16px Inter, sans-serif; text-decoration: none; display: flex; align-items: center; gap: 10px">Continuar a material → <span style="font-size: 12px; font-weight: 500; opacity: 0.8">Enter</span></a>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

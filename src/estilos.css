@@ -8785,3 +8785,326 @@ button.mosaico:hover .mosaico-abrir {
     grid-column: 1 / -1;
   }
 }
+
+/* ---------------------------------------------------------------- vale de salida en 3 pasos (Ronda 34) */
+
+.franja-borradores {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.franja-borradores .pestanas {
+  margin: 0;
+}
+
+.franja-borradores .descartar-borrador {
+  margin-left: auto;
+  align-self: center;
+  min-height: 44px;
+}
+
+.linea-borrador {
+  margin: 0 0 14px;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+.pasos-vale {
+  margin: 0 0 18px;
+}
+
+.pasos-vale ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pasos-vale li {
+  min-width: 0;
+  border-top: 4px solid var(--borde);
+  padding-top: 8px;
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.pasos-vale .paso-nombre {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pasos-vale li.paso-completo {
+  border-top-color: var(--ok);
+  color: var(--ok);
+}
+
+.pasos-vale li.paso-actual {
+  border-top-color: var(--primario);
+  color: var(--primario);
+}
+
+.pasos-corto {
+  display: none;
+  margin: 0 0 6px;
+  color: var(--primario);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* Ventana angosta: «Paso 2 de 3 · Material» y las 3 barras (§8). */
+@media (max-width: 899px) {
+  .pasos-corto {
+    display: block;
+  }
+
+  .pasos-vale li {
+    padding-top: 0;
+  }
+
+  .pasos-vale .paso-nombre {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+
+.paso-vale {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.paso-vale:focus {
+  outline: none;
+}
+
+.pie-paso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.pie-paso .boton {
+  min-height: 50px;
+}
+
+.pie-paso .boton-primario {
+  min-height: 54px;
+  padding-inline: 26px;
+}
+
+.tecla-boton {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* Paso 1 mientras llega su diseño propio (etapa 2): los bloques del editor en columnas. */
+.editor-vale.solo-datos,
+.editor-vale.solo-partidas {
+  display: block;
+}
+
+.editor-vale.solo-datos > .vale-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: start;
+  gap: 16px 28px;
+  padding: 20px;
+  resize: none;
+}
+
+.campo .falta {
+  color: var(--alerta);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Resúmenes con «Editar» (principio 2). */
+.resumen-vale {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 20px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.resumen-cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.resumen-cabeza h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.resumen-vale {
+  container-type: inline-size;
+}
+
+/* 3 × 2 (Área · Recibe · Puesto / Fecha · Entrega · Folio); en una fila si cabe. */
+.resumen-datos {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+@container (min-width: 880px) {
+  .resumen-datos {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.dato-resumen {
+  min-width: 0;
+}
+
+.dato-resumen dt {
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+}
+
+.dato-resumen dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dato-resumen dd small {
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.dato-resumen.dato-falta dd {
+  color: var(--alerta);
+}
+
+/* «✎ Editar»: 36 px de alto y 44 px de área tocable. */
+.boton-editar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--primario) 35%, var(--borde));
+  border-radius: 8px;
+  background: var(--primario-suave);
+  color: var(--primario);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-corta) ease, border-color var(--dur-corta) ease;
+}
+
+.boton-editar::before {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+}
+
+.boton-editar:hover {
+  border-color: var(--primario);
+}
+
+.resumen-partidas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.resumen-partidas li {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1.2fr) minmax(0, 2fr) minmax(0, 0.8fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--neutro-suave);
+  font-size: 0.875rem;
+}
+
+.resumen-partidas li > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resumen-cantidad {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.resumen-cantidad.falta {
+  color: var(--alerta);
+}
+
+.resumen-clave {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.resumen-np,
+.resumen-descripcion,
+.resumen-lote {
+  color: var(--texto-suave);
+  font-weight: 400;
+}
+
+.paso-revisar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 699px) {
+  .resumen-partidas li {
+    grid-template-columns: 88px minmax(0, 1fr);
+    row-gap: 2px;
+  }
+
+  .resumen-descripcion {
+    grid-column: 2;
+  }
+
+  .resumen-lote {
+    grid-column: 2;
+  }
+}
+
+/* Paso 2 mientras llega su diseño propio (etapa 3): la tabla de partidas cabe a 640 px sin salirse. */
+@media (max-width: 700px) {
+  .editor-vale.solo-partidas .tabla-partidas .c-clave {
+    width: 136px;
+  }
+}

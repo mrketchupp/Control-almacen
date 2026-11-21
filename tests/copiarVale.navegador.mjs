@@ -83,13 +83,13 @@ test("vale de salida a partir de una entrada o de otro vale", async (t) => {
     await page.goto(`${origen}/#entrada/${entrada.id}`);
     await page.getByRole("button", { name: "Vale de salida", exact: true }).click();
     await page.waitForFunction(() => location.hash === "#vales");
-    await page.locator(".copia-de").getByText("partidas de la entrada", { exact: false }).waitFor();
+    await page.locator(".copia-de").getByText("Partidas de la entrada", { exact: false }).waitFor();
     const e = await esperar((x) => x.borradores.length === 1, "No se creó el borrador");
     const [borrador] = e.borradores;
     assert.deepEqual(borrador.copia_de, { tipo: "ENTRADA", vale_id: entrada.id, folio: "E-0001" });
     assert.deepEqual(borrador.lineas.map((l) => [l.codigo, l.existencia_id, l.cantidad, l.oc]), [[701, balero.id, "3", "OC-90"], [136, null, "500", ""]]);
     assert.equal(await page.getByRole("link", { name: "E-0001", exact: true }).count(), 1);
-    assert.equal((await page.locator(".copia-de").innerText()).trim(), "partidas de la entrada E-0001");
+    assert.equal((await page.locator(".copia-de").innerText()).trim(), "Partidas de la entrada E-0001");
     await cerrarAvisos();
   });
 
@@ -119,6 +119,11 @@ test("vale de salida a partir de una entrada o de otro vale", async (t) => {
     await page.getByRole("option", { name: "MECANICO", exact: true }).click();
     await page.getByLabel("Recibió", { exact: true }).fill("MECANICO UNO");
     await page.getByLabel("Puesto de quien recibe", { exact: true }).fill("MECANICO");
+    const etapa = page.getByLabel(/Etapa de perforación/);
+    if (await etapa.count()) await etapa.fill('12 1/4" SINTETICA');
+    // Ronda 34: el borrador copiado empieza en *Para quién*; las partidas ya vienen cargadas.
+    await page.getByRole("button", { name: /^Continuar a material/ }).click();
+    await page.getByRole("button", { name: /^Revisar y emitir/ }).click();
     await page.getByRole("button", { name: /^Emitir vale · folio/ }).click();
     const e = await esperar((x) => x.borradores.length === 1 && x.vales.some((v) => v.tipo === "SALIDA" && !v.migrado), "No se emitió el vale");
     const emitido = e.vales.find((v) => v.tipo === "SALIDA" && !v.migrado);
@@ -130,7 +135,7 @@ test("vale de salida a partir de una entrada o de otro vale", async (t) => {
     const copia = await esperar((x) => x.borradores.length === 2, "No se copió el vale de salida");
     const nuevo = copia.borradores.at(-1);
     assert.deepEqual([nuevo.copia_de.tipo, nuevo.plantilla_area_id, nuevo.recibio_nombre], ["SALIDA", emitido.plantilla_area_id, emitido.recibio_nombre]);
-    await page.locator(".copia-de").getByText(`partidas del vale ${emitido.folio}`).waitFor();
+    await page.locator(".copia-de").getByText(`Partidas del vale ${emitido.folio}`).waitFor();
     await cerrarAvisos();
     await page.waitForTimeout(300);
     await page.screenshot({ path: join(carpeta, "borrador.png") });

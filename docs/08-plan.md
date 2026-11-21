@@ -319,6 +319,18 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 34 — rediseño del vale de salida en 3 pasos** (en curso, rama `ronda-34-vale-salida`). Especificación:
+`docs/13-rediseno-vale-salida.md`; diseño aprobado: `docs/diseno/ronda-34/`. Se entrega por etapas (§13) y el usuario
+revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
+- ☑ Etapa 1: el borrador guarda su paso; indicador de pasos; la página repartida en *Para quién*, *Material* y
+  *Revisar y emitir* con el editor de antes por dentro; *Descartar borrador* en la franja de pestañas.
+- ☐ Etapa 2: paso 1 completo (interno, transferencia, firmas extra).
+- ☐ Etapa 3: paso 2 — buscador, resultados y lista con scroll propio.
+- ☐ Etapa 4: paso 2 — editar partida, clave nueva, código nuevo, traer partidas.
+- ☐ Etapa 5: paso 3 — pendientes, resumen, vista previa real y ampliada.
+- ☐ Etapa 6: menú lateral y anchos de ventana.
+- ☐ Etapa 7: limpieza (*Mi pantalla de vales*, *Captura de partidas*) y documentación.
+
 **Ronda 33 — vale de salida a partir de otro vale.** Pedido del usuario: el material que se recibe y se entrega el mismo
 día ya está capturado en su entrada; volver a escribir las partidas en el vale de salida es doble trabajo. **Aplicado:**
 *Vale de salida* en el detalle de la entrada, *Desde un vale…* en *Vales de salida* (ventana con lo recibido hoy primero y
