@@ -287,7 +287,8 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
       <div class=${`columna-personas ${(extras ? 2 : 0) + (autoriza ? 1 : 0) ? "varias" : ""}`}>
         ${personaDe({
           id: "quien-recibe",
-          titulo: transferencia ? "¿Quién lo transporta?" : "¿Quién lo lleva?",
+          // NOV (decisión del usuario): la primera firma es la del personal químico, como «Personal de NOV» y «Patrimonial».
+          titulo: transferencia ? "¿Quién lo transporta?" : extras ? "Personal químico" : "¿Quién lo lleva?",
           campo: "recibio",
           depto: transferencia ? null : datos.depto_destino || null,
           listaVisible: !transferencia,

@@ -40,7 +40,7 @@ export function PasosVale({ paso }) {
 /** «✎ Editar»: la misma palabra para la misma acción en todos lados (§6). */
 export function BotonEditar({ etiqueta, onClick }) {
   return html`<button type="button" class="boton-editar" aria-label=${etiqueta} title=${etiqueta} onClick=${onClick}>
-    <${Icono} nombre="lapiz" tam=${15} /> Editar
+    <${Icono} nombre="lapiz" tam=${15} /><span class="boton-editar-texto">Editar</span>
   </button>`;
 }
 
@@ -72,6 +72,9 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién" }) {
       <${DatoResumen} etiqueta="Entrega" falta=${!datos.entrega}>${datos.entrega || "Elige quién está en turno"}<//>
       <${DatoResumen} etiqueta="Folio">${datos.folio} <small>al emitir</small><//>
     </dl>
+    <p class="resumen-linea" aria-hidden="true">
+      ${[datos.transferencia ? datos.destino : datos.area, datos.recibe, fechaCorta(datos.fecha)].filter(Boolean).join(" · ") || "Falta elegir para quién"}
+    </p>
   </section>`;
 }
 

@@ -38,6 +38,7 @@ import { BotonDescripcion } from "./descripcion.js";
 import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
 import { PasosVale, ResumenMaterial, ResumenParaQuien, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
 import { PasoParaQuien } from "./paraQuien.js";
+import { PasoMaterial } from "./material.js";
 import { faltaParaAvanzar, nombrePaso, pasoDe } from "../../servicios/pasosVale.js";
 
 // ---------------------------------------------------------------- utilidades
@@ -346,8 +347,8 @@ export function partidaConFoco(raiz, lineas) {
 }
 
 /**
- * Editor del vale. Ronda 34: con `seccion` dibuja solo una parte para el vale en pasos — "partidas" o "fotos" (el paso 1
- * es `PasoParaQuien`); sin ella, todo junto (corrección desde el historial).
+ * Editor del vale: todo junto, para corregir desde el historial. Ronda 34: con `seccion: "fotos"` dibuja solo las fotos
+ * del formato (paso 3 del vale en pasos; el 1 es `PasoParaQuien` y el 2, `PasoMaterial`).
  */
 export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null, seccion = null }) {
   const sesion = useSesion();
@@ -747,7 +748,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida. Alt + N agrega una partida desde cualquier campo.</span>
         </div>
       </section>`;
-  if (seccion === "partidas") return html`<div ref=${raiz} class="editor-vale solo-partidas">${panelPartidas}</div>`;
 
   return html`
     <div ref=${raiz} class=${`editor-vale ${preferencias.lado}`}>
@@ -926,7 +926,6 @@ export function PaginaValesSalida() {
       if (datos && pendiente.current) await guardar(datos);
       const creado = await sesion.almacen.modificar((e) => {
         const b = nuevoBorrador(e, { usuario: sesion.usuario });
-        b.lineas.push(lineaVacia());
         return b.id;
       });
       setEmitidos(null);
@@ -1068,15 +1067,15 @@ export function PaginaValesSalida() {
       cuerpo = html`
         <${PasoParaQuien} datos=${datos} alCambiar=${cambiar} faltan=${falta} pie=${avanzar("Continuar a material →")} />`;
     } else if (paso === 2) {
-      cuerpo = html`
-        ${paraQuien}
-        <${EditorVale} seccion="partidas" datos=${datos} alCambiar=${cambiar} errores=${errores} capacidad=${capacidad} />
-        <div class="pie-paso">
-          <${Boton} tamano="grande" onClick=${() => irA(1)}>← Para quién<//>
-          <span class="espaciador"></span>
-          ${falta.length ? html`<span class="nota">${falta[0].mensaje}.</span>` : null}
-          ${avanzar("Revisar y emitir →")}
-        </div>`;
+      cuerpo = html`<${PasoMaterial}
+        datos=${datos}
+        alCambiar=${cambiar}
+        resumen=${resumen}
+        alEditar=${() => irA(1)}
+        capacidad=${capacidad}
+        alRegresar=${html`<${Boton} tamano="grande" onClick=${() => irA(1)}>← Para quién<//>`}
+        avanzar=${avanzar("Revisar y emitir →")}
+      />`;
     } else {
       const listo = paraEmitir(estado, datos, sesion.usuario);
       const pendientes = errores.length ? errores : validarVale(estado, listo).errores;

@@ -24,6 +24,7 @@ export const VALORES_COMPARTIDOS = {
   etapa_perforacion: "",
   personalizacion: {}, // por almacenista: tema, avisos, animaciones
   captura_rapida: false,
+  np_en_lote: false, // Ronda 34: copiar el NP al LOTE en los vales de salida
   preferencias_vale: {}, // por almacenista: "Mi pantalla de vales"
   etiquetas: {}, // Ronda 20: diseño de la hoja y logos / texto de cada inventario (servicios/etiquetas.js)
 };

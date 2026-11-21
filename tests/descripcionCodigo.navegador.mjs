@@ -151,9 +151,9 @@ test("corregir la descripción de un código desde el inventario, la corrección
     await campo(page, 706).fill("descripción corregida de prueba");
     await campo(page, 706).press("Enter");
     await ventana(page, 706).waitFor({ state: "hidden" });
-    await page.locator("td.col-descripcion .descripcion", { hasText: NUEVA }).first().waitFor();
+    await page.locator(".partida-desc", { hasText: NUEVA }).first().waitFor();
     // Capturar la cantidad después no devuelve el texto de antes (el borrador se guarda solo).
-    const cantidad = page.getByRole("textbox", { name: "Cantidad", exact: true }).first();
+    const cantidad = page.getByRole("textbox", { name: "Cantidad de la partida 1", exact: true });
     await cantidad.fill("2");
     await page.waitForTimeout(1200);
     const guardado = await leer();

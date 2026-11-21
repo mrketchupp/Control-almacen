@@ -38,7 +38,7 @@ function entradaDeHoy(estado, indices, renglones) {
   return { vale: en.confirmarEntrada(estado, b.id, { usuario: USUARIO }), balero1, conNp };
 }
 
-test("de una entrada: cada partida sale de la partida a la que entró, con su cantidad y O.C.; el LOTE es el NP, no quien solicita", () => {
+test("de una entrada: cada partida sale de la partida a la que entró, con su cantidad y O.C.; el LOTE no es quien solicita", () => {
   const { estado, indices, renglones } = preparar();
   const { vale, balero1, conNp } = entradaDeHoy(estado, indices, renglones);
   const antes = new Map(vale.lineas.filter((l) => l.existencia_id).map((l) => [l.existencia_id, total(estado, l.existencia_id)]));
@@ -53,7 +53,12 @@ test("de una entrada: cada partida sale de la partida a la que entró, con su ca
   assert.equal(borrador.plantilla_area_id, null); // de una entrada se elige el área
   const [balero, np, nueva, diesel] = borrador.lineas;
   assert.deepEqual([balero.existencia_id, balero.cantidad, balero.oc, balero.lote, balero.clave], [balero1.id, "3", "OC-77", "", "6309-2Z/C3"]);
-  assert.deepEqual([np.existencia_id, np.cantidad, np.lote, np.lote_np], [conNp.id, "2", "X00489", "X00489"]);
+  // Ronda 34: el NP ya no llena el LOTE (se ve como referencia), salvo con el ajuste «NP en el lote».
+  assert.deepEqual([np.existencia_id, np.cantidad, np.lote, np.lote_np], [conNp.id, "2", "", null]);
+  estado.config.np_en_lote = true;
+  const conAjuste = cv.partidasParaSalida(estado, vale).lineas[1];
+  assert.deepEqual([conAjuste.lote, conAjuste.lote_np], ["X00489", "X00489"]);
+  estado.config.np_en_lote = false;
   assert.equal(nueva.existencia_id, vale.lineas[2].existencia_id); // la partida que la entrada dio de alta
   assert.equal(nueva.clave, "6400");
   assert.deepEqual([diesel.no_inventariado, diesel.existencia_id, diesel.cantidad, diesel.um, diesel.clave], [true, null, "1000", "LTS", "S/D"]);

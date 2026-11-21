@@ -75,6 +75,31 @@ function Captura() {
   <//>`;
 }
 
+/** Ronda 34: ¿el NP de la partida del inventario se copia al LOTE del vale de salida? Por omisión no. */
+function NpEnLote() {
+  const sesion = useSesion();
+  const guardado = Boolean(sesion.estado.config?.np_en_lote);
+  const [activo, setActivo] = useState(guardado);
+  useEffect(() => setActivo(guardado), [guardado]);
+  const cambiar = (valor) => {
+    setActivo(valor);
+    sesion.almacen.modificar((e) => fijarAjuste(e, "np_en_lote", valor, sesion.usuario)).catch((e) => {
+      setActivo(guardado);
+      sesion.avisar("error", e.message);
+    });
+  };
+  return html`<${Tarjeta} titulo="NP en el lote">
+    <p class="nota">Es el mismo en DLTA y GSM. Solo cambia las partidas que agregues después.</p>
+    <label class="casilla">
+      <input type="checkbox" checked=${activo} onChange=${(e) => cambiar(e.currentTarget.checked)} />
+      <span>
+        <strong>Poner el NP en el lote</strong> de las partidas del vale de salida. Si está apagado, el NP solo se ve como
+        referencia al buscar y en la lista, y el lote queda libre.
+      </span>
+    </label>
+  <//>`;
+}
+
 const BLOQUE = Object.fromEntries(BLOQUES_VALE.map((b) => [b.id, b]));
 
 /** Vista previa de la pantalla del vale: bloques que se arrastran por su asa (o con ↑ ↓) y lado de cada columna. */
@@ -222,6 +247,7 @@ export function PaginaAjustes() {
   return html`
     <${Personalizacion} />
     <${Captura} />
+    <${NpEnLote} />
     <${PantallaVales} />
     <${ValeImpreso} />
     <${TarjetaCarpetas} />

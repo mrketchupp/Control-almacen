@@ -127,8 +127,15 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   165, 256, BASE IXACHI, BASE MARIN; el `ORIGEN_EQUIPO` no se ofrece), `conTipoDeVale` (cambiar de tipo empieza de cero:
   sin área ni destino), `conArea`, `areasConsumo`, `esTransferencia`, `textoObservaciones`; en transferencia falta el
   *destino*. Sin área preseleccionada. Enter en el paso 3 emite (con la confirmación del folio); `enterAlBajar` (captura)
-  evita que el Enter que elige en una lista también avance. Pendiente para la etapa 3: ajuste `np_en_lote` (por omisión
-  apagado: el NP solo se muestra; decisión del usuario).
+  evita que el Enter que elige en una lista también avance. NOV: la primera tarjeta es «Personal químico». Etapa 3
+  (paso 2): `servicios/buscarMaterial.js` (reemplaza `indiceRapido` / `buscarRapido`: `indiceMaterial`, `ALCANCES` de
+  «Buscar en», `buscarMaterial` → grupos por código, `ultimasDeArea`, `agregarPartida` con cantidad vacía, `estadoPartida`
+  / `contarPartidas`, `partidasDelVale` sin filas en blanco) y `ui/paginas/material.js` (`PasoMaterial`: buscador fijo
+  `#buscar-material` como combobox + `listbox` agrupado, ＋ / doble clic / Enter / Shift+Enter, lista del vale con scroll
+  propio, Lote y **O.C.** por partida, UM editable solo sin existencia, Tab entre cantidades, Quitar con Deshacer, alto con
+  `useAltoDisponible` (sin scroll de la página), < 700 px una columna y la lista desde `.barra-lista`). **Ajuste
+  `np_en_lote`** (`AJUSTES` y `VALORES_COMPARTIDOS`, por omisión apagado; tarjeta *NP en el lote* en *Ajustes*):
+  `conExistencia` solo pone el NP en el LOTE con él (`npEnLote`); el NP se muestra como referencia.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
@@ -392,7 +399,8 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - NOV: la macro guardaba las firmas **por posición** (P = izquierda = químico, Q = derecha = almacenista). Los migrados quedan así (`firmasPorPosicion`/`conFirmasPorPapel` para mostrarlos); los nuevos se guardan por papel y el exportador los invierte con `almacenista_derecha`.
 - Las fotos del formato NOV (imágenes sobre la zona de partidas) son espacios para las fotos del vale, no se imprimen; las partidas caben arriba (4).
 - UI: no usar `<select>` ni `<datalist>`; usar `Lista`, `Combo` y `CampoSugerido` (`src/ui/componentes.js`).
-- Partidas de salida: CLAVE = dimensión del renglón tal cual (vacía → `SIN DIMENSIÓN`) y NP → LOTE (`claveDeRenglon`, `conLoteDeNp`). `claveParaVale` (dimensión + `NP:`) solo queda para lo anterior. **En entradas, LOTE = quien solicita** (así lo anota la base); la clave escrita que no existe es la dimensión de la variante nueva (`conClaveEscrita`), sin capturarla aparte.
+- Partidas de salida: CLAVE = dimensión del renglón tal cual (vacía → `SIN DIMENSIÓN`); el NP va al LOTE solo con el ajuste
+  `np_en_lote` (Ronda 34; antes siempre: `claveDeRenglon`, `conLoteDeNp`). `claveParaVale` (dimensión + `NP:`) solo queda para lo anterior. **En entradas, LOTE = quien solicita** (así lo anota la base); la clave escrita que no existe es la dimensión de la variante nueva (`conClaveEscrita`), sin capturarla aparte.
 - Personas repetidas: se unifican con `unificarPersonas` (la que queda + `estado.alias` para los otros nombres). **Nunca se reescriben los nombres de los vales**; solo la lista, las plantillas de área y lo guardado por almacenista. Las ventanas (`Ventana`) se dibujan en un portal sobre `body` (dentro de *Ajustes y más* hay `container-type`, que encerraría un `position: fixed`).
 - Menú: las páginas con `grupo: "mas"` se abren en la vista *Ajustes y más* (`Ventana` en primer plano sobre la página de fondo; el hash es el de la sección y al cerrar vuelve al fondo); `soloConAviso` (Pendientes) solo aparece con insignia. Íconos propios en `src/ui/iconos.js` (SVG en línea, sin fuentes externas). Ventanas modales: `Ventana` en `ui/componentes.js`.
 - Captura con Copilot (`servicios/capturaIA.js`): la herramienta NO se conecta; solo da instrucciones para copiar y lee el JSON pegado con `jsonTolerante.js` (repara lo cortado o mal formado, sin `eval`) y nombres parecidos.

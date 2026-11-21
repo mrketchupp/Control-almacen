@@ -169,8 +169,14 @@ export function conArticulo(estado, linea, codigo, { indices = new Indices(estad
 }
 
 /**
+ * ¿El NP de la partida del inventario se pone solo en el LOTE? Ronda 34: por omisión no (el NP se muestra como
+ * referencia); se activa en *Ajustes* (`np_en_lote`, igual en los dos inventarios).
+ */
+export const npEnLote = (estado) => Boolean(estado.config?.np_en_lote);
+
+/**
  * El renglón saliendo de un renglón del inventario: fija clave (dimensión), UM, contenedor y, si
- * el renglón tiene NP, el LOTE. Un lote que se había puesto solo desde otro NP se reemplaza.
+ * el renglón tiene NP y `npEnLote`, el LOTE. Un lote que se había puesto solo desde otro NP se reemplaza (o se quita).
  */
 export function conExistencia(estado, linea, existenciaId, indices = new Indices(estado)) {
   const d = lineaDesdeExistencia(estado, existenciaId, indices);
@@ -185,7 +191,7 @@ export function conExistencia(estado, linea, existenciaId, indices = new Indices
       um: d.um || linea.um,
       no_inventariado: false,
     },
-    d.lote,
+    npEnLote(estado) ? d.lote : null,
   );
 }
 

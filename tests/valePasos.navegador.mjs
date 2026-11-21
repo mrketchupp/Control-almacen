@@ -72,14 +72,15 @@ test("vale de salida en 3 pasos", async (t) => {
     const cerrar = page.getByRole("button", { name: "Cerrar aviso" });
     for (let i = 0; i < 5 && (await cerrar.count()); i++) await cerrar.first().click().catch(() => {});
   };
+  const esperarPartidas = (n) => page.waitForFunction((n) => document.querySelectorAll(".partida-vale").length === n, n);
   const pasoActual = async () => (await page.locator('ol[aria-label="Pasos del vale"] li[aria-current="step"] .paso-nombre').innerText()).trim();
   const continuar = page.getByRole("button", { name: /^Continuar a material/ });
   const revisar = page.getByRole("button", { name: /^Revisar y emitir/ });
   // Capturas de lo que cambió, sin elementos encimados: nada se sale de su caja a lo ancho.
   const filtro = process.env.CAPTURAS_FILTRO ? new RegExp(process.env.CAPTURAS_FILTRO) : null;
-  const capturar = async (nombre) => {
+  const capturar = async (nombre, anchos = ANCHOS, antes = null) => {
     const guardar = capturas && (!filtro || filtro.test(nombre));
-    for (const ancho of ANCHOS) {
+    for (const ancho of anchos) {
       await page.setViewportSize({ width: ancho, height: 900 });
       await page.waitForTimeout(250);
       // La ventana crece hasta lo que mide la página: lo fijo abajo (el pie del paso) queda donde se ve, no encima.
@@ -89,6 +90,7 @@ test("vale de salida en 3 pasos", async (t) => {
         await page.setViewportSize({ width: ancho, height: alto });
         await page.waitForTimeout(150);
       }
+      if (antes) await antes();
       const desborde = await page.evaluate(() => {
         const ancho = document.documentElement.clientWidth;
         const fuera = [...document.querySelectorAll("body *")].filter((el) => el.getBoundingClientRect().right > ancho + 0.5 && el.getClientRects().length)
@@ -148,26 +150,61 @@ test("vale de salida en 3 pasos", async (t) => {
     assert.equal(await page.locator(".pasos-vale li.paso-completo").count(), 1);
   });
 
-  await t.test("paso 2: el resumen de para quién, partidas y Enter dentro de ellas no cambia de paso", async () => {
+  await t.test("paso 2: buscador fijo, resultados por código, agregar en ráfaga y Tab entre cantidades", async () => {
     const resumen = page.getByRole("region", { name: "Para quién" });
     assert.match(await resumen.innerText(), /MECANICO UNO/);
     assert.equal(await revisar.isDisabled(), true);
-    await page.getByText("Agrega al menos una partida.", { exact: true }).waitFor();
-    const codigo = page.getByRole("combobox", { name: "Código AX", exact: true }).first();
-    await codigo.fill("706");
-    await page.getByRole("option").filter({ hasText: /^706\b/ }).click();
-    const cantidad = page.getByLabel("Cantidad", { exact: true }).first();
-    await cantidad.fill("1");
-    await cantidad.press("Enter"); // pasa a una partida nueva, no al paso 3
+    await page.getByText("Busca un material a la izquierda para agregarlo.", { exact: true }).waitFor();
+    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
+    // Un clic en la fila solo la resalta; Enter agrega la resaltada con la cantidad vacía y el foco sigue en el buscador.
+    await buscador.fill("706");
+    await page.getByRole("group", { name: /^706 · SELLOS/ }).waitFor();
+    await page.getByRole("option").first().click();
+    assert.equal(await page.locator(".partida-vale").count(), 0, "un clic no agrega");
+    await buscador.press("Enter");
+    await page.locator(".partida-vale").first().waitFor();
+    assert.equal(await page.getByLabel("Cantidad de la partida 1").inputValue(), "");
+    await page.getByText("1 sin cantidad", { exact: true }).first().waitFor();
+    await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
+    // Shift + Enter agrega y lleva a su cantidad; el diésel no se inventaría: su unidad se escribe.
+    await buscador.fill("136");
+    await buscador.press("Shift+Enter");
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 2");
+    await page.keyboard.type("200");
+    await page.getByLabel("Unidad de la partida 2").fill("LTS");
+    assert.match(await page.locator(".partida-vale").nth(1).innerText(), /No inventariado/);
+    // Tab / Shift+Tab van de cantidad en cantidad; Enter vuelve al buscador sin cambiar de paso.
+    await page.getByLabel("Cantidad de la partida 2").focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 1");
+    await page.keyboard.type("1");
+    await page.keyboard.press("Enter");
+    await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
     assert.equal(await pasoActual(), "2 · Material");
-    const otro = page.getByRole("combobox", { name: "Código AX", exact: true }).last();
-    await otro.click();
-    await otro.fill("136");
-    await page.getByRole("option").filter({ hasText: /^136\b/ }).click();
-    await page.getByLabel("Cantidad", { exact: true }).last().fill("200");
-    await page.getByLabel("Presentación (UM)", { exact: true }).last().fill("LTS");
+    // Quitar con Deshacer.
+    await buscador.fill("foco led");
+    await page.getByRole("option").first().dblclick();
+    await esperarPartidas(3);
+    await page.getByRole("button", { name: "Quitar la partida 3", exact: true }).click();
+    await esperarPartidas(2);
+    await page.getByRole("button", { name: "↶ Deshacer", exact: true }).click();
+    await esperarPartidas(3);
+    await page.getByRole("button", { name: "Quitar la partida 3", exact: true }).click();
+    await esperarPartidas(2);
+    await cerrarAvisos();
+    await buscador.fill("foco led");
     assert.equal(await revisar.isDisabled(), false);
     await capturar("paso-2");
+    // Menos de 700 px: la lista se abre desde la barra de abajo, encima de los resultados.
+    await capturar("paso-2-lista", [640], async () => {
+      await page.getByRole("button", { name: /^2 partidas/ }).click();
+      await page.getByRole("button", { name: "Cerrar la lista", exact: true }).waitFor();
+    });
+    await page.keyboard.press("Escape");
+    // La página no se desplaza: solo los resultados y la lista tienen scroll.
+    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1), "el paso 2 no debe desplazar la página");
+    await buscador.fill("");
     await revisar.click();
     assert.equal(await pasoActual(), "3 · Revisar y emitir");
   });
@@ -183,7 +220,7 @@ test("vale de salida en 3 pasos", async (t) => {
     assert.equal(await pasoActual(), "1 · Para quién");
     await page.getByRole("radio", { name: "MECANICO", checked: true }).waitFor();
     await continuar.click();
-    assert.equal(await page.getByLabel("Cantidad", { exact: true }).first().inputValue(), "1");
+    assert.equal(await page.getByLabel("Cantidad de la partida 1").inputValue(), "1");
     await revisar.click();
     // El paso se guarda con el borrador: al volver a abrir la página sigue en el 3.
     await esperar((e) => e.borradores[0]?.paso === 3, "No se guardó el paso");

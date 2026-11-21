@@ -327,8 +327,10 @@ revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
 - ☑ Etapa 2: paso 1 completo (interno, transferencia, firmas extra). Decisiones del usuario: sin área preseleccionada;
   destinos RIG 48, 90, 165, 256, BASE IXACHI y BASE MARIN (el RIG propio no); al cambiar entre consumo y transferencia
   se elige de nuevo el área o el destino; Enter en el paso 3 emite con confirmación.
-- ☐ Etapa 3: paso 2 — buscador, resultados y lista con scroll propio. Decisión del usuario: el NP se muestra como
-  referencia y ya no llena el LOTE, salvo que se active el ajuste para copiarlo.
+- ☑ Etapa 3: paso 2 — buscador, resultados y lista con scroll propio. Decisiones del usuario: el NP se muestra como
+  referencia y ya no llena el LOTE, salvo con el ajuste *NP en el lote* (apagado por omisión, igual en los dos
+  inventarios); cada partida lleva Lote y O.C.; la UM se escribe solo en lo que no sale del inventario; «Buscar en» con
+  la lista propia (sin `<select>`).
 - ☐ Etapa 4: paso 2 — editar partida, clave nueva, código nuevo, traer partidas.
 - ☐ Etapa 5: paso 3 — pendientes, resumen, vista previa real y ampliada.
 - ☐ Etapa 6: menú lateral y anchos de ventana.
