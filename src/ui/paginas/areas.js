@@ -114,7 +114,6 @@ function useUnificar() {
         alias: e0.alias ?? {},
         plantillas_area: e0.plantillas_area,
         usuario_en_turno: e0.config.usuario_en_turno ?? null,
-        preferencias_vale: e0.config.preferencias_vale ?? null,
         personalizacion: e0.config.personalizacion ?? null,
       });
       const queda = await sesion.almacen.modificar((e) => unificarPersonas(e, conservar.id, otras.map((p) => p.id), sesion.usuario).nombre);
@@ -123,7 +122,7 @@ function useUnificar() {
         alHacer: () =>
           sesion.almacen.modificar((e) => {
             Object.assign(e, { personas: copia.personas, alias: copia.alias, plantillas_area: copia.plantillas_area });
-            for (const clave of ["usuario_en_turno", "preferencias_vale", "personalizacion"]) {
+            for (const clave of ["usuario_en_turno", "personalizacion"]) {
               if (copia[clave] === null) delete e.config[clave];
               else e.config[clave] = copia[clave];
             }

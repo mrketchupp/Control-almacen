@@ -170,7 +170,6 @@ export function guardarPersona(estado, datos, usuario = null, { actualizarVales 
 
 /** Ajustes generales guardados en el estado (van en los respaldos). */
 export const AJUSTES = {
-  captura_rapida: { tipo: "booleano", defecto: false },
   etapa_perforacion: { tipo: "texto", defecto: "" },
   np_en_lote: { tipo: "booleano", defecto: false }, // Ronda 34: el NP de la partida se copia al LOTE del vale de salida
 };

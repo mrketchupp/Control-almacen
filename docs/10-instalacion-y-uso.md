@@ -18,7 +18,7 @@
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
 | Exportar y enviar | Generar `VALES DE SALIDA <inventario>.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **subir al SharePoint** y traer vales hechos en el Excel |
 | **Áreas y personas** | Editar las plantillas de cada área (interna, externa o transferencia) y las personas (almacenistas, puestos) |
-| **Ajustes** | Modo de captura de partidas (paso a paso o con búsqueda rápida), **tu pantalla de vales** (orden de los datos y de qué lado van), **vale impreso** del inventario (textos y logos del formato) y etapa de perforación actual |
+| **Ajustes** | **Personalización** (tema, avisos, animaciones), **NP en el lote**, **vale impreso** del inventario (textos y logos del formato), carpetas del reporte y etapa de perforación actual |
 | **Inventarios independientes** | Selector en la cabecera: cada inventario con sus datos por separado (vales, folios, inventario, respaldos, conciliación) |
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
 
@@ -62,8 +62,8 @@ leer tus Excel, guardar datos entre sesiones y escribir en OneDrive.
 separado; la primera vez Inventario B está vacío y se hace su *Primera carga* con los archivos de Inventario B. Al abrir, entra al último
 que usaste. Si el libro de vales de Inventario B trae los textos o el logo de Inventario A, se corrigen en *Ajustes → Vale impreso de Inventario B*
 (valen para todas las hojas). En Inventario B toda la interfaz va en morado. La **etapa de perforación**, la **personalización**
-(tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales** son las mismas en los dos: si cambias
-algo en uno, el otro lo toma al abrirlo.
+(tema, avisos, animaciones) y **NP en el lote** son las mismas en los dos: si cambias algo en uno, el otro lo toma al
+abrirlo.
 
 ## 2. Carpeta de respaldos (una sola vez)
 
@@ -143,23 +143,23 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    **Ctrl + B**; se recuerda en este navegador. En ventanas de menos de 1280 px el menú va siempre de íconos y, al
    expandirlo, se abre encima del contenido (Esc o un clic fuera lo cierran). Ya no hay barra abajo: el menú de íconos
    se queda en cualquier ancho. Lo pendiente se ve como un punto ámbar sobre el ícono. Nunca se abre ni se cierra solo.
-2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*):
-   1. A la izquierda elige el **área que recibe**. En transferencias, justo debajo capturas origen y destino. En las demás, lo que se llena solo (quién entrega, de dónde sale, a dónde llega y las observaciones) queda al final del panel, en *Se llenan solos*.
-   2. **Recibió:** escribe el nombre o el puesto ("mecánico") y elige de la lista; su puesto se llena solo.
-   3. **Etapa de perforación:** es lo único que cambia en las observaciones; ya viene con la última que usaste.
-      En transferencias las observaciones están protegidas: pulsa el **lápiz** para editar el texto de ese vale y
-      **Terminar edición** para protegerlo de nuevo. La etapa se captura por separado, y origen y destino siguen editables.
-   4. Al centro, en **Partidas**: escribe el **código AX** y `Enter`; en **Clave almacén** aparecen solo las claves de ese código con su contenedor, su NP y existencia (pastillas grises); elige con las flechas y `Enter`; escribe la **cantidad** y `Enter` para pasar a la siguiente partida. La **clave** es la dimensión tal como está en el inventario (`S/D`, `SIN DIMENSION`…; si no tiene, `SIN DIMENSIÓN`) y el **NP** va en la columna **LOTE**. *Otra clave* sirve para algo que no sale del inventario; el diésel y lo que no lleva existencia quedan como *No inventariado*.
-   5. Si pides más de lo que hay, la herramienta pide una **justificación** para continuar. **✕ Quitar** borra una partida.
-   6. **Vista previa** muestra el vale sobre tu formato con `BORRADOR` en el folio. **Emitir vale · folio N** asigna el folio y descuenta la existencia.
-   7. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.
+2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*). Va en **3 pasos**; arriba se ve en cuál vas
+   (*Para quién · Material · Revisar y emitir*) y con **Enter** continúas:
+   1. **Para quién:** *Consumo interno* o *Enviar a otro RIG o pozo*. Elige el **área** (también con las teclas 1…0) o el
+      **destino**, y **quién recibe**: escribe el nombre o el puesto, o elígelo de «Suelen recibir en…»; su puesto se llena
+      solo. En transferencias van también quién transporta y quién autoriza; en NOV, sus firmas extra. Lo automático
+      (entrega, sale de, llega a, observaciones con la **etapa de perforación**) se llena solo.
+   2. **Material:** escribe en el buscador el código, la descripción, la dimensión o el NP; los resultados salen por código
+      con su contenedor y su existencia. **＋**, doble clic o **Enter** agregan (Shift+Enter va directo a la cantidad) y
+      **Tab** pasa de una cantidad a la siguiente. A la derecha está la lista del vale; con **Editar** cambias la clave, el
+      lote, la O.C. o la UM de una partida. Si la dimensión no existe en el inventario o el código no está en el catálogo,
+      la partida va igual pero **no descuenta**. *Traer partidas* copia las de una entrada de hoy o de otro vale.
+   3. **Revisar y emitir:** arriba, lo que falta (sin cantidad, más de lo que hay —ahí mismo escribes la justificación—,
+      fotos de NOV); abajo, el resumen y la **vista previa** real del vale con `BORRADOR` en el folio (ampliable con
+      zoom). **Emitir vale · folio N** se habilita cuando no falta nada: asigna el folio y descuenta la existencia.
+   4. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.
    - Puedes tener **varios vales abiertos** (pestañas con el número de partidas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios; si fue por error, pulsa **↶ Deshacer** en el aviso.
    - Si el vale tiene más partidas que el formato (21, 20 o 19 según la hoja), se ofrece dividirlo en folios consecutivos.
-   - ¿Prefieres buscar por cualquier dato y que se llene la partida completa? Actívalo en *Ajustes → Captura de partidas*.
-   - ¿Quieres otro acomodo? En *Ajustes → Mi pantalla de vales* arrastra los bloques (nombres, fecha, etapa…) por sus
-     puntitos ⠿ o muévelos con ↑ ↓, y con **⇄ Cambiar de lado** pon las partidas a la izquierda y los datos a la
-     derecha. Se guarda al momento para el almacenista en turno: cada quien ve su propio acomodo. *Restablecer como venía*
-     regresa al de fábrica.
 3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
    - En vales antiguos o importados también puedes completar o modificar **Puesto de quien entrega**, además de los
      demás puestos. Se respeta el papel de cada persona en los formatos con firmas invertidas. Un cambio de puesto

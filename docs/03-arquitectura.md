@@ -107,7 +107,8 @@ y de los últimos 12 meses.
 guarda una copia interna del estado actual y reemplaza todo en una sola transacción de IndexedDB.
 
 **Lo que comparten (Rondas 18 a 20):** la **etapa de perforación** (es del pozo), los ajustes de la persona:
-**personalización** (tema, avisos, animaciones), **captura de partidas** y **"Mi pantalla de vales"**, y (Ronda 20) el
+**personalización** (tema, avisos, animaciones) y *NP en el lote* (la captura de partidas y "Mi pantalla de vales" se
+quitaron en la Ronda 34), y (Ronda 20) el
 **diseño de las etiquetas** con los logos y el texto de cada inventario (`config.etiquetas`, ver `docs/11`). Viven además en una
 base aparte, `control-almacen-comun` (solo su almacén `ajustes`, clave `compartidos` = `{ <clave de config>: { valor, en,
 desde } }`; claves en `VALORES_COMPARTIDOS`). `almacen/compartidos.js` (`Compartidos`): al cambiar uno se publica completo

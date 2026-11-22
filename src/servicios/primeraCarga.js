@@ -199,7 +199,6 @@ function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
   });
   const interna = estado.plantillas_area.find((a) => esInterna(a) && etapaDe(a.observaciones) !== null);
   estado.config.etapa_perforacion = interna ? etapaDe(interna.observaciones) : "";
-  estado.config.captura_rapida = false;
   reporte.plantillas_area = vales.plantillas.length;
 }
 

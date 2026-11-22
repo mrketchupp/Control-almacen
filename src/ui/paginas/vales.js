@@ -1,18 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { PUESTOS_AUTORIZAN, conEtapa, etiquetasFirmasExtra, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
 import { aNumero, dec } from "../../nucleo/decimal.js";
-import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../../nucleo/estado.js";
+import { Indices, npMostrado } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
-import { ahoraIso, fmtFecha } from "../../nucleo/fechas.js";
+import { ahoraIso } from "../../nucleo/fechas.js";
 import { buscarPersonas, personasParaFirma } from "../../servicios/consultas.js";
-import { preferenciasVale } from "../../servicios/preferencias.js";
 import {
   ErrorVale,
   aplicarPlantilla,
   areaDeVale,
   borrador as buscarBorrador,
   conArticulo,
-  conDatosFijos,
   conEntregaEnTurno,
   conExistencia,
   descartarBorrador,
@@ -36,7 +34,7 @@ import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { BotonDescripcion } from "./descripcion.js";
 import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
-import { PasosVale, ResumenMaterial, ResumenParaQuien, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
+import { PasosVale, ResumenParaQuien, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
 import { PasoParaQuien } from "./paraQuien.js";
 import { PasoMaterial } from "./material.js";
 import { faltaParaAvanzar, nombrePaso, paraEmitir, pasoDe, pendientesParaEmitir } from "../../servicios/pasosVale.js";
@@ -52,10 +50,6 @@ export const normal = (t) =>
     .trim();
 
 export const palabras = (t) => normal(t).split(/\s+/).filter(Boolean);
-
-function lugarDe(ubicacion) {
-  return `#${ubicacion.contenedor} ${ubicacion.clase === "INV" ? "Inv." : "Cons."}`;
-}
 
 /** Artículos del catálogo para buscar por código AX (o por descripción). */
 export function indiceArticulos(estado, indices) {
@@ -87,48 +81,8 @@ function buscarArticulos(items, consulta, limite = 10) {
     .slice(0, limite);
 }
 
-/** Búsqueda rápida (opcional, en Ajustes): renglones del inventario y artículos sin existencia. */
-function indiceRapido(estado, indices, saldos) {
-  const items = [];
-  const conExistencia = new Set();
-  for (const e of estado.existencias) {
-    if (e.activo === false) continue;
-    const v = indices.variante(e.variante_id);
-    const u = indices.ubicacion(e.ubicacion_id);
-    const descripcion = indices.articulo(v.codigo)?.descripcion ?? "";
-    const dimension = dimensionMostrada(e, v) || "";
-    const np = npMostrado(e, v) || "";
-    conExistencia.add(v.codigo);
-    items.push({
-      tipo: "existencia",
-      id: e.id,
-      codigo: v.codigo,
-      descripcion,
-      detalle: [dimension, np && `NP ${np}`].filter(Boolean).join(" · ") || "S/D",
-      um: umMostrada(e, v) || "",
-      lugar: lugarDe(u),
-      total: aNumero(saldos.get(e.id).total),
-      texto: normal(`${v.codigo} ${descripcion} ${dimension} ${np} ${u.hoja_excel}`),
-    });
-  }
-  for (const a of Object.values(estado.articulos)) {
-    if (conExistencia.has(a.codigo) || a.activo === false) continue;
-    items.push({ tipo: "articulo", codigo: a.codigo, descripcion: a.descripcion, texto: normal(`${a.codigo} ${a.descripcion}`) });
-  }
-  return items;
-}
-
-function buscarRapido(items, consulta, limite = 12) {
-  const ps = palabras(consulta);
-  if (!ps.length) return [];
-  const codigo = /^\d+$/.test(consulta.trim()) ? Number(consulta.trim()) : null;
-  const puntaje = (i) =>
-    (codigo !== null && i.codigo === codigo ? 0 : 1) * 10 + (i.tipo === "existencia" ? (i.total > 0 ? 0 : 1) : 2);
-  return items
-    .filter((i) => ps.every((p) => i.texto.includes(p)))
-    .sort((a, b) => puntaje(a) - puntaje(b) || (b.total ?? 0) - (a.total ?? 0))
-    .slice(0, limite);
-}
+/** Orden de los bloques del panel de datos del vale (el de fábrica de la antigua "Mi pantalla de vales"). */
+const ORDEN_DATOS = ["area", "fecha", "origen_destino", "recibio", "firmas_extra", "autorizo", "etapa", "observaciones", "automaticos"];
 
 export function listas(estado) {
   const unicos = (valores) => [...new Set(valores.filter(Boolean).map((v) => String(v).trim()))].sort((a, b) => a.localeCompare(b, "es"));
@@ -357,7 +311,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   const indices = useMemo(() => new Indices(estado), [estado]);
   const saldos = useMemo(() => calcularSaldos(estado), [estado.existencias, estado.vales, estado.conteos]);
   const articulos = useMemo(() => indiceArticulos(estado, indices), [estado.articulos, estado.existencias]);
-  const rapido = useMemo(() => (estado.config?.captura_rapida ? indiceRapido(estado, indices, saldos) : []), [estado.config?.captura_rapida, saldos]);
   const opcionesListas = useMemo(() => listas(estado), [estado.personas, estado.plantillas_area]);
   const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
   const fijo = tieneDatosFijos(area);
@@ -437,14 +390,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     return opcionesPorCodigo.get(codigo);
   };
 
-  const agregarRapido = (item) => {
-    const vacia = datos.lineas.find(lineaEnBlanco);
-    const base = vacia ?? lineaVacia(area?.lote_defecto ?? "");
-    const linea = item.tipo === "existencia" ? conExistencia(estado, base, item.id, indices) : conArticulo(estado, base, item.codigo, { indices });
-    enfocar.current = `cant-${linea.uid}`;
-    cambiar({ lineas: vacia ? datos.lineas.map((l) => (l.uid === vacia.uid ? linea : l)) : [...datos.lineas, linea] });
-  };
-
   const autoriza = requiereAutoriza(estado, datos) || (excluirValeId !== null && Boolean(normal(datos.autorizo_nombre) || normal(datos.autorizo_puesto)));
   const areas = estado.plantillas_area.filter((p) => p.activo !== false || p.id === datos.plantilla_area_id);
   const enTurno = sesion.usuario ? conEntregaEnTurno(estado, datos, sesion.usuario) : null;
@@ -453,10 +398,9 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     : entrego ?? (enTurno ? { nombre: enTurno.entrego_nombre, puesto: enTurno.entrego_puesto } : null);
   const observaciones = observacionesDelVale(estado, datos) ?? "";
   const capturadas = lineasCapturadas(datos.lineas);
-  const preferencias = preferenciasVale(estado, sesion.usuario);
   let numero = 0;
 
-  // Bloques del panel de datos, en el orden que eligió quien está en turno (Ajustes).
+  // Bloques del panel de datos, en su orden fijo (ORDEN_DATOS). "Mi pantalla de vales" se quitó en la Ronda 34.
   const persona = (id, etiqueta, campo, { ayuda = null, error = null, puestos = [] } = {}) => html`
     <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda}>
       <${SelectorPersona}
@@ -599,7 +543,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
   };
 
   const panelDatos = html`<aside class="vale-datos" aria-label="Datos del vale">
-    ${preferencias.orden.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
+    ${ORDEN_DATOS.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
   </aside>`;
   const panelFotos = espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null;
   if (seccion === "fotos") return panelFotos;
@@ -611,8 +555,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
           </span>
           <span class="nota">Como aparecerán en el vale. Lo de color gris es información del inventario.</span>
         </header>
-
-        ${estado.config?.captura_rapida ? html`<${BusquedaRapida} items=${rapido} alElegir=${agregarRapido} />` : null}
 
         <div class="tabla-contenedor tabla-partidas">
           <table class="tabla">
@@ -751,7 +693,7 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
       </section>`;
 
   return html`
-    <div ref=${raiz} class=${`editor-vale ${preferencias.lado}`}>
+    <div ref=${raiz} class="editor-vale">
       ${panelDatos}
       <div class="vale-principal">
         ${panelPartidas}
@@ -760,32 +702,6 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
       </div>
     </div>
   `;
-}
-
-function BusquedaRapida({ items, alElegir }) {
-  const [consulta, setConsulta] = useState("");
-  const resultados = useMemo(() => buscarRapido(items, consulta), [items, consulta]);
-  return html`<div class="busqueda-rapida">
-    <${Combo}
-      id="buscar-articulo"
-      valor=${consulta}
-      alEscribir=${setConsulta}
-      opciones=${resultados}
-      clave=${(r) => `${r.tipo}${r.id ?? r.codigo}`}
-      render=${(r) => html`<strong>${r.codigo}</strong> · ${r.descripcion}
-        ${r.tipo === "existencia"
-          ? html`<span class="res-detalle">${r.detalle}</span>
-              <${Pastilla} tono="lugar">${r.lugar}<//>
-              <${Pastilla} tono=${r.total > 0 ? "ok" : "alerta"}>hay ${num(r.total)} ${r.um}<//>`
-          : html`<${Pastilla}>no inventariado<//>`}`}
-      alElegir=${(r) => {
-        alElegir(r);
-        setConsulta("");
-      }}
-      placeholder="Búsqueda rápida: código, descripción, dimensión o NP (Enter agrega la partida completa)"
-      ariaLabel="Búsqueda rápida de artículos"
-    />
-  </div>`;
 }
 
 export function ListaErrores({ errores }) {

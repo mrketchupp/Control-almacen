@@ -36,14 +36,15 @@ test("guardar un área interna fija el origen en ALMACEN; una transferencia exig
   assert.throws(() => guardarArea(estado, { ...areaVacia(), nombre: "electrico" }), ErrorCatalogo);
 });
 
-test("ajustes: captura rápida y etapa quedan en el estado con bitácora", () => {
+test("ajustes: NP en el lote y etapa quedan en el estado con bitácora; la captura rápida ya no existe", () => {
   const { estado } = cargaSintetica();
-  assert.equal(estado.config.captura_rapida, false);
-  fijarAjuste(estado, "captura_rapida", true, "ALMACENISTA UNO");
+  assert.equal(Object.hasOwn(estado.config, "captura_rapida"), false);
+  fijarAjuste(estado, "np_en_lote", true, "ALMACENISTA UNO");
   fijarAjuste(estado, "etapa_perforacion", ' 6 1/8" ', "ALMACENISTA UNO");
-  assert.deepEqual([estado.config.captura_rapida, estado.config.etapa_perforacion], [true, '6 1/8"']);
+  assert.deepEqual([estado.config.np_en_lote, estado.config.etapa_perforacion], [true, '6 1/8"']);
   assert.equal(estado.auditoria.filter((a) => a.entidad === "config").length, 2);
   assert.throws(() => fijarAjuste(estado, "otra_cosa", 1), ErrorCatalogo);
+  assert.throws(() => fijarAjuste(estado, "captura_rapida", true), ErrorCatalogo);
 });
 
 test("quién recibe: se busca por nombre, puesto o área habitual", () => {

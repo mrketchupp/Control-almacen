@@ -240,7 +240,7 @@ export function unificarPersonas(estado, conservarId, absorberIds, usuario = nul
     }
     // Lo que se guarda por almacenista.
     if (config.usuario_en_turno === p.nombre) config.usuario_en_turno = queda.nombre;
-    for (const clave of ["preferencias_vale", "personalizacion"]) {
+    for (const clave of ["personalizacion"]) {
       const porPersona = config[clave];
       if (!porPersona?.[p.nombre]) continue;
       porPersona[queda.nombre] ??= porPersona[p.nombre];

@@ -48,7 +48,7 @@ const PAGINAS = {
   pendientes: { titulo: "Pendientes", componente: PaginaPendientes, requiereDatos: true, icono: "pendientes", soloConAviso: true },
   exportar: { titulo: "Exportar y enviar", componente: PaginaExportar, requiereDatos: true, grupo: "mas", icono: "exportar", detalle: "Libros de Excel y SharePoint" },
   areas: { titulo: "Áreas y personas", componente: PaginaAreas, requiereDatos: true, grupo: "mas", icono: "personas", detalle: "Plantillas del vale y personal" },
-  ajustes: { titulo: "Ajustes", componente: PaginaAjustes, requiereDatos: true, grupo: "mas", icono: "ajustes", detalle: "Captura, tu pantalla y el vale impreso" },
+  ajustes: { titulo: "Ajustes", componente: PaginaAjustes, requiereDatos: true, grupo: "mas", icono: "ajustes", detalle: "Personalización, NP en el lote, vale impreso y carpetas" },
   respaldos: { titulo: "Respaldos", componente: PaginaRespaldos, grupo: "mas", icono: "respaldos", detalle: "Copias en tu carpeta de OneDrive" },
   ayuda: { titulo: "Ayuda", componente: PaginaAyuda, grupo: "mas", icono: "ayuda", detalle: "Preguntas y dónde quedan los datos" },
 };

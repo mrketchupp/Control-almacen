@@ -158,7 +158,13 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   (`useMenuEstrecho`); **Ctrl + B** y el botón `.nav-alternar` (íconos `panelCerrar` / `panelAbrir`) alternan: a lo ancho
   cambian la preferencia (`CLAVE_MENU`), en ventana angosta abren `.navegacion.encima` con `.nav-fondo` (Esc, clic fuera o
   un enlace cierran). `etiquetaEnlace` pone el pendiente en el `aria-label`; `.contador` es un punto ámbar en íconos.
-  Sin `.nav-inferior` ni la ventana *Todas las secciones*; `.cuerpo > .contenido` va en la columna 2.
+  Sin `.nav-inferior` ni la ventana *Todas las secciones*; `.cuerpo > .contenido` va en la columna 2. `@media
+  (max-width: 1279px)` fija `--ancho-menu: 64px` también desde el CSS (el `change` de `matchMedia` llega un cuadro
+  después del cambio de tamaño; sin esto el menú completo desbordaba la página por un instante).
+- Ronda 34, etapa 7 (limpieza, §11 de `docs/13`): sin *Mi pantalla de vales* (`BLOQUES_VALE`, `preferenciasVale`…)
+  ni *Captura de partidas* (`BusquedaRapida`, `indiceRapido`); `servicios/preferencias.js` solo tiene la
+  personalización; `migrarEstado` borra `config.preferencias_vale` y `config.captura_rapida` (sin subir formato) y
+  `VALORES_COMPARTIDOS` ya no las incluye. Pruebas: `preferencias.test.js`, `catalogos.test.js`, `compartidos.test.js`.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
@@ -277,7 +283,7 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - **Ronda 18:** en Inventario B `:root[data-inventario="<id>"]` redefine también `--primario`, `--primario-hover`,
   `--primario-suave` y `--sobre-primario` (claro y oscuro): toda la interfaz en morado. **Etapa compartida:**
   `almacen/compartidos.js` (`Compartidos`, `adoptarCompartidos`, `BD_COMUN = "control-almacen-comun"`; Ronda 19:
-  `VALORES_COMPARTIDOS` = etapa_perforacion, personalizacion, captura_rapida, preferencias_vale; gana el último cambio
+  `VALORES_COMPARTIDOS` = etapa_perforacion, personalizacion, np_en_lote, etiquetas (captura_rapida y preferencias_vale se quitaron en la Ronda 34); gana el último cambio
   completo); `Almacen._avisar(origen)`
   con `cambio` / `carga` / `restaurar` / `borrar`; `Sesion` lo crea con `{ comun }` y `main.js` espera `compartidos.terminar()`
   antes de cambiar de inventario. **Impresión:** `enRejilla`, `grosorEscalado`, `capaFondos` (`impresion/vale.js`) y
@@ -453,4 +459,4 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Inventario exportado: la fecha del encabezado de página (`oddHeader`) se cambia por la del inventario (`fechaEnTexto`, respeta la forma escrita). Escribir con "Guardar como" reintenta, verifica el tamaño y, si falla, descarga (`escribirEnArchivo`, `explicarErrorEscritura`).
 - Entradas: folio interno propio (`E-0001`, consecutivo aparte de salidas); B del libro de entradas = folio de la base. Un renglón de entrada va a un renglón existente, a uno nuevo (variante existente en otro contenedor o variante nueva) o *sin existencia*.
 - Conteos: cada renglón descuenta desde **su** conteo (`existencia.conteo_id`); un conteo parcial solo toca lo capturado. El reacomodo deja ambos renglones "recién contados" (conteo `tipo: REACOMODO`, que no se lista como conteo físico).
-- El panel de datos del vale se arma por bloques (`bloques` en `EditorVale`) en el orden de `config.preferencias_vale[almacenista]` (`src/servicios/preferencias.js`). Un bloque nuevo se agrega en `BLOQUES_VALE` y en `bloques`; `normalizarOrden` lo inserta en su lugar para quien ya tenía preferencias.
+- El vale de salida va en 3 pasos (Ronda 34, `docs/13-rediseno-vale-salida.md`). `EditorVale` (corrección de vales emitidos y la sección *fotos*) arma su panel de datos por bloques (`bloques`) en un orden fijo (`ORDEN_DATOS` en `ui/paginas/vales.js`); "Mi pantalla de vales" (`config.preferencias_vale`) y la captura rápida (`config.captura_rapida`, `BusquedaRapida`) se quitaron y `migrarEstado` borra sus claves al cargar.

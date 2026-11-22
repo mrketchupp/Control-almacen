@@ -345,7 +345,12 @@ revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
   una sección lo cierran); ya no hay barra inferior ni ventana *Todas las secciones*; nunca se abre ni se cierra solo.
   La lista del vale en < 700 px y *Emitir* se acomodan al menú de íconos. Capturas a 1440, 1024, 768 y 640 px sin
   desbordes (`tests/valePasos.navegador.mjs`, `tests/navegacionAdaptable.navegador.mjs`).
-- ☐ Etapa 7: limpieza (*Mi pantalla de vales*, *Captura de partidas*) y documentación.
+- ☑ Etapa 7: limpieza y documentación. Se quitaron *Mi pantalla de vales* y *Captura de partidas* de *Ajustes* (con su
+  código, estilos y pruebas); `migrarEstado` borra `config.preferencias_vale` y `config.captura_rapida` al cargar (sin
+  subir el formato) y la base común las ignora. `EditorVale` (corrección de vales emitidos) arma sus datos en un orden
+  fijo. Flujos, guía de uso, arquitectura y modelo de datos describen el vale en 3 pasos. También: por debajo de 1280 px
+  la columna del menú es de íconos desde el CSS, para que en el cuadro en que la ventana cambia de tamaño el menú
+  completo no empuje el contenido fuera (la prueba `comentarios` lo atrapaba de vez en cuando a 390 px).
 
 **Ronda 33 — vale de salida a partir de otro vale.** Pedido del usuario: el material que se recibe y se entrega el mismo
 día ya está capturado en su entrada; volver a escribir las partidas en el vale de salida es doble trabajo. **Aplicado:**

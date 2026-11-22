@@ -79,7 +79,6 @@ export function migrarEstado(estado) {
     estado.config ??= {};
     const interna = estado.plantillas_area.find((a) => esInterna(a) && etapaDe(a.observaciones) !== null);
     estado.config.etapa_perforacion ??= interna ? etapaDe(interna.observaciones) : "";
-    estado.config.captura_rapida ??= false;
     for (const b of estado.borradores) {
       b.etapa_perforacion ??= etapaDe(b.observaciones) ?? estado.config.etapa_perforacion;
       const area = estado.plantillas_area.find((a) => a.id === b.plantilla_area_id);
@@ -225,6 +224,12 @@ export function migrarEstado(estado) {
   if (estado.formato < 18) {
     // Nada que convertir: antes no había partidas de FX ni dadas de baja con motivo (todas son del inventario).
     estado.formato = 18;
+  }
+  // Ronda 34 (§11 de docs/13): se quitaron «Mi pantalla de vales» y la «Captura de partidas» de Ajustes. Sus
+  // valores guardados ya no sirven; se borran al cargar (sin subir el formato: eran opcionales).
+  if (estado.config) {
+    delete estado.config.preferencias_vale;
+    delete estado.config.captura_rapida;
   }
   return estado;
 }

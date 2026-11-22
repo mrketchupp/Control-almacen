@@ -236,8 +236,9 @@ formato), por ejemplo el nombre del almacén y la dirección de Inventario A en 
 importar mayúsculas ni espacios de más y nunca tocan lo capturado en el vale; el logo nuevo va como `data:` URL (≤ 300 KB)
 para que viaje en los respaldos. Ver `src/impresion/identidad.js` y `src/servicios/valeImpreso.js`.
 
-**Ajustes compartidos (Rondas 18 y 19):** `config.etapa_perforacion`, `config.personalizacion`, `config.captura_rapida` y
-`config.preferencias_vale` son los mismos en Inventario A y Inventario B. Cada estado conserva su copia (va en sus respaldos) y se
+**Ajustes compartidos (Rondas 18, 19 y 34):** `config.etapa_perforacion`, `config.personalizacion` y `config.np_en_lote`
+son los mismos en Inventario A y Inventario B (`config.captura_rapida` y `config.preferencias_vale` se quitaron en la Ronda 34:
+`migrarEstado` las borra al cargar). Cada estado conserva su copia (va en sus respaldos) y se
 sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia el formato del estado.
 
 **Carpetas del reporte diario (Ronda 30):** no están en el estado. Viven solo en la base común de este equipo (`ajustes`,
@@ -317,7 +318,7 @@ unidad, sumando los distintos NP que AX no distingue y dando prioridad a las dim
 | **`plantilla_excel`** | tipo (`INVENTARIO` / `VALES`), ruta, hash, fecha, activa |
 | **`exportacion`** | tipo, fecha, archivo, hash, usuario, último folio incluido, marcada como enviada |
 | **`auditoria`** | fecha_hora, usuario, entidad, entidad_id, acción, antes (JSON), después (JSON), motivo |
-| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `etapa_perforacion` actual, `captura_rapida`, `preferencias_vale`…) |
+| **`config`** | clave / valor (almacén AX, retención de respaldos, almacenista en turno, `etapa_perforacion` actual, `np_en_lote`…) |
 
 El siguiente folio es siempre `último folio + 1`: los folios no se saltan (el antiguo `folio_minimo_salida` se
 elimina al migrar). Los vales hechos fuera de la herramienta se traen del Excel para no dejar huecos.
@@ -326,7 +327,7 @@ El estado lleva `formato` (hoy **15**; del 6 al 12 se describen arriba en *Conci
 el 12 completa `emitido_en` en las marcas de etiquetas de las entradas propias; el 13 agrega `fecha_recibido` a las
 entradas y a sus borradores, ver *Vales de entrada*; el 14 reúne los marcadores de correcciones generales de la rama de vales y la fecha mínima de justificantes AX; el 15 agrega los vínculos físicos por corte). Al abrir un estado o un respaldo de un formato anterior se migra solo
 (`migrarEstado`): el formato 2 agregó `borradores` y `envios`; el 3, el `tipo` de cada área (las internas pasan a salir
-de `EQUIPO · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida`;
+de `EQUIPO · ALMACEN`), `config.etapa_perforacion` (tomada de las observaciones del formato) y `config.captura_rapida` (quitada en la Ronda 34);
 el 4 quita el folio mínimo, da datos fijos también a las externas (NOV) y, al abrir, vuelve a leer las hojas-formulario
 para completar `autoriza_puesto`, `firmas_extra` y `almacenista_derecha` de cada área; el 5 agrega
 `borradores_entrada`, `conteo_en_curso` y `reacomodos`, y marca los conteos anteriores como `alcance: TOTAL`.
@@ -368,10 +369,8 @@ subido); los borradores, **hoy** (un día pasado podría cambiar un reporte ya s
 antes de registrar; no se usa la fecha del borrador porque puede ser la del vale, que puso Copilot). El corte por folio
 de cada conteo **no cambia**.
 
-`config.preferencias_vale` guarda, por nombre de almacenista, cómo quiere ver la pantalla del vale:
-`{ "<ALMACENISTA>": { "orden": ["area", "fecha", …], "lado": "datos-izquierda" | "partidas-izquierda" } }`
-(`src/servicios/preferencias.js`). Es opcional y se completa al leerla (bloques desconocidos o repetidos se quitan y los
-que falten se insertan en su lugar de fábrica), así que no cambia el formato ni necesita migración; viaja en los respaldos.
+`config.preferencias_vale` (el acomodo de "Mi pantalla de vales" por almacenista) ya no existe desde la Ronda 34: el vale de
+salida va en 3 pasos con un solo acomodo. Era opcional; `migrarEstado` la borra al cargar, sin subir el formato.
 
 ## Cálculo de existencias
 

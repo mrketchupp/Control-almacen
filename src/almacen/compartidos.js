@@ -1,6 +1,7 @@
 // Ajustes que comparten DLTA y GSM. Ronda 18: la etapa de perforación es del pozo, no de un
-// inventario. Ronda 19: también la personalización de cada almacenista (tema, avisos, animaciones), la
-// captura de partidas y "Mi pantalla de vales" son de la persona, no del inventario. Ronda 20: el
+// inventario. Ronda 19: también la personalización de cada almacenista (tema, avisos, animaciones), que es
+// de la persona, no del inventario (la captura de partidas y "Mi pantalla de vales" se quitaron en la Ronda 34;
+// si la base común aún las tiene, se ignoran: solo se adoptan las claves de VALORES_COMPARTIDOS). Ronda 20: el
 // diseño de las etiquetas y la identidad (logos, texto) de cada inventario en ellas. Si se cambian en
 // uno (en Ajustes, en el inicio o al emitir un vale con otra etapa), el otro los toma al abrirse, al
 // hacer su primera carga o al restaurar un respaldo. Lo compartido vive en una base aparte
@@ -23,9 +24,7 @@ import { adoptarListaEtiquetas, juntarImpresiones, listaPublicable } from "../se
 export const VALORES_COMPARTIDOS = {
   etapa_perforacion: "",
   personalizacion: {}, // por almacenista: tema, avisos, animaciones
-  captura_rapida: false,
   np_en_lote: false, // Ronda 34: copiar el NP al LOTE en los vales de salida
-  preferencias_vale: {}, // por almacenista: "Mi pantalla de vales"
   etiquetas: {}, // Ronda 20: diseño de la hoja y logos / texto de cada inventario (servicios/etiquetas.js)
 };
 export const BD_COMUN = "control-almacen-comun";

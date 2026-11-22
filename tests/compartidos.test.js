@@ -7,7 +7,7 @@ import { BackendMemoria } from "../src/almacen/bd.js";
 import { Compartidos, adoptarCompartidos } from "../src/almacen/compartidos.js";
 import { crearRespaldo, leerRespaldo } from "../src/almacen/respaldos.js";
 import { fijarAjuste } from "../src/servicios/catalogos.js";
-import { guardarPersonalizacion, guardarPreferenciasVale, personalizacion, preferenciasVale, restablecerPreferenciasVale } from "../src/servicios/preferencias.js";
+import { guardarPersonalizacion, personalizacion } from "../src/servicios/preferencias.js";
 import { Indices } from "../src/nucleo/estado.js";
 import * as en from "../src/servicios/entradas.js";
 import * as et from "../src/servicios/etiquetas.js";
@@ -99,7 +99,7 @@ test("adoptar: también los borradores que traían la etapa anterior (los cambia
   assert.deepEqual(adoptarCompartidos(estado, { etapa_perforacion: { valor: '26"' } }), []); // ya es la misma
 });
 
-test("personalización, captura de partidas y Mi pantalla de vales son las mismas en DLTA y GSM", async () => {
+test("personalización y NP en el lote son las mismas en DLTA y GSM; lo que ya no existe no regresa", async () => {
   const comun = new BackendMemoria();
   const dlta = await abrir("DLTA");
   await cargar(dlta);
@@ -110,11 +110,10 @@ test("personalización, captura de partidas y Mi pantalla de vales son las misma
   const c2 = new Compartidos(gsm, comun);
   await c2.sincronizar();
 
-  // En GSM: tema oscuro, captura con búsqueda rápida y partidas a la izquierda.
+  // En GSM: tema oscuro, avisos abajo y el NP en el lote.
   await gsm.modificar((e) => {
     guardarPersonalizacion(e, USUARIO, { tema: "oscuro", avisos: "abajo" });
-    fijarAjuste(e, "captura_rapida", true, USUARIO);
-    guardarPreferenciasVale(e, USUARIO, { orden: preferenciasVale(e, USUARIO).orden, lado: "partidas-izquierda" });
+    fijarAjuste(e, "np_en_lote", true, USUARIO);
   });
   await c2.terminar();
 
@@ -122,16 +121,16 @@ test("personalización, captura de partidas y Mi pantalla de vales son las misma
   await new Compartidos(dlta, comun).sincronizar();
   assert.equal(personalizacion(dlta.estado, USUARIO).tema, "oscuro");
   assert.equal(personalizacion(dlta.estado, USUARIO).avisos, "abajo");
-  assert.equal(dlta.estado.config.captura_rapida, true);
-  assert.equal(preferenciasVale(dlta.estado, USUARIO).lado, "partidas-izquierda");
+  assert.equal(dlta.estado.config.np_en_lote, true);
 
-  // Restablecer la pantalla en DLTA también llega a GSM (gana el último cambio, completo).
-  const c3 = new Compartidos(dlta, comun);
-  await c3.sincronizar();
-  await dlta.modificar((e) => restablecerPreferenciasVale(e, USUARIO));
-  await c3.terminar();
+  // Una base común de antes de la Ronda 34 con la captura rápida y «Mi pantalla de vales»: se ignoran.
+  const registro = await comun.leerAjuste("compartidos");
+  registro.captura_rapida = { valor: true, en: "2099-01-01T00:00:00", por: USUARIO };
+  registro.preferencias_vale = { valor: { [USUARIO]: { orden: ["fecha"], lado: "partidas-izquierda" } }, en: "2099-01-01T00:00:00", por: USUARIO };
+  await comun.guardarAjuste("compartidos", registro);
   await new Compartidos(gsm, comun).sincronizar();
-  assert.notEqual(preferenciasVale(gsm.estado, USUARIO).lado, "partidas-izquierda");
+  assert.equal(Object.hasOwn(gsm.estado.config, "captura_rapida"), false);
+  assert.equal(Object.hasOwn(gsm.estado.config, "preferencias_vale"), false);
   assert.equal(personalizacion(gsm.estado, USUARIO).tema, "oscuro");
 });
 

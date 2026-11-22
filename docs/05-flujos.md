@@ -29,12 +29,19 @@ flowchart TD
   también se repiten el área, quién recibe, el LOTE y, si el área los lleva, quién autoriza y las firmas de la segunda
   fila. La fecha es hoy y entrega quien está en turno. La barra del borrador enlaza al vale de origen y la bitácora de
   *Emitir* lo anota (`copia_de`); el vale original no cambia (`servicios/copiarVale.js`).
-- **Pantalla:** a la izquierda los datos del vale: primero lo que se captura (área, fecha; en transferencias origen y destino; personas, etapa) y al final, en "Se llenan solos", lo automático (quién entrega, de dónde sale, a dónde llega y las observaciones fijas). Al centro las **partidas** y, debajo, en su propia sección, las **fotos** (NOV). Las partidas van con las mismas columnas y en el mismo orden que el vale impreso (O.C., cantidad, código, descripción, clave almacén, presentación, lote). Lo que viene del inventario (contenedor, existencia) se muestra en **pastillas grises**, aparte de lo que se imprime.
-- **Pantalla de cada almacenista (Ajustes → Mi pantalla de vales):** el orden de los bloques del panel de datos se cambia arrastrándolos por sus puntitos (o con ↑ ↓) en una vista previa, y un botón pasa los datos al otro lado de las partidas. Se guarda por almacenista y se aplica según quién está en turno; lo descrito arriba es el acomodo de fábrica (*Restablecer como venía*).
+- **El vale en 3 pasos (Ronda 34, `docs/13-rediseno-vale-salida.md`):** arriba, el indicador *Para quién · Material ·
+  Revisar y emitir* (completo en verde con ✓; no es clicable: se regresa con *Editar*). **1 · Para quién:** *Consumo
+  interno* o *Enviar a otro RIG o pozo*; el área (teclas 1…0) o el destino, la fecha, quién recibe con su puesto (lista
+  «Suelen recibir en…»), en transferencias quién transporta y quién autoriza, y en NOV las firmas extra; lo automático
+  (entrega, sale de, llega a, observaciones con la etapa) se llena solo. **2 · Material:** un buscador único y fijo
+  (código, descripción, dimensión o NP; *Buscar en*) con los resultados agrupados por código; ＋, doble clic o Enter
+  agregan y Shift+Enter va a la cantidad; a la derecha *Para quién* y *Partidas* con su propio scroll, Tab entre
+  cantidades y *Editar* para cambiar la clave, el lote, la O.C. o la UM de una partida. Una dimensión que no existe
+  («Usar «…»») y un código que no está en el catálogo no descuentan; *Traer partidas* de una entrada de hoy u otro vale.
+  **3 · Revisar y emitir:** lo que falta (con *Ir a la partida* y la justificación ahí mismo), el resumen y la vista
+  previa real del vale (ampliable con zoom); *Emitir* solo sin pendientes (también las fotos de NOV).
 - **Vales internos** (todo menos NOV y transferencias): salen de `EQUIPO · ALMACEN` y llegan a `EQUIPO · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.
 - **Recibió:** se busca por nombre, por puesto o por el área a la que la persona suele recibir ("mecánico" lista a los mecánicos); al elegirla se llena su puesto.
-- **Partidas (paso a paso):** código AX → `Enter` → **clave**: la lista muestra solo las claves de ese código en el inventario, cada una con su contenedor y existencia (si solo hay una, se elige sola) → `Enter` → cantidad → `Enter` pasa a la siguiente partida. "Otra clave" deja la partida como no inventariada (no descuenta). Un artículo sin existencia (diésel) queda no inventariado y la clave se escribe a mano; un código que no está en el catálogo se acepta con su descripción y queda "por confirmar".
-- **Búsqueda rápida (opcional, en Ajustes):** un buscador por cualquier dato que llena la partida completa con `Enter`.
 - **Validaciones antes de emitir:** fecha, departamento destino, entregó, recibió, cantidad > 0, UM, "Sale de" elegido. Si la cantidad supera la existencia del contenedor elegido se pide una **justificación** (queda en el renglón).
 - **Emitir** es el único paso que asigna folio: el último + 1, dentro de un cambio atómico con candado de pestaña única. Un vale con errores no consume folio. **Todos los folios se usan:** ninguno se cancela ni se salta.
 - **Más renglones que el formato:** cada hoja-formulario tiene su capacidad (21, 20 u 19 renglones). Si el vale la supera, la herramienta avisa y ofrece dividirlo en folios consecutivos (P-16).
@@ -359,7 +366,7 @@ los vales hasta ese folio (`vale.subido_cambio`); los posteriores siguen pendien
    o se quita. Con vista previa por hoja. Valen para **todas las hojas** (todas las áreas). No cambia el Excel ni los vales.
 5. **La etapa de perforación es la misma en los dos** (Ronda 18): si se cambia en uno (Inicio, Ajustes o al emitir un
    vale con otra etapa), el otro la toma al abrirlo; también al hacer su primera carga o restaurar un respaldo. Lo mismo
-   (Ronda 19) con la **personalización** (tema, avisos, animaciones), la **captura de partidas** y **Mi pantalla de vales**.
+   (Ronda 19) con la **personalización** (tema, avisos, animaciones) y el ajuste *NP en el lote* (Ronda 34).
 6. **Color:** en Inventario B toda la interfaz (botones, enlaces, menú, pestañas) va en morado; en Inventario A, en azul.
 7. **FX dentro del Inventario B (Ronda 23):** FX se descuenta en los vales del Inventario B (LOTE "FX") y comparte sus
    folios (un vale puede llevar partidas de los dos), así que vive en ese inventario: sus partidas llevan la marca FX (la
