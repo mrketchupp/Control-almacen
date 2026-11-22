@@ -39,6 +39,9 @@ const TRAZOS = {
   copiar: ["M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1z", "M16 9V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"],
   deshacer: ["M9 14 4 9l5-5", "M4 9h10a6 6 0 0 1 0 12h-2"],
   rehacer: ["M15 14l5-5-5-5", "M20 9H10a6 6 0 0 0 0 12h2"],
+  // Menú lateral: panel con la flecha hacia donde se mueve (contraer ← / expandir →).
+  panelCerrar: ["M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z", "M9 3v18", "M16 15l-3-3 3-3"],
+  panelAbrir: ["M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z", "M9 3v18", "M13 9l3 3-3 3"],
   izquierda: ["M15 5l-7 7 7 7"],
   derecha: ["M9 5l7 7-7 7"],
   // Avisos: uno por tipo, dentro de un círculo.

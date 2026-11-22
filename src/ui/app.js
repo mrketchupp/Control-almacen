@@ -194,7 +194,8 @@ function BotonMas({ enlaces, abierta, insignia }) {
   const avisos = enlaces.reduce((t, [clave]) => t + (Number(insignia[clave]) || 0), 0);
   const destino = enlaces.some(([clave]) => clave === ultimaSeccion) ? ultimaSeccion : enlaces[0]?.[0];
   return html`<div class="nav-mas">
-    <a class=${`nav-boton-mas ${abierta ? "activo" : ""}`} href=${`#${destino}`} title="Ajustes y más" aria-label="Ajustes y más" aria-haspopup="dialog" aria-expanded=${abierta}>
+    <a class=${`nav-boton-mas ${abierta ? "activo" : ""}`} href=${`#${destino}`} title="Ajustes y más"
+      aria-label=${avisos ? `Ajustes y más, ${avisos} pendientes adentro` : "Ajustes y más"} aria-haspopup="dialog" aria-expanded=${abierta}>
       <${Icono} nombre="ajustes" />
       <span class="nav-texto">Ajustes y más</span>
       ${avisos ? html`<span class="contador" title="Hay pendientes adentro">${avisos}</span>` : null}
@@ -271,57 +272,55 @@ function menuRecordado() {
   try { return localStorage.getItem(CLAVE_MENU) === "1"; } catch { return false; }
 }
 
-/** En ventanas medianas se usa una barra de iconos; el menú completo sigue disponible al pulsar. */
+/** Ancho desde el que el menú puede ir completo (§7 de docs/13): por debajo, siempre de íconos. */
+export const ANCHO_MENU_COMPLETO = 1280;
+
+/** ¿La ventana es angosta para el menú completo? Entonces va de íconos y expandirlo lo abre encima del contenido. */
 function useMenuEstrecho() {
-  const [estrecho, setEstrecho] = useState(() => window.matchMedia("(max-width: 1100px)").matches);
+  const consulta = `(max-width: ${ANCHO_MENU_COMPLETO - 1}px)`;
+  const [estrecho, setEstrecho] = useState(() => window.matchMedia(consulta).matches);
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 1100px)"), cambiar = () => setEstrecho(media.matches);
+    const media = window.matchMedia(consulta), cambiar = () => setEstrecho(media.matches);
     media.addEventListener("change", cambiar);
     return () => media.removeEventListener("change", cambiar);
   }, []);
   return estrecho;
 }
 
-function Navegacion({ actual, masAbierta, compacto, estrecho, alAlternar }) {
+/** "Vales de salida, 2 borradores en captura": el pendiente también para quien no ve el punto. */
+function etiquetaEnlace(clave, p, insignia, titulos) {
+  const valor = insignia[clave];
+  if (!valor) return p.titulo;
+  const que = (titulos[clave] ?? "pendientes").toLowerCase();
+  return valor === "•" ? `${p.titulo}, ${que}` : `${p.titulo}, ${valor} ${que}`;
+}
+
+/**
+ * Menú lateral (§7 de docs/13-rediseno-vale-salida.md): completo (236 px, ícono y nombre) o de íconos (64 px, botones de
+ * 44 × 44 con el pendiente como punto ámbar). Nunca se abre ni se cierra solo; en ventana angosta, expandirlo lo abre
+ * encima del contenido (Esc o clic fuera lo cierran). Ya no hay barra inferior ni menú de hamburguesa.
+ */
+function Navegacion({ actual, masAbierta, iconos, encima, alAlternar, alCerrarEncima }) {
   const { principales, mas, insignia, titulos } = useEnlaces(actual);
-  const [menuAbierto, setMenuAbierto] = useState(false);
-  const abrirMenu = () => setMenuAbierto(true), cerrarMenu = () => setMenuAbierto(false);
-  const enlace = ([clave, p], corto = false) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""}
-      title=${p.titulo} aria-label=${p.titulo} aria-current=${clave === actual ? "page" : null} onClick=${cerrarMenu}>
+  const textoAlternar = iconos ? "Expandir menú" : "Contraer menú";
+  const enlace = ([clave, p]) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""}
+      title=${p.titulo} aria-label=${etiquetaEnlace(clave, p, insignia, titulos)} aria-current=${clave === actual ? "page" : null}
+      onClick=${alCerrarEncima}>
     <${Icono} nombre=${p.icono} />
-    <span class="nav-texto">${corto && clave === "vales" ? "Salidas" : p.titulo}</span>
+    <span class="nav-texto">${p.titulo}</span>
     <${Insignia} clave=${clave} valor=${insignia[clave]} titulos=${titulos} />
   </a>`;
-  const rapidos = principales.filter(([clave]) => ["inicio", "carga", "vales", "inventario"].includes(clave));
-  const destinoSecundario = masAbierta || !rapidos.some(([clave]) => clave === actual);
-  const textoAlternar = estrecho ? "Abrir menú de secciones" : compacto ? "Expandir menú lateral" : "Contraer menú lateral";
-  return html`<nav class="navegacion" aria-label="Secciones">
-    <button class="nav-alternar" type="button" title=${textoAlternar} aria-label=${textoAlternar}
-      aria-expanded=${estrecho ? menuAbierto : !compacto} aria-controls=${estrecho ? "menu-todas-secciones" : "menu-principal"}
-      onClick=${estrecho ? abrirMenu : alAlternar}>
-      <${Icono} nombre="mas" /><span class="nav-texto">Contraer menú</span>
-    </button>
-    <div class="nav-principal" id="menu-principal">
-      ${principales.map(
-        (p) => enlace(p),
-      )}
-    </div>
-    <${BotonMas} enlaces=${mas} abierta=${masAbierta} insignia=${insignia} />
-    <div class="nav-inferior" style=${{ "--nav-opciones": rapidos.length + 1 }}>
-      ${rapidos.map((p) => enlace(p, true))}
-      <button type="button" class=${destinoSecundario ? "activo" : ""} title="Todas las secciones" aria-label="Más secciones"
-        aria-haspopup="dialog" aria-expanded=${menuAbierto} aria-controls="menu-todas-secciones" onClick=${abrirMenu}>
-        <${Icono} nombre="mas" /><span class="nav-texto">Más</span>
-      </button>
-    </div>
-    ${menuAbierto ? html`<${Ventana} titulo="Todas las secciones" clase="ventana-secciones" alCerrar=${cerrarMenu}>
-      <nav class="menu-secciones" id="menu-todas-secciones" aria-label="Todas las secciones">
-        ${principales.map((p) => enlace(p))}
-        <p class="menu-grupo">Ajustes y más</p>
-        ${mas.map((p) => enlace(p))}
-      </nav>
-    <//>` : null}
-  </nav>`;
+  return html`${encima ? html`<div class="nav-fondo" aria-hidden="true" onClick=${alCerrarEncima}></div>` : null}
+    <nav class=${`navegacion ${iconos ? "nav-iconos" : ""} ${encima ? "encima" : ""}`} aria-label="Secciones">
+      <div class="nav-cabeza">
+        <button class="nav-alternar" type="button" title=${`${textoAlternar} (Ctrl + B)`} aria-label=${textoAlternar}
+          aria-expanded=${!iconos} aria-controls="menu-principal" onClick=${alAlternar}>
+          <${Icono} nombre=${iconos ? "panelAbrir" : "panelCerrar"} />
+        </button>
+      </div>
+      <div class="nav-principal" id="menu-principal">${principales.map(enlace)}</div>
+      <${BotonMas} enlaces=${mas} abierta=${masAbierta} insignia=${insignia} />
+    </nav>`;
 }
 
 /** La vista "Ajustes y más" con sus enlaces. */
@@ -343,7 +342,9 @@ function Marco() {
   const sesion = useSesion();
   const [ruta, setRuta] = useState(location.hash);
   const [menuCompacto, setMenuCompacto] = useState(menuRecordado);
+  const [encimaAbierto, setEncima] = useState(false);
   const estrecho = useMenuEstrecho(), compacto = estrecho || menuCompacto;
+  const encima = estrecho && encimaAbierto;
   const cabecera = useRef(null), [altoCabecera, setAltoCabecera] = useState(57);
   useEffect(() => {
     const actualizar = () => setAltoCabecera(Math.ceil(cabecera.current?.getBoundingClientRect().height ?? 57));
@@ -352,10 +353,38 @@ function Marco() {
     if (cabecera.current) observador.observe(cabecera.current);
     return () => observador.disconnect();
   }, []);
-  const alternarMenu = () => setMenuCompacto((antes) => {
-    try { localStorage.setItem(CLAVE_MENU, antes ? "0" : "1"); } catch { /* La preferencia sigue funcionando en esta sesión. */ }
-    return !antes;
-  });
+  // Ancho: lo que eligió el usuario (se queda aunque la ventana crezca). Angosta: abre o cierra el menú encima.
+  const alternarMenu = () => {
+    if (estrecho) return setEncima((antes) => !antes);
+    setMenuCompacto((antes) => {
+      try { localStorage.setItem(CLAVE_MENU, antes ? "0" : "1"); } catch { /* La preferencia sigue funcionando en esta sesión. */ }
+      return !antes;
+    });
+  };
+  const cerrarEncima = () => setEncima(false);
+  const alternar = useRef(alternarMenu);
+  alternar.current = alternarMenu;
+  useEffect(() => {
+    const tecla = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        alternar.current();
+      }
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, []);
+  useEffect(() => {
+    if (!encima) return undefined;
+    const tecla = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setEncima(false);
+      document.querySelector(".nav-alternar")?.focus();
+    };
+    window.addEventListener("keydown", tecla, true);
+    return () => window.removeEventListener("keydown", tecla, true);
+  }, [encima]);
   const gusto = personalizacion(sesion.estado, sesion.usuario);
   useEffect(() => aplicarPersonalizacion(gusto), [gusto.tema, gusto.avisos, gusto.animaciones]);
   // Página de fondo: la última que no es de "Ajustes y más" (esa se abre encima).
@@ -399,7 +428,8 @@ function Marco() {
     </header>
     <${BannerPermiso} />
     <div class="cuerpo">
-      <${Navegacion} actual=${activa} masAbierta=${Boolean(seccion)} compacto=${compacto} estrecho=${estrecho} alAlternar=${alternarMenu} />
+      <${Navegacion} actual=${activa} masAbierta=${Boolean(seccion)} iconos=${compacto && !encima} encima=${encima}
+        alAlternar=${alternarMenu} alCerrarEncima=${cerrarEncima} />
       <main class="contenido" key=${clave}>
         ${["vale", "entrada", "inicio"].includes(clave) && !(clave === "inicio" && sesion.almacen.vacio) ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
         <${Componente} key=${["vale", "entrada", "reporte"].includes(clave) ? rutaFondo : clave} />

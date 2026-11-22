@@ -339,7 +339,12 @@ revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.
   previa real (el mismo HTML de impresión) y ampliada con zoom; *Emitir* bloqueado mientras falte algo (también las
   fotos de NOV). Decisión del usuario: lote y O.C. en el resumen solo si tienen algo. Desde esta etapa se trabaja en
   `main` (las 1–4 se fusionaron ahí).
-- ☐ Etapa 6: menú lateral y anchos de ventana.
+- ☑ Etapa 6: menú lateral y anchos de ventana. Menú completo (236 px, *Contraer menú* de 36 × 36 arriba) o de íconos
+  (64 px, botones de 44 × 44 y el pendiente como punto ámbar, con el número en el nombre del enlace); **Ctrl + B**
+  alterna; por debajo de 1280 px siempre íconos y *Expandir menú* lo abre encima del contenido (Esc, clic fuera o elegir
+  una sección lo cierran); ya no hay barra inferior ni ventana *Todas las secciones*; nunca se abre ni se cierra solo.
+  La lista del vale en < 700 px y *Emitir* se acomodan al menú de íconos. Capturas a 1440, 1024, 768 y 640 px sin
+  desbordes (`tests/valePasos.navegador.mjs`, `tests/navegacionAdaptable.navegador.mjs`).
 - ☐ Etapa 7: limpieza (*Mi pantalla de vales*, *Captura de partidas*) y documentación.
 
 **Ronda 33 — vale de salida a partir de otro vale.** Pedido del usuario: el material que se recibe y se entrega el mismo

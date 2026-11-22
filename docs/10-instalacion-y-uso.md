@@ -139,9 +139,10 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
 ## 4. Uso diario
 
 1. **Elige quién está en turno** arriba a la derecha. Queda registrado en cada acción y se pone como "Entregó" en los vales.
-   Puedes **Contraer menú** y volver a **Expandir menú**; se recuerda en este navegador. En ventanas medianas aparece
-   una barra de iconos con **Abrir menú**. En móvil, la barra inferior ofrece Inicio, Salidas, Inventario y **Más**;
-   desde Más puedes abrir todas las secciones. Las acciones también funcionan con teclado, sin depender del hover.
+   Puedes **Contraer menú** (solo íconos) y volver a **Expandir menú** con el botón de arriba del menú o con
+   **Ctrl + B**; se recuerda en este navegador. En ventanas de menos de 1280 px el menú va siempre de íconos y, al
+   expandirlo, se abre encima del contenido (Esc o un clic fuera lo cierran). Ya no hay barra abajo: el menú de íconos
+   se queda en cualquier ancho. Lo pendiente se ve como un punto ámbar sobre el ícono. Nunca se abre ni se cierra solo.
 2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*):
    1. A la izquierda elige el **área que recibe**. En transferencias, justo debajo capturas origen y destino. En las demás, lo que se llena solo (quién entrega, de dónde sale, a dónde llega y las observaciones) queda al final del panel, en *Se llenan solos*.
    2. **Recibió:** escribe el nombre o el puesto ("mecánico") y elige de la lista; su puesto se llena solo.

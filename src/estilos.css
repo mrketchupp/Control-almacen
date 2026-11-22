@@ -336,13 +336,18 @@ h3 {
 }
 
 .marco.menu-compacto {
-  --ancho-menu: 76px;
+  --ancho-menu: 64px;
 }
 
 .cuerpo {
   display: grid;
   grid-template-columns: var(--ancho-menu) minmax(0, 1fr);
   min-height: calc(100vh - var(--alto-cabecera, 57px));
+}
+
+/* El contenido siempre en su columna (el menú abierto encima sale de la rejilla). */
+.cuerpo > .contenido {
+  grid-column: 2;
 }
 
 .navegacion {
@@ -369,30 +374,30 @@ h3 {
   min-height: 0;
 }
 
-.nav-alternar {
+/* Arriba del menú: «Contraer menú» a la derecha (completo) o «Expandir menú» al centro (íconos). */
+.nav-cabeza {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   flex: none;
-  gap: 9px;
-  min-height: 38px;
-  padding: 8px 10px;
+}
+
+.nav-alternar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 1px solid var(--borde);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--superficie);
   color: var(--texto-suave);
-  font: inherit;
-  font-size: 0.8rem;
   cursor: pointer;
 }
 
 .nav-alternar:hover {
   background: var(--superficie-2);
   color: var(--texto);
-}
-
-.nav-inferior {
-  display: none;
 }
 
 .navegacion a,
@@ -452,67 +457,75 @@ h3 {
   min-width: 0;
 }
 
-.menu-compacto .navegacion .nav-texto {
+/* Menú de íconos (64 px): un botón de 44 × 44 por sección; los pendientes, un punto ámbar sobre el ícono
+   (el número va en el aria-label del enlace). */
+.navegacion.nav-iconos {
+  padding-inline: 10px;
+}
+
+.navegacion.nav-iconos .nav-cabeza {
+  justify-content: center;
+}
+
+.navegacion.nav-iconos .nav-alternar {
+  width: 44px;
+  height: 44px;
+}
+
+.navegacion.nav-iconos .nav-texto {
   display: none;
 }
 
-.menu-compacto .navegacion a {
+.navegacion.nav-iconos a,
+.navegacion.nav-iconos .nav-boton-mas {
   justify-content: center;
-  min-height: 42px;
-  padding: 10px 8px;
-}
-
-.menu-compacto .navegacion .contador {
-  position: absolute;
-  top: 0;
-  right: 0;
-  min-width: 16px;
-  padding: 0 4px;
-  font-size: 0.65rem;
-}
-
-.menu-secciones {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.menu-secciones a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 46px;
-  padding: 10px;
-  border-radius: 7px;
-  color: var(--texto);
-  text-decoration: none;
-}
-
-.menu-secciones a:hover {
-  background: var(--superficie-2);
-}
-
-.menu-secciones a.activo {
-  background: var(--primario-suave);
-  color: var(--primario);
-}
-
-.menu-secciones .icono {
   flex: none;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin-inline: auto;
+  padding: 0;
 }
 
-.menu-secciones .nav-texto {
-  white-space: normal;
-  overflow-wrap: anywhere;
+.navegacion.nav-iconos .contador {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 11px;
+  min-width: 0;
+  height: 11px;
+  padding: 0;
+  border: 2px solid var(--superficie);
+  background: var(--alerta);
+  font-size: 0;
+  line-height: 0;
 }
 
-.menu-grupo {
-  grid-column: 1 / -1;
-  margin: 10px 0 4px;
-  padding: 8px 10px 0;
-  border-top: 1px solid var(--borde);
-  color: var(--texto-suave);
-  font-size: 0.8rem;
+/* Ventana angosta: expandir abre el menú completo encima del contenido, con el fondo oscurecido. */
+.navegacion.encima {
+  position: fixed;
+  top: var(--alto-cabecera, 57px);
+  left: 0;
+  bottom: 0;
+  z-index: 61;
+  width: 236px;
+  height: auto;
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.22);
+  animation: nav-encima var(--dur-corta) ease-out;
+}
+
+.nav-fondo {
+  position: fixed;
+  inset: var(--alto-cabecera, 57px) 0 0 0;
+  z-index: 60;
+  background: rgba(15, 22, 32, 0.35);
+}
+
+@keyframes nav-encima {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
 }
 
 .marco .barra-entrada {
@@ -7274,83 +7287,14 @@ button.mosaico:hover .mosaico-abrir {
   }
 }
 
-/* Navegación compacta: barra inferior con acceso al menú completo en ventanas pequeñas. */
+/* Ventanas pequeñas: el menú de íconos se queda a la izquierda (sin barra inferior, §7 de docs/13). */
 @media (max-width: 700px) {
-  .marco .cuerpo {
-    display: block;
-    min-width: 0;
-  }
-
   .marco .contenido {
-    padding: 16px 12px calc(90px + env(safe-area-inset-bottom, 0px));
+    padding: 16px 12px calc(40px + env(safe-area-inset-bottom, 0px));
   }
 
   .marco .contenido > * {
     min-width: 0;
-  }
-
-  .navegacion {
-    position: fixed;
-    inset: auto 0 0;
-    z-index: 25;
-    height: auto;
-    padding: 0;
-    border-right: 0;
-    border-top: 1px solid var(--borde);
-    box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.06);
-  }
-
-  .navegacion > .nav-alternar,
-  .navegacion > .nav-principal,
-  .navegacion > .nav-mas {
-    display: none;
-  }
-
-  .navegacion .nav-inferior {
-    display: grid;
-    grid-template-columns: repeat(var(--nav-opciones, 4), minmax(0, 1fr));
-    gap: 4px;
-    height: calc(68px + env(safe-area-inset-bottom, 0px));
-    padding: 5px 8px calc(5px + env(safe-area-inset-bottom, 0px));
-    background: var(--superficie);
-  }
-
-  .navegacion .nav-inferior > a,
-  .navegacion .nav-inferior > button {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    min-width: 0;
-    min-height: 44px;
-    padding: 5px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--texto-suave);
-    font: inherit;
-    font-size: 0.7rem;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .navegacion .nav-inferior .nav-texto {
-    display: block;
-    flex: none;
-    max-width: 100%;
-  }
-
-  .navegacion .nav-inferior > .activo {
-    background: var(--primario-suave);
-    color: var(--primario);
-    font-weight: 600;
-  }
-
-  .navegacion .nav-inferior .contador {
-    top: 2px;
-    right: 12%;
   }
 
   .cabecera {
@@ -7424,14 +7368,6 @@ button.mosaico:hover .mosaico-abrir {
     font-size: 0.78rem;
   }
 
-  .menu-secciones {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ventana-secciones {
-    max-height: calc(100dvh - 24px);
-  }
-
   .marco .avisos {
     top: calc(var(--alto-cabecera, 57px) + 12px);
   }
@@ -7440,7 +7376,7 @@ button.mosaico:hover .mosaico-abrir {
   body:has(.barra-entrada) .marco .avisos,
   body.con-ventana .marco .avisos {
     top: auto;
-    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -7461,7 +7397,7 @@ button.mosaico:hover .mosaico-abrir {
 
 @media print {
   .navegacion,
-  .ventana-secciones {
+  .nav-fondo {
     display: none !important;
   }
 }
@@ -10196,7 +10132,7 @@ button.mosaico:hover .mosaico-abrir {
   .lista-abierta .columna-vale,
   .modo-editar .columna-vale {
     position: fixed;
-    inset: 12vh 0 calc(120px + env(safe-area-inset-bottom, 0px)) 0;
+    inset: 12vh 0 calc(52px + env(safe-area-inset-bottom, 0px)) var(--ancho-menu, 64px);
     z-index: 30;
     display: flex;
     gap: 0;
@@ -10235,8 +10171,8 @@ button.mosaico:hover .mosaico-abrir {
   .barra-lista {
     position: fixed;
     right: 0;
-    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-    left: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: var(--ancho-menu, 64px);
     z-index: 31;
     display: flex;
     justify-content: space-between;
@@ -10572,8 +10508,4 @@ button.mosaico:hover .mosaico-abrir {
   }
 }
 
-@media (max-width: 700px) {
-  .emitir-fijo {
-    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-  }
-}
+

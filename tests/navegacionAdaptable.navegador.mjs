@@ -1,4 +1,5 @@
-// Navegación real en el HTML autónomo: escritorio, ventana mediana y móvil.
+// Navegación real en el HTML autónomo (Ronda 34, §7 de docs/13): menú completo o de íconos, Ctrl + B, encima en
+// ventana angosta y sin barra inferior en ninguna anchura.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createServer } from "node:http";
@@ -61,71 +62,109 @@ test("navegación adaptable y preferencia de menú compacto en Chromium", async 
   async function sinDesbordamiento(page) {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, "La página se sale del ancho de la ventana");
   }
-  const abrirMas = async (page) => {
-    await page.getByRole("button", { name: "Más secciones", exact: true }).click();
-    return page.getByRole("dialog", { name: "Todas las secciones", exact: true });
-  };
+  const ancho = async (loc) => Math.round((await loc.boundingBox()).width);
 
-  await t.test("escritorio: contraer, recargar, expandir y mantener el menú alcanzable en una ventana baja", async () => {
+  await t.test("escritorio: contraer y expandir con el botón y con Ctrl + B, recordado al recargar; nada al pasar el cursor", async () => {
     const { page, terminar } = await abrir({ width: 1440, height: 600 });
     const nav = page.locator(".navegacion");
-    assert.equal(Math.round((await nav.boundingBox()).width), 236);
-    await page.getByRole("button", { name: "Contraer menú lateral", exact: true }).click();
-    assert.equal(Math.round((await nav.boundingBox()).width), 76);
-    assert.equal(await nav.getByRole("link", { name: "Inventario", exact: true }).getAttribute("title"), "Inventario");
+    assert.equal(await ancho(nav), 236);
+    const contraer = page.getByRole("button", { name: "Contraer menú", exact: true });
+    assert.equal(await contraer.getAttribute("title"), "Contraer menú (Ctrl + B)");
+    const caja = await contraer.boundingBox();
+    assert.deepEqual([Math.round(caja.width), Math.round(caja.height)], [36, 36]);
+    await contraer.click();
+    assert.equal(await ancho(nav), 64);
+    const inventario = nav.getByRole("link", { name: "Inventario", exact: true });
+    assert.equal(await inventario.getAttribute("title"), "Inventario");
+    const boton = await inventario.boundingBox();
+    assert.deepEqual([Math.round(boton.width), Math.round(boton.height)], [44, 44]);
+    await nav.hover(); await page.waitForTimeout(300);
+    assert.equal(await ancho(nav), 64, "no se abre solo al pasar el cursor");
     await page.reload();
-    await page.getByRole("button", { name: "Expandir menú lateral", exact: true }).waitFor();
-    assert.equal(Math.round((await nav.boundingBox()).width), 76);
-    await page.getByRole("button", { name: "Expandir menú lateral", exact: true }).click();
-    const mas = await nav.getByRole("link", { name: "Ajustes y más", exact: true }).boundingBox();
+    await page.getByRole("button", { name: "Expandir menú", exact: true }).waitFor();
+    assert.equal(await ancho(nav), 64, "se queda como lo dejó");
+    await page.keyboard.press("Control+b");
+    assert.equal(await ancho(nav), 236);
+    await page.keyboard.press("Control+b");
+    assert.equal(await ancho(nav), 64);
+    await page.keyboard.press("Control+b");
+    const mas = await nav.getByRole("link", { name: /^Ajustes y más/ }).boundingBox();
     assert.ok(mas.y + mas.height <= 601);
     await sinDesbordamiento(page); await terminar();
   });
 
-  await t.test("ventana mediana: iconos por defecto y menú completo accesible con teclado", async () => {
-    const { page, terminar } = await abrir({ width: 900, height: 600 });
-    const nav = page.locator(".navegacion");
-    assert.equal(Math.round((await nav.boundingBox()).width), 76);
-    const boton = page.getByRole("button", { name: "Abrir menú de secciones", exact: true });
-    await boton.focus(); await page.keyboard.press("Enter");
-    const menu = page.getByRole("dialog", { name: "Todas las secciones", exact: true });
-    for (const nombre of ["Vales de entrada", "Historial de vales", "Conteo físico", "Etiquetas", "Reporte diario", "Conciliación AX", "Ajustes"]) {
-      assert.equal(await menu.getByRole("link", { name: nombre, exact: true }).isVisible(), true);
+  await t.test("ventana mediana (1024): íconos siempre; expandir lo abre encima sin mover el contenido; Esc, clic fuera o un enlace lo cierran", async () => {
+    const { page, terminar } = await abrir({ width: 1024, height: 700 });
+    const nav = page.locator(".navegacion"), contenido = page.locator(".contenido");
+    assert.equal(await ancho(nav), 64);
+    const x = (await contenido.boundingBox()).x;
+    const expandir = page.getByRole("button", { name: "Expandir menú", exact: true });
+    await expandir.click();
+    const encima = page.locator(".navegacion.encima");
+    await encima.waitFor();
+    assert.equal(await ancho(encima), 236);
+    assert.equal((await contenido.boundingBox()).x, x, "el contenido no se mueve");
+    for (const nombre of ["Vales de entrada", "Historial de vales", "Conteo físico", "Etiquetas", "Reporte diario", "Conciliación AX"]) {
+      assert.equal(await encima.getByRole("link", { name: nombre, exact: true }).isVisible(), true);
     }
     await page.keyboard.press("Escape");
-    assert.equal(await menu.count(), 0);
-    assert.equal(await boton.evaluate((e) => e === document.activeElement), true);
+    assert.equal(await encima.count(), 0);
+    assert.equal(await expandir.evaluate((e) => e === document.activeElement), true, "el foco vuelve al botón");
+    await page.keyboard.press("Control+b");
+    await encima.waitFor();
+    await page.mouse.click(900, 400); // en el fondo oscurecido
+    assert.equal(await encima.count(), 0);
+    await page.keyboard.press("Control+b");
+    await encima.getByRole("link", { name: "Reporte diario", exact: true }).click();
+    await page.waitForFunction(() => location.hash.startsWith("#reporte"));
+    assert.equal(await encima.count(), 0);
+    assert.equal(await ancho(nav), 64);
     const cabecera = await page.locator(".cabecera").boundingBox(), menuRect = await nav.boundingBox();
     assert.ok(Math.abs(menuRect.y - cabecera.y - cabecera.height) <= 1);
     await sinDesbordamiento(page); await terminar();
   });
 
-  await t.test("móvil 390 y 320: barra inferior, todas las secciones disponibles y sin desbordamiento", async () => {
-    const { page, terminar } = await abrir({ width: 390, height: 844 });
-    for (const width of [390, 320]) {
+  await t.test("640, 390 y 320: el menú de íconos se queda, sin barra inferior ni desbordamiento", async () => {
+    const { page, terminar } = await abrir({ width: 640, height: 700 });
+    const nav = page.locator(".navegacion");
+    for (const width of [640, 390, 320]) {
       await page.setViewportSize({ width, height: 680 });
-      const barra = page.locator(".nav-inferior"), rect = await barra.boundingBox();
-      assert.ok(rect && rect.y + rect.height <= 681);
-      for (const nombre of ["Inicio", "Vales de salida", "Inventario"]) assert.equal(await barra.getByRole("link", { name: nombre, exact: true }).isVisible(), true);
+      assert.equal(await ancho(nav), 64);
+      assert.equal(await page.locator(".nav-inferior").count(), 0);
+      for (const nombre of ["Inicio", "Vales de salida", "Inventario"]) assert.equal(await nav.getByRole("link", { name: new RegExp(`^${nombre}`) }).isVisible(), true);
       await sinDesbordamiento(page);
-      const menu = await abrirMas(page);
-      for (const nombre of ["Vales de entrada", "Historial de vales", "Conteo físico", "Reporte diario", "Conciliación AX", "Etiquetas", "Áreas y personas", "Ajustes"]) assert.equal(await menu.getByRole("link", { name: nombre, exact: true }).isVisible(), true);
-      await menu.getByRole("link", { name: "Vales de entrada", exact: true }).click();
+      await page.getByRole("button", { name: "Expandir menú", exact: true }).click();
+      const encima = page.locator(".navegacion.encima");
+      await encima.getByRole("link", { name: "Vales de entrada", exact: true }).click();
       await page.waitForFunction(() => location.hash === "#entradas");
-      assert.equal(await menu.count(), 0);
-      await barra.getByRole("link", { name: "Inventario", exact: true }).click();
+      assert.equal(await encima.count(), 0);
+      await nav.getByRole("link", { name: "Inventario", exact: true }).click();
       await page.waitForFunction(() => location.hash === "#inventario");
     }
     await terminar();
   });
 
-  await t.test("sin datos: el menú móvil mantiene Primera carga, Respaldos y Ayuda", async () => {
+  await t.test("pendientes: en el menú de íconos son un punto y el número va en el nombre del enlace", async () => {
+    const { page, terminar } = await abrir({ width: 1024, height: 700 });
+    const conPunto = page.locator(".navegacion a:has(.contador)");
+    assert.ok((await conPunto.count()) > 0, "la fixture tiene algo pendiente (vales por subir)");
+    const primero = conPunto.first();
+    assert.match(await primero.getAttribute("aria-label"), /, \d+ /);
+    const punto = await primero.locator(".contador").boundingBox();
+    assert.ok(punto.width <= 12 && punto.height <= 12, `punto de ${punto.width}×${punto.height}`);
+    await terminar();
+  });
+
+  await t.test("sin datos (320): Primera carga en el menú y Respaldos y Ayuda en Ajustes y más", async () => {
     const { page, terminar } = await abrir({ width: 320, height: 680 }, true);
     await sinDesbordamiento(page);
-    assert.equal(await page.locator(".nav-inferior").getByRole("link", { name: "Primera carga", exact: true }).isVisible(), true);
-    const menu = await abrirMas(page);
-    assert.equal(await menu.getByRole("link", { name: "Respaldos", exact: true }).isVisible(), true);
-    assert.equal(await menu.getByRole("link", { name: "Ayuda", exact: true }).isVisible(), true);
+    const nav = page.locator(".navegacion");
+    assert.equal(await nav.getByRole("link", { name: "Primera carga", exact: true }).isVisible(), true);
+    await nav.getByRole("link", { name: /^Ajustes y más/ }).click();
+    const mas = page.getByRole("dialog", { name: "Ajustes y más" });
+    await mas.waitFor();
+    assert.equal(await mas.getByRole("link", { name: /Respaldos/ }).isVisible(), true);
+    assert.equal(await mas.getByRole("link", { name: /Ayuda/ }).isVisible(), true);
     await terminar();
   });
 });

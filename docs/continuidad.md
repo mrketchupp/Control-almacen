@@ -3,7 +3,7 @@
 Los cambios funcionales solicitados están terminados y verificados. No quedan implementaciones abiertas.
 
 - Primera carga: tres pasos, archivos identificados y revisión de diferencias y correcciones antes de guardar.
-- Navegación: menú contraíble con preferencia local, barra de iconos en ventanas medianas y barra inferior en móvil.
+- Navegación: menú completo o de íconos (Ctrl + B, preferencia local); por debajo de 1280 px siempre íconos y, al expandir, encima del contenido; sin barra inferior (Ronda 34, etapa 6).
 - Transferencias: observaciones protegidas con lápiz para editarlas; etapa de perforación independiente.
 - Entradas: «Crear material nuevo» conserva la dimensión y permite otro NP o ninguno; evita la selección automática.
 - Libro diario: nombre del inventario con espacios y extensión original, tanto al descargar como en «Guardar como».
