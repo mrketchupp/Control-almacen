@@ -599,6 +599,7 @@ def generar_vales(ruta: Path) -> Path:
         ws.oddFooter.right.text = "Emision: X"
         ws["I6"], ws["J6"] = "Fecha:", "=TODAY()"
         ws["J8"], ws["K8"] = "No. folio", 9
+        ws["I8"] = "."  # como en el real: un punto suelto que no se imprime (Ronda 25, V-4)
         ws["J10"], ws["J11"], ws["K11"] = "Entradas", "Salida Planta", "XXXXX"
         # Encabezado fijo con el almacén y la dirección (inventados): en GSM se cambian al imprimir.
         ws["C11"], ws["F12"] = "MX DLTA ALM 1", "ALMACEN:MX DLTA ALM 1"

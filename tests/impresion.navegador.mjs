@@ -15,6 +15,8 @@ import { LibroLeido } from "../src/xlsx/leer.js";
 import { bytesVales } from "./ayuda.js";
 
 const impresion = await import(process.env.VALE_IMPRESION_MODULE || "../src/impresion/vale.js");
+// Ronda 25 (V-3): el título de observaciones se imprime con acento en todas las hojas.
+const TITULO = "OBSERVACIÓN";
 
 function casoConTextoLargo() {
   const modelo = analizarFormulario(new LibroLeido(bytesVales()), "SOLDADOR");
@@ -104,10 +106,11 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
 
   await t.test("texto ajustado, rowspan y filas cortas conservan la rejilla completa", async () => {
     await cargar();
-    const modeloAjustado = impresion.ajustarAlturasClaves(caso.modelo, caso.valores);
+    // Como lo imprime paginaHtml: PRESENTACIÓN ensanchada (Ronda 25, V-6) y filas con la altura de sus textos.
+    const modeloAjustado = (impresion.modeloImpreso ?? impresion.ajustarAlturasClaves)(caso.modelo, caso.valores);
     const escala = await page.locator(".vale-lienzo").evaluate((el) => Number(el.style.zoom));
     const altos = impresion.enRejilla(modeloAjustado.filas.map((fila) => fila.px), escala).map((alto) => alto * escala);
-    const anchos = impresion.enRejilla(caso.modelo.columnas.map((col) => col.px), escala).map((ancho) => ancho * escala);
+    const anchos = impresion.enRejilla(modeloAjustado.columnas.map((col) => col.px), escala).map((ancho) => ancho * escala);
     const medidas = await page.evaluate(() => {
       const tabla = document.querySelector(".vale-tabla");
       const origen = tabla.getBoundingClientRect();
@@ -128,7 +131,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
       assert.ok(Math.abs(fila.y - y) < 1, `Fila ${caso.modelo.filas[i].r}: posición ${fila.y}, prevista ${y}`);
       y += altos[i];
     });
-    medidas.columnas.forEach((ancho, i) => assert.ok(Math.abs(ancho - anchos[i]) < 1, `Columna ${caso.modelo.columnas[i].c}: ancho ${ancho}, previsto ${anchos[i]}`));
+    medidas.columnas.forEach((ancho, i) => assert.ok(Math.abs(ancho - anchos[i]) < 1, `Columna ${modeloAjustado.columnas[i].c}: ancho ${ancho}, previsto ${anchos[i]}`));
     assert.ok(Math.abs(medidas.alto - y) < 1, "La tabla no debe crecer más que las filas del Excel");
     assert.ok(Math.abs(medidas.ancho - anchos.reduce((a, b) => a + b, 0)) < 1, "La tabla conserva el ancho del Excel");
 
@@ -140,7 +143,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
         const rect = celda.getBoundingClientRect();
         return { texto, existe: true, dentro: rect.left >= lienzo.left - 1 && rect.right <= lienzo.right + 1 && rect.top >= lienzo.top - 1 && rect.bottom <= lienzo.bottom + 1 };
       });
-    }, [caso.descripcion, "OBSERVACION", caso.entrego, caso.recibio]);
+    }, [caso.descripcion, TITULO, caso.entrego, caso.recibio]);
     for (const posicion of posiciones) {
       assert.ok(posicion.existe, `Se conserva el texto: ${posicion.texto.slice(0, 50)}`);
       assert.ok(posicion.dentro, `El texto queda dentro del lienzo: ${posicion.texto.slice(0, 50)}`);
@@ -166,17 +169,17 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
 
   await t.test("la etiqueta clara sobre la banda gris continúa visible", async () => {
     await cargar();
-    const clip = await page.evaluate(() => {
-      const celda = [...document.querySelectorAll("td")].find((td) => td.textContent === "OBSERVACION");
+    const clip = await page.evaluate((TITULO) => {
+      const celda = [...document.querySelectorAll("td")].find((td) => td.textContent === TITULO);
       const rect = celda.getBoundingClientRect();
       return { x: Math.ceil(rect.left + 1), y: Math.ceil(rect.top), width: Math.min(120, Math.floor(rect.width - 2)), height: Math.floor(rect.height) };
-    });
+    }, TITULO);
     const conEtiqueta = await page.screenshot({ clip, animations: "disabled" });
-    await page.evaluate(() => {
-      [...document.querySelectorAll("td")].find((td) => td.textContent === "OBSERVACION").textContent = "";
-    });
+    await page.evaluate((TITULO) => {
+      [...document.querySelectorAll("td")].find((td) => td.textContent === TITULO).textContent = "";
+    }, TITULO);
     const sinEtiqueta = await page.screenshot({ clip, animations: "disabled" });
-    assert.notDeepEqual(conEtiqueta, sinEtiqueta, "OBSERVACION debe verse, no solo estar presente en el HTML");
+    assert.notDeepEqual(conEtiqueta, sinEtiqueta, "OBSERVACIÓN debe verse, no solo estar presente en el HTML");
   });
 
   await t.test("las bandas de observaciones siguen a sus celdas aunque cambie una altura en el lote", async () => {
@@ -195,9 +198,9 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     await page.setViewportSize({ width: 1100, height: 5000 });
     await page.setContent(`<!doctype html><meta charset="utf-8"><style>${cssAplicacion}${impresion.cssImpresion(casoLote.modelo)}</style><body class="imprimiendo"><div id="area-impresion">${pagina.repeat(4)}</div></body>`);
     await page.evaluate(() => document.fonts.ready);
-    const regiones = await page.evaluate((crecimientos) => [...document.querySelectorAll(".vale-pagina")].map((seccion, indice) => {
+    const regiones = await page.evaluate(([crecimientos, TITULO]) => [...document.querySelectorAll(".vale-pagina")].map((seccion, indice) => {
       const tabla = seccion.querySelector(".vale-tabla");
-      const celda = [...tabla.querySelectorAll("td")].find((td) => td.textContent === "OBSERVACION");
+      const celda = [...tabla.querySelectorAll("td")].find((td) => td.textContent === TITULO);
       const celdas = [celda, tabla.rows[44].cells[0]]; // La banda inferior está en la fila 49.
       const iniciales = celdas.map((celda) => celda.getBoundingClientRect());
       const escala = Number(seccion.querySelector(".vale-lienzo").style.zoom);
@@ -213,8 +216,8 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
           tituloY: actual.top, crecimiento: actual.top - inicial.top,
         };
       });
-    }), [26, 21, 12, 2]);
-    assert.equal(await page.locator("td").filter({ hasText: /^OBSERVACION$/ }).count(), 4);
+    }), [[26, 21, 12, 2], TITULO]);
+    assert.equal(await page.locator("td").filter({ hasText: new RegExp(`^${TITULO}$`) }).count(), 4);
     assert.equal(await page.locator("td").filter({ hasText: casoLote.entrego }).count(), 4);
     assert.equal(await page.locator("td").filter({ hasText: casoLote.recibio }).count(), 4);
     for (const [indice, bandas] of regiones.entries()) {
@@ -303,7 +306,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     await page.setViewportSize({ width: 1100, height: 5000 });
     await page.setContent(`<!doctype html><meta charset="utf-8"><style>body{margin:0}${resultado.documento.css}</style>${resultado.documento.html}`);
     await page.evaluate(() => document.fonts.ready);
-    const paginas = await page.evaluate((claves) => [...document.querySelectorAll(".vale-pagina")].map((pagina) => {
+    const paginas = await page.evaluate(([claves, TITULO]) => [...document.querySelectorAll(".vale-pagina")].map((pagina) => {
       const lienzo = pagina.querySelector(".vale-lienzo");
       const tabla = pagina.querySelector(".vale-tabla");
       const marco = lienzo.getBoundingClientRect();
@@ -313,8 +316,22 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
       return {
         escala, dentro: marco.bottom <= hoja.bottom + 1 && rectTabla.bottom <= marco.bottom + 1,
         filasAlineadas: [...tabla.rows].every(tr => Math.abs(tr.getBoundingClientRect().height - Number.parseFloat(tr.style.height) * escala) < 1),
-        observaciones: [...tabla.querySelectorAll("td")].filter(td => td.textContent === "OBSERVACION").length,
+        observaciones: [...tabla.querySelectorAll("td")].filter(td => td.textContent === TITULO).length,
         firmas: [...tabla.querySelectorAll("td")].filter(td => ["ALMACENISTA DE PRUEBA", "USUARIO DE PRUEBA"].includes(td.textContent)).length,
+        presentacion: (() => {
+          const td = [...tabla.querySelectorAll("td")].find(td => td.textContent === "PRESENTACION");
+          const rango = document.createRange();
+          rango.selectNodeContents(td.querySelector(".vale-texto>div"));
+          const celda = td.getBoundingClientRect();
+          const rects = [...rango.getClientRects()];
+          return { lineas: new Set(rects.map(r => Math.round(r.top))).size,
+            dentro: rects.every(r => r.left >= celda.left + 0.5 && r.right <= celda.right - 0.5) };
+        })(),
+        letra: (() => {
+          const td = [...tabla.querySelectorAll("td")].find(td => claves.includes(td.textContent));
+          const estilo = getComputedStyle(td.querySelector(".vale-texto>div"));
+          return { fuente: estilo.fontFamily, tam: estilo.fontSize };
+        })(),
         fotos: [...lienzo.querySelectorAll(".vale-foto")].map(foto => {
           const rect = foto.getBoundingClientRect();
           const finPartidas = Math.max(...[...tabla.querySelectorAll("td")].filter(td => claves.includes(td.textContent)).map(td => td.getBoundingClientRect().bottom));
@@ -330,7 +347,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
             completo: [...rango.getClientRects()].every(rect => rect.top >= celda.top - 0.5 && rect.bottom <= celda.bottom + 0.5 && rect.left >= celda.left - 0.5 && rect.right <= celda.right + 0.5) };
         }),
       };
-    }), claves);
+    }), [claves, TITULO]);
     assert.equal(paginas.length, 4);
     for (const [i, pagina] of paginas.entries()) {
       assert.deepEqual(pagina.claves.map(celda => celda.texto), resultado.clavesPorPagina[i], `Página ${i + 1}: todas las claves conservan su texto y orden`);
@@ -346,6 +363,15 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     }
     assert.equal(paginas[3].fotos.length, 3);
     assert.ok(paginas[1].escala < paginas[0].escala, "La hoja llena reduce su escala para conservar todas las partidas");
+    // Ronda 25: en las hojas estándar PRESENTACION cabe en una línea y las partidas van en Arial 9 (12 px);
+    // MECANICO imprime 21 partidas (su hoja trae 19). NOV y TRANSFERENCIAS conservan su letra.
+    assert.equal(resultado.clavesPorPagina[1].length, 21);
+    for (const i of [0, 1]) {
+      assert.deepEqual(paginas[i].presentacion, { lineas: 1, dentro: true }, `Página ${i + 1}: PRESENTACION cabe en su columna`);
+      assert.match(paginas[i].letra.fuente, /Arial/);
+      assert.equal(paginas[i].letra.tam, "12px");
+    }
+    for (const i of [2, 3]) assert.match(paginas[i].letra.fuente, /Calibri/, `Página ${i + 1}: su propio formato`);
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
     assert.equal((pdf.toString("latin1").match(/\/Type\s*\/Page\b/g) ?? []).length, 4, "El PDF contiene exactamente una página por vale");
     await page.setViewportSize({ width: 1100, height: 1200 });
@@ -409,7 +435,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
     await page.setViewportSize({ width: 1100, height: 5000 });
     await page.setContent(`<!doctype html><meta charset="utf-8"><style>body{margin:0}${resultado.documento.css}</style>${resultado.documento.html}`);
     await page.evaluate(() => document.fonts.ready);
-    const paginas = await page.evaluate((textos) => [...document.querySelectorAll(".vale-pagina")].map((pagina) => {
+    const paginas = await page.evaluate(([textos, TITULO]) => [...document.querySelectorAll(".vale-pagina")].map((pagina) => {
       const lienzo = pagina.querySelector(".vale-lienzo");
       const tabla = pagina.querySelector(".vale-tabla");
       const marco = lienzo.getBoundingClientRect();
@@ -419,7 +445,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
       return {
         escala, dentro: marco.bottom <= hoja.bottom + 1 && rectTabla.bottom <= marco.bottom + 1,
         filasAlineadas: [...tabla.rows].every(tr => Math.abs(tr.getBoundingClientRect().height - Number.parseFloat(tr.style.height) * escala) < 1),
-        observaciones: [...tabla.querySelectorAll("td")].filter(td => td.textContent === "OBSERVACION").length,
+        observaciones: [...tabla.querySelectorAll("td")].filter(td => td.textContent === TITULO).length,
         firmas: [...tabla.querySelectorAll("td")].filter(td => ["ALMACENISTA DE PRUEBA", "USUARIO DE PRUEBA"].includes(td.textContent)).length,
         fotos: [...lienzo.querySelectorAll(".vale-foto")].map(foto => {
           const rect = foto.getBoundingClientRect();
@@ -434,7 +460,7 @@ test("el vale conserva las medidas y los textos del Excel al imprimir en Chromiu
             completo: [...rango.getClientRects()].every(rect => rect.top >= celda.top - 0.5 && rect.bottom <= celda.bottom + 0.5 && rect.left >= celda.left - 0.5 && rect.right <= celda.right + 0.5) };
         }),
       };
-    }), descripciones);
+    }), [descripciones, TITULO]);
     assert.equal(paginas.length, 4);
     for (const [i, pagina] of paginas.entries()) {
       assert.deepEqual(pagina.descripciones.map(celda => celda.texto), resultado.descripcionesPorPagina[i], `Página ${i + 1}: todas las descripciones conservan su texto y orden`);

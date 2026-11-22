@@ -295,7 +295,7 @@ test("menús contextuales por elemento y estado en Chromium", async (t) => {
     await abrir(page, fila);
     await page.getByRole("menuitem", { name: "Imprimir vale", exact: true }).click();
     await page.waitForFunction(() => window.__prints.length === 1);
-    assert.ok((await page.evaluate(() => window.__prints[0])).includes("OBSERVACION"));
+    assert.ok((await page.evaluate(() => window.__prints[0])).includes("OBSERVACIÓN"));
     await abrir(page, fila);
     await page.getByRole("menuitem", { name: "Corregir vale…" }).click();
     await page.getByRole("heading", { name: "Corregir vale 3", exact: true }).waitFor();

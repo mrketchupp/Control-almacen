@@ -159,7 +159,8 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
       zoom). **Emitir vale · folio N** se habilita cuando no falta nada: asigna el folio y descuenta la existencia.
    4. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.
    - Puedes tener **varios vales abiertos** (pestañas con el número de partidas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios; si fue por error, pulsa **↶ Deshacer** en el aviso.
-   - Si el vale tiene más partidas que el formato (21, 20 o 19 según la hoja), se ofrece dividirlo en folios consecutivos.
+   - Si el vale tiene más partidas que el formato (21 en todas las áreas; 4 en NOV, por las fotos), se ofrece dividirlo en folios consecutivos.
+   - El vale impreso tiene **el mismo formato en todas las áreas**: fecha y folio con línea sencilla, partidas en Arial 9 centradas y con todas sus líneas, 21 partidas, *PRESENTACIÓN* completa y el título *OBSERVACIÓN*. Tu libro de vales no cambia. NOV y TRANSFERENCIAS conservan su propio formato.
 3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
    - En vales antiguos o importados también puedes completar o modificar **Puesto de quien entrega**, además de los
      demás puestos. Se respeta el papel de cada persona en los formatos con firmas invertidas. Un cambio de puesto

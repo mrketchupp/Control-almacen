@@ -449,8 +449,15 @@ Descargas con aviso persistente y la tarjeta dice dónde quedó; pruebas `guarda
 **Ronda 25 — formatos (decisiones del usuario).** Inventario: I-1 bordes delgados completos, I-2 sin colores de fila,
 I-3 Calibri 12 negrita, I-4 NP y DIMENSIÓN como texto (fracción como se ve; las fechas accidentales se filtran en
 *Inventario* para corregirlas), I-5 cantidades en General, I-6 mismos anchos, I-7 sin inmovilizar. **Aplicado.**
-Vale impreso (pendiente): V-1 Fecha y No. folio con línea sencilla, V-2 una sola letra en las partidas (Arial 9,
+Vale impreso: V-1 Fecha y No. folio con línea sencilla, V-2 una sola letra en las partidas (Arial 9,
 centrada) y líneas completas, V-3 título OBSERVACIÓN y 21 partidas en todas las hojas, V-4 quitar el punto suelto
 (I8), V-5 el logo se queda, V-6 ensanchar PRESENTACIÓN para que quepa, V-7 el pie es correcto. NOV y TRANSFERENCIAS
-tienen su propio formato; en el Inventario B solo cambian logo y textos.
+tienen su propio formato; en el Inventario B solo cambian logo y textos. **Aplicado** (`src/impresion/uniforme.js`,
+solo al imprimir; el libro de vales no cambia): en las hojas estándar, fecha y folio con borde delgado (también la
+vecina que lo tocaba con uno más grueso), partidas en Arial 9 centrada con sus cuatro líneas delgadas (el marco grueso
+de la orilla se conserva), 21 partidas (MECANICO y OPERACION DIA ganan filas iguales a su última partida y lo de abajo
+baja con ellas; la capacidad para dividir vales también es 21) y PRESENTACIÓN ensanchada con el ancho que cede la
+descripción (la hoja conserva su ancho y su escala). En todas las hojas: título «OBSERVACIÓN» y sin el punto suelto.
+NOV y TRANSFERENCIAS conservan su letra, sus líneas y su capacidad. Las filas que crecen por un texto de varias líneas
+llevan un poco de aire. ☐ Revisar el vale impreso con el libro real en el piloto (no se pudo comparar contra su PDF).
 

@@ -10,6 +10,7 @@ import { EstilosLibro, formatearValor } from "../xlsx/estilos.js";
 import { LibroLeido } from "../xlsx/leer.js";
 import { carpeta, rutaRels, unir } from "../xlsx/rutas.js";
 import { atributos, desescapar } from "../xlsx/xml.js";
+import { formatoUniforme } from "./uniforme.js";
 
 const TIPO_DIBUJO = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing";
 const EMU_POR_PX = 9525;
@@ -267,7 +268,7 @@ export function analizarFormulario(fuente, nombreHoja) {
       return col?.estilo !== null && col?.estilo !== undefined ? Number(col.estilo) : 0;
     },
   };
-  modelo.texto = (r, c) => formatearValor(modelo.valor(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
+  modelo.texto = (r, c) => formatearValor(modelo.valor(r, c), modelo.estilos.codigoFormato(modelo.estiloDe(r, c)));
 
   // ---- imágenes (posición en px relativa al área)
   const xColumna = (c0) => {
@@ -313,6 +314,8 @@ export function analizarFormulario(fuente, nombreHoja) {
     }
   }
   modelo.fotos ??= [];
+  // Ronda 25: las hojas estándar se imprimen todas igual (21 partidas, Arial 9…; ver uniforme.js).
+  formatoUniforme(modelo);
   centrarTitulosFirma(modelo);
   return modelo;
 }
@@ -434,7 +437,7 @@ function localizarCampos(modelo) {
     if (esFinDeRenglones(r)) break;
     filasLinea.push(r);
   }
-  campos.lineas = { filas: filasLinea, columnas: columnasLinea };
+  campos.lineas = { filas: filasLinea, columnas: columnasLinea, encabezado: encabezado.r };
   const finLineas = filasLinea.length ? filasLinea[filasLinea.length - 1] : encabezado.r;
 
   // ---- firmas

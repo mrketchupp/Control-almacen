@@ -6,6 +6,7 @@ import { FechaCelda, serialExcel } from "../nucleo/fechas.js";
 import { formatearValor } from "../xlsx/estilos.js";
 import { CARTA } from "./formulario.js";
 import { imagenesConIdentidad, reemplazarTextos } from "./identidad.js";
+import { ensancharPresentacion } from "./uniforme.js";
 
 const MARCA = "XXXXX";
 
@@ -169,6 +170,9 @@ function alturaEstimada(texto, css, ancho) {
   return lineas * fuente * 1.1;
 }
 
+/** Px (antes del zoom) que se agregan a una fila que crece por un texto de varias líneas: 2 arriba y 2 abajo. */
+const AIRE_VARIAS_LINEAS = 4;
+
 /**
  * Geometría derivada para mostrar completas las claves y las descripciones de las partidas (se parten en
  * varias líneas y la fila crece); no cambia el Excel ni las partidas.
@@ -210,7 +214,10 @@ export function ajustarAlturasClaves(modelo, valores, medirTexto = alturaEstimad
       // La clave se dibuja sin sangría; la descripción conserva la de su celda.
       const izquierda = esClave ? 2 : Number.parseFloat(css["padding-left"]) || 2;
       const interior = Math.max(1, ancho - izquierda - 2 - (borde("border-left") + borde("border-right", fin)) / (2 * escala) - 1 / escala);
-      const requerido = Math.ceil(medirTexto(texto, css, interior) + (borde("border-top") + borde("border-bottom", fin)) / (2 * escala) + 1 / escala);
+      const altoTexto = medirTexto(texto, css, interior);
+      // Con dos o más líneas, un poco de aire para que el texto (centrado) no toque las líneas de la fila.
+      const aire = altoTexto > medirTexto("X", css, 100000) * 1.5 ? AIRE_VARIAS_LINEAS : 0;
+      const requerido = Math.ceil(altoTexto + aire + (borde("border-top") + borde("border-bottom", fin)) / (2 * escala) + 1 / escala);
       const actual = visibles.reduce((s, { r }) => s + altos.get(r), 0);
       if (requerido > actual) altos.set(visibles[0].r, altos.get(visibles[0].r) + requerido - actual);
     }
@@ -242,13 +249,24 @@ export function ajustarAlturasClaves(modelo, valores, medirTexto = alturaEstimad
 }
 
 /**
+ * El modelo con la geometría con que se imprime este vale: PRESENTACIÓN ancha para que quepa su título
+ * (Ronda 25, V-6; medido con la letra que se imprime) y las filas con la altura que piden sus claves y
+ * descripciones. No cambia el modelo de la hoja.
+ */
+export function modeloImpreso(modelo, valores = new Map(), identidad = null, medirTexto = alturaEstimada) {
+  const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
+  return ajustarAlturasClaves(ensancharPresentacion(modelo, medirTexto, fijo), valores, medirTexto);
+}
+
+/**
  * HTML de una página con el vale sobre la hoja-formulario.
  * @param fotos      src (data:/blob:) de las fotos del vale, en el orden de los espacios de la hoja
  * @param identidad  logos y textos del inventario (`identidadDe`): cambian solo lo fijo del formato
  * @param medirTexto altura del texto con su CSS y ancho interior, en píxeles antes del zoom
  */
 export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = null, medirTexto = alturaEstimada) {
-  modelo = ajustarAlturasClaves(modelo, valores, medirTexto);
+  const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
+  modelo = modeloImpreso(modelo, valores, identidad, medirTexto);
   const { estilos } = modelo;
   const { escala, paginaAlto } = medidas(modelo);
   // Todo en la rejilla de píxeles ya escalada (ver enRejilla).
@@ -288,7 +306,6 @@ export function paginaHtml(modelo, valores = new Map(), fotos = [], identidad = 
   for (const r of modelo.campos.observaciones.filas) {
     if (r >= inicioObservaciones) filasObservaciones.add(r);
   }
-  const fijo = (valor) => (identidad ? reemplazarTextos(valor, identidad.textos) : valor);
   const valorEn = (r, c) => (valores.has(`${r},${c}`) ? valores.get(`${r},${c}`) : fijo(modelo.valor(r, c)));
   const textoEn = (r, c) => formatearValor(valorEn(r, c), estilos.codigoFormato(modelo.estiloDe(r, c)));
   const altoFila = hFil;

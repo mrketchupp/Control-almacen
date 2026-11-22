@@ -19,7 +19,7 @@ Cada punto tiene una **propuesta por defecto**. Si el usuario no indica otra cos
 | P-10 | Tamaño de hoja e impresora | Carta, vertical, 1 vale por hoja |
 | P-13 | Columnas **FAMILIA** y **TRANSFERENCIA/CONSUMO** del DIARIO: ¿quién las llena? ¿La herramienta debe llenarlas sola? | En los vales recientes del Excel ya van vacías, así que **F2 las deja vacías**. Si la base las pide, se llenan solas: FAMILIA desde el catálogo y TRANSF/CONS desde el área. **Ronda 12:** la base lleva su propio *TIPO DE MOV* (consumo / transferencia) e *INV/NINV* en su copia del DIARIO; la herramienta los lee de ahí. |
 | P-14 | **"Autorizó":** ¿quién autoriza y en qué casos? | Obligatorio solo en transferencias o en las áreas marcadas "Exigir Autorizó"; el autorizador habitual se guarda en el área. **Aplicado en F2.** |
-| P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** |
+| P-16 | Vale con más renglones que el formato | Dividir en folios consecutivos, con aviso. La capacidad se lee de cada hoja-formulario (21 en la mayoría; 20 y 19 en dos hojas). **Aplicado en F2.** Desde la Ronda 25 las hojas estándar se imprimen con 21 (ganan filas al imprimir); NOV y TRANSFERENCIAS conservan la suya. |
 | P-22 | **Transferencias:** ¿qué datos son fijos y cuáles cambian en cada vale? | **Resuelto:** así están correctos (se editan en el vale; Autorizó con nombre y puesto obligatorio). |
 | P-23 | La línea de observaciones del formato dice `ETAPA DE PERFORACION: 12 1/4""` (dos comillas). ¿Es intencional? | **Resuelto:** era un error de dedo (una sola comilla); el usuario lo corrige en su formato / en Ajustes. |
 

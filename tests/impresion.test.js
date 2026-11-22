@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FechaCelda, isoDesdeSerial } from "../src/nucleo/fechas.js";
 import { analizarFormulario, hojasFormulario, seccionesPie } from "../src/impresion/formulario.js";
-import { ajustarAlturasClaves, capaFondos, documentoImpresion, enRejilla, grosorEscalado, observacionesDeHoja, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
+import { ajustarAlturasClaves, capaFondos, documentoImpresion, enRejilla, grosorEscalado, modeloImpreso, observacionesDeHoja, paginaHtml, valoresDeVale } from "../src/impresion/vale.js";
+import { anchoDeUnaLinea, ensancharPresentacion, formatoUniforme, PARTIDAS_UNIFORMES, TITULO_OBSERVACIONES, trasladar } from "../src/impresion/uniforme.js";
+import { textosDelFormato } from "../src/impresion/identidad.js";
 import * as v from "../src/servicios/vales.js";
 import { LibroLeido } from "../src/xlsx/leer.js";
 import { Sesion } from "../src/ui/sesion.js";
@@ -38,9 +40,10 @@ test("ubica los campos por sus etiquetas", () => {
   assert.match(observacionesDeHoja(m), /ESPECIFICACIONES/);
 });
 
-test("cada hoja tiene su propia capacidad y posición de firmas", () => {
+test("cada hoja tiene su posición de firmas; las estándar imprimen 21 partidas aunque traigan menos (Ronda 25)", () => {
   const mecanico = analizarFormulario(libro, "MECANICO ");
-  assert.equal(mecanico.capacidad, 19);
+  assert.equal(mecanico.capacidad, 21);
+  assert.equal(mecanico.campos.lineas.agregadas, 2, "la hoja trae 19 partidas: se agregan 2");
   assert.equal(ref(mecanico.campos.entrega_nombre), "D50");
   const nov = analizarFormulario(libro, "NOV");
   assert.equal(ref(nov.campos.entrega_nombre), "I52"); // el almacenista firma a la derecha
@@ -409,4 +412,235 @@ test("bordes nítidos y sin rendijas: rejilla de píxeles, grosor escalado y cap
   // En la hoja: la franja de encabezados de la tabla va en la capa, debajo de la tabla.
   const html = paginaHtml(analizarFormulario(libro, "SOLDADOR"));
   assert.ok(html.indexOf("vale-fondo") < html.indexOf("<table"));
+});
+
+// ------------------------------------------------------------------ Ronda 25: vale impreso uniforme
+
+const DELGADO = "1px solid #000000";
+const CUATRO_DELGADOS = { "border-left": DELGADO, "border-right": DELGADO, "border-top": DELGADO, "border-bottom": DELGADO };
+const celdasTd = (html) => [...html.matchAll(/<td\b([^>]*)>([\s\S]*?)<\/td>/g)].map(([, atributos, contenido]) => ({ atributos, texto: contenido.replace(/<[^>]+>/g, "") }));
+
+test("V-3: MECANICO gana las 2 partidas que le faltan, iguales a la última, y lo de abajo baja con ellas", () => {
+  const mecanico = analizarFormulario(libro, "MECANICO ");
+  const soldador = analizarFormulario(libro, "SOLDADOR");
+  assert.equal(PARTIDAS_UNIFORMES, 21);
+  const filas = mecanico.campos.lineas.filas;
+  assert.equal(filas.length, 21);
+  assert.deepEqual(filas.slice(-3), [39, 39.01, 39.02], "las nuevas van entre la última partida y OBSERVACIÓN");
+  const orden = mecanico.filas.map((f) => f.r);
+  assert.deepEqual(orden.slice(orden.indexOf(39), orden.indexOf(39) + 4), [39, 39.01, 39.02, 40]);
+  const alto = (m, r) => m.filas.find((f) => f.r === r).px;
+  assert.equal(alto(mecanico, 39.01), alto(mecanico, 39));
+  assert.deepEqual(mecanico.combinadaEn.get("39.02,6"), { r1: 39.02, r2: 39.02, c1: 6, c2: 8 }, "la descripción combinada como en las demás");
+  assert.equal(mecanico.valor(39.01, 6), null, "sin la fórmula de la hoja");
+  assert.equal(mecanico.estiloDe(39.02, 3), mecanico.estiloDe(39, 3), "mismo estilo que la última partida");
+  // Las firmas siguen en sus celdas del Excel (las imágenes que bajan: ver «las filas en blanco a lo ancho…»).
+  assert.equal(ref(mecanico.campos.entrega_nombre), "D50");
+
+  // Un vale de 21 partidas cabe en la hoja: la 21 va en la última fila nueva, antes de OBSERVACIÓN y las firmas.
+  const lineas = Array.from({ length: 21 }, (_, i) => ({ cantidad: String(i + 1), codigo: 701, descripcion: `PARTIDA ${i + 1}`, clave: "S/D", um: "PZA" }));
+  const valores = valoresDeVale(mecanico, { lineas, observaciones: null, entrego_nombre: "ALMACENISTA UNO" });
+  assert.equal(valores.get("39.02,4"), 21);
+  assert.equal(valores.get("39.02,6"), "PARTIDA 21");
+  const textos = celdasTd(paginaHtml(mecanico, valores)).map((c) => c.texto);
+  const posicion = (texto) => textos.indexOf(texto);
+  assert.deepEqual(lineas.map((l) => posicion(l.descripcion)).filter((i, n, todas) => n && i < todas[n - 1]), [], "las 21 en orden");
+  assert.ok(posicion("PARTIDA 21") < posicion(TITULO_OBSERVACIONES));
+  assert.ok(posicion(TITULO_OBSERVACIONES) < posicion("ALMACENISTA UNO"));
+  assert.equal(paginaHtml(mecanico).match(/<tr /g).length, paginaHtml(soldador).match(/<tr /g).length + 2);
+});
+
+test("V-3: NOV y TRANSFERENCIAS conservan su propio formato y su capacidad", () => {
+  const nov = analizarFormulario(libro, "NOV");
+  const transferencias = analizarFormulario(libro, "TRANSFERENCIAS");
+  assert.equal(nov.capacidad, 4, "NOV: las partidas caben arriba de las fotos");
+  assert.equal(transferencias.capacidad, 21);
+  for (const m of [nov, transferencias]) {
+    assert.ok(!m.uniforme);
+    assert.equal(m.campos.lineas.agregadas, undefined);
+    const css = m.estilos.css(m.estiloDe(21, 4)).css;
+    assert.match(css["font-family"], /Calibri/, `${m.hoja}: su letra de partidas`);
+    assert.deepEqual(m.estilos.bordesCss(m.estiloDe(m.campos.fecha.r, m.campos.fecha.c)), {}, `${m.hoja}: la fecha como viene`);
+  }
+});
+
+test("V-2: las partidas en Arial 9 centrada y con sus cuatro líneas; V-1: fecha y folio con línea sencilla", () => {
+  for (const hoja of ["SOLDADOR", "MECANICO "]) {
+    const m = analizarFormulario(libro, hoja);
+    const { filas, columnas } = m.campos.lineas;
+    for (const r of filas) {
+      for (let c = 3; c <= 11; c++) {
+        const { css, alineado } = m.estilos.css(m.estiloDe(r, c));
+        assert.equal(css["font-family"], '"Arial", Arial, sans-serif', `${hoja} ${r},${c}`);
+        assert.equal(css["font-size"], "9pt");
+        assert.equal(css["font-weight"], undefined, "sin negrita");
+        assert.equal(css["text-align"], "center");
+        assert.equal(css["vertical-align"], "middle");
+        assert.ok(alineado);
+        assert.deepEqual(m.estilos.bordesCss(m.estiloDe(r, c)), CUATRO_DELGADOS, `${hoja} ${r},${c}: líneas completas`);
+      }
+    }
+    // El encabezado de la tabla conserva su letra (Arial 10 negrita) y su color.
+    const encabezado = m.estilos.css(m.estiloDe(m.campos.lineas.encabezado, columnas.cantidad)).css;
+    assert.equal(encabezado["font-size"], "10pt");
+    assert.equal(encabezado["font-weight"], "bold");
+    for (const campo of [m.campos.fecha, m.campos.folio]) {
+      const rango = m.combinadaEn.get(`${campo.r},${campo.c}`) ?? { c1: campo.c, c2: campo.c };
+      for (let c = rango.c1; c <= rango.c2; c++) assert.deepEqual(m.estilos.bordesCss(m.estiloDe(campo.r, c)), CUATRO_DELGADOS, `${hoja} ${ref({ r: campo.r, c })}`);
+    }
+    // En el HTML: la cantidad (número) también centrada y en Arial 9.
+    const vale = { lineas: [{ cantidad: "12", codigo: 701, descripcion: "BALEROS", clave: "S/D", um: "PZA" }], observaciones: null };
+    const cantidad = celdasTd(paginaHtml(m, valoresDeVale(m, vale))).find((c) => c.texto === "12");
+    assert.match(cantidad.atributos, /font-size:9pt/);
+    assert.match(cantidad.atributos, /text-align:center/);
+    assert.match(cantidad.atributos, /border-bottom:[\d.]+px solid #000000/);
+  }
+});
+
+test("V-3 y V-4: el título es OBSERVACIÓN y el punto suelto de I8 no se imprime, en todas las hojas", () => {
+  for (const hoja of hojasFormulario(libro)) {
+    const m = analizarFormulario(libro, hoja);
+    assert.equal(m.valor(8, 9), null, `${hoja}: I8`);
+    const textos = celdasTd(paginaHtml(m)).map((c) => c.texto);
+    assert.ok(textos.includes(TITULO_OBSERVACIONES), hoja);
+    assert.ok(!textos.includes("OBSERVACION") && !textos.includes("."), hoja);
+  }
+  // El punto tampoco aparece entre los textos del formato que se pueden cambiar por inventario.
+  const modelos = hojasFormulario(libro).map((h) => analizarFormulario(libro, h));
+  assert.ok(!textosDelFormato(modelos).some((t) => t.texto === "."));
+});
+
+test("V-6: PRESENTACIÓN se ensancha lo que pide su título y la descripción le cede ese ancho", () => {
+  const m = analizarFormulario(libro, "SOLDADOR");
+  const impreso = modeloImpreso(m);
+  const ancho = (modelo, c) => modelo.columnas.find((col) => col.c === c).px;
+  const total = (modelo) => modelo.columnas.reduce((s, col) => s + col.px, 0);
+  const extra = ancho(impreso, 10) - ancho(m, 10);
+  assert.ok(extra > 0, "J (PRESENTACION) más ancha");
+  assert.equal(ancho(m, 8) - ancho(impreso, 8), extra, "H, la columna más ancha de la descripción, cede lo mismo");
+  assert.equal(total(impreso), total(m), "la hoja conserva su ancho");
+  assert.equal(paginaHtml(m).match(/zoom:([\d.]+)/)[1], String(m.pagina.escala), "y su escala");
+  const css = m.estilos.css(m.estiloDe(m.campos.lineas.encabezado, 10)).css;
+  assert.ok(anchoDeUnaLinea("PRESENTACION", css, (texto, _css, w) => (w >= 90 ? 10 : 20)) <= 90.25);
+  // Con una letra que sí cabe no cambia nada; NOV y TRANSFERENCIAS tampoco cambian.
+  assert.equal(ensancharPresentacion(m, () => 10), m);
+  for (const hoja of ["NOV", "TRANSFERENCIAS"]) {
+    const otro = analizarFormulario(libro, hoja);
+    assert.deepEqual(modeloImpreso(otro).columnas, otro.columnas, hoja);
+  }
+  // El HTML usa los anchos nuevos (acomodados a la rejilla de píxeles con el zoom: ±1 px ya impreso).
+  const anchos = [...paginaHtml(m).matchAll(/<col style="width:([\d.]+)px">/g)].map((x) => Number(x[1]));
+  assert.ok(Math.abs(anchos[m.columnas.findIndex((c) => c.c === 10)] - ancho(impreso, 10)) * m.pagina.escala <= 1);
+  // El logo (sobre C:E) no se mueve.
+  assert.deepEqual(impreso.imagenes, m.imagenes);
+});
+
+test("trasladar lleva una posición a las medidas nuevas", () => {
+  assert.equal(trasladar(5, [10, 10], [10, 30]), 5);
+  assert.equal(trasladar(15, [10, 10], [10, 30]), 25);
+  assert.equal(trasladar(25, [10, 10], [10, 30]), 45, "después del final, igual que antes");
+});
+
+/**
+ * Formato mínimo hecho a mano, como lo deja analizarFormulario: fecha (D2:E2, con «Fecha:» en C2 y doble línea
+ * entre las dos), folio (D3), un punto suelto (B3), encabezado en la fila 5, partidas desde la 6 (B cantidad con
+ * el marco grueso a la izquierda y punteada abajo, C código, D:E descripción, F unidad), `enBlanco` filas en
+ * blanco combinadas a lo ancho, «OBSERVACIONES:», un texto y las firmas, con un sello abajo.
+ */
+function formatoDePrueba({ partidas = 18, enBlanco = 2, autoriza = false } = {}) {
+  const BORDES = [{}, CUATRO_DELGADOS, { ...CUATRO_DELGADOS, "border-left": "2px solid #000000", "border-bottom": "1px dotted #000000" }, { "border-right": "3px double #000000" }];
+  const estilos = {
+    css: (i) => ({ css: { "font-family": '"Calibri", Calibri, Arial, sans-serif', "font-size": "11pt", "font-weight": "bold", "vertical-align": "bottom", ...(i === 4 ? { background: "#FFFF00" } : {}) }, alineado: false, ajustar: false }),
+    bordesCss: (i) => ({ ...(BORDES[i] ?? {}) }),
+    codigoFormato: () => "General",
+  };
+  const filasPartidas = Array.from({ length: partidas }, (_, i) => 6 + i);
+  const blancas = Array.from({ length: enBlanco }, (_, i) => 6 + partidas + i);
+  const titulo = 6 + partidas + enBlanco;
+  const [texto, firmas] = [titulo + 1, titulo + 2];
+  const valores = new Map([["2,3", "Fecha:"], ["3,3", "No. folio"], ["3,2", "."], ["5,2", "CANTIDAD"], ["5,3", "CODIGO"], ["5,4", "DESCRIPCION"], ["5,6", "PRESENTACION"], [`${titulo},2`, "OBSERVACIONES:"], [`${texto},2`, "ESTE MATERIAL"], [`${firmas},2`, "Nombre:"]]);
+  const combinadas = [{ r1: 2, r2: 2, c1: 4, c2: 5 }, ...filasPartidas.map((r) => ({ r1: r, r2: r, c1: 4, c2: 5 })), ...blancas.map((r) => ({ r1: r, r2: r, c1: 2, c2: 6 })), { r1: titulo, r2: titulo, c1: 2, c2: 6 }];
+  const combinadaEn = new Map();
+  for (const g of combinadas) for (let c = g.c1; c <= g.c2; c++) combinadaEn.set(`${g.r1},${c}`, g);
+  const estiloCelda = new Map([["2,3", 3]]);
+  for (const r of filasPartidas) for (let c = 2; c <= 6; c++) estiloCelda.set(`${r},${c}`, c === 2 ? 2 : 1);
+  const alto = (r) => (filasPartidas.includes(r) ? 24 : blancas.includes(r) ? 6 : 20);
+  const filas = Array.from({ length: firmas }, (_, i) => ({ r: i + 1, px: alto(i + 1), estilo: null }));
+  const yFirmas = filas.filter((f) => f.r < firmas).reduce((s, f) => s + f.px, 0);
+  const modelo = {
+    hoja: "PRUEBA", area: { r1: 1, c1: 2, r2: firmas, c2: 6 },
+    columnas: [2, 3, 4, 5, 6].map((c) => ({ c, px: 80, estilo: null })),
+    filas, combinadas, combinadaEn, estilos, fotos: [],
+    imagenes: [{ x: 4, y: 2, ancho: 50, alto: 20, src: "logo" }, { x: 4, y: yFirmas, ancho: 40, alto: 10, src: "sello" }],
+    valor: (r, c) => valores.get(`${r},${c}`) ?? null,
+    estiloDe: (r, c) => estiloCelda.get(`${r},${c}`) ?? 0,
+    campos: {
+      fecha: { r: 2, c: 4 }, folio: { r: 3, c: 4 },
+      lineas: { filas: filasPartidas, columnas: { cantidad: 2, codigo: 3, descripcion: 4, um: 6 }, encabezado: 5 },
+      observaciones: { filas: [...blancas, texto], columna: 2, textos: [{ r: texto, texto: "ESTE MATERIAL" }] },
+      ...(autoriza ? { autoriza: { r: firmas, c: 4 } } : {}),
+    },
+  };
+  modelo.capacidad = partidas;
+  return { modelo, filasPartidas, blancas, titulo, texto, firmas };
+}
+
+test("las filas en blanco a lo ancho pasan a ser partidas antes de agregar filas nuevas", () => {
+  const { modelo, filasPartidas, blancas, texto } = formatoDePrueba();
+  const [logo, sello] = modelo.imagenes.map((i) => i.y);
+  formatoUniforme(modelo);
+  const nueva = blancas[1] + 0.01;
+  assert.deepEqual(modelo.campos.lineas.filas, [...filasPartidas, ...blancas, nueva]);
+  assert.equal(modelo.capacidad, 21);
+  assert.equal(modelo.campos.lineas.agregadas, 3);
+  assert.deepEqual(modelo.campos.observaciones.filas, [texto], "las convertidas ya no son de observaciones");
+  for (const r of [...blancas, nueva]) {
+    assert.deepEqual(modelo.combinadaEn.get(`${r},4`), { r1: r, r2: r, c1: 4, c2: 5 }, `${r}: la descripción combinada como en las partidas`);
+    assert.equal(modelo.combinadaEn.get(`${r},2`), undefined, `${r}: ya no combinada a lo ancho`);
+    assert.equal(modelo.filas.find((f) => f.r === r).px, 24, `${r}: alto de partida`);
+  }
+  assert.ok(!modelo.combinadas.some((g) => g.c1 === 2 && g.c2 === 6 && blancas.includes(g.r1)));
+  // Las blancas crecieron de 6 a 24 px y se agregó una de 24: el sello baja 60 px; el logo no se mueve.
+  assert.deepEqual(modelo.imagenes.map((i) => i.y), [logo, sello + 60]);
+  assert.equal(modelo.imagenes[1].alto, 10);
+});
+
+test("las orillas de la tabla conservan el marco grueso; las demás líneas quedan delgadas", () => {
+  const { modelo, filasPartidas } = formatoDePrueba({ enBlanco: 0 });
+  formatoUniforme(modelo);
+  const filas = modelo.campos.lineas.filas;
+  assert.equal(filas.length, 21);
+  const bordes = (r, c) => modelo.estilos.bordesCss(modelo.estiloDe(r, c));
+  // B tiene el marco de 2 px a la izquierda (se queda) y una punteada abajo (queda delgada, también en la última).
+  for (const r of [filas[0], filas[10], filas[20]]) assert.deepEqual(bordes(r, 2), { ...CUATRO_DELGADOS, "border-left": "2px solid #000000" }, `fila ${r}`);
+  assert.deepEqual(bordes(filas[20], 3), CUATRO_DELGADOS);
+  assert.deepEqual(bordes(filasPartidas[0], 6), CUATRO_DELGADOS, "la orilla derecha sin marco: línea delgada");
+  const { css } = modelo.estilos.css(modelo.estiloDe(filas[20], 4));
+  assert.equal(css["font-size"], "9pt");
+  assert.equal(css["font-weight"], undefined);
+  // Fuera de las partidas los estilos no cambian (el encabezado conserva su letra).
+  assert.equal(modelo.estilos.css(modelo.estiloDe(5, 2)).css["font-size"], "11pt");
+});
+
+test("la vecina con doble línea junto a la fecha queda con línea sencilla; el punto y el título se corrigen", () => {
+  const { modelo, titulo } = formatoDePrueba();
+  formatoUniforme(modelo);
+  const bordes = (r, c) => modelo.estilos.bordesCss(modelo.estiloDe(r, c));
+  assert.deepEqual(bordes(2, 4), CUATRO_DELGADOS);
+  assert.deepEqual(bordes(2, 5), CUATRO_DELGADOS);
+  assert.deepEqual(bordes(2, 3), { "border-right": DELGADO }, "«Fecha:» ya no tiene la doble línea contra el valor");
+  assert.deepEqual(bordes(3, 4), CUATRO_DELGADOS, "el folio");
+  assert.equal(modelo.valor(3, 2), null, "el punto suelto");
+  assert.equal(modelo.valor(titulo, 2), TITULO_OBSERVACIONES);
+});
+
+test("una hoja con quien autoriza (como TRANSFERENCIAS) solo corrige sus textos", () => {
+  const { modelo, filasPartidas, titulo } = formatoDePrueba({ autoriza: true });
+  const estiloAntes = modelo.estiloDe(filasPartidas[0], 3);
+  formatoUniforme(modelo);
+  assert.equal(modelo.capacidad, filasPartidas.length);
+  assert.ok(!modelo.uniforme);
+  assert.equal(modelo.estiloDe(filasPartidas[0], 3), estiloAntes);
+  assert.equal(modelo.valor(3, 2), null);
+  assert.equal(modelo.valor(titulo, 2), TITULO_OBSERVACIONES);
 });

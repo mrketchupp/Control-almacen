@@ -194,6 +194,12 @@ plantilla registrada en la primera carga) como una tabla HTML y se llenan sus ca
   píxeles de Excel después del zoom (`grosorEscalado`: 1 fino, 2 el marco) y los rellenos de color (franjas moradas,
   encabezados) se pintan además en una capa debajo de la tabla, juntando los contiguos (`capaFondos`). Las filas
   espaciadoras de 1–2 px no imprimen su texto (en Excel no se ve).
+- **Vale impreso uniforme (decisiones de la Ronda 25):** `impresion/uniforme.js` hace que las hojas estándar se impriman
+  igual sin tocar el libro: fecha y folio con línea sencilla, partidas en Arial 9 centrada con todas sus líneas, 21
+  partidas (las hojas con menos ganan filas iguales a su última partida, entre ella y OBSERVACIÓN), PRESENTACIÓN
+  ensanchada con el ancho que cede la descripción (`ensancharPresentacion`, medida con la letra del navegador) y, en
+  todas las hojas, el título «OBSERVACIÓN» y sin el punto suelto. Los estilos cambiados son derivados de los del libro
+  (`estilosDerivables`); NOV y TRANSFERENCIAS conservan su propio formato.
 - **Títulos de firma centrados (Ronda 18):** si el título («RECIBIO/ENTREGO») es una celda suelta dentro de las columnas
   del nombre y el puesto (nombre en I:K, título solo en J), se imprime centrado sobre esas columnas
   (`centrarTitulosFirma` en `formulario.js`). Uno ya combinado sobre las mismas columnas no se toca.

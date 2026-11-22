@@ -17,8 +17,11 @@ Los cambios funcionales solicitados están terminados y verificados. No quedan i
   el inventario exportado; los vales emitidos sólo cambian si se corrigen.
 - Impresión: las descripciones largas (por ejemplo, en vales migrados del Excel de GSM) se imprimen completas, en varias
   líneas, ampliando su fila como ya se hacía con las claves largas; lo que cabe en una línea no cambia la hoja.
+- Vale impreso uniforme (decisiones V-1 a V-7 de la Ronda 25): `src/impresion/uniforme.js`. Falta que el usuario lo
+  revise impreso con su libro real durante el piloto (Fase 5).
 
-El formato de datos es **17**. La migración agrega las correcciones a los conteos en captura. Los reportes históricos
+El formato de datos es **18** (el 17 agregó las correcciones a los conteos en captura; el 18, la base oficial: dueño de
+las partidas, bajas y conteo de auditoría). Los reportes históricos
 restauran el estado activo anterior a una baja. Los inventarios existentes conservan sus identificadores internos.
 
 Validación terminada: **422 pruebas automatizadas y 56 comprobaciones en Chromium**, sin errores ni peticiones

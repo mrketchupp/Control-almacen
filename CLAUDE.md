@@ -29,7 +29,17 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   negrita, sin colores de fila —solo CONSUMO/INGRESO/TOTAL y el encabezado—, NP y DIMENSIÓN como texto con la
   fracción como se ve —`comoFraccion`—, cantidades en General; `conAnchosUniformes` = mismos anchos A–J; sin inmovilizar).
   Lo que había en styles.xml no cambia (prueba en `exportadores.test.js`). *Inventario* filtra los NP/dimensiones que
-  Excel volvió fecha (`pareceFecha`). Pendiente: vale impreso uniforme (V-1 a V-4 y V-6; ver `docs/08-plan.md`).
+  Excel volvió fecha (`pareceFecha`). **Vale impreso uniforme** (V-1 a V-6, aplicado después de la Ronda 34):
+  `src/impresion/uniforme.js`, solo al imprimir. `formatoUniforme(modelo)` (al final de `analizarFormulario`, antes de
+  `centrarTitulosFirma`): en todas las hojas `textosFijos` (título «OBSERVACIÓN», sin el «.» suelto); en las estándar
+  (`esHojaEstandar`: sin `autoriza`, `firmas_extra` ni fotos) `completarPartidas` a `PARTIDAS_UNIFORMES = 21` (primero
+  filas en blanco combinadas a lo ancho; luego filas nuevas `r` = última + 0.01…, que copian alto, estilos y
+  combinaciones de la última; las imágenes de abajo bajan; `campos.lineas.agregadas`), `letraDePartidas` (Arial 9
+  centrada, bordes delgados; la orilla conserva un borde más grueso) y `lineaSencilla` (fecha y folio, y la vecina que
+  los toca). Estilos derivados con `estilosDerivables` (índices "d0"…; `modelo.estilos` es el envoltorio). V-6 en
+  `ensancharPresentacion` (desde `modeloImpreso` en `vale.js`, medido con `medirTexto` del navegador, `anchoDeUnaLinea`
+  con memoria): el ancho sale de la columna más ancha de la descripción. `campos.lineas.encabezado` = fila de
+  O.C./CANTIDAD… `AIRE_VARIAS_LINEAS` (vale.js): 4 px a las filas que crecen por varias líneas. Fixture: «.» en I8.
 - Ronda 26 (fallo reportado): el reporte diario «no se guardaba» tras elegir la carpeta. Edge crea o vacía el archivo
   elegido al aceptar «Guardar como» y, si Windows no lo deja (abierto en Excel, OneDrive), rechaza con `AbortError`
   como al cancelar. `canceloDialogo` (`almacen/archivos.js`) solo acepta el mensaje de cancelación; `elegirDondeGuardar`
@@ -423,7 +433,7 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Entrada vs. salida: `XXXXX` en "Pase de Entrada" (C) o en "Pase de Salida" (D) del DIARIO.
 - Vales **internos** (tipo de área `INTERNO`): salen de `EQUIPO · ALMACEN` y llegan a `EQUIPO · <área>`; entregó = almacenista en turno; en observaciones solo cambia `ETAPA DE PERFORACION` (`src/nucleo/areas.js`). NOV es `EXTERNO` y TRANSFERENCIAS `TRANSFERENCIA` (P-22 pendiente).
 - En el formulario, las partidas siguen el orden del vale impreso; lo que viene del inventario (contenedor, existencia) va en pastillas, no como columna.
-- La hoja-formulario NOV pone al almacenista a la **derecha**; las capacidades de renglones varían por hoja (21/20/19): se leen del formato, no se suponen.
+- La hoja-formulario NOV pone al almacenista a la **derecha**; las capacidades de renglones varían por hoja (21/20/19) y se leen del formato, no se suponen; al imprimir, las hojas estándar se llevan a 21 (`impresion/uniforme.js`) y NOV (4, arriba de las fotos) y TRANSFERENCIAS conservan la suya.
 - Los vales nuevos dejan FAMILIA y TRANSFERENCIA/CONSUMO vacías (así vienen los recientes del Excel, P-13). Los cancelados de versiones anteriores se exportan como renglón en 0 con `CANCELADO – motivo`.
 - NOV: la macro guardaba las firmas **por posición** (P = izquierda = químico, Q = derecha = almacenista). Los migrados quedan así (`firmasPorPosicion`/`conFirmasPorPapel` para mostrarlos); los nuevos se guardan por papel y el exportador los invierte con `almacenista_derecha`.
 - Las fotos del formato NOV (imágenes sobre la zona de partidas) son espacios para las fotos del vale, no se imprimen; las partidas caben arriba (4).

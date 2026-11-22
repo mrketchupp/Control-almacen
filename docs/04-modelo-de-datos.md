@@ -147,7 +147,7 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 |---|---|---|
 | id | PK | |
 | vale_id | FK | |
-| renglon | int | 1–21 (la capacidad real es la del formato impreso: 19–21 según la hoja) |
+| renglon | int | 1–21 (la capacidad real es la del formato impreso: 21 en las hojas estándar; 4 en NOV) |
 | oc | texto | En blanco se exporta como `S/OC` |
 | cantidad | decimal > 0 | |
 | codigo | int | Copia |
