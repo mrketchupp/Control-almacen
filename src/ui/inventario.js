@@ -5,8 +5,11 @@ import { INVENTARIOS, deOtroInventario } from "../nucleo/inventarios.js";
 import { confirmar, useSesion } from "./componentes.js";
 import { html } from "./html.js";
 
-/** DLTA | GSM en la cabecera: el activo va en su color; el otro se abre en esta misma pestaña. */
-export function SelectorInventario() {
+/**
+ * DLTA | GSM: el activo va en su color; el otro se abre en esta misma pestaña. Con el menú lateral completo va arriba
+ * del menú, junto a «Contraer menú» (Ronda 35, sin la palabra «Inventario»); con el menú de íconos, en la cabecera.
+ */
+export function SelectorInventario({ conEtiqueta = true }) {
   const sesion = useSesion();
   if (!sesion.cambiarInventario) return null;
   const actual = sesion.inventario.id;
@@ -15,7 +18,7 @@ export function SelectorInventario() {
     return sesion.tarea(`Abriendo el inventario ${id}…`, () => sesion.cambiarInventario(id));
   };
   return html`<div class="selector-inventario" role="radiogroup" aria-label="Inventario">
-    <span class="selector-inventario-etiqueta">Inventario</span>
+    ${conEtiqueta ? html`<span class="selector-inventario-etiqueta">Inventario</span>` : null}
     ${INVENTARIOS.map(
       (i) => html`<button
         type="button"
@@ -40,6 +43,6 @@ export function seguirConArchivo(sesion, nombre) {
   const otro = deOtroInventario(nombre, aqui);
   if (!otro) return true;
   return confirmar(
-    `«${nombre}» parece del inventario ${otro} y estás en ${aqui}.\n\n¿Seguro que es de ${aqui}? Si no, cancela y cámbiate a ${otro} (arriba, junto al nombre de la herramienta).`,
+    `«${nombre}» parece del inventario ${otro} y estás en ${aqui}.\n\n¿Seguro que es de ${aqui}? Si no, cancela y cámbiate a ${otro} (DLTA | GSM, arriba a la izquierda).`,
   );
 }

@@ -300,7 +300,7 @@ function etiquetaEnlace(clave, p, insignia, titulos) {
  * 44 × 44 con el pendiente como punto ámbar). Nunca se abre ni se cierra solo; en ventana angosta, expandirlo lo abre
  * encima del contenido (Esc o clic fuera lo cierran). Ya no hay barra inferior ni menú de hamburguesa.
  */
-function Navegacion({ actual, masAbierta, iconos, encima, alAlternar, alCerrarEncima }) {
+function Navegacion({ actual, masAbierta, iconos, encima, conInventario, alAlternar, alCerrarEncima }) {
   const { principales, mas, insignia, titulos } = useEnlaces(actual);
   const textoAlternar = iconos ? "Expandir menú" : "Contraer menú";
   const enlace = ([clave, p]) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""}
@@ -313,6 +313,7 @@ function Navegacion({ actual, masAbierta, iconos, encima, alAlternar, alCerrarEn
   return html`${encima ? html`<div class="nav-fondo" aria-hidden="true" onClick=${alCerrarEncima}></div>` : null}
     <nav class=${`navegacion ${iconos ? "nav-iconos" : ""} ${encima ? "encima" : ""}`} aria-label="Secciones">
       <div class="nav-cabeza">
+        ${conInventario ? html`<${SelectorInventario} conEtiqueta=${false} />` : null}
         <button class="nav-alternar" type="button" title=${`${textoAlternar} (Ctrl + B)`} aria-label=${textoAlternar}
           aria-expanded=${!iconos} aria-controls="menu-principal" onClick=${alAlternar}>
           <${Icono} nombre=${iconos ? "panelAbrir" : "panelCerrar"} />
@@ -417,9 +418,9 @@ function Marco() {
       <div class="cabecera-izquierda">
         <a class="marca" href="#inicio">
           <span class="logo" aria-hidden="true">▦</span>
-          <span><strong>Control de Almacén</strong><small>RIG 91 · datos en este equipo</small></span>
+          <span><strong>Control de Almacén</strong><small>RIG 91</small></span>
         </a>
-        <${SelectorInventario} />
+        ${compacto ? html`<${SelectorInventario} />` : null}
       </div>
       <div class="cabecera-derecha">
         <${EstadoGuardado} />
@@ -429,7 +430,7 @@ function Marco() {
     <${BannerPermiso} />
     <div class="cuerpo">
       <${Navegacion} actual=${activa} masAbierta=${Boolean(seccion)} iconos=${compacto && !encima} encima=${encima}
-        alAlternar=${alternarMenu} alCerrarEncima=${cerrarEncima} />
+        conInventario=${!compacto} alAlternar=${alternarMenu} alCerrarEncima=${cerrarEncima} />
       <main class="contenido" key=${clave}>
         ${["vale", "entrada", "inicio"].includes(clave) && !(clave === "inicio" && sesion.almacen.vacio) ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
         <${Componente} key=${["vale", "entrada", "reporte"].includes(clave) ? rutaFondo : clave} />

@@ -373,25 +373,43 @@ h3 {
   height: calc(100vh - var(--alto-cabecera, 57px));
   height: calc(100dvh - var(--alto-cabecera, 57px));
   min-height: 0;
-  padding: 16px 10px 12px;
+  padding: 12px 10px;
   border-right: 1px solid var(--borde);
   background: var(--superficie);
 }
 
+/* Nunca con barra horizontal (Ronda 35: en el menú de íconos los botones medían 1 px más que el espacio). */
 .nav-principal {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-width: thin;
 }
 
-/* Arriba del menú: «Contraer menú» a la derecha (completo) o «Expandir menú» al centro (íconos). */
+/* Arriba del menú: DLTA | GSM y «Contraer menú» a la derecha (completo), o «Expandir menú» al centro (íconos). */
 .nav-cabeza {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   flex: none;
+}
+
+.nav-cabeza .selector-inventario {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+}
+
+.nav-cabeza .inventario-opcion {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px;
 }
 
 .nav-alternar {
@@ -471,9 +489,14 @@ h3 {
 }
 
 /* Menú de íconos (64 px): un botón de 44 × 44 por sección; los pendientes, un punto ámbar sobre el ícono
-   (el número va en el aria-label del enlace). */
+   (el número va en el aria-label del enlace). La lista ocupa los 63 px: aunque aparezca la barra vertical en una
+   ventana baja, los botones caben y no sale la horizontal. */
 .navegacion.nav-iconos {
-  padding-inline: 10px;
+  padding-inline: 0;
+}
+
+.navegacion.nav-iconos .nav-mas {
+  margin-inline: 9px;
 }
 
 .navegacion.nav-iconos .nav-cabeza {

@@ -67,13 +67,26 @@ test("navegación adaptable y preferencia de menú compacto en Chromium", async 
   await t.test("escritorio: contraer y expandir con el botón y con Ctrl + B, recordado al recargar; nada al pasar el cursor", async () => {
     const { page, terminar } = await abrir({ width: 1440, height: 600 });
     const nav = page.locator(".navegacion");
+    const enCabecera = page.locator(".cabecera").getByRole("radiogroup", { name: "Inventario" });
+    const enMenu = nav.getByRole("radiogroup", { name: "Inventario" });
     assert.equal(await ancho(nav), 236);
+    // Ronda 35: con el menú completo, DLTA | GSM va arriba del menú, a la izquierda de «Contraer menú».
+    assert.equal(await enMenu.isVisible(), true);
+    assert.equal(await enCabecera.count(), 0);
     const contraer = page.getByRole("button", { name: "Contraer menú", exact: true });
     assert.equal(await contraer.getAttribute("title"), "Contraer menú (Ctrl + B)");
     const caja = await contraer.boundingBox();
     assert.deepEqual([Math.round(caja.width), Math.round(caja.height)], [36, 36]);
+    const selector = await enMenu.boundingBox();
+    assert.ok(selector.x + selector.width <= caja.x && Math.abs(selector.y + selector.height / 2 - (caja.y + caja.height / 2)) <= 2, "DLTA | GSM junto al botón");
     await contraer.click();
     assert.equal(await ancho(nav), 64);
+    // De íconos: el inventario vuelve a la cabecera y la lista no tiene barra horizontal (aunque tenga la vertical).
+    assert.equal(await enCabecera.isVisible(), true);
+    assert.equal(await enMenu.count(), 0);
+    const lista = page.locator(".nav-principal");
+    assert.equal(await lista.evaluate((e) => e.scrollHeight > e.clientHeight), true, "a 600 px de alto la lista necesita su barra vertical");
+    assert.equal(await lista.evaluate((e) => e.scrollWidth <= e.clientWidth), true, "sin barra horizontal en el menú de íconos");
     const inventario = nav.getByRole("link", { name: "Inventario", exact: true });
     assert.equal(await inventario.getAttribute("title"), "Inventario");
     const boton = await inventario.boundingBox();
@@ -104,6 +117,8 @@ test("navegación adaptable y preferencia de menú compacto en Chromium", async 
     await encima.waitFor();
     assert.equal(await ancho(encima), 236);
     assert.equal((await contenido.boundingBox()).x, x, "el contenido no se mueve");
+    assert.equal(await encima.getByRole("radiogroup", { name: "Inventario" }).count(), 0, "encima no se repite: sigue en la cabecera");
+    assert.equal(await page.locator(".cabecera").getByRole("radiogroup", { name: "Inventario" }).isVisible(), true);
     for (const nombre of ["Vales de entrada", "Historial de vales", "Conteo físico", "Etiquetas", "Reporte diario", "Conciliación AX"]) {
       assert.equal(await encima.getByRole("link", { name: nombre, exact: true }).isVisible(), true);
     }
