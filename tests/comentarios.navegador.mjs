@@ -86,7 +86,7 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     const etapa = page.getByLabel("Etapa de perforación", { exact: true });
     if (await etapa.count()) await etapa.fill('12 1/4" SINTETICA');
     await page.getByRole("button", { name: /^Continuar a material/ }).click();
-    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    const buscador = page.getByRole("combobox", { name: "Código o descripción", exact: true });
     await buscador.fill("136");
     await buscador.press("Shift+Enter");
     await page.getByLabel("Cantidad de la partida 1").fill("2");

@@ -1,5 +1,6 @@
-// Ronda 34, etapa 3: el buscador del paso 2 (Material) — índice, «Buscar en», resultados por código, la última clave
-// del área, agregar con la cantidad vacía y los contadores de la lista; y el ajuste «NP en el lote».
+// Ronda 34, etapa 3: el buscador del paso 2 (Material) — índice, resultados por código, la última clave del área,
+// agregar con la cantidad vacía y los contadores de la lista; y el ajuste «NP en el lote». Ronda 35: dos campos
+// («Código o descripción» y «Dimensión o NP») en lugar de «Buscar en».
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -8,16 +9,19 @@ import {
   agregarPartida,
   agregarPartidasDesdeVale,
   buscarMaterial,
-  claveNueva,
   codigoNuevo,
+  codigosConPartidas,
   conClaveManual,
   conOtraClave,
   conPartidasDeVale,
   contarPartidas,
+  dimensionEnMaterial,
   entradasDeHoy,
+  estadoPartida,
   filasEnOrden,
   indiceMaterial,
   lineaCodigoNuevo,
+  opcionesEnOrden,
   partidasDelVale,
   ultimasDeArea,
 } from "../src/servicios/buscarMaterial.js";
@@ -36,29 +40,43 @@ function preparar() {
   return { estado, indices, items: indiceMaterial(estado, { indices }) };
 }
 
-test("resultados agrupados por código; un número exacto va primero; «Buscar en» acota", () => {
+test("resultados por código: «Código o descripción» elige los códigos y «Dimensión o NP» sus claves", () => {
   const { items } = preparar();
-  const foco = buscarMaterial(items, "foco led");
+  const foco = buscarMaterial(items, { material: "foco led" });
   assert.deepEqual(foco.grupos.map((g) => g.codigo), [711]);
   assert.equal(foco.grupos[0].filas.length, 4);
   assert.deepEqual(foco.grupos[0].filas.map((f) => f.np), ["LED 20W", "LED 50W", "X100", ""]);
-  // «711» exacto primero aunque otros códigos empiecen igual; en «Solo código», letras no encuentran nada.
-  assert.equal(buscarMaterial(items, "711").grupos[0].codigo, 711);
-  const prefijo = buscarMaterial(items, "71", { alcance: "codigo" }).grupos.map((g) => String(g.codigo));
+  // «711» exacto primero aunque otros códigos empiecen igual; un número busca los códigos que empiezan así.
+  assert.equal(buscarMaterial(items, { material: "711" }).grupos[0].codigo, 711);
+  const prefijo = buscarMaterial(items, { material: "71" }).grupos.map((g) => String(g.codigo));
   assert.ok(prefijo.length >= 3 && prefijo.every((c) => c.startsWith("71")), prefijo.join());
-  assert.equal(buscarMaterial(items, "foco", { alcance: "codigo" }).grupos.length, 0);
-  // Por NP: solo la clave que lo trae; en «Solo descripción» el NP no cuenta.
-  const porNp = filasEnOrden(buscarMaterial(items, "x100", { alcance: "dimension" }).grupos);
-  assert.ok(porNp.some((f) => f.codigo === 711 && f.np === "X100"));
-  assert.ok(porNp.every((f) => `${f.clave} ${f.np}`.includes("X100")), "solo las claves con esa dimensión o NP");
-  assert.equal(buscarMaterial(items, "x100", { alcance: "descripcion" }).grupos.length, 0);
+  // La dimensión o NP acota las claves del código.
+  const porNp = buscarMaterial(items, { material: "foco", dimension: "x100" });
+  assert.deepEqual(filasEnOrden(porNp.grupos).map((f) => f.np), ["X100"]);
+  assert.equal(porNp.grupos[0].usar, null, "X100 sí existe (como NP)");
+  // Solo la dimensión, sin material: las claves que la traen en cualquier código y sin «Usar» (no se sabe de cuál).
+  const soloDimension = buscarMaterial(items, { dimension: "x100" });
+  assert.ok(filasEnOrden(soloDimension.grupos).length >= 1);
+  assert.ok(filasEnOrden(soloDimension.grupos).every((f) => `${f.clave} ${f.np}`.includes("X100")));
+  assert.ok(soloDimension.grupos.every((g) => g.usar === null));
   // El diésel no tiene partidas: sale como artículo sin existencia.
-  const [diesel] = buscarMaterial(items, "136").grupos;
+  const [diesel] = buscarMaterial(items, { material: "136" }).grupos;
   assert.deepEqual([diesel.codigo, diesel.filas[0].tipo, diesel.filas[0].total], [136, "articulo", null]);
-  assert.deepEqual(buscarMaterial(items, "   "), { grupos: [], mas: 0 });
-  const limitado = buscarMaterial(items, "7", { alcance: "codigo", limite: 2 });
+  assert.deepEqual(buscarMaterial(items, { material: "   ", dimension: " " }), { grupos: [], mas: 0 });
+  const limitado = buscarMaterial(items, { material: "7" }, { limite: 2 });
   assert.equal(limitado.grupos.length, 2);
   assert.ok(limitado.mas > 0);
+});
+
+test("la dimensión se encuentra junta o separada y con cualquier comilla (`6''` = `6\"`)", () => {
+  const { items } = preparar();
+  const empaque = items.find((i) => i.codigo === 704 && i.clave === '6"');
+  assert.ok(empaque, "la fixture trae el empaque de 6\"");
+  for (const escrito of ['6"', "6''", "6”", ' 6 " ']) {
+    const r = buscarMaterial(items, { material: "704", dimension: escrito });
+    assert.ok(r.grupos[0].filas.some((f) => f.id === empaque.id), escrito);
+    assert.equal(r.grupos[0].usar, null, `«${escrito}» es la misma clave`);
+  }
 });
 
 test("agregar deja la cantidad vacía; el NP no va al lote salvo con el ajuste; contadores de la lista", () => {
@@ -120,22 +138,54 @@ test("editar una partida: otra clave conserva cantidad, lote y O.C.; una clave e
   assert.equal(conClaveManual(conNp, "OTRA").lote, "");
 });
 
-test("clave que no está y código que no está en el catálogo (§4.5, §4.6)", () => {
+test("clave que no está: «Usar «…»» tal como se escribió en cada código que no la tiene (§4.5, Ronda 35)", () => {
   const { estado, items } = preparar();
-  assert.deepEqual(claveNueva(items, "balero 6309-2Z/C"), { codigo: 701, descripcion: items.find((i) => i.codigo === 701).descripcion, clave: "6309-2Z/C" });
-  assert.equal(claveNueva(items, "balero 6309-2Z/C3"), null, "esa sí existe");
-  assert.equal(claveNueva(items, "balero"), null, "sin clave escrita");
-  assert.equal(claveNueva(items, "6309-2Z/C"), null, "sin código no se sabe de cuál");
-  assert.equal(claveNueva(items, "701 ABC-1").clave, "ABC-1");
-  assert.equal(claveNueva(items, "foco led", { alcance: "descripcion" }), null);
-  // Al editar, en «Solo código» lo escrito es una clave del código de la partida.
-  assert.equal(claveNueva(items, "704 8 1/2", { codigo: 704 }).clave, "8 1/2");
-  assert.deepEqual(codigoNuevo(estado, "1399 bomba sintetica"), { codigo: 1399, descripcion: "BOMBA SINTETICA" });
+  const descripcion = items.find((i) => i.codigo === 701).descripcion;
+  let r = buscarMaterial(items, { material: "balero", dimension: "6309-2Z/C" });
+  assert.deepEqual(r.grupos[0].usar, { tipo: "clave", codigo: 701, descripcion, clave: "6309-2Z/C" });
+  assert.ok(r.grupos[0].filas.length >= 1, "las claves que la traen (6309-2Z/C3) siguen a la vista");
+  assert.deepEqual(opcionesEnOrden(r.grupos).at(-1), r.grupos[0].usar, "«Usar» va al final de su código");
+  assert.equal(buscarMaterial(items, { material: "balero", dimension: "6309-2Z/C3" }).grupos[0].usar, null, "esa sí existe");
+  // Antes, las letras que también estaban en la descripción («X», «LED»…) se perdían de la clave: ahora se queda todo.
+  r = buscarMaterial(items, { material: "711", dimension: 'led  x 2"' });
+  assert.equal(r.grupos[0].usar.clave, 'LED X 2"');
+  // Ninguna clave la trae: el código buscado enseña las que sí hay, de referencia.
+  r = buscarMaterial(items, { material: "701", dimension: "ZZZ-1" });
+  assert.deepEqual([r.grupos.length, r.grupos[0].sinCoincidencia, r.grupos[0].usar.clave], [1, true, "ZZZ-1"]);
+  assert.equal(r.grupos[0].filas.length, items.filter((i) => i.codigo === 701).length);
+  // Con varios códigos (por descripción), cada uno ofrece «Usar»; los que traen la dimensión van primero.
+  r = buscarMaterial(items, { material: "o", dimension: "6309" });
+  assert.ok(r.grupos.length > 1);
+  assert.ok(r.grupos[0].filas.length > 0 && r.grupos.slice(1).every((g) => g.usar));
+  assert.ok(r.grupos.filter((g) => !g.filas.length).every((g) => g.usar.clave === "6309"));
+  // Sin material no se sabe para qué código: nada que usar.
+  assert.equal(buscarMaterial(items, { dimension: "ZZZ-1" }).grupos.length, 0);
+  // Lo escrito como material que en realidad es una dimensión: cuántas claves la traen.
+  assert.ok(dimensionEnMaterial(items, "6309") >= 2);
+  assert.equal(dimensionEnMaterial(items, "bomba"), 0);
+});
+
+test("código que no está en el catálogo (§4.6), con la dimensión escrita", () => {
+  const { estado } = preparar();
+  assert.deepEqual(codigoNuevo(estado, "1399 bomba sintetica"), { tipo: "codigo", codigo: 1399, descripcion: "BOMBA SINTETICA", clave: "" });
+  assert.equal(codigoNuevo(estado, "1399", { dimension: " p-1  x " }).clave, "P-1 X");
   assert.equal(codigoNuevo(estado, "701"), null, "ya está en el catálogo");
   assert.equal(codigoNuevo(estado, "1399", { hayResultados: true }), null);
   assert.equal(codigoNuevo(estado, "foco"), null);
-  const nuevo = lineaCodigoNuevo(1399, "bomba", "FX");
-  assert.deepEqual([nuevo.codigo, nuevo.descripcion, nuevo.no_inventariado, nuevo.existencia_id, nuevo.lote, nuevo.cantidad], [1399, "BOMBA", true, null, "FX", ""]);
+  const nuevo = lineaCodigoNuevo(1399, "bomba", "FX", "p-1");
+  assert.deepEqual([nuevo.codigo, nuevo.descripcion, nuevo.no_inventariado, nuevo.existencia_id, nuevo.lote, nuevo.cantidad, nuevo.clave], [1399, "BOMBA", true, null, "FX", "", "P-1"]);
+});
+
+test("el estado de cada partida no recorre el inventario si ya se sabe qué códigos tienen partidas", () => {
+  const { estado, indices, items } = preparar();
+  const conPartidas = codigosConPartidas(items);
+  assert.equal(conPartidas.has(701), true);
+  assert.equal(conPartidas.has(136), false, "el diésel no tiene partidas");
+  const manual = { ...v.lineaDesdeExistencia(estado, items.find((i) => i.codigo === 701).id), existencia_id: null, variante_id: null, no_inventariado: true, clave: "OTRA", cantidad: "1" };
+  const diesel = { ...v.lineaNoInventariada(estado, 136), cantidad: "1" };
+  for (const l of [manual, diesel]) assert.deepEqual(estadoPartida(estado, l, { indices, codigosConPartidas: conPartidas }), estadoPartida(estado, l, { indices }));
+  assert.equal(estadoPartida(estado, manual, { indices, codigosConPartidas: conPartidas }).noDescuenta, true);
+  assert.equal(estadoPartida(estado, diesel, { indices, codigosConPartidas: conPartidas }).noInventariado, true);
 });
 
 test("traer partidas de una entrada al vale abierto, no a uno nuevo (§4.7)", () => {

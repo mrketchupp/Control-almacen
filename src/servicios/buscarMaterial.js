@@ -1,7 +1,9 @@
-// Ronda 34, paso 2 · Material (docs/13-rediseno-vale-salida.md §4): el buscador único del vale de salida. Sin navegador:
-// el índice del inventario (cada clave con su contenedor y existencia, y los artículos sin existencia como el diésel), la
-// búsqueda por alcance («Buscar en»), los resultados agrupados por código, la clave que el área se llevó la última vez y
-// lo que se cuenta de las partidas del vale. Sustituye a la búsqueda rápida de antes (`indiceRapido` / `buscarRapido`).
+// Ronda 34, paso 2 · Material (docs/13-rediseno-vale-salida.md §4): el buscador del vale de salida. Sin navegador: el
+// índice del inventario (cada clave con su contenedor y existencia, y los artículos sin existencia como el diésel), la
+// búsqueda, los resultados agrupados por código, la clave que el área se llevó la última vez y lo que se cuenta de las
+// partidas del vale. Ronda 35 (pedido del usuario): dos campos en lugar de «Buscar en» — «Código o descripción» elige
+// los códigos y «Dimensión o NP» sus claves —, y si la dimensión escrita no está en un código, ese código ofrece
+// «Usar «…»» tal como se escribió (espacios, guiones, comillas, letras): ya no se adivina qué palabra es qué.
 
 import { aNumero } from "../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
@@ -21,14 +23,6 @@ import {
   plantillaArea,
 } from "./vales.js";
 
-/** «Buscar en» (§4.1). */
-export const ALCANCES = Object.freeze([
-  Object.freeze({ valor: "todo", etiqueta: "Todo" }),
-  Object.freeze({ valor: "codigo", etiqueta: "Solo código" }),
-  Object.freeze({ valor: "descripcion", etiqueta: "Solo descripción" }),
-  Object.freeze({ valor: "dimension", etiqueta: "Dimensión o NP" }),
-]);
-
 /** Cuántos códigos se muestran a la vez; con más, se pide escribir más (la lista tiene su propio scroll). */
 export const LIMITE_CODIGOS = 15;
 
@@ -41,6 +35,8 @@ export const normal = (t) =>
 const palabras = (t) => normal(t).split(/\s+/).filter(Boolean);
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 const lugarDe = (u) => `#${u.contenedor} ${u.clase === "INV" ? "Inv." : "Cons."}`;
+/** Sin espacios y con las comillas iguales: `4''X 3M` y `4" x 3m` se escriben igual para buscar. */
+export const junta = (t) => normal(t).replace(/[“”″]|''/g, '"').replace(/[‘’′]/g, "'").replace(/\s+/g, "");
 
 /**
  * Lo que se puede agregar al vale: una fila por partida del inventario (su clave = dimensión tal cual, su NP, contenedor
@@ -71,11 +67,7 @@ export function indiceMaterial(estado, { indices = new Indices(estado), saldos =
       total: aNumero(totales.get(e.id)?.total ?? 0),
       fx: duenoDe(e) === DUENO_FX,
       orden: u.orden * 100000 + e.orden,
-      buscar: {
-        descripcion: normal(descripcion),
-        dimension: normal(`${dimension} ${np}`),
-        todo: normal(`${v.codigo} ${descripcion} ${dimension} ${np} ${u.hoja_excel}`),
-      },
+      buscar: buscarEn(v.codigo, descripcion, dimension, np),
     });
   }
   for (const a of Object.values(estado.articulos)) {
@@ -93,49 +85,121 @@ export function indiceMaterial(estado, { indices = new Indices(estado), saldos =
       total: null,
       fx: false,
       orden: 0,
-      buscar: { descripcion: normal(a.descripcion), dimension: "", todo: normal(`${a.codigo} ${a.descripcion}`) },
+      buscar: buscarEn(a.codigo, a.descripcion, "", ""),
     });
   }
   return items;
 }
 
-/** ¿La fila coincide con lo escrito según «Buscar en»? */
-function coincide(item, consulta, alcance) {
-  const q = consulta.trim();
-  if (alcance === "codigo") {
-    if (!/^\d+$/.test(q)) return false;
-    return String(item.codigo).startsWith(q.replace(/^0+/, "") || "0");
-  }
-  const ps = palabras(q);
-  if (!ps.length) return false;
-  const donde = alcance === "descripcion" ? item.buscar.descripcion : alcance === "dimension" ? item.buscar.dimension : item.buscar.todo;
-  return ps.every((p) => donde.includes(p));
+// Lo que se compara de cada fila (ya normalizado, para no repetirlo en cada tecla).
+function buscarEn(codigo, descripcion, dimension, np) {
+  return {
+    material: normal(`${codigo} ${descripcion}`),
+    descripcion: normal(descripcion),
+    dimension: normal(dimension),
+    np: normal(np),
+    dimensionJunta: junta(dimension),
+    npJunto: junta(np),
+  };
 }
 
 /**
- * Resultados agrupados por código (§4.2): [{ codigo, descripcion, filas, exacto }]. Un número igual a un código pone
- * ese código primero; luego los que tienen existencia. Dentro de cada código, las claves en el orden del inventario.
- * @returns { grupos, mas } — `mas`: cuántos códigos más coinciden y no se muestran.
+ * ¿El código de la fila es el que se escribió en «Código o descripción»? Un número: los códigos que empiezan así (1) o,
+ * si no, las descripciones que lo traen (2); texto: todas sus palabras en el código y la descripción (2). 0 = no.
  */
-export function buscarMaterial(items, consulta, { alcance = "todo", limite = LIMITE_CODIGOS } = {}) {
-  const q = texto(consulta);
-  if (!q) return { grupos: [], mas: 0 };
-  const exacto = /^\d+$/.test(q) ? Number(q) : null;
-  const porCodigo = new Map();
-  for (const item of items) {
-    if (!coincide(item, q, alcance)) continue;
-    if (!porCodigo.has(item.codigo)) porCodigo.set(item.codigo, { codigo: item.codigo, descripcion: item.descripcion, filas: [], exacto: item.codigo === exacto });
-    porCodigo.get(item.codigo).filas.push(item);
+function comoMaterial(item, q) {
+  if (!q) return 1;
+  if (/^\d+$/.test(q)) {
+    if (String(item.codigo).startsWith(q.replace(/^0+/, "") || "0")) return 1;
+    return item.buscar.descripcion.includes(q) ? 2 : 0;
   }
-  const hay = (g) => g.filas.some((f) => (f.total ?? 0) > 0);
-  const grupos = [...porCodigo.values()]
-    .map((g) => ({ ...g, filas: g.filas.sort((a, b) => a.orden - b.orden) }))
-    .sort((a, b) => Number(b.exacto) - Number(a.exacto) || Number(hay(b)) - Number(hay(a)) || a.codigo - b.codigo);
-  return { grupos: grupos.slice(0, limite), mas: Math.max(0, grupos.length - limite) };
+  return palabras(q).every((p) => item.buscar.material.includes(p)) ? 2 : 0;
 }
 
-/** Las filas de los grupos en el orden en que se ven (para moverse con ↑ ↓). */
+/** ¿La clave de la fila trae lo escrito en «Dimensión o NP»? Junto (sin espacios) o palabra por palabra. */
+export function coincideDimension(item, q) {
+  if (item.tipo !== "existencia") return false;
+  const b = item.buscar;
+  const j = junta(q);
+  if (j && (b.dimensionJunta.includes(j) || b.npJunto.includes(j))) return true;
+  const ps = palabras(q);
+  return ps.length > 0 && ps.every((p) => b.dimension.includes(p) || b.np.includes(p));
+}
+
+// Para saber si la clave escrita ya existe: sin espacios, guiones ni puntos y con las comillas iguales (`6''` = `6"`).
+const igualClave = (t) => claveEstricta(junta(t));
+
+/** Una dimensión escrita a mano como se guarda en la partida: mayúsculas, sin espacios de más. */
+export const claveEscrita = (t) => texto(t).replace(/\s+/g, " ").toUpperCase();
+
+/**
+ * Resultados agrupados por código (§4.2, Ronda 35): `material` = lo escrito en «Código o descripción» y `dimension` = lo
+ * de «Dimensión o NP». Un número igual a un código pone ese código primero; luego los que traen la dimensión, los que
+ * empiezan con el número y los que tienen existencia. Cada grupo: { codigo, descripcion, filas, exacto, usar,
+ * sinCoincidencia }. Con dimensión escrita y material, `usar` = la opción «Usar «…»» si el código no tiene esa clave
+ * (exacta: ni como dimensión ni como NP); si ninguna clave del código la trae, en el código escrito (o el único que
+ * queda) se ven sus claves de referencia (`sinCoincidencia`). Sin material, solo los códigos con claves que la traen.
+ * @returns { grupos, mas } — `mas`: cuántos códigos más coinciden y no se muestran.
+ */
+export function buscarMaterial(items, { material = "", dimension = "" } = {}, { limite = LIMITE_CODIGOS } = {}) {
+  const q1 = texto(material);
+  const q2 = texto(dimension);
+  if (!q1 && !q2) return { grupos: [], mas: 0 };
+  const numero = /^\d+$/.test(q1) ? Number(q1) : null;
+  const porCodigo = new Map();
+  for (const item of items) {
+    const como = comoMaterial(item, q1);
+    if (!como) continue;
+    let g = porCodigo.get(item.codigo);
+    if (!g) {
+      g = { codigo: item.codigo, descripcion: item.descripcion, filas: [], todas: [], exacto: item.codigo === numero, porNumero: como === 1, usar: null, sinCoincidencia: false };
+      porCodigo.set(item.codigo, g);
+    }
+    g.todas.push(item);
+    if (!q2 || coincideDimension(item, q2)) g.filas.push(item);
+  }
+  let grupos = [...porCodigo.values()];
+  if (q2) {
+    const escrita = igualClave(q2);
+    for (const g of grupos) {
+      const existe = g.todas.some((i) => i.tipo === "existencia" && (igualClave(i.clave) === escrita || (i.np && igualClave(i.np) === escrita)));
+      if (q1 && escrita && !existe) g.usar = { tipo: "clave", codigo: g.codigo, descripcion: g.descripcion, clave: claveEscrita(q2) };
+    }
+    grupos = grupos.filter((g) => g.filas.length || g.usar);
+  }
+  const hay = (g) => g.filas.some((f) => (f.total ?? 0) > 0);
+  grupos.sort(
+    (a, b) =>
+      Number(b.exacto) - Number(a.exacto) ||
+      Number(b.filas.length > 0) - Number(a.filas.length > 0) ||
+      Number(b.porNumero) - Number(a.porNumero) ||
+      Number(hay(b)) - Number(hay(a)) ||
+      a.codigo - b.codigo,
+  );
+  const vistos = grupos.slice(0, limite).map(({ todas, porNumero, ...g }) => {
+    const filas = g.filas.sort((x, y) => x.orden - y.orden);
+    // Ninguna clave trae lo escrito: en el código buscado se ven las que sí hay, por si está escrita de otra forma.
+    if (!filas.length && (g.exacto || grupos.length === 1)) return { ...g, filas: todas.sort((x, y) => x.orden - y.orden), sinCoincidencia: true };
+    return { ...g, filas };
+  });
+  return { grupos: vistos, mas: Math.max(0, grupos.length - limite) };
+}
+
+/** Las filas de los grupos en el orden en que se ven, sin «Usar «…»» (lo de antes). */
 export const filasEnOrden = (grupos) => grupos.flatMap((g) => g.filas);
+
+/** Lo que se puede resaltar con ↑ ↓, en el orden en que se ve: cada grupo con sus claves y su «Usar «…»». */
+export const opcionesEnOrden = (grupos) => grupos.flatMap((g) => (g.usar ? [...g.filas, g.usar] : g.filas));
+
+/**
+ * Lo escrito en «Código o descripción» no encontró nada pero sí es una dimensión o NP (p. ej. «6309»): cuántas claves lo
+ * traen, para ofrecer buscarlo en el otro campo.
+ */
+export function dimensionEnMaterial(items, material) {
+  const q = texto(material);
+  if (!q) return 0;
+  return items.filter((i) => coincideDimension(i, q)).length;
+}
 
 /**
  * La clave que el área se llevó la última vez de cada código (§4.2, «La última de MECANICO»): código → id de la partida
@@ -160,21 +224,25 @@ export function ultimasDeArea(estado, datos) {
  * Cómo está cada partida del vale (§4.3): sin cantidad, sin clave elegida (copiada de otro vale), con una clave escrita
  * a mano que no descuenta, o sin existencia por ser un insumo que no se inventaría (diésel, gases).
  */
-export function estadoPartida(estado, l, { indices = new Indices(estado) } = {}) {
+export function estadoPartida(estado, l, { indices = new Indices(estado), codigosConPartidas = null } = {}) {
   const conExistencia = l.existencia_id !== null && l.existencia_id !== undefined;
-  const opciones = Number.isInteger(l.codigo) ? opcionesDeClave(estado, l.codigo, { indices }) : [];
+  // Con `codigosConPartidas` (los códigos con partidas en el inventario) no se recorre el inventario en cada tecla.
+  const tienePartidas = Number.isInteger(l.codigo) && (codigosConPartidas ? codigosConPartidas.has(l.codigo) : opcionesDeClave(estado, l.codigo, { indices }).length > 0);
   return {
     sinCantidad: !texto(l.cantidad),
     sinClave: !conExistencia && !l.no_inventariado,
-    noDescuenta: !conExistencia && Boolean(l.no_inventariado) && opciones.length > 0,
-    noInventariado: !conExistencia && Boolean(l.no_inventariado) && opciones.length === 0,
+    noDescuenta: !conExistencia && Boolean(l.no_inventariado) && tienePartidas,
+    noInventariado: !conExistencia && Boolean(l.no_inventariado) && !tienePartidas,
   };
 }
 
+/** Los códigos que tienen partidas en el inventario (de `indiceMaterial`). */
+export const codigosConPartidas = (items) => new Set(items.filter((i) => i.tipo === "existencia").map((i) => i.codigo));
+
 /** Los contadores de la lista: «2 sin cantidad», «1 no descuenta», «1 sin clave». */
-export function contarPartidas(estado, lineas, { indices = new Indices(estado) } = {}) {
+export function contarPartidas(estado, lineas, { indices = new Indices(estado), codigosConPartidas = null } = {}) {
   const capturadas = lineasCapturadas(lineas);
-  const estados = capturadas.map((l) => estadoPartida(estado, l, { indices }));
+  const estados = capturadas.map((l) => estadoPartida(estado, l, { indices, codigosConPartidas }));
   return {
     total: capturadas.length,
     sinCantidad: estados.filter((e) => e.sinCantidad).length,
@@ -238,50 +306,26 @@ export function conClaveManual(linea, clave) {
 
 // ---------------------------------------------------------------- clave nueva y código nuevo (§4.5, §4.6)
 
-/**
- * ¿Lo escrito trae un código (por su número o su descripción) y además una clave que ese código no tiene? Por ejemplo
- * «balero 6309-2Z/C»: «balero» es el 701 y «6309-2Z/C» no es ninguna de sus claves. Solo si apunta a un código.
- * @returns { codigo, descripcion, clave } o null
- */
-export function claveNueva(items, consulta, { alcance = "todo", codigo = null } = {}) {
-  const q = texto(consulta);
-  if (!q || alcance === "descripcion" || alcance === "dimension") return null;
-  const escritas = q.split(/\s+/).filter(Boolean);
-  const articulos = new Map();
-  for (const i of items) if (!articulos.has(i.codigo)) articulos.set(i.codigo, { codigo: i.codigo, descripcion: i.descripcion, texto: normal(`${i.codigo} ${i.descripcion}`) });
-  const candidatos = [];
-  for (const a of codigo !== null ? [articulos.get(codigo)].filter(Boolean) : articulos.values()) {
-    const describen = escritas.filter((w) => (w === String(a.codigo) || (!/^\d+$/.test(w) && a.texto.includes(normal(w)))));
-    const resto = escritas.filter((w) => !describen.includes(w));
-    if ((codigo !== null || describen.length) && resto.length) candidatos.push({ ...a, clave: resto.join(" ").toUpperCase() });
-  }
-  if (candidatos.length !== 1) return null;
-  const [c] = candidatos;
-  const escrita = claveEstricta(c.clave);
-  if (!escrita) return null;
-  const existe = items.some((i) => i.codigo === c.codigo && (claveEstricta(i.clave) === escrita || (i.np && claveEstricta(i.np) === escrita)));
-  return existe ? null : { codigo: c.codigo, descripcion: c.descripcion, clave: c.clave };
-}
-
 /** Las claves que hay de un código (para mostrarlas arriba de «Usar «clave»»). */
 export const filasDeCodigo = (items, codigo) => items.filter((i) => i.codigo === codigo).sort((a, b) => a.orden - b.orden);
 
 /**
- * ¿Lo escrito empieza con un código que no está en el catálogo, sin ningún resultado? (§4.6) «1399» o «1399 bomba»:
- * se agrega «por confirmar» con la descripción que siga (o se escribe en la partida).
- * @returns { codigo, descripcion } o null
+ * ¿Lo escrito en «Código o descripción» empieza con un código que no está en el catálogo, sin ningún resultado? (§4.6)
+ * «1399» o «1399 bomba»: se agrega «por confirmar» con la descripción que siga (o se escribe en la partida) y, si se
+ * escribió, la dimensión del otro campo.
+ * @returns { tipo: "codigo", codigo, descripcion, clave } o null
  */
-export function codigoNuevo(estado, consulta, { hayResultados = false } = {}) {
-  const m = /^0*(\d{1,9})(?:\s+(.*))?$/.exec(texto(consulta));
+export function codigoNuevo(estado, material, { hayResultados = false, dimension = "" } = {}) {
+  const m = /^0*(\d{1,9})(?:\s+(.*))?$/.exec(texto(material));
   if (!m || hayResultados) return null;
   const codigo = Number(m[1]);
   if (!codigo || estado.articulos[codigo]) return null;
-  return { codigo, descripcion: texto(m[2]).toUpperCase() };
+  return { tipo: "codigo", codigo, descripcion: texto(m[2]).toUpperCase(), clave: claveEscrita(dimension) };
 }
 
 /** Partida de un código que no está en el catálogo: no descuenta; al emitir se da de alta «por confirmar». */
-export function lineaCodigoNuevo(codigo, descripcion = "", lote = "") {
-  return { ...lineaVacia(lote), codigo, descripcion: texto(descripcion).toUpperCase(), no_inventariado: true, clave: "" };
+export function lineaCodigoNuevo(codigo, descripcion = "", lote = "", clave = "") {
+  return { ...lineaVacia(lote), codigo, descripcion: texto(descripcion).toUpperCase(), no_inventariado: true, clave: claveEscrita(clave) };
 }
 
 // ---------------------------------------------------------------- traer partidas de otra entrada o vale (§4.7)

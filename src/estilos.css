@@ -9180,25 +9180,20 @@ button.mosaico:hover .mosaico-abrir {
   gap: 10px;
 }
 
-.buscar-en {
-  flex-shrink: 0;
-  width: 200px;
+/* Ronda 35: dos campos lado a lado (código o descripción · dimensión o NP); en una columna angosta, uno sobre otro. */
+@container buscar (max-width: 520px) {
+  .buscador-material {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
-.buscar-en > span,
 .buscador-grande > span:first-child {
   color: var(--texto-suave);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.buscar-en .lista-boton {
-  min-height: 60px;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
 }
 
 .buscador-grande {
@@ -9243,13 +9238,40 @@ button.mosaico:hover .mosaico-abrir {
   color: var(--primario);
 }
 
+/* Ronda 35: cada código es una tarjeta aparte sobre un fondo más oscuro, para ver dónde acaba uno y empieza el otro. */
 .resultados-material {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  padding: 10px;
   border: 1px solid var(--borde);
   border-radius: 12px;
+  background: var(--fondo);
+}
+
+.grupo-resultados {
+  overflow: clip;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
   background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.grupo-resultados + .grupo-resultados {
+  margin-top: 14px;
+}
+
+.mover-dimension {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  white-space: normal;
+  text-align: left;
+}
+
+.resultados-vacio + .mover-dimension {
+  width: auto;
+  margin: 0 18px 18px;
 }
 
 .resultados-vacio {
@@ -9260,21 +9282,18 @@ button.mosaico:hover .mosaico-abrir {
 
 .grupo-cabeza {
   position: sticky;
-  top: 0;
+  top: -10px;
   z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 2px 12px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--borde);
-  background: var(--superficie);
-  font-weight: 600;
-}
-
-.grupo-resultados:first-child .grupo-cabeza {
-  border-top: 0;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--borde);
+  background: var(--primario-suave);
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 .grupo-titulo {
@@ -9285,15 +9304,22 @@ button.mosaico:hover .mosaico-abrir {
   white-space: nowrap;
 }
 
-.grupo-codigo,
-.grupo-claves {
-  color: var(--texto-suave);
-  font-weight: 500;
+.grupo-codigo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--primario);
+  color: var(--sobre-primario);
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .grupo-claves {
   flex-shrink: 0;
+  color: var(--texto-suave);
   font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .encabezado-resultados,
@@ -9311,9 +9337,9 @@ button.mosaico:hover .mosaico-abrir {
 }
 
 .encabezado-resultados {
-  background: var(--superficie-2);
+  padding-block: 6px;
   color: var(--texto-suave);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -9324,6 +9350,11 @@ button.mosaico:hover .mosaico-abrir {
   border-top: 1px solid var(--neutro-suave);
   cursor: pointer;
   user-select: none;
+}
+
+.grupo-cabeza + .fila-resultado,
+.encabezado-resultados + .fila-resultado {
+  border-top: 0;
 }
 
 .fila-resultado:hover {
@@ -9415,7 +9446,7 @@ button.mosaico:hover .mosaico-abrir {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 10px 14px 14px;
+  margin: 10px 12px 12px;
   padding: 12px 14px;
   border: 2px dashed var(--borde);
   border-radius: 10px;
@@ -9453,17 +9484,89 @@ button.mosaico:hover .mosaico-abrir {
   font-size: 0.8125rem;
 }
 
-.ayuda-resultados {
+/* Atajos con las teclas dibujadas (Ronda 35): lo que hay que apretar se ve como la tecla del teclado. */
+.ayuda-atajos {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 18px;
+  align-items: center;
+  gap: 6px 22px;
   margin: 0;
+  padding: 0;
+  list-style: none;
   color: var(--texto-suave);
   font-size: 0.8125rem;
 }
 
-.ayuda-resultados strong {
+.ayuda-atajos li,
+.atajo-teclas {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.atajo-teclas {
+  gap: 4px;
+  color: var(--texto-suave);
+}
+
+kbd.tecla {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--borde);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background: var(--superficie);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
   color: var(--texto);
+  font-family: var(--fuente);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* El botón ＋ de los resultados y el ratón, dibujados como en pantalla. */
+.tecla-mas {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--primario);
+  color: var(--sobre-primario);
+}
+
+.tecla-raton,
+.tecla-usar {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--borde);
+  border-radius: 13px;
+  background: var(--superficie);
+  color: var(--texto);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tecla-usar {
+  border-color: var(--primario);
+  border-radius: 7px;
+  color: var(--primario);
+}
+
+.pie-material kbd.tecla {
+  height: 22px;
+  min-width: 0;
+  margin-right: 2px;
 }
 
 .traer-partidas {
@@ -9562,7 +9665,7 @@ button.mosaico:hover .mosaico-abrir {
   .res-usar,
   .res-actual { grid-area: mas; }
 
-  .ayuda-resultados {
+  .ayuda-atajos {
     display: none;
   }
 }
@@ -9949,9 +10052,6 @@ button.mosaico:hover .mosaico-abrir {
     gap: 14px;
   }
 
-  .buscar-en {
-    width: 150px;
-  }
 }
 
 /* Menos de 700 px: una columna; la lista se abre desde una barra fija abajo, encima del contenido (§8). */
@@ -9959,10 +10059,6 @@ button.mosaico:hover .mosaico-abrir {
   .paso-material {
     --reserva-abajo: calc(140px + env(safe-area-inset-bottom, 0px));
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .buscar-en {
-    width: 130px;
   }
 
   .columna-vale {

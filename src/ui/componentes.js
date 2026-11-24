@@ -235,6 +235,24 @@ export function useAtajo({ alt = false, ctrl = false, codigo }, accion, raiz = n
   }, [alt, ctrl, codigo]);
 }
 
+/**
+ * Una tecla dibujada como la del teclado (Ronda 35, pedido del usuario): `<${Tecla}>Enter ↵<//>`. Para las ayudas de
+ * atajos, donde se lee qué hay que apretar; dentro de un botón sigue `Teclas`.
+ */
+export function Tecla({ children, titulo }) {
+  return html`<kbd class="tecla" title=${titulo}>${children}</kbd>`;
+}
+
+/**
+ * Ayuda de atajos: cada atajo con sus teclas dibujadas y lo que hace. `atajos`: [{ teclas, texto }], donde `teclas` es
+ * lo que se dibuja (teclas, «o», «+», el botón ＋…).
+ */
+export function AyudaAtajos({ atajos, clase = "" }) {
+  return html`<ul class=${`ayuda-atajos ${clase}`} aria-hidden="true">
+    ${atajos.map((a, i) => html`<li key=${i}><span class="atajo-teclas">${a.teclas}</span><span class="atajo-texto">${a.texto}</span></li>`)}
+  </ul>`;
+}
+
 /** <kbd>Alt</kbd>+<kbd>N</kbd> */
 export function Teclas({ teclas }) {
   return html`<span class="teclas">${teclas.map((t, i) => html`${i ? "+" : ""}<kbd>${t}</kbd>`)}</span>`;

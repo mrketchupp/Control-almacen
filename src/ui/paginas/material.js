@@ -2,6 +2,8 @@
 // etapa 3): a la izquierda el buscador fijo y sus resultados agrupados por código; a la derecha dos tarjetas, *Para
 // quién* y las *Partidas* con su propio scroll. Un solo botón *Editar* en las partidas: se elige una y su edición (otra
 // clave u otro material, lote, O.C., descripción) se hace a la izquierda; al terminar, vuelve la búsqueda de antes.
+// Ronda 35: el buscador son dos campos («Código o descripción» y «Dimensión o NP»), cada código es una tarjeta aparte y
+// los atajos se ven como teclas.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { aNumero, dec } from "../../nucleo/decimal.js";
@@ -10,27 +12,27 @@ import { calcularSaldos } from "../../nucleo/existencias.js";
 import { hoyIso } from "../../nucleo/fechas.js";
 import { DUENO_FX } from "../../nucleo/inventarios.js";
 import {
-  ALCANCES,
   agregarPartida,
   buscarMaterial,
-  claveNueva,
   codigoNuevo,
+  codigosConPartidas,
   conClaveManual,
   conOtraClave,
   conPartidasDeVale,
   contarPartidas,
+  dimensionEnMaterial,
   entradasDeHoy,
   estadoPartida,
   filasDeCodigo,
-  filasEnOrden,
   indiceMaterial,
   lineaCodigoNuevo,
+  opcionesEnOrden,
   partidasDelVale,
   ultimasDeArea,
 } from "../../servicios/buscarMaterial.js";
 import { deVale, folioDeVale } from "../../servicios/copiarVale.js";
 import { disponibles, plantillaArea } from "../../servicios/vales.js";
-import { Lista, Pastilla, num, useSesion } from "../componentes.js";
+import { AyudaAtajos, Pastilla, Tecla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { VentanaCopiarVale } from "./copiarVale.js";
@@ -70,47 +72,49 @@ function useAltoDisponible(ref) {
 
 // ---------------------------------------------------------------- buscador y resultados
 
-/** «Buscar en» + el campo grande, como `combobox` de la lista de resultados; con texto, una ✕ lo limpia. */
-function Buscador({ id, consulta, alEscribir, alcance, alAlcance, total, marcado, alTecla, etiqueta, placeholder }) {
-  return html`<div class="buscador-material">
-    <div class="campo buscar-en">
-      <span id=${`${id}-en`}>Buscar en</span>
-      <${Lista}
-        id=${`${id}-alcance`}
-        valor=${alcance}
-        opciones=${ALCANCES}
-        alCambiar=${(valor) => {
-          alAlcance(valor);
-          enfocar(id);
-        }}
-        ariaLabel="Buscar en"
-      />
-    </div>
-    <label class="campo buscador-grande">
-      <span>${etiqueta}</span>
+/** El botón ＋ de los resultados y el ratón, dibujados para la ayuda de atajos. */
+const BotonMasDibujado = () => html`<span class="tecla-mas"><${Icono} nombre="agregar" tam=${14} /></span>`;
+const DobleClic = () => html`<span class="tecla-raton"><${Icono} nombre="raton" tam=${15} />doble clic</span>`;
+
+/**
+ * Los dos campos del buscador (Ronda 35): «Código o descripción» (el código AX o palabras de su descripción) y
+ * «Dimensión o NP» (la clave). Los dos son `combobox` de la misma lista de resultados; con texto, una ✕ limpia cada uno.
+ */
+function Buscador({ id, material, dimension, alMaterial, alDimension, total, marcado, alTecla, etiquetaMaterial = "Código o descripción" }) {
+  const campo = (cual, valor, alEscribir, etiqueta, placeholder) => {
+    const idCampo = cual === "material" ? id : `${id}-dimension`;
+    // El nombre del campo es solo su etiqueta (sin la ✕ de limpiar, que está dentro de la misma etiqueta).
+    return html`<label class=${`campo buscador-grande campo-busqueda-${cual}`}>
+      <span id=${`${idCampo}-etiqueta`}>${etiqueta}</span>
       <span class="buscador-caja">
         <input
-          id=${id}
-          value=${consulta}
+          id=${idCampo}
+          aria-labelledby=${`${idCampo}-etiqueta`}
+          value=${valor}
           autocomplete="off"
+          spellcheck="false"
           role="combobox"
           aria-autocomplete="list"
           aria-expanded=${total > 0}
           aria-controls=${`${id}-resultados`}
           aria-activedescendant=${total ? `${id}-op-${Math.min(marcado, total - 1)}` : undefined}
           onInput=${(e) => alEscribir(e.currentTarget.value)}
-          onKeyDown=${alTecla}
+          onKeyDown=${(e) => alTecla(e, cual)}
           placeholder=${placeholder}
         />
-        ${consulta
-          ? html`<button type="button" class="limpiar-busqueda" aria-label="Limpiar búsqueda" title="Limpiar búsqueda (Esc)"
+        ${valor
+          ? html`<button type="button" class="limpiar-busqueda" aria-label=${`Limpiar ${etiqueta.toLowerCase()}`} title="Limpiar (Esc)"
               onClick=${() => {
                 alEscribir("");
-                enfocar(id);
+                enfocar(idCampo);
               }}><${Icono} nombre="cerrar" tam=${18} /></button>`
           : null}
       </span>
-    </label>
+    </label>`;
+  };
+  return html`<div class="buscador-material">
+    ${campo("material", material, alMaterial, etiquetaMaterial, "Ej. 505 o filtro")}
+    ${campo("dimension", dimension, alDimension, "Dimensión o NP", 'Ej. 4" X 3M o P550…')}
   </div>`;
 }
 
@@ -152,90 +156,98 @@ function FilaResultado({ idLista, fila, indice, marcada, ultima, nombreArea, edi
   </div>`;
 }
 
-/**
- * Resultados agrupados por código como un `listbox`. `especial` (clave nueva o código nuevo) va al final, con borde
- * punteado, y también se alcanza con ↓.
- */
-function Resultados({ idLista, grupos, mas, consulta, alcance, marcado, alMarcar, ultimas, nombreArea, editando = false, actualId = null, alElegir, especial = null, vacio }) {
-  const total = filasEnOrden(grupos).length;
-  if (!texto(consulta)) return html`<div class="resultados-material"><p class="resultados-vacio">${vacio}</p></div>`;
-  let indice = -1;
-  return html`<div class="resultados-material">
-    ${!grupos.length && !especial
-      ? html`<p class="resultados-vacio">No hay material con «${consulta}»${alcance !== "todo" ? ` en ${ALCANCES.find((a) => a.valor === alcance).etiqueta.toLowerCase()}` : ""}.</p>`
-      : html`<div role="listbox" id=${`${idLista}-resultados`} aria-label="Resultados">
-          ${grupos.map(
-            (g) => html`<div role="group" key=${g.codigo} aria-labelledby=${`${idLista}-g${g.codigo}`} class="grupo-resultados">
-              <div class="grupo-cabeza" id=${`${idLista}-g${g.codigo}`}>
-                <span class="grupo-titulo"><span class="grupo-codigo">${g.codigo}</span> · ${g.descripcion || "—"}</span>
-                <span class="grupo-claves">
-                  ${especial?.tipo === "clave" && especial.codigo === g.codigo
-                    ? `Ninguna clave coincide con «${especial.clave}»`
-                    : g.filas[0].tipo === "articulo"
-                      ? "sin existencia"
-                      : `${g.filas.length} ${g.filas.length === 1 ? "clave" : "claves"}`}
-                </span>
-              </div>
-              <div class="encabezado-resultados" aria-hidden="true"><span>Dimensión</span><span>NP</span><span>Contenedor</span><span>Hay</span><span></span></div>
-              ${g.filas.map((fila) => {
-                indice += 1;
-                return html`<${FilaResultado}
-                  key=${fila.id ?? `a${fila.codigo}`}
-                  idLista=${idLista}
-                  fila=${fila}
-                  indice=${indice}
-                  marcada=${indice === marcado}
-                  ultima=${fila.id !== null && ultimas.get(fila.codigo) === fila.id}
-                  nombreArea=${nombreArea}
-                  editando=${editando}
-                  actual=${editando && fila.id !== null && fila.id === actualId}
-                  alMarcar=${alMarcar}
-                  alElegir=${alElegir}
-                />`;
-              })}
-            </div>`,
-          )}
-          ${especial
-            ? html`<div role="option" id=${`${idLista}-op-${total}`} aria-selected=${marcado === total} class=${`fila-especial ${marcado === total ? "marcada" : ""}`}
-                onMouseDown=${(e) => e.preventDefault()} onClick=${() => alElegir(especial, false)}>
-                <span class="especial-icono" aria-hidden="true"><${Icono} nombre="agregar" tam=${18} /></span>
-                ${especial.tipo === "clave"
-                  ? html`<span class="especial-texto"><strong>Usar «<i>${especial.clave}</i>»</strong>
-                        <span>No está en el inventario: queda en el vale y el historial, pero no descuenta existencia.</span></span>
-                      <${Pastilla} tono="alerta">No descuenta<//>`
-                  : html`<span class="especial-texto"><strong>Agregar código ${especial.codigo}${especial.descripcion ? ` · ${especial.descripcion}` : ""}</strong>
-                        <span>No está en el catálogo: escribe su descripción en la partida; queda por confirmar.</span></span>
-                      <${Pastilla} tono="alerta">Código nuevo<//>`}
-              </div>`
-            : null}
-          ${mas ? html`<p class="resultados-vacio">${mas} ${mas === 1 ? "código más" : "códigos más"}: escribe más para encontrarlo.</p>` : null}
-        </div>`}
+/** «Usar «4" X 3M»» (clave que el código no tiene) o «Agregar código 1399» (código que no está): borde punteado. */
+function FilaEspecial({ idLista, especial, indice, marcada, editando, alElegir }) {
+  return html`<div role="option" id=${`${idLista}-op-${indice}`} aria-selected=${marcada} class=${`fila-especial ${marcada ? "marcada" : ""}`}
+    onMouseDown=${(e) => e.preventDefault()} onClick=${() => alElegir(especial, false)}>
+    <span class="especial-icono" aria-hidden="true"><${Icono} nombre="agregar" tam=${18} /></span>
+    ${especial.tipo === "clave"
+      ? html`<span class="especial-texto"><strong>Usar «<i>${especial.clave}</i>» en ${especial.codigo}</strong>
+            <span>No está en el inventario: queda en el vale y el historial, pero no descuenta existencia.</span></span>
+          <${Pastilla} tono="alerta">No descuenta<//>`
+      : html`<span class="especial-texto"><strong>Agregar código ${especial.codigo}${especial.descripcion ? ` · ${especial.descripcion}` : ""}${especial.clave ? ` · «${especial.clave}»` : ""}</strong>
+            <span>No está en el catálogo: escribe su descripción en la partida; queda por confirmar.</span></span>
+          <${Pastilla} tono="alerta">Código nuevo<//>`}
   </div>`;
 }
 
 /**
- * Lo que se busca y cómo se mueve el resaltado (lo usan agregar y editar, cada uno con su estado). `codigoClave`: al
- * editar, el código de la partida — en *Solo código*, lo que no es un número es una clave de ese código.
+ * Resultados como un `listbox`: cada código es una tarjeta (su cabeza con el código y la descripción, sus claves y, si
+ * la dimensión escrita no está, «Usar «…»» al final de la tarjeta). El código nuevo va al final. `vacio`: lo que se ve
+ * sin nada escrito. `alMoverADimension`: lo escrito en el primer campo es una dimensión; pasarlo al segundo.
  */
-function useBusqueda(items, estado, { inicial = "", alcanceInicial = "todo", codigoClave = null, conCodigoNuevo = true } = {}) {
-  const [consulta, setConsulta] = useState(inicial);
-  const [alcance, setAlcance] = useState(alcanceInicial);
+function Resultados({ idLista, b, marcado, alMarcar, ultimas, nombreArea, editando = false, actualId = null, alElegir, vacio, alMoverADimension = null }) {
+  const { grupos, mas, nuevo, material, dimension } = b;
+  if (!texto(material) && !texto(dimension)) return html`<div class="resultados-material"><p class="resultados-vacio">${vacio}</p></div>`;
+  // Lo escrito como material es una dimensión o NP (p. ej. «6309»): se ofrece pasarlo al otro campo.
+  const comoDimension = !grupos.length && alMoverADimension ? b.comoDimension : 0;
+  const pista = comoDimension
+    ? html`<button type="button" class="boton boton-secundario mover-dimension" onClick=${alMoverADimension}>
+        «${material}» está como dimensión o NP en ${comoDimension} ${comoDimension === 1 ? "clave" : "claves"} · buscarlo en «Dimensión o NP»
+      </button>`
+    : null;
+  if (!grupos.length && !nuevo) {
+    return html`<div class="resultados-material">
+      <p class="resultados-vacio">
+        ${!texto(material)
+          ? html`Ninguna clave trae «${dimension}». Escribe también el código o la descripción para usarla aunque no esté en el inventario.`
+          : html`No hay material con «${material}»${texto(dimension) ? ` y «${dimension}»` : ""}.`}
+      </p>
+      ${pista}
+    </div>`;
+  }
+  let indice = -1;
+  return html`<div class="resultados-material">
+    ${pista}
+    <div role="listbox" id=${`${idLista}-resultados`} aria-label="Resultados">
+      ${grupos.map((g) => {
+        const filas = g.filas.map((fila) => {
+          indice += 1;
+          return html`<${FilaResultado}
+            key=${fila.id ?? `a${fila.codigo}`}
+            idLista=${idLista}
+            fila=${fila}
+            indice=${indice}
+            marcada=${indice === marcado}
+            ultima=${fila.id !== null && ultimas.get(fila.codigo) === fila.id}
+            nombreArea=${nombreArea}
+            editando=${editando}
+            actual=${editando && fila.id !== null && fila.id === actualId}
+            alMarcar=${alMarcar}
+            alElegir=${alElegir}
+          />`;
+        });
+        const usar = g.usar ? ((indice += 1), html`<${FilaEspecial} idLista=${idLista} especial=${g.usar} indice=${indice} marcada=${indice === marcado} editando=${editando} alElegir=${alElegir} />`) : null;
+        const claves = g.filas.length && g.filas[0].tipo === "articulo" ? "sin existencia" : `${g.filas.length} ${g.filas.length === 1 ? "clave" : "claves"}`;
+        return html`<div role="group" key=${g.codigo} aria-labelledby=${`${idLista}-g${g.codigo}`} class="grupo-resultados">
+          <div class="grupo-cabeza" id=${`${idLista}-g${g.codigo}`}>
+            <span class="grupo-titulo"><span class="grupo-codigo">${g.codigo}</span> · ${g.descripcion || "—"}</span>
+            <span class="grupo-claves">${g.sinCoincidencia ? `Ninguna clave trae «${dimension}» · estas son las que hay` : g.filas.length ? claves : `Ninguna clave trae «${dimension}»`}</span>
+          </div>
+          ${g.filas.length ? html`<div class="encabezado-resultados" aria-hidden="true"><span>Dimensión</span><span>NP</span><span>Contenedor</span><span>Hay</span><span></span></div>` : null}
+          ${filas}
+          ${usar}
+        </div>`;
+      })}
+      ${nuevo ? ((indice += 1), html`<${FilaEspecial} idLista=${idLista} especial=${nuevo} indice=${indice} marcada=${indice === marcado} editando=${editando} alElegir=${alElegir} />`) : null}
+      ${mas ? html`<p class="resultados-vacio">${mas} ${mas === 1 ? "código más" : "códigos más"}: escribe más para encontrarlo.</p>` : null}
+    </div>
+  </div>`;
+}
+
+/**
+ * Lo que se busca y cómo se mueve el resaltado (lo usan agregar y editar, cada uno con su estado): el material (código o
+ * descripción), la dimensión o NP, los grupos, el código nuevo y las opciones en el orden en que se ven.
+ */
+function useBusqueda(items, estado, { inicial = "", conCodigoNuevo = true } = {}) {
+  const [material, setMaterial] = useState(inicial);
+  const [dimension, setDimension] = useState("");
   const [marcado, setMarcado] = useState(0);
-  const { grupos, mas } = useMemo(() => buscarMaterial(items, consulta, { alcance }), [items, consulta, alcance]);
-  const nueva = useMemo(() => {
-    const q = texto(consulta);
-    if (codigoClave !== null && alcance === "codigo" && q && !/^\d+$/.test(q)) return claveNueva(items, `${codigoClave} ${q}`, { codigo: codigoClave });
-    return claveNueva(items, consulta, { alcance });
-  }, [items, consulta, alcance, codigoClave]);
-  // Con una clave nueva, arriba se ven las claves reales de ese código aunque no coincidan con lo escrito.
-  const gruposVista =
-    nueva && !grupos.some((g) => g.codigo === nueva.codigo)
-      ? [{ codigo: nueva.codigo, descripcion: nueva.descripcion, filas: filasDeCodigo(items, nueva.codigo), exacto: false }, ...grupos].filter((g) => g.filas.length)
-      : grupos;
-  const nuevoCodigo = conCodigoNuevo ? codigoNuevo(estado, consulta, { hayResultados: gruposVista.length > 0 }) : null;
-  const especial = nueva ? { tipo: "clave", ...nueva } : nuevoCodigo ? { tipo: "codigo", ...nuevoCodigo } : null;
-  const opciones = [...filasEnOrden(gruposVista), ...(especial ? [especial] : [])];
-  useEffect(() => setMarcado(0), [consulta, alcance]);
+  const { grupos, mas } = useMemo(() => buscarMaterial(items, { material, dimension }), [items, material, dimension]);
+  const nuevo = conCodigoNuevo ? codigoNuevo(estado, material, { hayResultados: grupos.length > 0, dimension }) : null;
+  const comoDimension = useMemo(() => (grupos.length ? 0 : dimensionEnMaterial(items, material)), [items, material, grupos.length]);
+  const opciones = [...opcionesEnOrden(grupos), ...(nuevo ? [nuevo] : [])];
+  useEffect(() => setMarcado(0), [material, dimension]);
   const mover = (e) => {
     if ((e.key !== "ArrowDown" && e.key !== "ArrowUp") || !opciones.length) return false;
     e.preventDefault();
@@ -243,25 +255,36 @@ function useBusqueda(items, estado, { inicial = "", alcanceInicial = "todo", cod
     return true;
   };
   return {
-    consulta,
-    setConsulta,
-    alcance,
-    setAlcance,
+    material,
+    setMaterial,
+    dimension,
+    setDimension,
     marcado: Math.min(marcado, Math.max(0, opciones.length - 1)),
     setMarcado,
-    grupos: gruposVista,
+    grupos,
     mas,
-    especial,
+    nuevo,
+    comoDimension,
     opciones,
     mover,
   };
 }
 
+/** Esc en un campo del buscador: borra ese campo (y, si ya estaba vacío, nada). @returns true si lo usó */
+function escEnCampo(e, b, cual) {
+  if (e.key !== "Escape") return false;
+  const valor = cual === "material" ? b.material : b.dimension;
+  if (!valor) return false;
+  e.stopPropagation();
+  (cual === "material" ? b.setMaterial : b.setDimension)("");
+  return true;
+}
+
 // ---------------------------------------------------------------- partidas
 
 /** Una partida de la lista (§4.3): dimensión · NP / código · descripción / contenedor · hay; lote y O.C. si tienen. */
-function PartidaVale({ l, n, estado, indices, np, hay, pedido, editando, elegida, alElegir, alCambiar, alQuitar, alTab, alEnter }) {
-  const e = estadoPartida(estado, l, { indices });
+function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, editando, elegida, alElegir, alCambiar, alQuitar, alTab, alEnter }) {
+  const e = estadoPartida(estado, l, { indices, codigosConPartidas: conPartidas });
   const existencia = l.existencia_id !== null && l.existencia_id !== undefined ? indices.existencia(l.existencia_id) : null;
   const ubicacion = existencia ? indices.ubicacion(existencia.ubicacion_id) : null;
   const nuevo = Number.isInteger(l.codigo) && !estado.articulos[l.codigo];
@@ -328,11 +351,12 @@ function PartidaVale({ l, n, estado, indices, np, hay, pedido, editando, elegida
 
 /**
  * Edición de la partida elegida (§4.4 con el flujo del usuario): la franja ámbar, su lote y O.C. (y la UM si no sale del
- * inventario), corregir la descripción del código y el buscador en *Solo código* con sus claves (*Actual* / *Usar
- * esta*, o «Usar «clave»» si se escribe una que no está). Buscar otro material la reemplaza (conserva cantidad, lote y O.C.).
+ * inventario), corregir la descripción del código y el buscador con el código de la partida y sus claves (*Actual* /
+ * *Usar esta*, o «Usar «clave»» si en «Dimensión o NP» se escribe una que no está). Otro material la reemplaza (conserva
+ * cantidad, lote y O.C.). Esc termina.
  */
 function EditarPartida({ linea, n, items, estado, indices, np, ultimas, nombreArea, alCambiar, alDescripcion, alTerminar }) {
-  const b = useBusqueda(items, estado, { inicial: String(linea.codigo ?? ""), alcanceInicial: "codigo", codigoClave: linea.codigo ?? null });
+  const b = useBusqueda(items, estado, { inicial: String(linea.codigo ?? "") });
   const existencia = linea.existencia_id !== null && linea.existencia_id !== undefined;
   const conocido = Number.isInteger(linea.codigo) && Boolean(estado.articulos[linea.codigo]);
   useEffect(() => enfocar("editar-material", true), []);
@@ -341,11 +365,14 @@ function EditarPartida({ linea, n, items, estado, indices, np, ultimas, nombreAr
   }, [b.marcado]);
   // `alCambiar(l => nueva)`: el cambio se aplica sobre la partida como está en ese momento.
   const usar = (fila) => {
-    if (fila.tipo === "clave") alCambiar((l) => conClaveManual(l, fila.clave));
-    else if (fila.tipo === "codigo") alCambiar((l) => ({ ...lineaCodigoNuevo(fila.codigo, fila.descripcion, l.lote), uid: l.uid, cantidad: l.cantidad ?? "", oc: l.oc ?? "" }));
-    else alCambiar((l) => conOtraClave(estado, l, fila, { indices }));
-    b.setConsulta(String(fila.codigo ?? linea.codigo));
-    b.setAlcance("codigo");
+    if (fila.tipo === "clave") {
+      // La clave escrita, en el código de la partida o en otro (que la reemplaza con su descripción).
+      alCambiar((l) => conClaveManual(l.codigo === fila.codigo ? l : conOtraClave(estado, l, filasDeCodigo(items, fila.codigo)[0], { indices }), fila.clave));
+    } else if (fila.tipo === "codigo") {
+      alCambiar((l) => ({ ...lineaCodigoNuevo(fila.codigo, fila.descripcion, l.lote, fila.clave), uid: l.uid, cantidad: l.cantidad ?? "", oc: l.oc ?? "" }));
+    } else alCambiar((l) => conOtraClave(estado, l, fila, { indices }));
+    b.setMaterial(String(fila.codigo ?? linea.codigo));
+    b.setDimension("");
     enfocar("editar-material", true);
   };
   const tecla = (e) => {
@@ -391,22 +418,18 @@ function EditarPartida({ linea, n, items, estado, indices, np, ultimas, nombreAr
     </div>
     <${Buscador}
       id="editar-material"
-      consulta=${b.consulta}
-      alEscribir=${b.setConsulta}
-      alcance=${b.alcance}
-      alAlcance=${b.setAlcance}
+      material=${b.material}
+      dimension=${b.dimension}
+      alMaterial=${b.setMaterial}
+      alDimension=${b.setDimension}
       total=${b.opciones.length}
       marcado=${b.marcado}
       alTecla=${tecla}
-      etiqueta="Otra clave u otro material"
-      placeholder="Código; o una clave de este código"
+      etiquetaMaterial="Otro material · código o descripción"
     />
     <${Resultados}
       idLista="editar-material"
-      grupos=${b.grupos}
-      mas=${b.mas}
-      consulta=${b.consulta}
-      alcance=${b.alcance}
+      b=${b}
       marcado=${b.marcado}
       alMarcar=${b.setMarcado}
       ultimas=${ultimas}
@@ -414,13 +437,12 @@ function EditarPartida({ linea, n, items, estado, indices, np, ultimas, nombreAr
       editando=${true}
       actualId=${linea.existencia_id ?? null}
       alElegir=${usar}
-      especial=${b.especial}
       vacio="Escribe el código para ver sus claves, o busca otro material para reemplazar la partida."
     />
-    <p class="ayuda-resultados" aria-hidden="true">
-      <span><strong>Usar esta</strong> o <strong>doble clic</strong> cambia la clave</span>
-      <span><strong>Esc</strong> termina y vuelve a la búsqueda</span>
-    </p>
+    <${AyudaAtajos} atajos=${[
+      { teclas: html`<span class="tecla-usar">Usar esta</span> o <${DobleClic} />`, texto: "cambia la clave" },
+      { teclas: html`<${Tecla}>Esc<//>`, texto: "termina y vuelve a la búsqueda" },
+    ]} />
   </div>`;
 }
 
@@ -438,6 +460,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
   const items = useMemo(() => indiceMaterial(estado, { indices, saldos }), [estado.articulos, estado.existencias, saldos]);
   // El NP de cada partida del inventario: se ve como referencia aunque no vaya en el lote.
   const npPorPartida = useMemo(() => new Map(items.filter((i) => i.id !== null).map((i) => [i.id, i.np])), [items]);
+  const conPartidas = useMemo(() => codigosConPartidas(items), [items]);
   const b = useBusqueda(items, estado);
   const [listaAbierta, setListaAbierta] = useState(false); // ventana angosta: la lista encima
   const [editando, setEditando] = useState(false);
@@ -448,7 +471,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
   const ultimas = useMemo(() => ultimasDeArea(estado, datos), [estado.vales, datos.plantilla_area_id, datos.depto_destino]);
   const deHoy = useMemo(() => entradasDeHoy(estado, hoyIso()), [estado.vales]);
   const partidas = partidasDelVale(datos.lineas);
-  const cuenta = contarPartidas(estado, partidas, { indices });
+  const cuenta = contarPartidas(estado, partidas, { indices, codigosConPartidas: conPartidas });
   const ids = [...new Set(partidas.map((l) => l.existencia_id).filter((x) => x !== null && x !== undefined))];
   const hay = useMemo(() => disponibles(estado, ids), [estado, ids.join(",")]);
   const pedidos = new Map();
@@ -496,7 +519,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
   }, [editando]);
   useEffect(() => {
     document.getElementById(`buscar-material-op-${b.marcado}`)?.scrollIntoView?.({ block: "nearest" });
-  }, [b.marcado, b.consulta]);
+  }, [b.marcado, b.material, b.dimension]);
   // La partida nueva se ve al final de la lista.
   useEffect(() => {
     if (!nueva) return;
@@ -513,7 +536,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
     aplicar({ ...hoy, lineas: fn(hoy.lineas) });
   };
   const anunciar = (inicio, lineas) => {
-    const c = contarPartidas(estado, lineas, { indices });
+    const c = contarPartidas(estado, lineas, { indices, codigosConPartidas: conPartidas });
     setAnuncio(`${inicio} ${partidasDe(c.total)}${c.sinCantidad ? `, ${c.sinCantidad} sin cantidad` : ""}.`);
   };
   const agregar = (fila, aCantidad) => {
@@ -524,11 +547,13 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
       const base = filasDeCodigo(items, fila.codigo)[0];
       const desde = base ? agregarPartida(estado, datos, base, { indices }).linea : lineaCodigoNuevo(fila.codigo, fila.descripcion);
       linea = conClaveManual(desde, fila.clave);
-    } else if (fila.tipo === "codigo") linea = lineaCodigoNuevo(fila.codigo, fila.descripcion, area?.lote_defecto ?? "");
+    } else if (fila.tipo === "codigo") linea = lineaCodigoNuevo(fila.codigo, fila.descripcion, area?.lote_defecto ?? "", fila.clave);
     else linea = agregarPartida(estado, datos, fila, { indices }).linea;
     const conNueva = { ...datos, lineas: [...partidasDelVale(datos.lineas), linea] };
     aplicar(conNueva);
     setNueva(linea.uid);
+    // La dimensión ya se usó; el código se queda (seleccionado) por si sigue otra clave del mismo material.
+    b.setDimension("");
     anunciar(`Agregado ${fila.descripcion ?? ""} ${linea.clave || ""}.`, conNueva.lineas);
     if (fila.tipo === "codigo" && !fila.descripcion) {
       requestAnimationFrame(() => document.querySelector(`[data-partida="${linea.uid}"] .partida-desc-nueva input`)?.focus());
@@ -565,15 +590,12 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
     enfocar(`cant-${otra.uid}`, true);
     return true;
   };
-  const tecla = (e) => {
+  const tecla = (e, cual) => {
     if (b.mover(e)) return;
     if (e.key === "Enter" && b.opciones.length) {
       e.preventDefault();
       agregar(b.opciones[b.marcado], e.shiftKey);
-    } else if (e.key === "Escape" && b.consulta) {
-      e.stopPropagation();
-      b.setConsulta("");
-    }
+    } else escEnCampo(e, b, cual);
   };
   const terminarEdicion = () => {
     setEditando(false);
@@ -620,35 +642,34 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
   } else {
     izquierda = html`<${Buscador}
         id="buscar-material"
-        consulta=${b.consulta}
-        alEscribir=${b.setConsulta}
-        alcance=${b.alcance}
-        alAlcance=${b.setAlcance}
+        material=${b.material}
+        dimension=${b.dimension}
+        alMaterial=${b.setMaterial}
+        alDimension=${b.setDimension}
         total=${b.opciones.length}
         marcado=${b.marcado}
         alTecla=${tecla}
-        etiqueta="Siguiente material · código, descripción, dimensión o NP"
-        placeholder=${b.alcance === "codigo" ? "Ej. 711" : "Ej. foco led, 6309, X00489…"}
       />
       <${Resultados}
         idLista="buscar-material"
-        grupos=${b.grupos}
-        mas=${b.mas}
-        consulta=${b.consulta}
-        alcance=${b.alcance}
+        b=${b}
         marcado=${b.marcado}
         alMarcar=${b.setMarcado}
         ultimas=${ultimas}
         nombreArea=${area?.nombre ?? ""}
         alElegir=${agregar}
-        especial=${b.especial}
-        vacio="Escribe un código, una descripción, una dimensión o un NP."
+        vacio="Escribe el código o la descripción del material y, si quieres, su dimensión o NP."
+        alMoverADimension=${() => {
+          b.setDimension(b.material);
+          b.setMaterial("");
+          enfocar("buscar-material-dimension");
+        }}
       />
-      <p class="ayuda-resultados" aria-hidden="true">
-        <span><strong>＋</strong> o <strong>doble clic</strong> agrega</span>
-        <span><strong>↑ ↓ Enter</strong> agrega la resaltada</span>
-        <span><strong>Shift + Enter</strong> agrega y vas a su cantidad</span>
-      </p>
+      <${AyudaAtajos} atajos=${[
+        { teclas: html`<${BotonMasDibujado} /> o <${DobleClic} />`, texto: "agrega" },
+        { teclas: html`<${Tecla}>↑<//><${Tecla}>↓<//> y <${Tecla}>Enter ↵<//>`, texto: "agrega la resaltada" },
+        { teclas: html`<${Tecla}>⇧ Shift<//> + <${Tecla}>Enter ↵<//>`, texto: "agrega y vas a su cantidad" },
+      ]} />
       <div class="traer-partidas">
         <span>¿Es material que acabas de recibir?</span>
         ${deHoy.map(
@@ -711,6 +732,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
                   n=${i + 1}
                   estado=${estado}
                   indices=${indices}
+                  conPartidas=${conPartidas}
                   np=${l.existencia_id != null ? (npPorPartida.get(l.existencia_id) ?? "") : ""}
                   hay=${l.existencia_id != null ? (hay.get(l.existencia_id) ?? null) : null}
                   pedido=${l.existencia_id != null ? (pedidos.get(l.existencia_id) ?? null) : null}
@@ -730,7 +752,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
           : html`<p class="lista-vacia">Busca un material a la izquierda para agregarlo.</p>`}
         <div class="pie-material">
           <p class=${`nota ${excedido ? "pie-excedido" : ""}`}>
-            Tab salta entre cantidades ·
+            <${Tecla}>Tab ⇥<//> salta entre cantidades ·
             ${excedido ? ` se dividirá en ${hojas} folios (${capacidad} por hoja)` : ` cabe en 1 hoja${capacidad ? ` (${capacidad})` : ""}`}
           </p>
           <div class="pie-material-botones">

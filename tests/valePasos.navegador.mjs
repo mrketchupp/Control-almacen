@@ -168,7 +168,7 @@ test("vale de salida en 3 pasos", async (t) => {
     assert.match(await resumen.innerText(), /MECANICO UNO/);
     assert.equal(await revisar.isDisabled(), true);
     await page.getByText("Busca un material a la izquierda para agregarlo.", { exact: true }).waitFor();
-    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    const buscador = page.getByRole("combobox", { name: "Código o descripción", exact: true });
     await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
     // Un clic en la fila solo la resalta; Enter agrega la resaltada con la cantidad vacía y el foco sigue en el buscador.
     await buscador.fill("706");
@@ -267,7 +267,7 @@ test("vale de salida en 3 pasos", async (t) => {
 
   await t.test("paso 2: traer partidas, código nuevo, clave que no está y editar una partida desde un solo botón", async () => {
     await cerrarAvisos();
-    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    const buscador = page.getByRole("combobox", { name: "Código o descripción", exact: true });
     // Lo recibido hoy se trae al vale abierto (no a uno nuevo), con sus cantidades.
     await page.getByRole("button", { name: "Traer partidas de E-0001 · hoy · 2", exact: true }).click();
     await esperarPartidas(2);
@@ -280,15 +280,32 @@ test("vale de salida en 3 pasos", async (t) => {
     await buscador.press("Enter");
     await esperarPartidas(3);
     assert.equal(await page.getByLabel("Descripción del código nuevo 1399").inputValue(), "BOMBA SINTETICA");
-    // Dimensión que no existe: arriba las claves reales del código y abajo «Usar «…»», que no descuenta.
-    await buscador.fill("balero 6309-2Z/C");
-    const usar = page.getByRole("option", { name: /Usar «6309-2Z\/C»/ });
+    // Ronda 35: código o descripción en un campo y la dimensión en el otro. La que no existe se ofrece tal como se
+    // escribió («Usar «…» en 701», al final de la tarjeta del código), con las claves que la traen arriba.
+    const dimension = page.getByRole("combobox", { name: "Dimensión o NP", exact: true });
+    await buscador.fill("balero");
+    await dimension.fill("6309-2Z/C");
+    const usar = page.getByRole("option", { name: /Usar «6309-2Z\/C» en 701/ });
     await usar.waitFor();
-    await page.getByText("Ninguna clave coincide con «6309-2Z/C»", { exact: true }).waitFor();
+    const tarjeta = page.getByRole("group", { name: /^701 · BALEROS/ });
+    assert.ok((await tarjeta.getByRole("option").count()) >= 2, "las claves que la traen y «Usar» en la misma tarjeta");
     await capturar("paso-2-clave-nueva");
     await usar.click();
     await esperarPartidas(4);
     assert.match(await page.locator(".partida-vale").nth(3).innerText(), /6309-2Z\/C[\s\S]*No descuenta/);
+    assert.equal(await dimension.inputValue(), "", "la dimensión ya se usó; el código se queda");
+    assert.equal(await buscador.inputValue(), "balero");
+    // Con letras, espacios, comillas y diagonales: lo que ninguna clave trae se ofrece igual (antes se perdía).
+    await buscador.fill("709");
+    await dimension.fill('LED X 1/2" -B');
+    await page.getByRole("option", { name: /Usar «LED X 1\/2" -B» en 709/ }).waitFor();
+    // Una dimensión escrita en el primer campo: se ofrece pasarla al segundo.
+    await dimension.fill("");
+    await buscador.fill("6309");
+    await page.getByRole("button", { name: /«6309» está como dimensión o NP en \d+ claves/ }).click();
+    assert.deepEqual([await buscador.inputValue(), await dimension.inputValue()], ["", "6309"]);
+    await page.getByRole("group", { name: /^701 · BALEROS/ }).waitFor();
+    await dimension.fill("");
     // Un solo «Editar» para las partidas: se elige una y se edita a la izquierda; al terminar vuelve la búsqueda.
     await buscador.fill("foco led");
     await page.getByRole("button", { name: "Editar las partidas", exact: true }).click();
@@ -304,10 +321,12 @@ test("vale de salida en 3 pasos", async (t) => {
     const otras = page.getByRole("button", { name: /^Usar 701 / });
     assert.ok((await otras.count()) >= 1, "las otras claves del código");
     await otras.first().click();
-    // Una clave escrita que no tiene el código, desde la edición.
-    const editar = page.getByRole("combobox", { name: "Otra clave u otro material" });
-    await editar.fill("XYZ-9");
-    await page.getByRole("option", { name: /Usar «XYZ-9»/ }).click();
+    // Al usarla, el foco vuelve al código (en el siguiente cuadro): se espera para no escribir mientras se mueve.
+    await page.waitForFunction(() => document.activeElement?.id === "editar-material");
+    // Una clave escrita que no tiene el código, desde la edición (en «Dimensión o NP», con el código de la partida).
+    assert.equal(await page.getByRole("combobox", { name: "Otro material · código o descripción", exact: true }).inputValue(), "701");
+    await page.locator("#editar-material-dimension").fill("XYZ-9");
+    await page.getByRole("option", { name: /Usar «XYZ-9» en 701/ }).click();
     await page.getByRole("button", { name: "Terminar · Esc", exact: true }).click();
     assert.equal(await buscador.inputValue(), "foco led", "vuelve la búsqueda de antes");
     await page.getByRole("group", { name: /^711 · FOCO LED/ }).waitFor();
@@ -344,7 +363,7 @@ test("vale de salida en 3 pasos", async (t) => {
     await page.getByLabel("Unidad de la partida 3").fill("PZA");
     await page.getByLabel("Cantidad de la partida 4").fill("1");
     // Más de lo que hay: se justifica en el paso 3.
-    const buscador = page.getByRole("combobox", { name: /^Siguiente material/ });
+    const buscador = page.getByRole("combobox", { name: "Código o descripción", exact: true });
     await buscador.fill("706");
     await buscador.press("Shift+Enter");
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 5");
