@@ -68,7 +68,7 @@ buscador baja conforme crece la lista y elegir la clave correcta es lo que más 
 
 ## 3. Paso 1 · Para quién (lienzo: «1a» y «1b»)
 
-Arriba: un interruptor de 2 opciones, **Consumo interno** | **Enviar a otro RIG o pozo**, y a la derecha el botón de
+Arriba: un interruptor de 2 opciones, **Consumo interno** | **Transferencia** (Ronda 35; antes «Enviar a otro RIG o pozo»), y a la derecha el botón de
 **Fecha** (hoy por defecto; se puede cambiar para capturar un vale de otro día). Debajo, **dos mitades iguales**.
 
 ### 3.1 Consumo interno
@@ -111,7 +111,7 @@ Dos columnas: **buscador + resultados** (izquierda, ~60 %) y **vale en curso** (
 
 ### 4.1 Buscador (siempre arriba, nunca se desplaza)
 
-- A la izquierda, un selector **Buscar en**: *Todo* (por defecto) · *Solo código* · *Solo descripción* ·
+- (Ronda 35: se quitó; ver §14.) A la izquierda, un selector **Buscar en**: *Todo* (por defecto) · *Solo código* · *Solo descripción* ·
   *Dimensión o NP*. A la derecha, el campo grande (alto 60 px, letra ≥ 18 px). Etiqueta del campo:
   "Siguiente material · código, descripción, dimensión o NP".
 - *Todo* busca en código, descripción, dimensión y NP a la vez (reusar `indiceRapido` / `buscarRapido` de
@@ -206,7 +206,7 @@ Dos columnas: revisión (izquierda) y vista previa (derecha).
 
 ### 5.1 Revisión
 
-1. **Lo que falta antes de emitir** (solo si hay algo), en una tarjeta ámbar al inicio, una fila por problema:
+1. **Lo que falta antes de emitir** (Ronda 35: ya no va en una tarjeta aparte; ver §14) (solo si hay algo), en una tarjeta ámbar al inicio, una fila por problema:
    - Partida sin cantidad → botón **Ir a la partida** (paso 2, foco en esa cantidad).
    - Cantidad mayor que la existencia → el campo de **justificación** ahí mismo (se guarda en la partida, como hoy).
    - Cualquier error de `validarVale` → su mensaje y un botón **Corregir** que lleva al paso y campo que lo causa.
@@ -368,3 +368,18 @@ Una rama, commits por etapa; al final de cada una, pruebas verdes y capturas par
 5. Paso 3: pendientes, resumen, vista previa real y vista ampliada.
 6. Menú lateral (§7) y anchos (§8).
 7. Limpieza de §11 (1 y 2 ya confirmados) y actualizar `CLAUDE.md` / `docs/05-flujos.md` (Ronda 34).
+
+## 14. Cambios de la Ronda 35 (correcciones del usuario)
+
+- **Paso 1.** El interruptor dice *Consumo interno* | *Transferencia* (RIG y pozo son lo mismo). Quién recibe, quién
+  autoriza y las firmas extra salen del vale emitido más reciente del área (`firmasDelUltimoVale` en `aplicarPlantilla`):
+  si en el último se cambió la persona, el siguiente ya la sugiere; sin vales, las de la plantilla. En transferencias, la
+  línea «… PARA USO EN …» de las observaciones dice el destino elegido (`conDestino`, `conUsoEn`).
+- **Paso 2.** Sin *Buscar en*: dos campos, **Código o descripción** (número = códigos que empiezan así; texto = palabras de
+  la descripción) y **Dimensión o NP** (junta o separada, con cualquier comilla). Si la dimensión no está en un código,
+  ese código ofrece al final de su tarjeta «Usar «…» en <código>» tal como se escribió. Cada código es una tarjeta (cabeza
+  en color, código como insignia) y los atajos se dibujan como teclas (`Tecla`, `AyudaAtajos`).
+- **Paso 3.** Sin la tarjeta de pendientes: cada pendiente trae `donde` y `corto` (`pendientesParaEmitir`) y se marca en
+  ámbar en su lugar — la fila de *Para quién* con «Corregir», la partida con «Ir a la partida» / «Corregir» o su campo de
+  justificación, las fotos en su sección —. La tabla del material: Cantidad · Código y descripción · Dimensión con
+  «NP:», «Lote:» y «O.C.:» a su lado.

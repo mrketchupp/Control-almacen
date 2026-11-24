@@ -95,7 +95,10 @@ cambian.** `config.personas_distintas` guarda los pares marcados como "no son la
 
 **`departamento`**, **`destino`**: listas simples.
 
-**`plantilla_area`**: sustituye las 11 hojas-formulario (pantalla *Áreas y personas*).
+**`plantilla_area`**: sustituye las 11 hojas-formulario (pantalla *Áreas y personas*). Ronda 35: en la pantalla solo hay
+tres plantillas del vale (`tipo`: Consumo interno = `INTERNO`, NOV = `EXTERNO`, Transferencia = `TRANSFERENCIA`); cada
+área sigue guardando su `hoja_excel` y sus `observaciones`, y guardar la plantilla las iguala en todas sus áreas
+(`servicios/plantillasVale.js`). Sin cambio de formato.
 | Campo | Notas |
 |---|---|
 | nombre | SOLDADOR, TOP DRIVE, … |
@@ -236,8 +239,9 @@ formato), por ejemplo el nombre del almacén y la dirección de Inventario A en 
 importar mayúsculas ni espacios de más y nunca tocan lo capturado en el vale; el logo nuevo va como `data:` URL (≤ 300 KB)
 para que viaje en los respaldos. Ver `src/impresion/identidad.js` y `src/servicios/valeImpreso.js`.
 
-**Ajustes compartidos (Rondas 18, 19 y 34):** `config.etapa_perforacion`, `config.personalizacion` y `config.np_en_lote`
-son los mismos en Inventario A y Inventario B (`config.captura_rapida` y `config.preferencias_vale` se quitaron en la Ronda 34:
+**Ajustes compartidos (Rondas 18, 19, 34 y 35):** `config.etapa_perforacion`, `config.personalizacion`, `config.np_en_lote`
+y `config.destinos_transferencia` (Ronda 35: la lista de «¿A dónde se envía?»; sin ella, los destinos de fábrica de
+`DESTINOS_TRANSFERENCIA`) son los mismos en Inventario A y Inventario B (`config.captura_rapida` y `config.preferencias_vale` se quitaron en la Ronda 34:
 `migrarEstado` las borra al cargar). Cada estado conserva su copia (va en sus respaldos) y se
 sincroniza con la base común `control-almacen-comun` (ver `docs/03`). No cambia el formato del estado.
 

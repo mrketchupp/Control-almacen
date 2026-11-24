@@ -175,6 +175,35 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   ni *Captura de partidas* (`BusquedaRapida`, `indiceRapido`); `servicios/preferencias.js` solo tiene la
   personalización; `migrarEstado` borra `config.preferencias_vale` y `config.captura_rapida` (sin subir formato) y
   `VALORES_COMPARTIDOS` ya no las incluye. Pruebas: `preferencias.test.js`, `catalogos.test.js`, `compartidos.test.js`.
+- Ronda 35 (correcciones del usuario, 6 etapas en `main`; ver `docs/08-plan.md` y §14 de `docs/13`): **menú** — la lista
+  de íconos ocupa los 63 px (sin barra horizontal) y, con el menú completo, `SelectorInventario({ conEtiqueta: false })`
+  va en `.nav-cabeza` junto a *Contraer menú* (`conInventario` = `!compacto`; con íconos o encima, en la cabecera).
+  **Paso 1**: *Consumo interno* / *Transferencia*; `firmasDelUltimoVale` (en `aplicarPlantilla`, todas las áreas):
+  recibe / autoriza (si el área lo pide) / firmas extra (si las tiene) del vale más reciente del área (`ultimoValeDeArea`,
+  NOV sin migrados), con el puesto vigente de la lista, `nombreVigente` (alias) y sin personas desactivadas;
+  `conUsoEn(obs, destino, { agregar })` (`nucleo/areas.js`) y `conDestino` (`servicios/pasosVale.js`): la línea «… PARA
+  USO EN …» dice el destino (al elegirlo en el paso 1 se agrega si falta; en `aplicarPlantilla` y al corregir, solo se
+  reemplaza). **Paso 2** (`servicios/buscarMaterial.js`): sin `ALCANCES` ni `claveNueva`; `buscarMaterial(items,
+  { material, dimension })` → grupos `{ codigo, filas, exacto, usar, sinCoincidencia }` (`usar` = «Usar «…» en
+  <código>» con `claveEscrita`, si `igualClave` no la encuentra; `junta` quita espacios e iguala comillas),
+  `opcionesEnOrden`, `codigoNuevo(estado, material, { dimension })` (con `clave`), `dimensionEnMaterial` (pista para
+  pasar lo escrito al otro campo), `codigosConPartidas` para `estadoPartida` / `contarPartidas` sin recorrer el
+  inventario. UI `material.js`: `Buscador` de dos campos (`#buscar-material`, `#buscar-material-dimension`,
+  `aria-labelledby`), una tarjeta `.grupo-resultados` por código, `FilaEspecial`, `escEnCampo`; al agregar se borra la
+  dimensión. `Tecla` / `AyudaAtajos` (`componentes.js`) y el ícono `raton`. **Paso 3**: sin `PendientesVale`; cada
+  pendiente trae `corto` y `donde` («quien», «partida» con `uid`, «material», «fotos») y se marca en su fila
+  (`ResumenParaQuien({ pendientes, alIr })` con `FILA_DEL_CAMPO`, Autoriza y Etapa en el paso 3;
+  `ResumenMaterial({ pendientes, alIr, alJustificar })`: Cantidad · Código y descripción · Dimensión con NP / Lote / O.C.).
+  **Inicio sin datos** (`inicio.js`): `Bienvenida` con dos caminos y `CarpetaDeTrabajo` (`Sesion.fijarCarpeta` para la
+  carpeta arrastrada, `ZonaSoltar`; `#inicio/cero` y `#inicio/respaldo`); `PaginaPrimeraCarga` un paso a la vez (pasa sola
+  con los dos Excel, ensaya sola en el 3, la lista de revisión en el 3); sin datos el menú solo lleva a Inicio.
+  **Áreas** (`servicios/plantillasVale.js`, `ui/paginas/areas.js`): `PLANTILLAS_VALE` (Consumo interno = INTERNO, NOV =
+  EXTERNO, Transferencia = TRANSFERENCIA), `plantillaVale` / `guardarPlantillaVale` (iguala hoja y observaciones de sus
+  áreas vigentes), `nuevaArea` (sin personas), `cambiarPlantillaDeArea` y `usosDelArea` (cuenta migrados por
+  departamento); destinos en `config.destinos_transferencia` (`listaDestinos`, `destinosTransferencia(estado, origen)`,
+  `esDestinoConocido(estado, …)`, `agregarDestino` / `quitarDestino` / `fijarDestinos`; en `VALORES_COMPARTIDOS`; null =
+  `DESTINOS_TRANSFERENCIA`). Sin cambio de formato del estado. Pruebas `plantillasVale.test.js` y Chromium
+  `plantillasVale.navegador.mjs`.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
@@ -293,7 +322,7 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - **Ronda 18:** en Inventario B `:root[data-inventario="<id>"]` redefine también `--primario`, `--primario-hover`,
   `--primario-suave` y `--sobre-primario` (claro y oscuro): toda la interfaz en morado. **Etapa compartida:**
   `almacen/compartidos.js` (`Compartidos`, `adoptarCompartidos`, `BD_COMUN = "control-almacen-comun"`; Ronda 19:
-  `VALORES_COMPARTIDOS` = etapa_perforacion, personalizacion, np_en_lote, etiquetas (captura_rapida y preferencias_vale se quitaron en la Ronda 34); gana el último cambio
+  `VALORES_COMPARTIDOS` = etapa_perforacion, personalizacion, np_en_lote, etiquetas, destinos_transferencia (Ronda 35; captura_rapida y preferencias_vale se quitaron en la Ronda 34); gana el último cambio
   completo); `Almacen._avisar(origen)`
   con `cambio` / `carga` / `restaurar` / `borrar`; `Sesion` lo crea con `{ comun }` y `main.js` espera `compartidos.terminar()`
   antes de cambiar de inventario. **Impresión:** `enRejilla`, `grosorEscalado`, `capaFondos` (`impresion/vale.js`) y

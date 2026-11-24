@@ -31,15 +31,17 @@ flowchart TD
   *Emitir* lo anota (`copia_de`); el vale original no cambia (`servicios/copiarVale.js`).
 - **El vale en 3 pasos (Ronda 34, `docs/13-rediseno-vale-salida.md`):** arriba, el indicador *Para quién · Material ·
   Revisar y emitir* (completo en verde con ✓; no es clicable: se regresa con *Editar*). **1 · Para quién:** *Consumo
-  interno* o *Enviar a otro RIG o pozo*; el área (teclas 1…0) o el destino, la fecha, quién recibe con su puesto (lista
+  interno* o *Transferencia*; el área (teclas 1…0) o el destino, la fecha, quién recibe con su puesto (lista
   «Suelen recibir en…»), en transferencias quién transporta y quién autoriza, y en NOV las firmas extra; lo automático
-  (entrega, sale de, llega a, observaciones con la etapa) se llena solo. **2 · Material:** un buscador único y fijo
-  (código, descripción, dimensión o NP; *Buscar en*) con los resultados agrupados por código; ＋, doble clic o Enter
-  agregan y Shift+Enter va a la cantidad; a la derecha *Para quién* y *Partidas* con su propio scroll, Tab entre
-  cantidades y *Editar* para cambiar la clave, el lote, la O.C. o la UM de una partida. Una dimensión que no existe
-  («Usar «…»») y un código que no está en el catálogo no descuentan; *Traer partidas* de una entrada de hoy u otro vale.
-  **3 · Revisar y emitir:** lo que falta (con *Ir a la partida* y la justificación ahí mismo), el resumen y la vista
-  previa real del vale (ampliable con zoom); *Emitir* solo sin pendientes (también las fotos de NOV).
+  (entrega, sale de, llega a, observaciones con la etapa) se llena solo. Las personas salen del vale más reciente del área
+  (Ronda 35) y en transferencias la línea «PARA USO EN» de las observaciones dice el destino elegido. **2 · Material:** dos
+  campos fijos, **Código o descripción** y **Dimensión o NP** (Ronda 35), con los resultados en una tarjeta por código;
+  ＋, doble clic o Enter agregan y Shift+Enter va a la cantidad; a la derecha *Para quién* y *Partidas* con su propio
+  scroll, Tab entre cantidades y *Editar* para cambiar la clave, el lote, la O.C. o la UM de una partida. Una dimensión que
+  el código no tiene («Usar «…» en <código>», tal como se escribió) y un código que no está en el catálogo no descuentan;
+  *Traer partidas* de una entrada de hoy u otro vale. **3 · Revisar y emitir:** el resumen con lo que falta marcado en
+  ámbar en su fila (*Ir a la partida*, *Corregir* y la justificación ahí mismo; Ronda 35) y la vista previa real del vale
+  (ampliable con zoom); *Emitir* solo sin pendientes (también las fotos de NOV).
 - **Vales internos** (todo menos NOV y transferencias): salen de `EQUIPO · ALMACEN` y llegan a `EQUIPO · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.
 - **Recibió:** se busca por nombre, por puesto o por el área a la que la persona suele recibir ("mecánico" lista a los mecánicos); al elegirla se llena su puesto.
 - **Validaciones antes de emitir:** fecha, departamento destino, entregó, recibió, cantidad > 0, UM, "Sale de" elegido. Si la cantidad supera la existencia del contenedor elegido se pide una **justificación** (queda en el renglón).

@@ -319,6 +319,28 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 35 — correcciones del usuario (vale, inicio, menú, áreas).** Aplicada en 6 etapas en `main`:
+- ☑ Menú lateral: sin la barra horizontal del menú de íconos (los botones medían 1 px más que el espacio); con el menú
+  completo, DLTA | GSM va arriba, a la izquierda de *Contraer menú* (con el de íconos, en la cabecera).
+- ☑ Paso 1: *Consumo interno* / *Transferencia* (RIG y pozo son lo mismo). En transferencias la línea «… PARA USO EN …»
+  de las observaciones dice el destino elegido (lo que seguía a «PARA USO EN» se reemplaza; sin esa línea, se agrega
+  antes de la etapa). Quién recibe, quién autoriza y las firmas extra salen del **vale más reciente del área** (también
+  en transferencias: quién transportó y autorizó la última); sin vales, los de la plantilla.
+- ☑ Paso 2: sin *Buscar en*: **Código o descripción** + **Dimensión o NP**. Si la dimensión no está en un código, ese
+  código ofrece «Usar «…» en <código>» tal como se escribió (antes se adivinaba qué palabra era la clave y se perdían
+  letras que también estaban en la descripción). Cada código es una tarjeta aparte; los atajos se ven como teclas.
+- ☑ Paso 3: sin lista de pendientes arriba: lo que falta se marca en ámbar en su fila (*Para quién*, cada partida, las
+  fotos). Tabla: Cantidad · Código y descripción · Dimensión con «NP:», «Lote:» y «O.C.:» a su lado.
+- ☑ Inicio sin datos: dos caminos (*Empezar desde cero* / *Seguir desde un respaldo*), primero la carpeta de trabajo
+  (explorador o arrastrar) y luego la primera carga **un paso a la vez** (pasa sola al tener los dos Excel y ensaya sola
+  al llegar a *Revisar y cargar*), con Regresar / Continuar en grande. El menú sin datos solo lleva a Inicio. Sin textos
+  de privacidad.
+- ☑ Áreas: solo **tres plantillas** (Consumo interno, NOV, Transferencia) con su formato y observaciones en un lugar;
+  *Áreas y destinos* en una lista (nombre + plantilla); los de Transferencia son los destinos de «¿A dónde se envía?» y
+  se pueden agregar (compartidos entre DLTA y GSM).
+- ☐ Revisión del usuario: que «PARA USO EN <destino>» sea el texto que espera con su libro real; que sugerir a quien
+  transportó la última transferencia le sirva; la primera carga paso a paso con sus archivos.
+
 **Ronda 34 — rediseño del vale de salida en 3 pasos** (en curso, en `main`). Especificación:
 `docs/13-rediseno-vale-salida.md`; diseño aprobado: `docs/diseno/ronda-34/`. Se entrega por etapas (§13) y el usuario
 revisa cada una con sus capturas a 1440, 1024, 768 y 640 px antes de seguir.

@@ -17,7 +17,7 @@
 | Inventario | Consultar existencias por contenedor, con búsqueda y filtros |
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
 | Exportar y enviar | Generar `VALES DE SALIDA <inventario>.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **subir al SharePoint** y traer vales hechos en el Excel |
-| **Áreas y personas** | Editar las plantillas de cada área (interna, externa o transferencia) y las personas (almacenistas, puestos) |
+| **Áreas y personas** | Las tres plantillas del vale (Consumo interno, NOV, Transferencia), las áreas y los destinos, y las personas (almacenistas, puestos) |
 | **Ajustes** | **Personalización** (tema, avisos, animaciones), **NP en el lote**, **vale impreso** del inventario (textos y logos del formato), carpetas del reporte y etapa de perforación actual |
 | **Inventarios independientes** | Selector en la cabecera: cada inventario con sus datos por separado (vales, folios, inventario, respaldos, conciliación) |
 | Respaldos | Respaldo automático en la carpeta elegida (OneDrive), manual, restauración y copias internas |
@@ -114,14 +114,14 @@ en *Descargas* y **Ya lo cerré: guardar otra vez** lo vuelve a intentar en su l
 
 ## 3. Primera carga (la herramienta llega vacía)
 
-La pantalla agrupa la carga en **1. Archivos**, **2. Conteo base** y **3. Revisar y cargar**. Cada archivo tiene su
-tarjeta, nombre y resumen. Las explicaciones y la lista de revisión son desplegables; el ensayo conserva las
-diferencias y las correcciones antes → después antes de confirmar la carga.
+Al abrirla vacía, *Inicio* ofrece dos caminos: **Empezar desde cero** o **Seguir desde un respaldo**. Los dos piden
+primero la **carpeta de trabajo** (*Elegir carpeta* o arrastrarla desde el Explorador): ahí quedan los respaldos y los
+Excel exportados. Desde un respaldo, se restaura el más reciente de esa carpeta o un `.zip` de cualquier lugar. Desde
+cero, **Continuar** lleva a la primera carga, que va **un paso a la vez** (*1. Archivos*, *2. Conteo base*, *3. Revisar
+y cargar*) con **← Regresar** y **Continuar →** abajo. Mientras está vacía, el menú solo lleva a *Inicio*.
 
-La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus datos entran solo desde tus propios archivos, en tu equipo.
-
-1. **Tus archivos:** elige el inventario (`.xlsx`) y el libro de vales (`.xlsm`). Se leen en el navegador; los originales no se tocan.
-2. **Lista de revisión (opcional pero recomendada):**
+1. **Tus archivos:** elige el inventario (`.xlsx`) y el libro de vales (`.xlsm`). Al tener los dos pasa sola al conteo base.
+2. **Lista de revisión (opcional, en el paso 3):**
    1. Pulsa **Generar lista de revisión**. Se guarda en `OneDrive\ControlAlmacen\revision\` (o en Descargas).
    2. Contéstala en Excel con tus PDF escaneados:
       - Las celdas **naranjas** son datos perdidos (`#REF!`).
@@ -133,7 +133,7 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    - **Fecha del conteo:** se toma del nombre del archivo de inventario.
    - **Folio de corte:** se sugiere el último folio anterior a esa fecha. Los vales con folio mayor se descuentan del inventario. Para tu archivo del 28-sep el corte es **549**, así que se descuentan del 550 en adelante.
    - **Quién hace la carga:** tu nombre como firmas los vales.
-4. **Ensayo:** hace la carga en memoria y muestra el reporte: totales por hoja (archivo contra calculado), diferencias por renglón (por ejemplo, el vale 550 que tu Excel aún no descontaba), renglones por ubicar, omitidos y correcciones. **No guarda nada.**
+4. **Ensayo** (se hace solo al llegar a *Revisar y cargar*): hace la carga en memoria y muestra el reporte: totales por hoja (archivo contra calculado), diferencias por renglón (por ejemplo, el vale 550 que tu Excel aún no descontaba), renglones por ubicar, omitidos y correcciones. **No guarda nada.**
 5. **Cargar definitivamente:** guarda todo en el equipo, registra tus archivos como **plantillas** y crea el primer respaldo.
 
 ## 4. Uso diario
@@ -145,18 +145,24 @@ La herramienta llega como un **cascarón vacío**: no trae ningún dato. Tus dat
    se queda en cualquier ancho. Lo pendiente se ve como un punto ámbar sobre el ícono. Nunca se abre ni se cierra solo.
 2. **Hacer un vale** (*Vales de salida* o el botón grande de *Inicio*). Va en **3 pasos**; arriba se ve en cuál vas
    (*Para quién · Material · Revisar y emitir*) y con **Enter** continúas:
-   1. **Para quién:** *Consumo interno* o *Enviar a otro RIG o pozo*. Elige el **área** (también con las teclas 1…0) o el
-      **destino**, y **quién recibe**: escribe el nombre o el puesto, o elígelo de «Suelen recibir en…»; su puesto se llena
-      solo. En transferencias van también quién transporta y quién autoriza; en NOV, sus firmas extra. Lo automático
-      (entrega, sale de, llega a, observaciones con la **etapa de perforación**) se llena solo.
-   2. **Material:** escribe en el buscador el código, la descripción, la dimensión o el NP; los resultados salen por código
-      con su contenedor y su existencia. **＋**, doble clic o **Enter** agregan (Shift+Enter va directo a la cantidad) y
-      **Tab** pasa de una cantidad a la siguiente. A la derecha está la lista del vale; con **Editar** cambias la clave, el
-      lote, la O.C. o la UM de una partida. Si la dimensión no existe en el inventario o el código no está en el catálogo,
-      la partida va igual pero **no descuenta**. *Traer partidas* copia las de una entrada de hoy o de otro vale.
-   3. **Revisar y emitir:** arriba, lo que falta (sin cantidad, más de lo que hay —ahí mismo escribes la justificación—,
-      fotos de NOV); abajo, el resumen y la **vista previa** real del vale con `BORRADOR` en el folio (ampliable con
-      zoom). **Emitir vale · folio N** se habilita cuando no falta nada: asigna el folio y descuenta la existencia.
+   1. **Para quién:** *Consumo interno* o *Transferencia*. Elige el **área** (también con las teclas 1…0) o el
+      **destino**, y **quién recibe**: ya viene quien recibió en el último vale de esa área (si cambias a otra persona, el
+      siguiente vale ya la sugiere); escribe el nombre o el puesto, o elígelo de «Suelen recibir en…»; su puesto se llena
+      solo. En transferencias van también quién transporta y quién autoriza, y las observaciones dicen «PARA USO EN» el
+      destino elegido; en NOV, sus firmas extra. Lo automático (entrega, sale de, llega a, observaciones con la **etapa de
+      perforación**) se llena solo.
+   2. **Material:** escribe el **código o la descripción** (505, «filtro») y, si quieres, la **dimensión o el NP** en el
+      segundo campo; los resultados salen en una tarjeta por código con su contenedor y su existencia. **＋**, doble clic o
+      **Enter** agregan (Shift+Enter va directo a la cantidad) y **Tab** pasa de una cantidad a la siguiente; abajo se ven
+      las teclas. Si la dimensión que escribiste no está en ese código, al final de su tarjeta sale **Usar «…» en <código>**
+      tal como la escribiste: la partida va igual pero **no descuenta** (igual con un código que no está en el catálogo).
+      A la derecha está la lista del vale; con **Editar** cambias la clave, el lote, la O.C. o la UM de una partida.
+      *Traer partidas* copia las de una entrada de hoy o de otro vale.
+   3. **Revisar y emitir:** el resumen de *Para quién* y del material (Cantidad · Código y descripción · Dimensión, con
+      *Lote:* y *O.C.:* a su lado). Lo que falta se marca **en ámbar en su fila**, con su botón (*Ir a la partida*,
+      *Corregir*) o, si sacas más de lo que hay, el campo para la justificación ahí mismo. Al lado, la **vista previa**
+      real del vale con `BORRADOR` en el folio (ampliable con zoom). **Emitir vale · folio N** se habilita cuando no falta
+      nada: asigna el folio y descuenta la existencia.
    4. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.
    - Puedes tener **varios vales abiertos** (pestañas con el número de partidas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios; si fue por error, pulsa **↶ Deshacer** en el aviso.
    - Si el vale tiene más partidas que el formato (21 en todas las áreas; 4 en NOV, por las fotos), se ofrece dividirlo en folios consecutivos.
@@ -374,7 +380,15 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
   *duplicada de la N*; *Quitar duplicadas…* abre la corrección sin ellas y con el motivo escrito.
 
 ### Áreas y personas
-- **Áreas:** cada una equivale a una hoja-formulario del libro de vales. *Editar* cambia el **tipo** (interna, externa o transferencia), los datos que se copian al vale y el **formato de impresión** (qué hoja se usa para imprimir). *Quitar…* borra un área que ningún vale usa (con *Deshacer*); si ya tiene vales, la **descarta** (deja de salir al hacer vales, sus vales se imprimen igual) y se recupera en *Áreas descartadas*.
+- **Plantillas del vale (Ronda 35):** solo hay tres, **Consumo interno**, **NOV** y **Transferencia**. En cada una
+  cambias el **formato impreso** (qué hoja del libro de vales se usa) y las **observaciones**: quedan iguales en todas sus
+  áreas (y en cómo se reimprimen sus vales).
+- **Áreas y destinos:** una sola lista; cada nombre lleva su plantilla. **＋ Agregar** pide el nombre y la plantilla: con
+  Consumo interno o NOV es un área nueva (sale en la cuadrícula *Área* del vale); con Transferencia es un **destino** más
+  de «¿A dónde se envía?» (el mismo en DLTA y GSM). *Editar* un área cambia su nombre, el departamento que se imprime y su
+  plantilla (solo si aún no tiene vales); lo demás va en *Más opciones*. *Quitar…* borra un área que ningún vale usa (con
+  *Deshacer*); si ya tiene vales (también los que vinieron del Excel), la **descarta** (deja de salir al hacer vales, sus
+  vales se imprimen igual) y se recupera en *Áreas descartadas*. Quitar un destino no cambia los vales que ya lo usan.
 - **Personas:** marca quién es almacenista (aparece en "En turno"), corrige puestos y desactiva a quien ya no está (deja de sugerirse). Al agregar una persona con puesto o editarlo, se muestra cuántos vales existentes cambiarían. **Aceptar** actualiza ese puesto en las firmas de los vales de entrada y salida, incluidos los nombres ya unificados como alias, y registra la corrección en la bitácora. **Cancelar** guarda solamente el catálogo de personas.
 - **Nombres repetidos:** si una persona aparece escrita de varias formas (p. ej. `FULANO MENGANO ZUTANO`, `MENGANO ZUTANO FULANO`, `F. MENGANA ZUTANO`), la tarjeta *Nombres repetidos* lo propone: elige el nombre que se queda y pulsa **Unificar** (los otros quedan como "también:" de esa persona). También puedes marcar personas en la columna *Unir* y pulsar **Unificar…**. **Los vales ya hechos no cambian**; el aviso trae *Deshacer*. Si no son la misma, *No son la misma persona* y ya no se vuelve a sugerir.
 
