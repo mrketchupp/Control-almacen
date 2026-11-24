@@ -338,8 +338,15 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 - ☑ Áreas: solo **tres plantillas** (Consumo interno, NOV, Transferencia) con su formato y observaciones en un lugar;
   *Áreas y destinos* en una lista (nombre + plantilla); los de Transferencia son los destinos de «¿A dónde se envía?» y
   se pueden agregar (compartidos entre DLTA y GSM).
+- ☑ Revisión del usuario (1): la justificación de lo que sale de más se escribe en el **paso 2**, debajo de la partida
+  (en el paso 3 ya no cabía): Tab desde la cantidad entra a ella; el paso 3 solo la muestra («Justificación: …») o, si
+  falta, avisa en su fila con «Ir a la partida», que lleva al campo. En la primera carga y la bienvenida, un solo botón
+  va al centro y, si los dos no caben lado a lado, cada uno va a todo lo ancho (el principal arriba). En *Áreas y
+  destinos*, el departamento de un RIG es su nombre (solo en la lista: el vale sigue con el de la plantilla).
 - ☐ Revisión del usuario: que «PARA USO EN <destino>» sea el texto que espera con su libro real; que sugerir a quien
   transportó la última transferencia le sirva; la primera carga paso a paso con sus archivos.
+- Siguiente (lo dirá el usuario; no empezar sin su luz verde): cambios a las áreas al importar; que un nuevo comienzo
+  reconozca el costo; mejorar *Revisar y cargar* de la primera carga cuando hay diferencias.
 
 **Ronda 34 — rediseño del vale de salida en 3 pasos** (en curso, en `main`). Especificación:
 `docs/13-rediseno-vale-salida.md`; diseño aprobado: `docs/diseno/ronda-34/`. Se entrega por etapas (§13) y el usuario

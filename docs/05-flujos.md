@@ -39,8 +39,9 @@ flowchart TD
   ＋, doble clic o Enter agregan y Shift+Enter va a la cantidad; a la derecha *Para quién* y *Partidas* con su propio
   scroll, Tab entre cantidades y *Editar* para cambiar la clave, el lote, la O.C. o la UM de una partida. Una dimensión que
   el código no tiene («Usar «…» en <código>», tal como se escribió) y un código que no está en el catálogo no descuentan;
-  *Traer partidas* de una entrada de hoy u otro vale. **3 · Revisar y emitir:** el resumen con lo que falta marcado en
-  ámbar en su fila (*Ir a la partida*, *Corregir* y la justificación ahí mismo; Ronda 35) y la vista previa real del vale
+  *Traer partidas* de una entrada de hoy u otro vale; si una cantidad pasa de lo que hay, la justificación se escribe
+  debajo de la partida. **3 · Revisar y emitir:** el resumen con lo que falta marcado en ámbar en su fila (*Ir a la
+  partida*, *Corregir*; Ronda 35) y la vista previa real del vale
   (ampliable con zoom); *Emitir* solo sin pendientes (también las fotos de NOV).
 - **Vales internos** (todo menos NOV y transferencias): salen de `EQUIPO · ALMACEN` y llegan a `EQUIPO · <área>`; no se capturan. **Entregó** es siempre el almacenista en turno. **Autorizó** solo aparece en transferencias. Las **observaciones** son el texto fijo del área y solo cambia la **etapa de perforación**, que se recuerda para el siguiente vale.
 - **Recibió:** se busca por nombre, por puesto o por el área a la que la persona suele recibir ("mecánico" lista a los mecánicos); al elegirla se llena su puesto.

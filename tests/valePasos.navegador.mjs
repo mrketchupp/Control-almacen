@@ -366,25 +366,34 @@ test("vale de salida en 3 pasos", async (t) => {
     await page.keyboard.type("2");
     await page.getByLabel("Unidad de la partida 3").fill("PZA");
     await page.getByLabel("Cantidad de la partida 4").fill("1");
-    // Más de lo que hay: se justifica en el paso 3.
+    // Más de lo que hay (Ronda 35, pedido del usuario): la justificación se escribe en el paso 2, debajo de la partida;
+    // Tab desde la cantidad entra a ella.
     const buscador = page.getByRole("combobox", { name: "Código o descripción", exact: true });
     await buscador.fill("706");
     await buscador.press("Shift+Enter");
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 5");
     await page.keyboard.type("5");
-    await page.getByText(/^Solo hay \d+ · al emitir pedirá justificación$/).waitFor();
+    const partida5 = page.locator(".partida-vale").nth(4);
+    const campoPaso2 = partida5.getByRole("textbox", { name: /^Solo hay \d+ PZA\. ¿Por qué sacas más\?/ });
+    await campoPaso2.waitFor();
+    await page.keyboard.press("Tab");
+    await page.waitForFunction(() => document.activeElement?.id?.startsWith("just-"));
     await buscador.fill("");
     await revisar.click();
-    // La justificación se escribe en la fila de la partida (sin repetir cuál es).
-    const sellos = page.getByRole("region", { name: "Material" }).locator("li", { hasText: "SELLOS" }).last();
-    const justificacion = sellos.getByRole("textbox", { name: /^Sacas 5 y el inventario dice que hay \d+\. ¿Por qué\?/ }); // con ✓ al justificar
-    await justificacion.waitFor();
+    // En el paso 3 solo se avisa en su fila, con «Ir a la partida», que lleva al campo del paso 2.
+    const sellos = page.getByRole("region", { name: "Material" }).locator(".resumen-partidas > li", { hasText: "SELLOS" }).last();
+    assert.match(await sellos.innerText(), /Sacas 5 y el inventario dice que hay \d+: falta escribir por qué\./);
+    assert.equal(await sellos.getByRole("textbox").count(), 0, "en el resumen ya no hay campo");
     assert.equal(await emitirBoton.isDisabled(), true);
     await page.getByText("Falta 1 cosa: está marcada en ámbar.", { exact: true }).waitFor();
-    await justificacion.fill("PRESTAMO SINTETICO");
+    await sellos.getByRole("button", { name: "Ir a la partida", exact: true }).click();
+    assert.equal(await pasoActual(), "2 · Material");
+    await page.waitForFunction(() => document.activeElement?.id?.startsWith("just-"));
+    await page.keyboard.type("PRESTAMO SINTETICO");
+    await revisar.click();
     await page.getByText("Al emitir se asigna el folio; después lo imprimes.", { exact: true }).waitFor();
     assert.equal(await emitirBoton.isDisabled(), false);
-    assert.equal(await justificacion.isVisible(), true, "el campo se queda aunque ya tenga texto");
+    assert.match(await sellos.innerText(), /Justificación: PRESTAMO SINTETICO/);
     // La miniatura es el vale impreso real, con BORRADOR en el folio.
     assert.match(await page.locator(".miniatura-vale").innerText(), /BORRADOR/);
     await capturar("paso-3");

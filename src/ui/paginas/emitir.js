@@ -134,7 +134,6 @@ export function PasoEmitir({ datos, alCambiar, listo, resumen, partidas, pendien
   const vales = [];
   for (let i = 0; i < Math.max(1, listo.lineas.length); i += porHoja) vales.push({ ...listo, lineas: listo.lineas.slice(i, i + porHoja), folio: null, tipo: "SALIDA" });
   const { documento, error } = useDocumento(vales);
-  const justificar = (uid, justificacion) => alCambiar({ ...datos, lineas: datos.lineas.map((l) => (l.uid === uid ? { ...l, justificacion } : l)) });
   const textoResumen = [resumen.transferencia ? resumen.destino : resumen.area, resumen.recibe, `${listo.lineas.length} ${listo.lineas.length === 1 ? "partida" : "partidas"}`, `folio ${folio} al emitir`]
     .filter(Boolean)
     .join(" · ");
@@ -149,7 +148,7 @@ export function PasoEmitir({ datos, alCambiar, listo, resumen, partidas, pendien
     <div class="emitir-revision">
       ${errores.map((e, i) => html`<div class="aviso aviso-error" role="alert" key=${i}>${e.mensaje}</div>`)}
       <${ResumenParaQuien} datos=${resumen} alEditar=${() => alIrA(1)} pendientes=${de("quien")} alIr=${alIr} />
-      <${ResumenMaterial} partidas=${partidas} alEditar=${() => alIrA(2)} pendientes=${de(["partida", "material"])} alIr=${alIr} alJustificar=${justificar} />
+      <${ResumenMaterial} partidas=${partidas} alEditar=${() => alIrA(2)} pendientes=${de(["partida", "material"])} alIr=${alIr} />
       <div class=${`fotos-paso ${fotos.length ? "con-pendiente" : ""}`}>
         ${fotos.map((p, i) => html`<p class="pendiente-fotos" key=${i}><span aria-hidden="true">⚠ </span>${p.corto}</p>`)}
         <${EditorVale} seccion="fotos" datos=${datos} alCambiar=${alCambiar} />

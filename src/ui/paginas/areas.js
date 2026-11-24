@@ -535,7 +535,8 @@ export function PaginaAreas() {
         columnas=${[
           { clave: "nombre", titulo: "Nombre" },
           { titulo: "Plantilla", render: (f) => html`<${Pastilla} tono=${f.tipo === "TRANSFERENCIA" ? "info" : f.tipo === "EXTERNO" ? "lugar" : "ok"}>${nombrePlantilla(f.tipo)}<//>` },
-          { titulo: "Departamento", render: (f) => (f.area ? f.area.depto_destino || "—" : "—") },
+          // Un destino (RIG, pozo o base) es su propio departamento.
+          { titulo: "Departamento", render: (f) => (f.area ? f.area.depto_destino || "—" : f.nombre) },
           { titulo: "Vales", numero: true, render: (f) => (f.area ? usos.get(f.area.id).vales || "—" : "—") },
           {
             titulo: "",

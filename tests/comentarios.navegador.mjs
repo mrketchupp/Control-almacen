@@ -59,7 +59,13 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     await page.getByRole("button", { name: /Empezar desde cero/ }).click();
     await page.getByRole("heading", { name: "Elige tu carpeta de trabajo", exact: true }).waitFor();
     await page.getByRole("button", { name: "← Regresar", exact: true }).click();
-    await page.getByRole("button", { name: /Seguir desde un respaldo/ }).waitFor();
+    // Desde un respaldo solo hay «Regresar»: va al centro.
+    await page.getByRole("button", { name: /Seguir desde un respaldo/ }).click();
+    const unBoton = await page.getByRole("button", { name: "← Regresar", exact: true }).boundingBox();
+    const barra = await page.locator(".carga-navegacion").boundingBox();
+    assert.ok(Math.abs((unBoton.x - barra.x) - (barra.x + barra.width - unBoton.x - unBoton.width)) <= 2, "un solo botón, al centro");
+    await page.getByRole("button", { name: "← Regresar", exact: true }).click();
+    await page.getByRole("button", { name: /Empezar desde cero/ }).waitFor();
     await page.goto(`${origen}/#carga`);
     await page.locator("label.boton").filter({ hasText: /^Elegir inventario$/ }).locator("input[type=file]").setInputFiles(fixtures.inventario);
     await page.locator(".primera-carga .carga-archivo-listo").waitFor(); // se lee en un momento
@@ -81,6 +87,13 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     for (const [nombre, vista] of [["ventana", { width: 960, height: 700 }], ["movil", { width: 390, height: 844 }]]) {
       await page.setViewportSize(vista);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `La primera carga desborda en ${nombre}`);
+      if (nombre === "movil") {
+        // Sin espacio para los dos lado a lado: cada botón a todo lo ancho, el principal arriba.
+        const barraMovil = await page.locator(".carga-navegacion").boundingBox();
+        const [cargarB, regresarB] = await Promise.all([page.getByRole("button", { name: "Cargar definitivamente", exact: true }).boundingBox(), page.getByRole("button", { name: "← Regresar", exact: true }).boundingBox()]);
+        for (const b of [cargarB, regresarB]) assert.ok(Math.abs(b.width - barraMovil.width) <= 1, "a todo lo ancho");
+        assert.ok(cargarB.y < regresarB.y, "el principal arriba");
+      }
       if (process.env.COMENTARIOS_SCREENSHOTS) await page.screenshot({ path: join(process.env.COMENTARIOS_SCREENSHOTS, `primera-carga-${nombre}.png`), fullPage: true });
     }
     await page.setViewportSize({ width: 1440, height: 1000 });

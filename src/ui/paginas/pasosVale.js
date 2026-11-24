@@ -107,10 +107,10 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pend
  * Las partidas del vale, una fila cada una (Ronda 35, pedido del usuario): cantidad + UM · código y descripción
  * (recortada; completa al pasar el cursor) · la dimensión, con «NP:», «Lote:» y «O.C.:» a su lado si tienen.
  * `partidas`: [{ uid, cantidad, um, clave, np, codigo, descripcion, lote, oc, justificacion }]. `pendientes` (paso 3):
- * lo que falta de cada partida va en su fila — «Ir a la partida» / «Corregir» (`alIr`) o, si sacas más de lo que hay,
- * la justificación ahí mismo (`alJustificar(uid, texto)`).
+ * lo que falta de cada partida va en su fila con «Ir a la partida» / «Corregir» (`alIr`); la justificación de lo que
+ * sale de más se escribe en el paso 2 y aquí solo se lee.
  */
-export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = null, alJustificar = null }) {
+export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = null }) {
   const porPartida = new Map();
   for (const p of pendientes) if (p.donde === "partida" && p.uid) porPartida.set(p.uid, [...(porPartida.get(p.uid) ?? []), p]);
   const generales = pendientes.filter((p) => p.donde === "material");
@@ -137,13 +137,11 @@ export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = nu
                 ${p.oc ? html`<span class="resumen-dato">O.C.: ${p.oc}</span>` : null}
               </span>
               ${suyos.map((x) =>
-                x.tipo === "justificacion"
-                  ? html`<label key=${`j${p.uid}`} class=${`campo resumen-justificar ${x.pendiente ? "pendiente" : "listo"}`}>
-                      <span>${x.corto}</span>
-                      <input value=${p.justificacion ?? ""} placeholder="Ej. llegaron con la entrada E-0005, aún sin ubicar"
-                        onInput=${(e) => alJustificar?.(p.uid, e.currentTarget.value)} />
-                    </label>`
-                  : html`<ul key=${x.campo} class="pendientes-tarjeta"><${LineaPendiente} p=${x} alIr=${alIr} boton=${x.tipo === "cantidad" ? "Ir a la partida" : "Corregir"} /></ul>`,
+                x.tipo === "justificacion" && !x.pendiente
+                  ? html`<p key=${`j${p.uid}`} class="resumen-justificacion"><span>Justificación:</span> ${p.justificacion}</p>`
+                  : html`<ul key=${x.campo} class="pendientes-tarjeta">
+                      <${LineaPendiente} p=${x} alIr=${alIr} boton=${x.tipo === "cantidad" || x.tipo === "justificacion" ? "Ir a la partida" : "Corregir"} />
+                    </ul>`,
               )}
             </li>`;
           })}

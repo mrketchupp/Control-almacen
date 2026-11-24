@@ -71,12 +71,14 @@ test("plantillas del vale, áreas y destinos en Chromium", async (t) => {
   const lista = mas.locator("table").first();
   for (const nombre of ["SOLDADOR", "MECANICO", "NOV", "RIG 48", "BASE MARIN"]) await lista.getByRole("cell", { name: nombre, exact: true }).first().waitFor(); // nombre (y departamento)
   assert.equal(await lista.getByRole("cell", { name: "RIG 91", exact: true }).count(), 0);
+  // Un destino es su propio departamento.
+  assert.deepEqual(await lista.getByRole("row", { name: /^RIG 48 / }).getByRole("cell").allInnerTexts().then((t) => t.slice(0, 3).map((x) => x.trim())), ["RIG 48", "Transferencia", "RIG 48"]);
   // Un destino nuevo: nombre + plantilla Transferencia.
   await mas.getByRole("button", { name: "＋ Agregar", exact: true }).click();
   await mas.locator("#nuevo-nombre").fill("rig 302");
   await mas.getByRole("radio", { name: /^Transferencia/ }).click();
   await mas.getByRole("button", { name: "Agregar destino", exact: true }).click();
-  await lista.getByRole("cell", { name: "RIG 302", exact: true }).waitFor();
+  await lista.getByRole("cell", { name: "RIG 302", exact: true }).first().waitFor(); // nombre y departamento
   // Un área nueva de consumo interno: solo nombre y plantilla.
   await mas.getByRole("button", { name: "＋ Agregar", exact: true }).click();
   await mas.locator("#nuevo-nombre").fill("electrico sintetico");

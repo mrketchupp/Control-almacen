@@ -193,7 +193,10 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   dimensión. `Tecla` / `AyudaAtajos` (`componentes.js`) y el ícono `raton`. **Paso 3**: sin `PendientesVale`; cada
   pendiente trae `corto` y `donde` («quien», «partida» con `uid`, «material», «fotos») y se marca en su fila
   (`ResumenParaQuien({ pendientes, alIr })` con `FILA_DEL_CAMPO`, Autoriza y Etapa en el paso 3;
-  `ResumenMaterial({ pendientes, alIr, alJustificar })`: Cantidad · Código y descripción · Dimensión con NP / Lote / O.C.).
+  `ResumenMaterial({ pendientes, alIr })`: Cantidad · Código y descripción · Dimensión con NP / Lote / O.C.). La
+  justificación de lo que sale de más se escribe en el **paso 2** (`.partida-justificar`, `#just-<uid>` en `PartidaVale`;
+  el pendiente lleva `paso: 2`) y en el paso 3 solo se lee. Botones del asistente (`.carga-navegacion`, container
+  `carga-nav`): uno solo al centro; a ≤ 480 px cada uno a todo lo ancho, el principal arriba.
   **Inicio sin datos** (`inicio.js`): `Bienvenida` con dos caminos y `CarpetaDeTrabajo` (`Sesion.fijarCarpeta` para la
   carpeta arrastrada, `ZonaSoltar`; `#inicio/cero` y `#inicio/respaldo`); `PaginaPrimeraCarga` un paso a la vez (pasa sola
   con los dos Excel, ensaya sola en el 3, la lista de revisión en el 3); sin datos el menú solo lleva a Inicio.

@@ -145,14 +145,16 @@ test("paso 3: lo que falta antes de emitir, a dónde lleva cada cosa y las fotos
   b.lineas.push(v.lineaVacia(), { ...v.lineaDesdeExistencia(estado, foco.id) }, { ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "50" });
   let r = pendientesParaEmitir(estado, b, { usuario: USUARIO });
   const porTipo = (t) => r.pendientes.filter((p) => p.tipo === t);
-  // Falta quién recibe (paso 1), la cantidad de la partida 1 (paso 2) y justificar lo que excede (aquí mismo).
+  // Falta quién recibe (paso 1), la cantidad de la partida 1 (paso 2) y justificar lo que excede (Ronda 35: también en el
+  // paso 2, debajo de la partida).
   assert.deepEqual(porTipo("corregir").map((p) => [p.campo, p.paso]), [["recibio_nombre", 1]]);
   assert.deepEqual(porTipo("cantidad").map((p) => [p.paso, p.uid]), [[2, b.lineas[1].uid]]);
   assert.match(porTipo("cantidad")[0].mensaje, /^Partida 1 · FOCO LED .+: falta la cantidad\.$/);
   assert.equal(porTipo("justificacion").length, 1);
-  assert.match(porTipo("justificacion")[0].mensaje, /^SELLOS 555001: sacas 50 y el inventario dice que hay \d+\. ¿Por qué\?$/);
+  assert.match(porTipo("justificacion")[0].mensaje, /^SELLOS 555001: sacas 50 y el inventario dice que hay \d+; falta escribir por qué\.$/);
+  assert.deepEqual([porTipo("justificacion")[0].paso, porTipo("justificacion")[0].uid], [2, b.lineas[2].uid]);
   assert.equal(r.bloquea, 3);
-  // Con todo resuelto la justificación se queda (para no perder el campo al escribir), ya sin bloquear.
+  // Con todo resuelto la justificación se queda (para verla en el resumen), ya sin bloquear.
   b.recibio_nombre = "MECANICO UNO";
   b.lineas[1].cantidad = "1";
   b.lineas[2].justificacion = "PRESTAMO";

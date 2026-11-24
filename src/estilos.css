@@ -7277,6 +7277,26 @@ button.mosaico:hover .mosaico-abrir {
   justify-content: center;
 }
 
+/* Ronda 35: un solo botón va al centro; si los dos no caben lado a lado, cada uno a todo lo ancho (Continuar arriba). */
+.carga-navegacion {
+  container: carga-nav / inline-size;
+}
+
+.carga-navegacion > :only-child {
+  margin-inline: auto;
+}
+
+@container carga-nav (max-width: 480px) {
+  .carga-navegacion > .boton {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .carga-navegacion > .boton-primario {
+    order: -1;
+  }
+}
+
 .carga-navegacion .boton.deshabilitado {
   opacity: 0.5;
   pointer-events: none;
@@ -9003,8 +9023,20 @@ button.mosaico:hover .mosaico-abrir {
   box-shadow: inset 3px 0 0 var(--alerta);
 }
 
-.resumen-partidas > li > :is(.pendientes-tarjeta, .resumen-justificar) {
+.resumen-partidas > li > :is(.pendientes-tarjeta, .resumen-justificacion) {
   grid-column: 1 / -1;
+}
+
+.resumen-justificacion {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.resumen-justificacion > span {
+  color: var(--texto);
+  font-weight: 600;
 }
 
 .resumen-codigo {
@@ -9034,20 +9066,6 @@ button.mosaico:hover .mosaico-abrir {
   font-size: 0.8125rem;
   font-weight: 400;
   white-space: nowrap;
-}
-
-.resumen-justificar > span {
-  color: var(--texto);
-  font-weight: 600;
-}
-
-.resumen-justificar.pendiente input {
-  border: 2px solid var(--alerta);
-}
-
-.resumen-justificar.listo > span::after {
-  content: " ✓";
-  color: var(--ok);
 }
 
 /* Lo que falta, en la tarjeta donde está (Ronda 35): borde ámbar y cada cosa con su botón. */
@@ -10146,10 +10164,34 @@ kbd.tecla {
   font-size: 0.8125rem;
 }
 
-.partida-aviso {
+/* Ronda 35: si sale más de lo que hay, la justificación se escribe aquí, debajo de la partida (a todo lo ancho). */
+.partida-justificar {
+  grid-column: 2 / -1;
+  margin-top: 8px;
+}
+
+.partida-justificar > span {
   color: var(--alerta);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+}
+
+.partida-justificar.listo > span {
+  color: var(--texto-suave);
+}
+
+.partida-justificar.listo > span::after {
+  content: " ✓";
+  color: var(--ok);
+}
+
+.partida-justificar input {
+  width: 100%;
+}
+
+.partida-justificar.pendiente input {
+  border: 2px solid var(--alerta);
+  background: var(--alerta-suave);
 }
 
 .partida-cantidad {

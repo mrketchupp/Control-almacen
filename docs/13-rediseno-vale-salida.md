@@ -380,6 +380,7 @@ Una rama, commits por etapa; al final de cada una, pruebas verdes y capturas par
   ese código ofrece al final de su tarjeta «Usar «…» en <código>» tal como se escribió. Cada código es una tarjeta (cabeza
   en color, código como insignia) y los atajos se dibujan como teclas (`Tecla`, `AyudaAtajos`).
 - **Paso 3.** Sin la tarjeta de pendientes: cada pendiente trae `donde` y `corto` (`pendientesParaEmitir`) y se marca en
-  ámbar en su lugar — la fila de *Para quién* con «Corregir», la partida con «Ir a la partida» / «Corregir» o su campo de
-  justificación, las fotos en su sección —. La tabla del material: Cantidad · Código y descripción · Dimensión con
+  ámbar en su lugar — la fila de *Para quién* con «Corregir», la partida con «Ir a la partida» / «Corregir», las fotos en
+  su sección —. La justificación de lo que sale de más se escribe en el **paso 2**, debajo de la partida (`.partida-justificar`,
+  `#just-<uid>`; Tab desde la cantidad entra a ella); en el paso 3 solo se lee o, si falta, «Ir a la partida» lleva al campo. La tabla del material: Cantidad · Código y descripción · Dimensión con
   «NP:», «Lote:» y «O.C.:» a su lado.

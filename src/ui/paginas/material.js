@@ -316,7 +316,6 @@ function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, edit
         ${existencia && existencia.dueno === DUENO_FX ? html`<${Pastilla} tono="fx">FX<//>` : null}
       </div>
       ${extra ? html`<div class="partida-lote">${extra}</div>` : null}
-      ${excede ? html`<div class="partida-aviso">Solo hay ${num(aNumero(hay))} · al emitir pedirá justificación</div>` : null}
     </div>
     <div class="partida-cantidad">
       <input
@@ -329,7 +328,11 @@ function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, edit
         aria-label=${`Cantidad de la partida ${n}`}
         onInput=${(ev) => alCambiar({ cantidad: ev.currentTarget.value.replace(",", ".") })}
         onKeyDown=${(ev) => {
-          if (ev.key === "Tab" && alTab(l.uid, ev.shiftKey ? -1 : 1)) ev.preventDefault();
+          // Si saca más de lo que hay, Tab va primero a su justificación (abajo de la partida).
+          if (ev.key === "Tab" && !ev.shiftKey && excede) {
+            ev.preventDefault();
+            enfocar(`just-${l.uid}`);
+          } else if (ev.key === "Tab" && alTab(l.uid, ev.shiftKey ? -1 : 1)) ev.preventDefault();
           else if (ev.key === "Enter") {
             ev.preventDefault();
             alEnter();
@@ -344,6 +347,28 @@ function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, edit
     <button type="button" class="partida-quitar" aria-label=${`Quitar la partida ${n}`} title="Quitar" onClick=${alQuitar}>
       <span aria-hidden="true">×</span>
     </button>
+    ${excede
+      ? html`<label class=${`campo partida-justificar ${texto(l.justificacion) ? "listo" : "pendiente"}`}>
+          <span>Solo hay ${num(aNumero(hay))} ${l.um || ""}. ¿Por qué sacas más?</span>
+          <input
+            id=${`just-${l.uid}`}
+            value=${l.justificacion ?? ""}
+            autocomplete="off"
+            placeholder="Ej. llegaron con la entrada E-0005, aún sin ubicar"
+            onInput=${(ev) => alCambiar({ justificacion: ev.currentTarget.value })}
+            onKeyDown=${(ev) => {
+              if (ev.key === "Tab" && ev.shiftKey) {
+                ev.preventDefault();
+                enfocar(`cant-${l.uid}`, true);
+              } else if (ev.key === "Tab" && alTab(l.uid, 1)) ev.preventDefault();
+              else if (ev.key === "Enter") {
+                ev.preventDefault();
+                alEnter();
+              }
+            }}
+          />
+        </label>`
+      : null}
   </li>`;
 }
 
@@ -499,7 +524,8 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
       el?.scrollIntoView?.({ block: "nearest" });
       el?.focus();
     });
-    if (destino.campo === "cantidad" || destino.campo === "justificacion") en(".cantidad-partida");
+    if (destino.campo === "cantidad") en(".cantidad-partida");
+    else if (destino.campo === "justificacion") en(".partida-justificar input");
     else if (destino.campo === "descripcion") en(".partida-desc-nueva input");
     else if (destino.campo === "um") en(".partida-um-campo");
     else {

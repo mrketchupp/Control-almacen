@@ -156,11 +156,13 @@ y cargar*) con **← Regresar** y **Continuar →** abajo. Mientras está vacía
       **Enter** agregan (Shift+Enter va directo a la cantidad) y **Tab** pasa de una cantidad a la siguiente; abajo se ven
       las teclas. Si la dimensión que escribiste no está en ese código, al final de su tarjeta sale **Usar «…» en <código>**
       tal como la escribiste: la partida va igual pero **no descuenta** (igual con un código que no está en el catálogo).
-      A la derecha está la lista del vale; con **Editar** cambias la clave, el lote, la O.C. o la UM de una partida.
+      A la derecha está la lista del vale; con **Editar** cambias la clave, el lote, la O.C. o la UM de una partida. Si
+      sacas **más de lo que hay**, debajo de la partida aparece *¿Por qué sacas más?*: escribe ahí la justificación (Tab
+      desde la cantidad te lleva a ella).
       *Traer partidas* copia las de una entrada de hoy o de otro vale.
    3. **Revisar y emitir:** el resumen de *Para quién* y del material (Cantidad · Código y descripción · Dimensión, con
-      *Lote:* y *O.C.:* a su lado). Lo que falta se marca **en ámbar en su fila**, con su botón (*Ir a la partida*,
-      *Corregir*) o, si sacas más de lo que hay, el campo para la justificación ahí mismo. Al lado, la **vista previa**
+      *Lote:* y *O.C.:* a su lado, y la justificación si la escribiste). Lo que falta se marca **en ámbar en su fila**, con
+      su botón (*Ir a la partida*, *Corregir*); una justificación que falta lleva a su campo en el paso 2. Al lado, la **vista previa**
       real del vale con `BORRADOR` en el folio (ampliable con zoom). **Emitir vale · folio N** se habilita cuando no falta
       nada: asigna el folio y descuenta la existencia.
    4. **Imprimir** abre el diálogo de impresión de Edge: elige la impresora o *Guardar como PDF*. Tamaño carta, vertical.

@@ -185,8 +185,9 @@ const sinPartida = (mensaje) => {
 
 /**
  * Lo que falta antes de emitir (§5.1), uno por problema: partida sin cantidad («Ir a la partida»), cantidad mayor que la
- * existencia (la justificación se escribe ahí mismo; se queda aunque ya tenga texto, para no perder el campo al
- * escribir), fotos del formato que faltan y cualquier otro error de `validarVale` con el paso que lo corrige.
+ * existencia (la justificación se escribe en el paso 2, debajo de la partida — Ronda 35, pedido del usuario —; se queda
+ * aunque ya tenga texto, para verla en el resumen), fotos del formato que faltan y cualquier otro error de `validarVale`
+ * con el paso que lo corrige.
  * `espacios`: cuántas fotos pide el formato del área (NOV: 3); faltar una bloquea *Emitir* (decisión del usuario).
  * Ronda 35: cada uno dice dónde se marca en el resumen (`donde`: «quien», «partida» con su `uid`, «material» o «fotos»)
  * y trae el texto corto para ahí (`corto`), sin repetir la partida: ya no hay una lista aparte arriba.
@@ -231,10 +232,10 @@ export function pendientesParaEmitir(estado, datos, { usuario = null, espacios =
     const l = lineas[a.renglon - 1];
     pendientes.push({
       tipo: "justificacion",
-      mensaje: `${nombre(l)}: sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}. ¿Por qué?`,
-      corto: `Sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}. ¿Por qué?`,
+      mensaje: `${nombre(l)}: sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}; falta escribir por qué.`,
+      corto: `Sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}: falta escribir por qué.`,
       donde: "partida",
-      paso: 3,
+      paso: 2,
       campo: "justificacion",
       uid: l?.uid ?? null,
       pendiente: !String(l?.justificacion ?? "").trim(),
