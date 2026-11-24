@@ -66,7 +66,7 @@ test("el vale llena folio, fecha, renglones y firmas y limpia lo que traía la h
   assert.equal(valores.get("23,4"), null); // renglón sin usar queda vacío
   assert.equal(valores.get("23,6"), null); // y sin la fórmula de la hoja
   assert.equal(valores.get("50,4"), "ALMACENISTA UNO");
-  assert.equal(valores.get("50,9"), "MECANICO UNO");
+  assert.equal(valores.get("50,9"), "MECANICO UNOO"); // quien recibió en el último vale del área (Ronda 35)
   const html = paginaHtml(m, valores);
   assert.match(html, />10</);
   assert.match(html, /SUMINISTRO DE DIESEL Y COMBUSTIBLE/);

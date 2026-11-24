@@ -185,7 +185,9 @@ test("transferencia: la línea «PARA USO EN» de las observaciones dice el dest
 
   const { estado } = cargaSintetica();
   const t = conTipoDeVale(estado, v.nuevoBorrador(estado, { usuario: USUARIO }), true);
-  assert.match(t.observaciones, /PARA USO EN MANTENIMIENTO DEL RIG 91/, "antes de elegir, el texto del formato");
+  // Antes de elegir: la línea con el destino que traía el formato (RIG 48); el pie pide elegirlo.
+  assert.match(t.observaciones, /^MATERIAL SUMINISTRADO PARA USO EN RIG 48$/m);
+  assert.equal(t.destino, "");
   assert.equal(textoObservaciones(estado, t), "Al elegir el destino, las observaciones dicen «PARA USO EN …».");
   const a48 = conDestino(t, "RIG 48");
   assert.equal(a48.destino, "RIG 48");
