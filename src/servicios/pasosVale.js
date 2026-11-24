@@ -173,12 +173,20 @@ export function paraEmitir(estado, datos, usuario) {
 // A qué paso lleva «Corregir» cada dato del encabezado.
 const PASO_DEL_CAMPO = { fecha: 1, depto_destino: 1, recibio_nombre: 1, autorizo_nombre: 1, etapa_perforacion: 1, lineas: 2 };
 
+/** «Partida 3: falta la unidad (UM).» → «Falta la unidad (UM).» (en su fila ya se sabe cuál partida es). */
+const sinPartida = (mensaje) => {
+  const t = String(mensaje ?? "").replace(/^Partida \d+:\s*/, "");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
 /**
- * Lo que falta antes de emitir (§5.1), una fila por problema: partida sin cantidad («Ir a la partida»), cantidad mayor
- * que la existencia (la justificación se escribe ahí mismo; la fila se queda aunque ya tenga texto, para no perder el
- * campo al escribir), fotos del formato que faltan y cualquier otro error de `validarVale` con el paso que lo corrige.
+ * Lo que falta antes de emitir (§5.1), uno por problema: partida sin cantidad («Ir a la partida»), cantidad mayor que la
+ * existencia (la justificación se escribe ahí mismo; se queda aunque ya tenga texto, para no perder el campo al
+ * escribir), fotos del formato que faltan y cualquier otro error de `validarVale` con el paso que lo corrige.
  * `espacios`: cuántas fotos pide el formato del área (NOV: 3); faltar una bloquea *Emitir* (decisión del usuario).
- * @returns { pendientes: [{ tipo, mensaje, paso, campo, uid, pendiente, … }], bloquea }
+ * Ronda 35: cada uno dice dónde se marca en el resumen (`donde`: «quien», «partida» con su `uid`, «material» o «fotos»)
+ * y trae el texto corto para ahí (`corto`), sin repetir la partida: ya no hay una lista aparte arriba.
+ * @returns { pendientes: [{ tipo, mensaje, corto, donde, paso, campo, uid, pendiente, … }], bloquea }
  */
 export function pendientesParaEmitir(estado, datos, { usuario = null, espacios = 0 } = {}) {
   const listo = paraEmitir(estado, datos, usuario);
@@ -190,11 +198,29 @@ export function pendientesParaEmitir(estado, datos, { usuario = null, espacios =
     if (e.campo === "justificacion") continue; // va con su aviso de existencia
     const l = e.renglon ? lineas[e.renglon - 1] : null;
     if (e.campo === "cantidad") {
-      pendientes.push({ tipo: "cantidad", mensaje: `Partida ${e.renglon} · ${nombre(l)}: falta la cantidad.`, paso: 2, campo: "cantidad", uid: l?.uid ?? null, pendiente: true });
+      pendientes.push({
+        tipo: "cantidad",
+        mensaje: `Partida ${e.renglon} · ${nombre(l)}: falta la cantidad.`,
+        corto: texto(l?.cantidad) ? "La cantidad debe ser mayor que 0." : "Falta la cantidad.",
+        donde: "partida",
+        paso: 2,
+        campo: "cantidad",
+        uid: l?.uid ?? null,
+        pendiente: true,
+      });
     } else if (e.renglon) {
-      pendientes.push({ tipo: "corregir", mensaje: e.mensaje, paso: 2, campo: e.campo, uid: l?.uid ?? null, pendiente: true });
+      pendientes.push({ tipo: "corregir", mensaje: e.mensaje, corto: sinPartida(e.mensaje), donde: "partida", paso: 2, campo: e.campo, uid: l?.uid ?? null, pendiente: true });
     } else {
-      pendientes.push({ tipo: e.campo === "entrego_nombre" ? "aviso" : "corregir", mensaje: e.mensaje, paso: PASO_DEL_CAMPO[e.campo] ?? null, campo: e.campo, uid: null, pendiente: true });
+      pendientes.push({
+        tipo: e.campo === "entrego_nombre" ? "aviso" : "corregir",
+        mensaje: e.mensaje,
+        corto: e.mensaje,
+        donde: e.campo === "lineas" ? "material" : "quien",
+        paso: PASO_DEL_CAMPO[e.campo] ?? null,
+        campo: e.campo,
+        uid: null,
+        pendiente: true,
+      });
     }
   }
   for (const a of avisos) {
@@ -202,6 +228,8 @@ export function pendientesParaEmitir(estado, datos, { usuario = null, espacios =
     pendientes.push({
       tipo: "justificacion",
       mensaje: `${nombre(l)}: sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}. ¿Por qué?`,
+      corto: `Sacas ${decTexto(a.pedido)} y el inventario dice que hay ${decTexto(a.disponible)}. ¿Por qué?`,
+      donde: "partida",
       paso: 3,
       campo: "justificacion",
       uid: l?.uid ?? null,
@@ -211,7 +239,8 @@ export function pendientesParaEmitir(estado, datos, { usuario = null, espacios =
   const puestas = (datos.fotos ?? []).slice(0, espacios).filter(Boolean).length;
   if (espacios > puestas) {
     const faltan = espacios - puestas;
-    pendientes.push({ tipo: "fotos", mensaje: `${faltan === 1 ? "Falta 1 foto" : `Faltan ${faltan} fotos`} del formato (${puestas} de ${espacios}).`, paso: 3, campo: "fotos", uid: null, pendiente: true });
+    const mensaje = `${faltan === 1 ? "Falta 1 foto" : `Faltan ${faltan} fotos`} del formato (${puestas} de ${espacios}).`;
+    pendientes.push({ tipo: "fotos", mensaje, corto: mensaje, donde: "fotos", paso: 3, campo: "fotos", uid: null, pendiente: true });
   }
   return { pendientes, bloquea: pendientes.filter((p) => p.pendiente).length };
 }

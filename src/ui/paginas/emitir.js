@@ -1,6 +1,7 @@
-// Ronda 34, paso 3 · Revisar y emitir (docs/13-rediseno-vale-salida.md §5): lo que falta antes de emitir, el resumen de
-// para quién y del material, las fotos del formato (NOV) y la vista previa real — el mismo HTML de impresión
-// (`documentoImpresion`) en miniatura y ampliada con zoom —, con *Emitir* siempre a la vista.
+// Ronda 34, paso 3 · Revisar y emitir (docs/13-rediseno-vale-salida.md §5): el resumen de para quién y del material, las
+// fotos del formato (NOV) y la vista previa real — el mismo HTML de impresión (`documentoImpresion`) en miniatura y
+// ampliada con zoom —, con *Emitir* siempre a la vista. Ronda 35 (pedido del usuario): lo que falta ya no va en una lista
+// aparte arriba; se marca en ámbar donde está (la fila de *Para quién*, la partida, las fotos) con su botón o su campo.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Boton, useSesion } from "../componentes.js";
@@ -59,39 +60,6 @@ function HojasEscaladas({ documento, escala = null }) {
     <style>${documento.css}</style>
     <div ref=${hojas} class="hojas-vale" style=${{ width: `${ANCHO_HOJA}px`, transform: `scale(${medida.escala})` }} dangerouslySetInnerHTML=${{ __html: documento.html }}></div>
   </div>`;
-}
-
-/** «Lo que falta antes de emitir» (§5.1): una fila por problema, con su botón o, si es justificación, su campo. */
-function PendientesVale({ pendientes, bloquea, lineas, alIr, alJustificar }) {
-  if (!pendientes.length) return null;
-  const titulo = bloquea ? `Falta${bloquea === 1 ? "" : "n"} ${bloquea} ${bloquea === 1 ? "cosa" : "cosas"} antes de emitir` : "Justificaciones";
-  return html`<section class=${`pendientes-vale ${bloquea ? "" : "resuelto"}`} aria-labelledby="t-pendiente">
-    <h2 id="t-pendiente">${titulo}</h2>
-    <ul>
-      ${pendientes.map((p, i) => {
-        if (p.tipo === "justificacion") {
-          const l = lineas.find((x) => x.uid === p.uid);
-          return html`<li key=${`j${p.uid}`} class=${p.pendiente ? "pendiente" : "listo"}>
-            <label class="campo">
-              <span>${p.mensaje}</span>
-              <input value=${l?.justificacion ?? ""} placeholder="Ej. llegaron con la entrada E-0005, aún sin ubicar"
-                onInput=${(e) => alJustificar(p.uid, e.currentTarget.value)} />
-            </label>
-          </li>`;
-        }
-        return html`<li key=${i} class="pendiente">
-          <span>${p.mensaje}</span>
-          ${p.tipo === "cantidad"
-            ? html`<${Boton} tamano="chico" onClick=${() => alIr(p)}>Ir a la partida<//>`
-            : p.tipo === "fotos"
-              ? html`<${Boton} tamano="chico" onClick=${() => document.querySelector(".fotos-paso .foto-agregar")?.scrollIntoView?.({ block: "center" })}>Ver las fotos<//>`
-              : p.paso
-                ? html`<${Boton} tamano="chico" onClick=${() => alIr(p)}>Corregir<//>`
-                : null}
-        </li>`;
-      })}
-    </ul>
-  </section>`;
 }
 
 /**
@@ -159,6 +127,8 @@ function VistaAmpliada({ documento, hojas, resumen, estadoTexto, listo, folio, a
  * (con la confirmación del folio).
  */
 export function PasoEmitir({ datos, alCambiar, listo, resumen, partidas, pendientes, bloquea, errores = [], capacidad, folio, alIrA, alIr, alEmitir }) {
+  const de = (donde) => pendientes.filter((p) => (Array.isArray(donde) ? donde.includes(p.donde) : p.donde === donde));
+  const fotos = de("fotos");
   const [ampliada, setAmpliada] = useState(false);
   const porHoja = capacidad || listo.lineas.length || 1;
   const vales = [];
@@ -170,13 +140,20 @@ export function PasoEmitir({ datos, alCambiar, listo, resumen, partidas, pendien
     .join(" · ");
   const estadoTexto = bloquea ? `Falta${bloquea === 1 ? "" : "n"} ${bloquea}: ${pendientes.find((p) => p.pendiente)?.mensaje ?? ""}` : "✓ Todo listo";
   const listoParaEmitir = !bloquea && listo.lineas.length > 0;
+  const notaEmitir = listoParaEmitir
+    ? "Al emitir se asigna el folio; después lo imprimes."
+    : bloquea
+      ? `${bloquea === 1 ? "Falta 1 cosa: está marcada" : `Faltan ${bloquea} cosas: están marcadas`} en ámbar.`
+      : "Se habilita al resolver lo pendiente.";
   return html`<div class="paso-emitir">
     <div class="emitir-revision">
       ${errores.map((e, i) => html`<div class="aviso aviso-error" role="alert" key=${i}>${e.mensaje}</div>`)}
-      <${PendientesVale} pendientes=${pendientes} bloquea=${bloquea} lineas=${datos.lineas} alIr=${alIr} alJustificar=${justificar} />
-      <${ResumenParaQuien} datos=${resumen} alEditar=${() => alIrA(1)} />
-      <${ResumenMaterial} partidas=${partidas} alEditar=${() => alIrA(2)} />
-      <div class="fotos-paso"><${EditorVale} seccion="fotos" datos=${datos} alCambiar=${alCambiar} /></div>
+      <${ResumenParaQuien} datos=${resumen} alEditar=${() => alIrA(1)} pendientes=${de("quien")} alIr=${alIr} />
+      <${ResumenMaterial} partidas=${partidas} alEditar=${() => alIrA(2)} pendientes=${de(["partida", "material"])} alIr=${alIr} alJustificar=${justificar} />
+      <div class=${`fotos-paso ${fotos.length ? "con-pendiente" : ""}`}>
+        ${fotos.map((p, i) => html`<p class="pendiente-fotos" key=${i}><span aria-hidden="true">⚠ </span>${p.corto}</p>`)}
+        <${EditorVale} seccion="fotos" datos=${datos} alCambiar=${alCambiar} />
+      </div>
     </div>
 
     <aside class="emitir-previa" aria-labelledby="t-impreso">
@@ -198,7 +175,7 @@ export function PasoEmitir({ datos, alCambiar, listo, resumen, partidas, pendien
         <${Boton} tipo="primario" tamano="grande" disabled=${!listoParaEmitir} onClick=${alEmitir}>
           Emitir vale · folio ${folio} <span class="tecla-boton" aria-hidden="true">Enter</span>
         <//>
-        <p class="nota">${listoParaEmitir ? "Al emitir se asigna el folio; después lo imprimes." : "Se habilita al resolver lo pendiente."}</p>
+        <p class=${`nota ${bloquea ? "nota-pendiente" : ""}`} aria-live="polite">${notaEmitir}</p>
       </div>
     </aside>
 

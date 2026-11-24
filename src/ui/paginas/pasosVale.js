@@ -44,34 +44,59 @@ export function BotonEditar({ etiqueta, onClick }) {
   </button>`;
 }
 
-function DatoResumen({ etiqueta, children, falta = false }) {
-  return html`<div class=${`dato-resumen ${falta ? "dato-falta" : ""}`}>
+function DatoResumen({ etiqueta, children, falta = false, pendiente = null, alIr = null }) {
+  return html`<div class=${`dato-resumen ${falta || pendiente ? "dato-falta" : ""}`}>
     <dt>${etiqueta}</dt>
-    <dd>${children}</dd>
+    <dd>${children}${pendiente && pendiente.paso && alIr
+      ? html` <button type="button" class="enlace-boton corregir-dato" aria-label=${`Corregir: ${pendiente.corto}`} onClick=${() => alIr(pendiente)}>Corregir</button>`
+      : null}</dd>
   </div>`;
 }
 
+/** Lo que falta, marcado donde se ve (Ronda 35): ⚠ el texto corto y, si se puede, su botón para corregirlo. */
+function LineaPendiente({ p, alIr, boton = "Corregir" }) {
+  return html`<li class="pendiente-linea">
+    <span class="pendiente-texto"><span aria-hidden="true">⚠ </span>${p.corto ?? p.mensaje}</span>
+    ${p.paso && alIr ? html`<button type="button" class="boton boton-secundario boton-chico" onClick=${() => alIr(p)}>${boton}</button>` : null}
+  </li>`;
+}
+
+// Qué fila del resumen de *Para quién* marca cada dato que falta (Ronda 35); lo demás va abajo de la tarjeta.
+const FILA_DEL_CAMPO = { depto_destino: "area", recibio_nombre: "recibe", fecha: "fecha", entrego_nombre: "entrega", autorizo_nombre: "autoriza", etapa_perforacion: "etapa" };
+
 /**
  * Lo elegido en *Para quién*, con «Editar» (principio 2). `datos`: { area, transferencia, destino, recibe, puesto,
- * fecha, entrega, folio }; lo que falta se ve como «—».
+ * autoriza, etapa, fecha, entrega, folio }; lo que falta se ve como «—». `autoriza` / `etapa` (null = no aplica) se
+ * ven en el paso 3. `pendientes` (paso 3): lo que falta de este paso se marca en su fila con «Corregir» (`alIr`).
  */
-export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién" }) {
+export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pendientes = [], alIr = null }) {
   const o = (v) => (v ? String(v) : "—");
-  return html`<section class="resumen-vale" aria-label=${titulo}>
+  const enFila = new Map();
+  const sueltos = [];
+  for (const p of pendientes) {
+    const fila = FILA_DEL_CAMPO[p.campo];
+    if (fila && !enFila.has(fila)) enFila.set(fila, p);
+    else if (!fila) sueltos.push(p);
+  }
+  const fila = (clave, etiqueta, valor, falta = false) =>
+    html`<${DatoResumen} etiqueta=${etiqueta} falta=${falta} pendiente=${enFila.get(clave) ?? null} alIr=${alIr}>${valor}<//>`;
+  const conPendiente = enFila.size > 0 || sueltos.length > 0;
+  return html`<section class=${`resumen-vale ${conPendiente ? "con-pendiente" : ""}`} aria-label=${titulo}>
     <header class="resumen-cabeza">
       <h2>${titulo}</h2>
       <${BotonEditar} etiqueta="Editar para quién" onClick=${alEditar} />
     </header>
     <dl class="resumen-datos">
-      ${datos.transferencia
-        ? html`<${DatoResumen} etiqueta="Destino" falta=${!datos.destino}>${o(datos.destino)}<//>`
-        : html`<${DatoResumen} etiqueta="Área" falta=${!datos.area}>${o(datos.area)}<//>`}
-      <${DatoResumen} etiqueta="Recibe" falta=${!datos.recibe}>${o(datos.recibe)}<//>
+      ${datos.transferencia ? fila("area", "Destino", o(datos.destino), !datos.destino) : fila("area", "Área", o(datos.area), !datos.area)}
+      ${fila("recibe", "Recibe", o(datos.recibe), !datos.recibe)}
       <${DatoResumen} etiqueta="Puesto">${o(datos.puesto)}<//>
-      <${DatoResumen} etiqueta="Fecha">${fechaCorta(datos.fecha)}<//>
-      <${DatoResumen} etiqueta="Entrega" falta=${!datos.entrega}>${datos.entrega || "Elige quién está en turno"}<//>
+      ${datos.autoriza !== null && datos.autoriza !== undefined ? fila("autoriza", "Autoriza", o(datos.autoriza), !datos.autoriza) : null}
+      ${datos.etapa !== null && datos.etapa !== undefined ? fila("etapa", "Etapa", o(datos.etapa), !datos.etapa) : null}
+      ${fila("fecha", "Fecha", fechaCorta(datos.fecha))}
+      ${fila("entrega", "Entrega", datos.entrega || "Elige quién está en turno", !datos.entrega)}
       <${DatoResumen} etiqueta="Folio">${datos.folio} <small>al emitir</small><//>
     </dl>
+    ${sueltos.length ? html`<ul class="pendientes-tarjeta">${sueltos.map((p, i) => html`<${LineaPendiente} key=${i} p=${p} alIr=${alIr} />`)}</ul>` : null}
     <p class="resumen-linea" aria-hidden="true">
       ${[datos.transferencia ? datos.destino : datos.area, datos.recibe, fechaCorta(datos.fecha)].filter(Boolean).join(" · ") || "Falta elegir para quién"}
     </p>
@@ -79,30 +104,52 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién" }) {
 }
 
 /**
- * Las partidas del vale, una fila cada una: cantidad + UM · dimensión · NP · código · descripción (recortada; completa
- * al pasar el cursor) · lote y O.C. si tienen. `partidas`: [{ cantidad, um, clave, np, codigo, descripcion, lote, oc }].
+ * Las partidas del vale, una fila cada una (Ronda 35, pedido del usuario): cantidad + UM · código y descripción
+ * (recortada; completa al pasar el cursor) · la dimensión, con «NP:», «Lote:» y «O.C.:» a su lado si tienen.
+ * `partidas`: [{ uid, cantidad, um, clave, np, codigo, descripcion, lote, oc, justificacion }]. `pendientes` (paso 3):
+ * lo que falta de cada partida va en su fila — «Ir a la partida» / «Corregir» (`alIr`) o, si sacas más de lo que hay,
+ * la justificación ahí mismo (`alJustificar(uid, texto)`).
  */
-export function ResumenMaterial({ partidas, alEditar }) {
-  return html`<section class="resumen-vale" aria-label="Material">
+export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = null, alJustificar = null }) {
+  const porPartida = new Map();
+  for (const p of pendientes) if (p.donde === "partida" && p.uid) porPartida.set(p.uid, [...(porPartida.get(p.uid) ?? []), p]);
+  const generales = pendientes.filter((p) => p.donde === "material");
+  const porResolver = pendientes.filter((p) => p.pendiente && (p.donde === "partida" || p.donde === "material")).length;
+  return html`<section class=${`resumen-vale ${porResolver ? "con-pendiente" : ""}`} aria-label="Material">
     <header class="resumen-cabeza">
       <h2>Material · ${partidas.length} ${partidas.length === 1 ? "partida" : "partidas"}</h2>
+      ${porResolver ? html`<span class="pastilla pastilla-alerta">${porResolver} por resolver</span>` : null}
       <${BotonEditar} etiqueta="Editar material" onClick=${alEditar} />
     </header>
     ${partidas.length
       ? html`<ol class="resumen-partidas">
+          <li class="resumen-encabezado" aria-hidden="true"><span>Cantidad</span><span>Código y descripción</span><span>Dimensión</span></li>
           ${partidas.map((p, i) => {
-            // Lote y O.C. solo si tienen algo: casi nunca se usan (decisión del usuario, Ronda 34).
-            const extra = [p.lote ? `Lote ${p.lote}` : null, p.oc ? `O.C. ${p.oc}` : null].filter(Boolean).join(" · ");
-            const titulo = [p.codigo, p.descripcion, p.clave, p.np ? `NP ${p.np}` : null, extra].filter(Boolean).join(" · ");
-            return html`<li key=${i} title=${titulo}>
+            const suyos = porPartida.get(p.uid) ?? [];
+            const titulo = [p.codigo, p.descripcion, p.clave, p.np ? `NP ${p.np}` : null, p.lote ? `Lote ${p.lote}` : null, p.oc ? `O.C. ${p.oc}` : null].filter(Boolean).join(" · ");
+            return html`<li key=${p.uid ?? i} class=${suyos.some((x) => x.pendiente) ? "con-pendiente" : ""}>
               <span class=${`resumen-cantidad ${p.cantidad ? "" : "falta"}`}>${p.cantidad || "sin cantidad"} ${p.cantidad ? p.um : ""}</span>
-              <span class="resumen-clave">${p.clave || "—"}${p.np ? html`<span class="resumen-np"> · NP ${p.np}</span>` : null}</span>
-              <span class="resumen-descripcion">${p.codigo ?? "—"} · ${p.descripcion || "—"}</span>
-              <span class="resumen-lote">${extra}</span>
+              <span class="resumen-descripcion" title=${titulo}><span class="resumen-codigo">${p.codigo ?? "—"}</span> · ${p.descripcion || "—"}</span>
+              <span class="resumen-clave">
+                <span class="resumen-dimension">${p.clave || "—"}</span>
+                ${p.np ? html`<span class="resumen-dato">NP: ${p.np}</span>` : null}
+                ${p.lote ? html`<span class="resumen-dato">Lote: ${p.lote}</span>` : null}
+                ${p.oc ? html`<span class="resumen-dato">O.C.: ${p.oc}</span>` : null}
+              </span>
+              ${suyos.map((x) =>
+                x.tipo === "justificacion"
+                  ? html`<label key=${`j${p.uid}`} class=${`campo resumen-justificar ${x.pendiente ? "pendiente" : "listo"}`}>
+                      <span>${x.corto}</span>
+                      <input value=${p.justificacion ?? ""} placeholder="Ej. llegaron con la entrada E-0005, aún sin ubicar"
+                        onInput=${(e) => alJustificar?.(p.uid, e.currentTarget.value)} />
+                    </label>`
+                  : html`<ul key=${x.campo} class="pendientes-tarjeta"><${LineaPendiente} p=${x} alIr=${alIr} boton=${x.tipo === "cantidad" ? "Ir a la partida" : "Corregir"} /></ul>`,
+              )}
             </li>`;
           })}
         </ol>`
       : html`<p class="vacio">Todavía no hay partidas.</p>`}
+    ${generales.length ? html`<ul class="pendientes-tarjeta">${generales.map((p, i) => html`<${LineaPendiente} key=${i} p=${p} alIr=${alIr} />`)}</ul>` : null}
   </section>`;
 }
 

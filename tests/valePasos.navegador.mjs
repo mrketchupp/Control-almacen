@@ -343,20 +343,24 @@ test("vale de salida en 3 pasos", async (t) => {
     await revisar.click();
     assert.equal(await pasoActual(), "3 · Revisar y emitir");
     const emitirBoton = page.locator(".emitir-fijo").getByRole("button", { name: /^Emitir vale · folio/ });
-    const pendientes = page.getByRole("region", { name: /antes de emitir/ });
-    await pendientes.waitFor();
-    assert.match(await pendientes.innerText(), /Faltan 3 cosas antes de emitir/);
-    assert.match(await pendientes.innerText(), /Partida 3 · BOMBA SINTETICA: falta la cantidad\./);
-    assert.equal(await emitirBoton.isDisabled(), true);
-    await page.getByText("Se habilita al resolver lo pendiente.", { exact: true }).waitFor();
-    // Lote y O.C. solo cuando tienen algo.
+    // Ronda 35: sin lista aparte arriba; lo que falta se marca en ámbar en la fila de su partida, con su botón.
+    await page.getByText("Faltan 3 cosas: están marcadas en ámbar.", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("region", { name: /antes de emitir/ }).count(), 0);
     const material = page.getByRole("region", { name: "Material" });
-    assert.match(await material.innerText(), /Lote NUEVO · O\.C\. OC-77/);
+    const bomba = material.locator("li.con-pendiente", { hasText: "BOMBA SINTETICA" });
+    assert.match(await bomba.innerText(), /Falta la cantidad\./);
+    assert.match(await bomba.innerText(), /Falta la unidad \(UM\)\./);
+    assert.equal(await material.getByText("3 por resolver", { exact: true }).count(), 1);
+    assert.equal(await emitirBoton.isDisabled(), true);
+    // Cantidad · código y descripción · dimensión; Lote y O.C. con su nombre junto a la dimensión, solo si tienen algo.
+    assert.deepEqual(await material.locator(".resumen-encabezado span").allInnerTexts().then((t) => t.map((x) => x.trim().toUpperCase())), ["CANTIDAD", "CÓDIGO Y DESCRIPCIÓN", "DIMENSIÓN"]);
+    assert.match(await material.innerText(), /Lote: NUEVO/);
+    assert.match(await material.innerText(), /O\.C\.: OC-77/);
     assert.doesNotMatch(await material.innerText(), /sin lote/);
     await page.locator(".miniatura-vale .vale-pagina").first().waitFor();
     await capturar("paso-3-pendiente");
     // «Ir a la partida» lleva a su cantidad en el paso 2.
-    await pendientes.getByRole("button", { name: "Ir a la partida", exact: true }).first().click();
+    await bomba.getByRole("button", { name: "Ir a la partida", exact: true }).click();
     assert.equal(await pasoActual(), "2 · Material");
     await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Cantidad de la partida 3");
     await page.keyboard.type("2");
@@ -371,12 +375,16 @@ test("vale de salida en 3 pasos", async (t) => {
     await page.getByText(/^Solo hay \d+ · al emitir pedirá justificación$/).waitFor();
     await buscador.fill("");
     await revisar.click();
-    const justificacion = page.getByRole("textbox", { name: /SELLOS 555001: sacas 5 y el inventario dice que hay \d+/ });
+    // La justificación se escribe en la fila de la partida (sin repetir cuál es).
+    const sellos = page.getByRole("region", { name: "Material" }).locator("li", { hasText: "SELLOS" }).last();
+    const justificacion = sellos.getByRole("textbox", { name: /^Sacas 5 y el inventario dice que hay \d+\. ¿Por qué\?/ }); // con ✓ al justificar
     await justificacion.waitFor();
     assert.equal(await emitirBoton.isDisabled(), true);
+    await page.getByText("Falta 1 cosa: está marcada en ámbar.", { exact: true }).waitFor();
     await justificacion.fill("PRESTAMO SINTETICO");
-    await page.getByRole("heading", { name: "Justificaciones", exact: true }).waitFor();
+    await page.getByText("Al emitir se asigna el folio; después lo imprimes.", { exact: true }).waitFor();
     assert.equal(await emitirBoton.isDisabled(), false);
+    assert.equal(await justificacion.isVisible(), true, "el campo se queda aunque ya tenga texto");
     // La miniatura es el vale impreso real, con BORRADOR en el folio.
     assert.match(await page.locator(".miniatura-vale").innerText(), /BORRADOR/);
     await capturar("paso-3");

@@ -8804,21 +8804,138 @@ button.mosaico:hover .mosaico-abrir {
   flex-direction: column;
 }
 
-.resumen-partidas li {
+/* Ronda 35: cantidad · código y descripción · dimensión (con NP, Lote y O.C. a su lado); lo pendiente debajo, en su fila. */
+.resumen-partidas > li {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1.3fr);
+  grid-template-columns: 104px minmax(0, 1.7fr) minmax(0, 1.3fr);
   align-items: baseline;
-  gap: 12px;
+  gap: 6px 12px;
   padding: 8px 0;
   border-top: 1px solid var(--neutro-suave);
   font-size: 0.875rem;
 }
 
-.resumen-partidas li > span {
+.resumen-partidas > li.resumen-encabezado {
+  padding-block: 0 4px;
+  border-top: 0;
+  color: var(--texto-suave);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.resumen-partidas > li > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.resumen-partidas > li.con-pendiente {
+  margin-inline: -10px;
+  padding-inline: 10px;
+  border-radius: 8px;
+  background: var(--alerta-suave);
+  box-shadow: inset 3px 0 0 var(--alerta);
+}
+
+.resumen-partidas > li > :is(.pendientes-tarjeta, .resumen-justificar) {
+  grid-column: 1 / -1;
+}
+
+.resumen-codigo {
+  color: var(--texto);
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.resumen-partidas > li > .resumen-clave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  overflow: visible;
+  white-space: normal;
+}
+
+.resumen-dimension {
+  font-family: var(--mono);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.resumen-dato {
+  color: var(--texto-suave);
+  font-family: var(--fuente);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.resumen-justificar > span {
+  color: var(--texto);
+  font-weight: 600;
+}
+
+.resumen-justificar.pendiente input {
+  border: 2px solid var(--alerta);
+}
+
+.resumen-justificar.listo > span::after {
+  content: " ✓";
+  color: var(--ok);
+}
+
+/* Lo que falta, en la tarjeta donde está (Ronda 35): borde ámbar y cada cosa con su botón. */
+.resumen-vale.con-pendiente {
+  border-color: var(--alerta);
+}
+
+.pendientes-tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pendiente-linea {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.pendiente-texto {
+  flex: 1 1 220px;
+  min-width: 0;
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.corregir-dato {
+  margin-left: 4px;
+  font-size: 0.8125rem;
+}
+
+.fotos-paso.con-pendiente {
+  padding: 10px 12px;
+  border: 1px solid var(--alerta);
+  border-radius: 12px;
+}
+
+.pendiente-fotos {
+  margin: 0 0 8px;
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.nota-pendiente {
+  color: var(--alerta);
+  font-weight: 600;
 }
 
 .resumen-cantidad {
@@ -8835,9 +8952,7 @@ button.mosaico:hover .mosaico-abrir {
   font-weight: 600;
 }
 
-.resumen-np,
-.resumen-descripcion,
-.resumen-lote {
+.resumen-descripcion {
   color: var(--texto-suave);
   font-weight: 400;
 }
@@ -8849,17 +8964,17 @@ button.mosaico:hover .mosaico-abrir {
 }
 
 @media (max-width: 699px) {
-  .resumen-partidas li {
+  .resumen-partidas > li {
     grid-template-columns: 88px minmax(0, 1fr);
     row-gap: 2px;
   }
 
-  .resumen-descripcion {
+  .resumen-partidas > li > .resumen-clave {
     grid-column: 2;
   }
 
-  .resumen-lote {
-    grid-column: 2;
+  .resumen-partidas > li.resumen-encabezado {
+    display: none;
   }
 }
 
@@ -10155,72 +10270,6 @@ kbd.tecla {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-}
-
-.pendientes-vale {
-  padding: 16px 20px;
-  border: 1px solid var(--alerta);
-  border-radius: 12px;
-  background: var(--alerta-suave);
-}
-
-.pendientes-vale.resuelto {
-  border-color: var(--borde);
-  background: var(--superficie);
-}
-
-.pendientes-vale h2 {
-  margin: 0 0 10px;
-  color: var(--alerta);
-  font-size: 1rem;
-}
-
-.pendientes-vale.resuelto h2 {
-  color: var(--texto);
-}
-
-.pendientes-vale ul {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.pendientes-vale li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.pendientes-vale li > span {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-
-.pendientes-vale li .boton {
-  min-height: 40px;
-}
-
-.pendientes-vale li .campo {
-  flex: 1;
-  color: var(--texto);
-}
-
-.pendientes-vale li .campo > span {
-  font-weight: 600;
-}
-
-.pendientes-vale li.pendiente .campo input {
-  border: 2px solid var(--alerta);
-}
-
-.pendientes-vale li.listo .campo > span::after {
-  content: " ✓";
-  color: var(--ok);
 }
 
 .emitir-previa {

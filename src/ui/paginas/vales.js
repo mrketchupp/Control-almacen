@@ -994,6 +994,8 @@ export function PaginaValesSalida() {
       fecha: datos.fecha,
       entrega: enTurno?.entrego_nombre ?? null,
       folio,
+      // Ronda 35: en el paso 3 también se ve quién autoriza y la etapa, si el vale los lleva (ahí se marca si faltan).
+      ...(paso === 3 ? { autoriza: requiereAutoriza(estado, datos) ? datos.autorizo_nombre || "" : null, etapa: pideEtapa(estado, datos) ? datos.etapa_perforacion || "" : null } : {}),
     };
     const paraQuien = html`<${ResumenParaQuien} datos=${resumen} alEditar=${() => irA(1)} />`;
     const capturadas = lineasCapturadas(datos.lineas);
@@ -1023,6 +1025,8 @@ export function PaginaValesSalida() {
         const existencia = l.existencia_id !== null && l.existencia_id !== undefined ? indicesVale.existencia(l.existencia_id) : null;
         const variante = existencia ? indicesVale.variante(existencia.variante_id) : null;
         return {
+          uid: l.uid,
+          justificacion: l.justificacion ?? "",
           cantidad: normal(l.cantidad) ? l.cantidad : "",
           um: l.um,
           clave: l.clave,
