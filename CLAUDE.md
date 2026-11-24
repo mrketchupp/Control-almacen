@@ -52,7 +52,11 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
 - Ronda 27: ◀ ▶ del reporte = ±1 día (`sumarDias`; ▶ hasta hoy). Avisos (`app.js` `Aviso`, `TIPOS_AVISO`,
   `cuerpoDeAviso` quita el título repetido): arriba al centro, ícono por tipo (`ok`, `alerta`, `error`, `info` en
   `iconos.js`), cerrar de 40 px, barra `.toast-tiempo` y `Sesion.pausarAviso` / `reanudarAviso` (mouse o foco).
-  «No se guardó donde elegiste»: `exportarConDialogo` llama `sesion.mostrarDialogo({ tipo: "no-guardado", nombre,
+  Salida (Ronda 35): `quitarAviso` lo marca `saliendo` y lo borra a los `SALIDA_AVISO_MS = 340` (sin animaciones o con
+  `prefers-reduced-motion`, de una vez: `animarAvisos`); cada `Aviso` va en `.toast-hueco` (grid `1fr → 0fr`, el
+  espacio entre avisos es margen dentro del hueco para que también se cierre; `aria-hidden` e `inert` mientras sale) y
+  `.toast` se desvanece con `toast-sale-arriba` / `-abajo`. El cuarto aviso saca al más viejo igual. Prueba
+  `avisos.navegador.mjs`. «No se guardó donde elegiste»: `exportarConDialogo` llama `sesion.mostrarDialogo({ tipo: "no-guardado", nombre,
   destino, motivo, causa, reintentar })` → `ui/avisoGuardado.js` (`AvisoNoGuardado`, `CAUSAS`) con los dibujos de
   `ui/ilustraciones.js` (`BarraDeTareas`, `Explorador`, `ubicacionDe`; colores en variables de `.ilus`, claro y oscuro).
   `causaDeError` / `ErrorEscritura.causa` en `almacen/archivos.js`. `Sesion.exportar` ya no avisa con texto.

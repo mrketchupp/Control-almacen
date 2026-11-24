@@ -129,6 +129,10 @@ export function cuerpoDeAviso(titulo, texto) {
   return sin ? sin[0].toUpperCase() + sin.slice(1) : String(texto ?? "");
 }
 
+/**
+ * Un aviso dentro de su hueco (Ronda 35): al quitarse (`aviso.saliendo`), el aviso se desvanece y el hueco se cierra, así
+ * los demás se recorren suave. Mientras sale ya no se puede tocar ni lo leen los lectores de pantalla.
+ */
 function Aviso({ aviso }) {
   const sesion = useSesion();
   const tipo = TIPOS_AVISO[aviso.tipo] ?? TIPOS_AVISO.info;
@@ -137,7 +141,9 @@ function Aviso({ aviso }) {
     if (e.type === "focusout" && e.currentTarget.contains(e.relatedTarget)) return;
     sesion.reanudarAviso(aviso.id);
   };
-  return html`<div
+  return html`<div class=${`toast-hueco ${aviso.saliendo ? "saliendo" : ""}`} aria-hidden=${aviso.saliendo ? "true" : undefined} inert=${aviso.saliendo || undefined}>
+  <div class="toast-hueco-dentro">
+  <div
     class=${`toast toast-${aviso.tipo}`}
     role=${aviso.tipo === "error" ? "alert" : "status"}
     onMouseEnter=${pausar}
@@ -170,6 +176,8 @@ function Aviso({ aviso }) {
       <${Icono} nombre="cerrar" tam=${20} />
     </button>
     ${aviso.duracion ? html`<span class="toast-tiempo" style=${`animation-duration: ${aviso.duracion}ms`} aria-hidden="true"></span>` : null}
+  </div>
+  </div>
   </div>`;
 }
 

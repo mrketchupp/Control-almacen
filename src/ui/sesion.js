@@ -43,6 +43,16 @@ const TIPOS_LIBRO = { ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
  */
 export const HORAS_ENTRE_RESPALDOS_AL_EXPORTAR = 4;
 
+/** Lo que dura la salida de un aviso (se desvanece y su hueco se cierra; en estilos.css, .toast-hueco.saliendo). */
+export const SALIDA_AVISO_MS = 340;
+
+/** ¿Se animan los avisos? No si el usuario quitó las animaciones o Windows pide reducir el movimiento (ni en Node). */
+function animarAvisos() {
+  if (typeof document === "undefined") return false;
+  if (document.documentElement.dataset.animaciones === "no") return false;
+  return !globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
 export class Sesion {
   /**
    * @param cambiarInventario  (id, { pagina }) => abre el otro inventario (DLTA / GSM) en esta misma pestaña
@@ -120,10 +130,12 @@ export class Sesion {
    */
   avisar(tipo, texto, duracion = tipo === "error" ? 0 : 6000, accion = null) {
     const aviso = { id: Date.now() + Math.random(), tipo, texto, accion, duracion };
-    const fuera = this.avisos.slice(0, Math.max(0, this.avisos.length - 2));
-    for (const a of fuera) this._olvidarTiempo(a.id);
-    this.avisos = [...this.avisos.slice(fuera.length), aviso];
+    // Se ven a lo más 3: los más viejos se van (con su animación) al llegar otro.
+    const activos = this.avisos.filter((a) => !a.saliendo);
+    const sobran = activos.slice(0, Math.max(0, activos.length - 2));
+    this.avisos = [...this.avisos, aviso];
     this._cambio();
+    for (const a of sobran) this.quitarAviso(a.id);
     if (duracion) this._programarAviso(aviso.id, duracion);
   }
 
@@ -191,10 +203,26 @@ export class Sesion {
     return id;
   }
 
+  /**
+   * Quita un aviso. Ronda 35 (pedido del usuario): primero sale con su animación — se desvanece y su hueco se cierra, así
+   * los demás se recorren suave en lugar de brincar — y después se borra de la lista. Sin animaciones (por elección o
+   * porque Windows pide reducir el movimiento), se borra de una vez.
+   */
   quitarAviso(id) {
     this._olvidarTiempo(id);
-    this.avisos = this.avisos.filter((a) => a.id !== id);
+    const aviso = this.avisos.find((a) => a.id === id);
+    if (!aviso || aviso.saliendo) return;
+    if (!animarAvisos()) {
+      this.avisos = this.avisos.filter((a) => a.id !== id);
+      this._cambio();
+      return;
+    }
+    this.avisos = this.avisos.map((a) => (a.id === id ? { ...a, saliendo: true } : a));
     this._cambio();
+    setTimeout(() => {
+      this.avisos = this.avisos.filter((a) => a.id !== id);
+      this._cambio();
+    }, SALIDA_AVISO_MS);
   }
 
   /** Ejecuta una tarea mostrando "trabajando…" y convirtiendo errores en avisos. */

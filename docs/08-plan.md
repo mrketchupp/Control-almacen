@@ -351,6 +351,10 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
   después en *Áreas y personas*. Decisiones: de Transferencia, la de TRANSFER… (o la primera, o la que se marque) es el
   formato y las demás se agregan a los destinos (además de los de fábrica); una hoja quitada queda como área
   descartada (sus vales del DIARIO se siguen imprimiendo con ella); un destino quitado no se agrega.
+- ☑ Avisos que salen con animación (pedido del usuario, con video): al cerrarse o vencer, un aviso de la pila se
+  desvanece y se encoge mientras su lugar se cierra poco a poco (0.34 s), así los demás se recorren en lugar de brincar;
+  igual con los avisos abajo. El cuarto aviso saca al más viejo con la misma animación. Sin animaciones (personalización)
+  o con *Reducir movimiento* de Windows, se quita de una vez.
 - Siguiente (lo dirá el usuario; no empezar sin su luz verde): que un nuevo comienzo reconozca el costo; mejorar
   *Revisar y cargar* de la primera carga cuando hay diferencias.
 

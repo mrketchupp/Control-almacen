@@ -1130,10 +1130,40 @@ select {
   z-index: 70;
   display: flex;
   flex-direction: column;
-  gap: 10px;
   width: min(460px, calc(100vw - 32px));
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+/* Ronda 35: cada aviso va en un hueco. Al quitarse, el aviso se desvanece y su hueco se cierra poco a poco: los demás se
+   recorren suave en lugar de brincar. El espacio entre avisos va dentro del hueco para cerrarse con él. */
+.toast-hueco {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.24s cubic-bezier(0.4, 0, 0.2, 1) 0.08s;
+}
+
+.toast-hueco-dentro {
+  min-height: 0;
+}
+
+.toast-hueco-dentro > .toast {
+  margin-bottom: 10px;
+}
+
+.toast-hueco.saliendo {
+  grid-template-rows: 0fr;
+  pointer-events: none;
+}
+
+/* Mientras se cierra el hueco, lo que sobra se recorta (con margen para que la sombra no se corte de golpe). */
+.toast-hueco.saliendo > .toast-hueco-dentro {
+  overflow: clip;
+  overflow-clip-margin: 40px;
+}
+
+.toast-hueco.saliendo .toast {
+  animation: toast-sale-arriba 0.22s cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
 :root[data-avisos="abajo"] .avisos,
@@ -1142,6 +1172,20 @@ body.con-ventana .avisos {
   top: auto;
   bottom: 16px;
   flex-direction: column-reverse;
+}
+
+/* Abajo, el espacio va arriba de cada aviso (el de más abajo queda pegado a su orilla) y al irse baja. */
+:root[data-avisos="abajo"] .toast-hueco-dentro > .toast,
+body:has(.barra-entrada) .toast-hueco-dentro > .toast,
+body.con-ventana .toast-hueco-dentro > .toast {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+:root[data-avisos="abajo"] .toast-hueco.saliendo .toast,
+body:has(.barra-entrada) .toast-hueco.saliendo .toast,
+body.con-ventana .toast-hueco.saliendo .toast {
+  animation-name: toast-sale-abajo;
 }
 
 .toast {
@@ -4165,6 +4209,21 @@ body.con-ventana {
   from {
     opacity: 0;
     transform: translateY(28px) scale(0.96);
+  }
+}
+
+/* Al irse: se desvanece y se encoge un poco hacia la orilla de donde llegó. */
+@keyframes toast-sale-arriba {
+  to {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.94);
+  }
+}
+
+@keyframes toast-sale-abajo {
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
   }
 }
 
