@@ -5,11 +5,14 @@ import { leerArchivoSubido } from "../../almacen/archivos.js";
 import { leerInventario } from "../../importadores/inventario.js";
 import { leerVales } from "../../importadores/vales.js";
 import { agregarAlmacenista, fijarUsuarioEnTurno } from "../../servicios/consultas.js";
-import { ejecutarPrimeraCarga, fechaDesdeNombre, sugerirFolioCorte } from "../../servicios/primeraCarga.js";
+import { conFormatoDeTransferencia, ejecutarPrimeraCarga, fechaDesdeNombre, propuestaDeAreas, sugerirFolioCorte } from "../../servicios/primeraCarga.js";
+import { PLANTILLAS_VALE } from "../../servicios/plantillasVale.js";
 import { generarRevision, leerRevision } from "../../servicios/revision.js";
-import { Aviso, Boton, Dato, Detalles, ElegirArchivo, Tabla, confirmar, num, useSesion } from "../componentes.js";
+import { Aviso, Boton, Dato, Detalles, ElegirArchivo, Tabla, Ventana, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { Icono } from "../iconos.js";
 import { seguirConArchivo } from "../inventario.js";
+import { ElegirPlantilla } from "./areas.js";
 
 const n = (v) => num(aNumero(v));
 
@@ -41,6 +44,147 @@ function Paso({ numero, titulo, children }) {
     </header>
     ${children}
   </section>`;
+}
+
+// ---------------------------------------------------------------- áreas del libro de vales (Ronda 35)
+
+const TONO_PLANTILLA = { INTERNO: "ok", EXTERNO: "lugar", TRANSFERENCIA: "info" };
+
+/** Una hoja como pastilla: se arrastra a otra plantilla o, con clic, se edita (nombre, plantilla, quitar). */
+function PastillaHoja({ area, alEditar }) {
+  const papel = area.tipo === "TRANSFERENCIA" ? (area.formato ? "formato" : "destino") : null;
+  return html`<li>
+    <button
+      type="button"
+      class=${`pastilla-hoja pastilla-hoja-${TONO_PLANTILLA[area.tipo]}`}
+      draggable="true"
+      data-hoja=${area.hoja}
+      aria-label=${`${area.nombre}${papel ? ` (${papel})` : ""}: editar`}
+      title="Arrástrala a otra plantilla o haz clic para editarla"
+      onDragStart=${(e) => {
+        e.dataTransfer.setData("text/plain", area.hoja);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onClick=${() => alEditar(area.hoja)}
+    >
+      <span>${area.nombre}</span>
+      ${papel ? html`<small>${papel}</small>` : null}
+      <${Icono} nombre="lapiz" tam=${13} />
+    </button>
+  </li>`;
+}
+
+/** Un frasco por plantilla: recibe las pastillas que se sueltan en él. */
+function FrascoPlantilla({ plantilla, areas, alSoltar, alEditar }) {
+  const [encima, setEncima] = useState(false);
+  const conTexto = (e) => [...(e.dataTransfer?.types ?? [])].includes("text/plain");
+  return html`<section
+    class=${`frasco frasco-${TONO_PLANTILLA[plantilla.tipo]} ${encima ? "encima" : ""}`}
+    aria-label=${plantilla.nombre}
+    onDragOver=${(e) => {
+      if (!conTexto(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (!encima) setEncima(true);
+    }}
+    onDragLeave=${(e) => !e.currentTarget.contains(e.relatedTarget) && setEncima(false)}
+    onDrop=${(e) => {
+      if (!conTexto(e)) return;
+      e.preventDefault();
+      setEncima(false);
+      alSoltar(e.dataTransfer.getData("text/plain"), plantilla.tipo);
+    }}
+  >
+    <header class="frasco-cabeza">
+      <strong>${plantilla.nombre}</strong>
+      <span class="frasco-cuenta">${areas.length}</span>
+      <small>${plantilla.tipo === "TRANSFERENCIA" ? "El formato y los destinos (RIG, pozo o base)" : plantilla.detalle}</small>
+    </header>
+    ${areas.length
+      ? html`<ul class="pastillas-hojas">${areas.map((a) => html`<${PastillaHoja} key=${a.hoja} area=${a} alEditar=${alEditar} />`)}</ul>`
+      : html`<p class="frasco-vacio">Arrastra aquí las que van con ${plantilla.nombre.toLowerCase()}.</p>`}
+  </section>`;
+}
+
+/** Editar una hoja: su nombre, su plantilla, si es el formato de las transferencias, o quitarla. */
+function EditarHoja({ area, nombres, alGuardar, alQuitar, alCerrar }) {
+  const [nombre, setNombre] = useState(area.nombre);
+  const [tipo, setTipo] = useState(area.tipo);
+  const [formato, setFormato] = useState(area.formato);
+  const limpio = nombre.trim().replace(/\s+/g, " ").toUpperCase();
+  const repetido = limpio && nombres.some((n) => n === limpio);
+  const guardar = () => !repetido && limpio && alGuardar({ ...area, nombre: limpio, tipo, formato: tipo === "TRANSFERENCIA" && formato });
+  return html`<${Ventana} titulo=${`Hoja «${area.hoja.trim()}»`} alCerrar=${alCerrar}>
+    <label class="campo campo-grande">
+      <span>Nombre${tipo === "TRANSFERENCIA" && !formato ? " del destino" : " del área"}</span>
+      <input id="nombre-hoja" value=${nombre} onInput=${(e) => setNombre(e.currentTarget.value)} onKeyDown=${(e) => e.key === "Enter" && guardar()} />
+      ${repetido ? html`<small class="falta">Ya hay otra con ese nombre.</small>` : null}
+    </label>
+    <div class="campo">
+      <span>Plantilla</span>
+      <${ElegirPlantilla} valor=${tipo} alCambiar=${setTipo} />
+    </div>
+    ${tipo === "TRANSFERENCIA"
+      ? html`<label class="campo campo-casilla">
+          <input type="checkbox" checked=${formato} onChange=${(e) => setFormato(e.currentTarget.checked)} />
+          <span>Es el formato de las transferencias (si no, es un destino de «¿A dónde se envía?»)</span>
+        </label>`
+      : null}
+    <div class="acciones-linea">
+      <${Boton} tipo="primario" disabled=${!limpio || repetido} onClick=${guardar}>Listo<//>
+      <${Boton} onClick=${alCerrar}>Cancelar<//>
+      <span class="espaciador"></span>
+      <${Boton} tipo="peligro-texto" onClick=${() => alQuitar(area.hoja)}>Quitar esta hoja<//>
+    </div>
+  <//>`;
+}
+
+/**
+ * Paso «Áreas» de la primera carga (Ronda 35, pedido del usuario): las hojas de vale del libro (todas menos DIARIO) como
+ * pastillas en tres frascos — Consumo interno, NOV y Transferencia —. Se arrastran de uno a otro; con clic se editan
+ * (nombre, plantilla, formato de transferencias) o se quitan. Todo se puede cambiar después en *Áreas y personas*.
+ */
+function AreasDelLibro({ archivo, areas, alCambiar }) {
+  const [editando, setEditando] = useState(null);
+  const cambiar = (lista) => alCambiar(conFormatoDeTransferencia(lista));
+  const mover = (hoja, tipo) => cambiar(areas.map((a) => (a.hoja === hoja ? { ...a, tipo, formato: tipo === "TRANSFERENCIA" ? a.formato : false } : a)));
+  const area = editando ? areas.find((a) => a.hoja === editando) : null;
+  const visibles = areas.filter((a) => !a.quitada);
+  const quitadas = areas.filter((a) => a.quitada);
+  return html`<div class="areas-del-libro">
+    <p class="nota">
+      Encontramos ${visibles.length + quitadas.length} ${visibles.length + quitadas.length === 1 ? "hoja de vale" : "hojas de vale"} en <strong>${archivo}</strong>.
+      Arrastra cada una a su plantilla o haz clic para editarla. Puedes cambiarlo después en <em>Ajustes y más › Áreas y personas</em>.
+    </p>
+    <div class="frascos">
+      ${PLANTILLAS_VALE.map((p) => html`<${FrascoPlantilla} key=${p.tipo} plantilla=${p} areas=${visibles.filter((a) => a.tipo === p.tipo)} alSoltar=${mover} alEditar=${setEditando} />`)}
+    </div>
+    ${quitadas.length
+      ? html`<p class="hojas-quitadas">
+          <span>Quitadas (no saldrán al hacer vales):</span>
+          ${quitadas.map((a) => html`<button type="button" class="pastilla-hoja pastilla-hoja-quitada" key=${a.hoja}
+              aria-label=${`Regresar ${a.nombre}`} onClick=${() => cambiar(areas.map((x) => (x.hoja === a.hoja ? { ...x, quitada: false } : x)))}>
+              <span>${a.nombre}</span> <span aria-hidden="true">↺</span>
+            </button>`)}
+        </p>`
+      : null}
+    ${area
+      ? html`<${EditarHoja}
+          area=${area}
+          nombres=${visibles.filter((a) => a.hoja !== area.hoja).map((a) => a.nombre)}
+          alCerrar=${() => setEditando(null)}
+          alGuardar=${(nueva) => {
+            // Una sola es el formato de las transferencias: al marcar otra, la anterior pasa a destino.
+            cambiar(areas.map((a) => (a.hoja === nueva.hoja ? nueva : nueva.formato && a.tipo === "TRANSFERENCIA" ? { ...a, formato: false } : a)));
+            setEditando(null);
+          }}
+          alQuitar=${(hoja) => {
+            cambiar(areas.map((a) => (a.hoja === hoja ? { ...a, quitada: true, formato: false } : a)));
+            setEditando(null);
+          }}
+        />`
+      : null}
+  </div>`;
 }
 
 export function ReporteCarga({ reporte }) {
@@ -150,9 +294,9 @@ export function ReporteCarga({ reporte }) {
 }
 
 /**
- * Primera carga en 3 pasos, uno a la vez (Ronda 35, pedido del usuario): 1 · los dos Excel (al tener los dos pasa sola al
- * siguiente), 2 · el conteo base y 3 · revisar y cargar (el ensayo se hace solo al llegar). Abajo, Regresar y Continuar
- * en grande; Regresar del primero vuelve a la bienvenida.
+ * Primera carga en 4 pasos, uno a la vez (Ronda 35, pedido del usuario): 1 · los dos Excel (al tener los dos pasa sola al
+ * siguiente), 2 · las áreas (las hojas del libro de vales en sus plantillas), 3 · el conteo base y 4 · revisar y cargar
+ * (el ensayo se hace solo al llegar). Abajo, Regresar y Continuar en grande; Regresar del primero vuelve a la bienvenida.
  */
 export function PaginaPrimeraCarga() {
   const sesion = useSesion();
@@ -160,6 +304,7 @@ export function PaginaPrimeraCarga() {
   const [inventario, setInventario] = useState(null);
   const [vales, setVales] = useState(null);
   const [revision, setRevision] = useState(null);
+  const [areas, setAreas] = useState(null); // cómo quedan las hojas del libro de vales (paso 2)
   const [fechaConteo, setFechaConteo] = useState("");
   const [folioCorte, setFolioCorte] = useState("");
   const [folioManual, setFolioManual] = useState(false);
@@ -205,6 +350,7 @@ export function PaginaPrimeraCarga() {
       const datos = await leerArchivoSubido(archivo);
       const libro = leerVales(datos, archivo.name);
       setVales({ nombre: archivo.name, datos, libro });
+      setAreas(propuestaDeAreas(libro.plantillas));
       if (!folioManual) sugerirCorte(fechaConteo || hoyIso(), libro);
       if (!fechaConteo) setFechaConteo(hoyIso());
     });
@@ -224,6 +370,7 @@ export function PaginaPrimeraCarga() {
     usuario: usuario.trim().toUpperCase(),
     respuestas,
     idInventario: sesion.inventario.id,
+    areas,
   });
   const ensayar = (respuestas = revision?.respuestas) =>
     sesion.tarea("Ensayando la carga…", async () => {
@@ -258,8 +405,9 @@ export function PaginaPrimeraCarga() {
 
   const continuar = () => {
     if (paso === 1 && ambos) setPaso(2);
-    else if (paso === 2 && opcionesListas) {
-      setPaso(3);
+    else if (paso === 2) setPaso(3);
+    else if (paso === 3 && opcionesListas) {
+      setPaso(4);
       ensayar();
     }
   };
@@ -269,7 +417,7 @@ export function PaginaPrimeraCarga() {
   };
   // Enter en el conteo base continúa (como en el vale de salida).
   const enterContinua = (e) => {
-    if (e.key === "Enter" && paso === 2 && opcionesListas && e.target?.tagName === "INPUT") {
+    if (e.key === "Enter" && paso === 3 && opcionesListas && e.target?.tagName === "INPUT") {
       e.preventDefault();
       continuar();
     }
@@ -322,7 +470,17 @@ export function PaginaPrimeraCarga() {
       </div>
     <//>`;
   } else if (paso === 2) {
-    cuerpo = html`<${Paso} numero="2" titulo="Conteo base">
+    cuerpo = html`<${Paso} numero="2" titulo="Áreas del libro de vales">
+      ${archivosElegidos}
+      ${areas?.length
+        ? html`<${AreasDelLibro} archivo=${vales.nombre} areas=${areas} alCambiar=${(lista) => {
+            setAreas(lista);
+            invalidar();
+          }} />`
+        : html`<p class="nota">El libro de vales no tiene hojas de vale (además de DIARIO): las áreas se agregan después en <em>Ajustes y más › Áreas y personas</em>.</p>`}
+    <//>`;
+  } else if (paso === 3) {
+    cuerpo = html`<${Paso} numero="3" titulo="Conteo base">
       ${archivosElegidos}
       <div class="formulario" onKeyDown=${enterContinua}>
         <label>
@@ -362,7 +520,7 @@ export function PaginaPrimeraCarga() {
       </div>
     <//>`;
   } else {
-    cuerpo = html`<${Paso} numero="3" titulo="Revisar y cargar">
+    cuerpo = html`<${Paso} numero="4" titulo="Revisar y cargar">
       ${archivosElegidos}
       ${ensayo
         ? html`<div class="carga-revision"><${ReporteCarga} reporte=${ensayo.reporte} /></div>
@@ -382,20 +540,20 @@ export function PaginaPrimeraCarga() {
         : html`<p class="nota">Ensayando la carga…</p>`}
     <//>`;
   }
-  const puedeContinuar = paso === 1 ? ambos : paso === 2 ? Boolean(opcionesListas) : false;
+  const puedeContinuar = paso === 1 ? ambos : paso === 2 ? true : paso === 3 ? Boolean(opcionesListas) : false;
   return html`
     <div class="primera-carga">
       <ol class="carga-progreso" aria-label="Progreso de la carga">
-        ${["Archivos", "Conteo base", "Revisar y cargar"].map((nombre, i) => html`<li key=${nombre} class=${i + 1 < paso ? "completo" : i + 1 === paso ? "actual" : ""}>${i + 1}. ${nombre}</li>`)}
+        ${["Archivos", "Áreas", "Conteo base", "Revisar y cargar"].map((nombre, i) => html`<li key=${nombre} class=${i + 1 < paso ? "completo" : i + 1 === paso ? "actual" : ""}>${i + 1}. ${nombre}</li>`)}
       </ol>
       <div class="carga-paso" key=${paso}>${cuerpo}</div>
       <div class="carga-navegacion">
         <${Boton} tamano="grande" onClick=${regresar}>← Regresar<//>
-        ${paso < 3
+        ${paso < 4
           ? html`<${Boton} tipo="primario" tamano="grande" disabled=${!puedeContinuar} onClick=${continuar}>Continuar →<//>`
           : html`<${Boton} tipo="primario" tamano="grande" disabled=${!ensayo} onClick=${cargar}>Cargar definitivamente<//>`}
       </div>
-      ${paso === 3 && ensayo ? html`<p class="nota carga-nota-final">Al cargar se crea el primer respaldo${sesion.carpetaLista ? html` en <code>${sesion.carpeta.name}</code>` : " en Descargas"}.</p>` : null}
+      ${paso === 4 && ensayo ? html`<p class="nota carga-nota-final">Al cargar se crea el primer respaldo${sesion.carpetaLista ? html` en <code>${sesion.carpeta.name}</code>` : " en Descargas"}.</p>` : null}
     </div>
   `;
 }

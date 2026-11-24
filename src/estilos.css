@@ -7445,7 +7445,8 @@ button.mosaico:hover .mosaico-abrir {
 
 .carga-progreso {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   gap: 8px;
   padding: 0;
   margin: 0 0 18px;
@@ -10791,4 +10792,150 @@ kbd.tecla {
 .editor-area > .campo,
 .editor-plantilla .campo {
   margin-bottom: 12px;
+}
+
+/* Primera carga, paso «Áreas» (Ronda 35): las hojas del libro de vales como pastillas en tres frascos. */
+.areas-del-libro > .nota {
+  margin: 0 0 14px;
+}
+
+.frascos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+}
+
+.frasco {
+  --frasco: var(--texto-suave);
+  --frasco-suave: var(--neutro-suave);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 210px;
+  padding: 14px;
+  border: 2px dashed color-mix(in srgb, var(--frasco) 55%, var(--borde));
+  border-radius: 26px 26px 16px 16px;
+  background: color-mix(in srgb, var(--frasco-suave) 75%, var(--superficie));
+  transition: border-color var(--dur-corta) ease, box-shadow var(--dur-corta) ease;
+}
+
+.frasco-ok {
+  --frasco: var(--ok);
+  --frasco-suave: var(--ok-suave);
+}
+
+.frasco-info {
+  --frasco: var(--primario);
+  --frasco-suave: var(--primario-suave);
+}
+
+.frasco.encima {
+  border-style: solid;
+  border-color: var(--frasco);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--frasco) 25%, transparent);
+}
+
+.frasco-cabeza {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+
+.frasco-cabeza strong {
+  color: var(--frasco);
+  font-size: 1.1rem;
+}
+
+.frasco-cabeza small {
+  grid-column: 1 / -1;
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+}
+
+.frasco-cuenta {
+  min-width: 26px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--frasco);
+  color: var(--superficie);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.frasco-vacio {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.pastillas-hojas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pastilla-hoja {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid color-mix(in srgb, var(--frasco, var(--texto-suave)) 45%, var(--borde));
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: grab;
+  user-select: none;
+}
+
+.pastilla-hoja:hover,
+.pastilla-hoja:focus-visible {
+  border-color: var(--frasco, var(--primario));
+}
+
+.pastilla-hoja:active {
+  cursor: grabbing;
+}
+
+.pastilla-hoja small {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--frasco-suave, var(--neutro-suave));
+  color: var(--frasco, var(--texto-suave));
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.pastilla-hoja .icono {
+  color: var(--texto-suave);
+}
+
+.hojas-quitadas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+}
+
+.pastilla-hoja-quitada {
+  border-style: dashed;
+  color: var(--texto-suave);
+  text-decoration: line-through;
+  cursor: pointer;
 }

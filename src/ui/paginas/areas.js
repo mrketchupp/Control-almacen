@@ -22,7 +22,7 @@ import { html } from "../html.js";
 // nombre con su plantilla y los destinos de una transferencia son los nombres de Transferencia.
 
 /** Las tres plantillas como botones grandes de una sola elección. */
-function ElegirPlantilla({ valor, alCambiar, bloqueada = false }) {
+export function ElegirPlantilla({ valor, alCambiar, bloqueada = false }) {
   return html`<div class="elegir-plantilla" role="radiogroup" aria-label="Plantilla">
     ${PLANTILLAS_VALE.map(
       (p) => html`<button type="button" role="radio" key=${p.tipo} aria-checked=${valor === p.tipo} disabled=${bloqueada && valor !== p.tipo}

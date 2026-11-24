@@ -71,10 +71,14 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     await page.locator(".primera-carga .carga-archivo-listo").waitFor(); // se lee en un momento
     assert.equal(await page.locator(".primera-carga .carga-archivo-listo").count(), 1, "con un archivo sigue en el paso 1");
     await page.locator("label.boton").filter({ hasText: /^Elegir libro de vales$/ }).locator("input[type=file]").setInputFiles(fixtures.vales);
-    // Con los dos archivos pasa solo al conteo base: los archivos ya no se ven, solo su nombre arriba.
-    await page.getByRole("heading", { name: "Conteo base", exact: true }).waitFor();
+    // Con los dos archivos pasa solo a las áreas (las hojas del libro en sus plantillas): los archivos ya no se ven,
+    // solo su nombre arriba. Se deja como se propone y se sigue al conteo base.
+    await page.getByRole("heading", { name: "Áreas del libro de vales", exact: true }).waitFor();
     assert.equal(await page.locator(".carga-archivo").count(), 0);
     assert.match(await page.locator(".carga-archivos-elegidos").innerText(), /INVENTARIO[\s\S]*VALES/);
+    assert.equal(await page.locator(".frasco").count(), 3);
+    await page.getByRole("button", { name: "Continuar →", exact: true }).click();
+    await page.getByRole("heading", { name: "Conteo base", exact: true }).waitFor();
     await page.getByLabel(/Fecha del conteo físico/).fill("2026-09-03");
     await page.getByLabel(/Último folio ya reflejado en el conteo/).fill(String(FOLIO_CORTE));
     await page.getByPlaceholder("Nombre como firma los vales").fill("ALMACENISTA UNO");

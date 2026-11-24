@@ -199,7 +199,14 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `carga-nav`): uno solo al centro; a ≤ 480 px cada uno a todo lo ancho, el principal arriba.
   **Inicio sin datos** (`inicio.js`): `Bienvenida` con dos caminos y `CarpetaDeTrabajo` (`Sesion.fijarCarpeta` para la
   carpeta arrastrada, `ZonaSoltar`; `#inicio/cero` y `#inicio/respaldo`); `PaginaPrimeraCarga` un paso a la vez (pasa sola
-  con los dos Excel, ensaya sola en el 3, la lista de revisión en el 3); sin datos el menú solo lleva a Inicio.
+  con los dos Excel, ensaya sola en el 4, la lista de revisión en el 4); sin datos el menú solo lleva a Inicio.
+  **Áreas al importar** (paso 2 de la carga): `propuestaDeAreas(vales.plantillas)` / `tipoPropuesto` /
+  `conFormatoDeTransferencia` (`servicios/primeraCarga.js`) → `[{ hoja, nombre, tipo, formato, quitada }]`; UI
+  `AreasDelLibro` (frascos `FrascoPlantilla` con arrastrar y soltar, `PastillaHoja`, `EditarHoja` en `Ventana`; usa
+  `ElegirPlantilla` de `areas.js`). `ejecutarPrimeraCarga(…, { areas })` → `cargarPlantillas`: Consumo interno y NOV son
+  áreas (nombre elegido, `hoja_excel` = la hoja); de Transferencia, la del formato es el área y las demás van a
+  `config.destinos_transferencia` (fábrica + nuevas); quitada = área `activo: false` (destino quitado: nada);
+  `reporte.areas_quitadas` / `destinos_agregados`. Pruebas `areasCarga.test.js` y Chromium `areasCarga.navegador.mjs`.
   **Áreas** (`servicios/plantillasVale.js`, `ui/paginas/areas.js`): `PLANTILLAS_VALE` (Consumo interno = INTERNO, NOV =
   EXTERNO, Transferencia = TRANSFERENCIA), `plantillaVale` / `guardarPlantillaVale` (iguala hoja y observaciones de sus
   áreas vigentes), `nuevaArea` (sin personas), `cambiarPlantillaDeArea` y `usosDelArea` (cuenta migrados por

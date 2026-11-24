@@ -3,7 +3,7 @@
 // La herramienta llega vacía ("cascarón"); los datos reales solo entran por aquí,
 // desde los archivos del usuario, en su propio equipo. Ver docs/07-migracion.md.
 
-import { esInterna, etapaDe, normalizarArea } from "../nucleo/areas.js";
+import { esInterna, etapaDe, normalizarArea, tipoDeArea } from "../nucleo/areas.js";
 import { hayInterseccion, clavesDeBusqueda, clavesPropias } from "../nucleo/catalogo.js";
 import { CERO, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, estadoVacio, siguienteId } from "../nucleo/estado.js";
@@ -12,6 +12,7 @@ import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, isoDesdePartes } from "../nucleo/fechas.js";
 import { sumaCantidad, sumaTotal } from "../importadores/inventario.js";
 import { limpiarDiario, respuestasVacias } from "./limpieza.js";
+import { DESTINOS_TRANSFERENCIA, igualLugar } from "./pasosVale.js";
 
 export const MINIMO_ENTREGAS_ALMACENISTA = 20;
 
@@ -22,7 +23,8 @@ export class BaseNoVacia extends Error {}
  *
  * @param inventario  resultado de leerInventario
  * @param vales       resultado de leerVales
- * @param opciones    { folioCorte, fechaConteo, usuario, respuestas, idInventario (DLTA o GSM) }
+ * @param opciones    { folioCorte, fechaConteo, usuario, respuestas, idInventario (DLTA o GSM), areas } — `areas`: cómo
+ *                    acomodó el usuario las hojas de vale (`propuestaDeAreas`); sin ella, la propuesta.
  * @returns {{ estado, reporte }}
  */
 export function ejecutarPrimeraCarga(inventario, vales, opciones) {
@@ -48,6 +50,8 @@ export function ejecutarPrimeraCarga(inventario, vales, opciones) {
     lineas_ubicadas: 0,
     personas: 0,
     plantillas_area: 0,
+    areas_quitadas: [],
+    destinos_agregados: [],
     advertencias: [],
     cuadra: false,
   };
@@ -63,7 +67,7 @@ export function ejecutarPrimeraCarga(inventario, vales, opciones) {
   });
   cargarInventario(indices, inventario, conteo, reporte);
   reporte.advertencias.push(...respuestas.advertencias);
-  cargarPlantillas(estado, indices, vales, respuestas, reporte);
+  cargarPlantillas(estado, indices, vales, respuestas, reporte, opciones.areas ?? null);
   cargarDiario(estado, indices, vales, respuestas, { folioCorte, usuario }, reporte);
   verificar(estado, indices, inventario, reporte);
   estado.config.almacen_ax = de.almacenAx;
@@ -163,18 +167,71 @@ export function completarAreaDesdeFormulario(area, p, indices, nombreCanonico = 
   return area;
 }
 
-function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
+// ------------------------------------------------------------------- áreas (hojas de vale)
+
+const nombreDeHoja = (hoja) => String(hoja ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+const esGenerica = (a) => /TRANSFER/i.test(`${a.hoja} ${a.depto ?? ""}`);
+
+/** La plantilla que se propone para una hoja de vale: Transferencia, NOV (otra compañía) o Consumo interno. */
+export function tipoPropuesto(p) {
+  if (/TRANSFER/i.test(`${p.hoja} ${p.depto_destino ?? ""}`)) return "TRANSFERENCIA";
+  if (/^(RIG|BASE|POZO)\b/.test(nombreDeHoja(p.hoja))) return "TRANSFERENCIA";
+  return tipoDeArea({ nombre: p.hoja, origen: p.origen, destino: p.destino }) === "EXTERNO" ? "EXTERNO" : "INTERNO";
+}
+
+/**
+ * De las hojas de Transferencia, la que es el formato impreso: la que ya lo era, la de TRANSFER… o la primera. Las demás
+ * son destinos (RIG 48, BASE MARIN…).
+ */
+export function conFormatoDeTransferencia(lista) {
+  const transferencias = lista.filter((a) => a.tipo === "TRANSFERENCIA" && !a.quitada);
+  const elegida = transferencias.find((a) => a.formato) ?? transferencias.find(esGenerica) ?? transferencias[0] ?? null;
+  return lista.map((a) => ({ ...a, formato: Boolean(elegida) && a.hoja === elegida.hoja }));
+}
+
+/**
+ * Ronda 35 (pedido del usuario): las hojas de vale del libro (todas menos DIARIO) con la plantilla que se les propone,
+ * para que el usuario las acomode antes de cargar (Consumo interno, NOV o Transferencia), les cambie el nombre o quite
+ * alguna. @returns [{ hoja, nombre, tipo, formato, quitada, destino, depto }]
+ */
+export function propuestaDeAreas(plantillas) {
+  return conFormatoDeTransferencia(
+    plantillas.map((p) => ({ hoja: p.hoja, nombre: nombreDeHoja(p.hoja), tipo: tipoPropuesto(p), formato: false, quitada: false, destino: p.destino ?? null, depto: p.depto_destino ?? null })),
+  );
+}
+
+/**
+ * Crea las áreas desde las hojas de vale, como las acomodó el usuario (`areas`; sin ella, la propuesta): Consumo interno
+ * y NOV son áreas; de Transferencia, la del formato es el área de transferencias y las demás se agregan a los destinos
+ * (además de los de fábrica). Una hoja quitada queda como área descartada (no sale al hacer vales; sus vales del DIARIO
+ * se siguen imprimiendo con ella); un destino quitado no se agrega.
+ */
+function cargarPlantillas(estado, indices, vales, respuestas, reporte, areas) {
+  const eleccion = new Map(conFormatoDeTransferencia(areas ?? propuestaDeAreas(vales.plantillas)).map((a) => [a.hoja, a]));
+  const usados = new Set();
+  const destinos = [];
   vales.plantillas.forEach((p, i) => {
+    const elegida = eleccion.get(p.hoja) ?? { hoja: p.hoja, nombre: nombreDeHoja(p.hoja), tipo: tipoPropuesto(p), formato: true, quitada: false };
+    if (elegida.tipo === "TRANSFERENCIA" && !elegida.formato) {
+      if (elegida.quitada) reporte.areas_quitadas.push(nombreDeHoja(elegida.nombre) || nombreDeHoja(p.hoja));
+      else destinos.push(nombreDeHoja(elegida.nombre) || nombreDeHoja(p.hoja));
+      return;
+    }
+    // Nombres sin repetir: si dos hojas quedaron igual, la segunda conserva el de su hoja.
+    let nombre = nombreDeHoja(elegida.nombre) || nombreDeHoja(p.hoja);
+    if (usados.has(nombre)) nombre = nombreDeHoja(p.hoja);
+    usados.add(nombre);
     const entrega = alias(respuestas, p.entrega_nombre);
     const recibe = alias(respuestas, p.recibe_nombre);
     const autoriza = alias(respuestas, p.autoriza_nombre);
     indices.persona(entrega, { puesto: p.entrega_puesto });
     indices.persona(recibe, { puesto: p.recibe_puesto });
     indices.persona(autoriza, { puesto: p.autoriza_puesto ?? undefined });
-    const esTransferencia = `${p.hoja}${p.depto_destino || ""}`.toUpperCase().includes("TRANSFER");
+    const esTransferencia = elegida.tipo === "TRANSFERENCIA";
     estado.plantillas_area.push({
       id: siguienteId(estado, "plantilla_area"),
-      nombre: p.hoja.trim(),
+      nombre,
+      tipo: elegida.tipo,
       hoja_excel: p.hoja,
       origen: p.origen,
       depto_origen: p.depto_origen,
@@ -192,14 +249,21 @@ function cargarPlantillas(estado, indices, vales, respuestas, reporte) {
       observaciones: p.observaciones,
       lote_defecto: null,
       orden: i + 1,
-      activo: true,
+      activo: !elegida.quitada,
     });
+    if (elegida.quitada) reporte.areas_quitadas.push(nombre);
     normalizarArea(estado.plantillas_area.at(-1));
     completarAreaDesdeFormulario(estado.plantillas_area.at(-1), p, indices, (nombre) => alias(respuestas, nombre));
   });
-  const interna = estado.plantillas_area.find((a) => esInterna(a) && etapaDe(a.observaciones) !== null);
+  if (destinos.length) {
+    const lista = [...DESTINOS_TRANSFERENCIA];
+    for (const d of destinos) if (!lista.some((x) => igualLugar(x, d))) lista.push(d);
+    estado.config.destinos_transferencia = lista;
+    reporte.destinos_agregados = destinos;
+  }
+  const interna = estado.plantillas_area.find((a) => a.activo !== false && esInterna(a) && etapaDe(a.observaciones) !== null);
   estado.config.etapa_perforacion = interna ? etapaDe(interna.observaciones) : "";
-  reporte.plantillas_area = vales.plantillas.length;
+  reporte.plantillas_area = estado.plantillas_area.filter((a) => a.activo !== false).length;
 }
 
 // ------------------------------------------------------------------- DIARIO

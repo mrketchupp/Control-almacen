@@ -117,11 +117,17 @@ en *Descargas* y **Ya lo cerré: guardar otra vez** lo vuelve a intentar en su l
 Al abrirla vacía, *Inicio* ofrece dos caminos: **Empezar desde cero** o **Seguir desde un respaldo**. Los dos piden
 primero la **carpeta de trabajo** (*Elegir carpeta* o arrastrarla desde el Explorador): ahí quedan los respaldos y los
 Excel exportados. Desde un respaldo, se restaura el más reciente de esa carpeta o un `.zip` de cualquier lugar. Desde
-cero, **Continuar** lleva a la primera carga, que va **un paso a la vez** (*1. Archivos*, *2. Conteo base*, *3. Revisar
-y cargar*) con **← Regresar** y **Continuar →** abajo. Mientras está vacía, el menú solo lleva a *Inicio*.
+cero, **Continuar** lleva a la primera carga, que va **un paso a la vez** (*1. Archivos*, *2. Áreas*, *3. Conteo base*,
+*4. Revisar y cargar*) con **← Regresar** y **Continuar →** abajo. Mientras está vacía, el menú solo lleva a *Inicio*.
 
-1. **Tus archivos:** elige el inventario (`.xlsx`) y el libro de vales (`.xlsm`). Al tener los dos pasa sola al conteo base.
-2. **Lista de revisión (opcional, en el paso 3):**
+1. **Tus archivos:** elige el inventario (`.xlsx`) y el libro de vales (`.xlsm`). Al tener los dos pasa sola a las áreas.
+   - **Áreas:** cada hoja del libro de vales (menos DIARIO) aparece como una pastilla en uno de tres frascos:
+     **Consumo interno**, **NOV** o **Transferencia** (se propone por su nombre y sus datos). **Arrástrala** al frasco que
+     le toca o haz **clic** para cambiarle el nombre, la plantilla o **quitarla** (no saldrá al hacer vales; si sus vales
+     del Excel la usan, se sigue imprimiendo con ella). En Transferencia, una hoja es el **formato** (la de TRANSFERENCIAS
+     o la primera) y las demás, como «RIG 48», se agregan como **destinos** de «¿A dónde se envía?». Todo se puede
+     cambiar después en *Ajustes y más › Áreas y personas*.
+2. **Lista de revisión (opcional, en el último paso):**
    1. Pulsa **Generar lista de revisión**. Se guarda en `OneDrive\ControlAlmacen\revision\` (o en Descargas).
    2. Contéstala en Excel con tus PDF escaneados:
       - Las celdas **naranjas** son datos perdidos (`#REF!`).
