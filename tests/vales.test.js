@@ -107,7 +107,8 @@ test("un borrador toma los datos de la plantilla del área y el almacenista en t
   const { estado, mecanico } = preparar();
   const b = v.nuevoBorrador(estado, { usuario: "ALMACENISTA UNO", plantillaId: mecanico.id });
   assert.equal(b.depto_destino, mecanico.depto_destino);
-  assert.equal(b.recibio_nombre, "MECANICO UNO");
+  // Ronda 35: quien recibió en el vale más reciente del área (folio 7, migrado), no el fijo de la plantilla.
+  assert.equal(b.recibio_nombre, "MECANICO UNOO");
   assert.equal(b.entrego_nombre, "ALMACENISTA UNO");
   assert.equal(b.entrego_puesto, "ALMACENISTA");
   assert.equal(estado.borradores.length, 1);
@@ -237,7 +238,7 @@ test("corregir: el motivo se arma con los cambios (partidas agregadas, quitadas 
   datos.etapa_perforacion = '6 1/8"';
   const cambios = v.resumenCambios(estado, vale, datos);
   assert.deepEqual(cambios, [
-    "Recibió: MECANICO UNO → SOLDADOR UNO",
+    "Recibió: MECANICO UNOO → SOLDADOR UNO",
     'Etapa de perforación: 8 1/2" → 6 1/8"',
     "Partida 1 (706 SELLOS 555001): cantidad 1 PZA → 2 PZA",
     "Se agregó la partida 2: 136 SUMINISTRO DE DIESEL Y COMBUSTIBLE DIESEL, 50 LTS",
@@ -293,7 +294,7 @@ test("un vale emitido aparece en el DIARIO exportado como lo haría la macro", (
   assert.equal(fila[7], mecanico.depto_destino.trim());
   assert.equal(fila[8], "S/OC");
   assert.deepEqual([fila[9], fila[10], fila[12], fila[13]], [1, 706, 555001, "PZA"]);
-  assert.deepEqual([fila[15], fila[16]], ["ALMACENISTA UNO", "MECANICO UNO"]);
+  assert.deepEqual([fila[15], fila[16]], ["ALMACENISTA UNO", "MECANICO UNOO"]);
 });
 
 test("envíos a la base: nuevos, corregidos y cancelados desde el último envío", () => {

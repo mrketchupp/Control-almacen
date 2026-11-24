@@ -2,7 +2,7 @@
 // sin navegador, en qué paso está un borrador y qué falta para pasar al siguiente. El paso se guarda en el borrador
 // (`paso`, opcional como `copia_de`: no cambia el formato del estado) y nunca llega al vale emitido.
 
-import { ORIGEN_EQUIPO, tipoDeArea } from "../nucleo/areas.js";
+import { ORIGEN_EQUIPO, conUsoEn, tieneUsoEn, tipoDeArea } from "../nucleo/areas.js";
 import { decTexto } from "../nucleo/decimal.js";
 import {
   aplicarPlantilla,
@@ -114,8 +114,9 @@ const ENCABEZADO_VACIO = {
 };
 
 /**
- * Cambia entre *Consumo interno* y *Enviar a otro RIG o pozo*. No se recuerda lo de antes (decisión del usuario): en
- * consumo se elige el área desde cero y en transferencia, el destino. Las partidas, la fecha y la etapa no cambian.
+ * Cambia entre *Consumo interno* y *Transferencia* (a otro RIG o pozo, que es lo mismo). No se recuerda lo de antes
+ * (decisión del usuario): en consumo se elige el área desde cero y en transferencia, el destino. Las partidas, la fecha
+ * y la etapa no cambian.
  * @returns copia de `datos`
  */
 export function conTipoDeVale(estado, datos, transferencia) {
@@ -135,12 +136,30 @@ export function conArea(estado, datos, areaId) {
   return copia;
 }
 
-/** Texto del pie del paso 1: «Observaciones de MECANICO y etapa 12 1/4" se llenan solas.» */
+/**
+ * Con otro destino (transferencia): la línea «… PARA USO EN …» de las observaciones dice ese destino (Ronda 35; antes
+ * se quedaba el texto fijo del formato). Si después se editan las observaciones, se respeta lo escrito hasta que se
+ * vuelva a cambiar el destino.
+ * @returns copia de `datos`
+ */
+export function conDestino(datos, destino) {
+  return { ...datos, destino, observaciones: conUsoEn(datos.observaciones, destino) };
+}
+
+/**
+ * Texto del pie del paso 1: «Observaciones de MECANICO y etapa 12 1/4" se llenan solas.»; en una transferencia,
+ * «Las observaciones dicen «PARA USO EN RIG 48» y la etapa 8 1/2".»
+ */
 export function textoObservaciones(estado, datos) {
   const area = plantillaArea(estado, datos.plantilla_area_id);
   if (!area) return "";
-  const etapa = texto(datos.etapa_perforacion);
-  return pideEtapa(estado, datos) && etapa ? `Observaciones de ${area.nombre} y etapa ${etapa} se llenan solas.` : `Observaciones de ${area.nombre} se llenan solas.`;
+  const etapa = pideEtapa(estado, datos) ? texto(datos.etapa_perforacion) : "";
+  if (esTransferencia(estado, datos) && tieneUsoEn(datos.observaciones)) {
+    const destino = texto(datos.destino).replace(/\s+/g, " ").toUpperCase();
+    if (!destino) return "Al elegir el destino, las observaciones dicen «PARA USO EN …».";
+    return `Las observaciones dicen «PARA USO EN ${destino}»${etapa ? ` y la etapa ${etapa}` : ""}.`;
+  }
+  return etapa ? `Observaciones de ${area.nombre} y etapa ${etapa} se llenan solas.` : `Observaciones de ${area.nombre} se llenan solas.`;
 }
 
 // ---------------------------------------------------------------- paso 3 · revisar y emitir (§5)

@@ -1,5 +1,6 @@
 // Ronda 34, paso 1 · Para quién (docs/13-rediseno-vale-salida.md §3): consumo interno (área + quién lo lleva) o
 // transferencia (destino + quién lo transporta y quién autoriza), la fecha y, en áreas como NOV, sus firmas extra.
+// Ronda 35: «Consumo interno» / «Transferencia» (RIG y pozo son lo mismo) y el destino va en las observaciones.
 
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { PUESTOS_AUTORIZAN, conEtapa, sinEtapa } from "../../nucleo/areas.js";
@@ -9,6 +10,7 @@ import {
   areaTransferencia,
   areasConsumo,
   conArea,
+  conDestino,
   conTipoDeVale,
   destinosTransferencia,
   esDestinoConocido,
@@ -240,7 +242,7 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
       ${conTransferencias
         ? html`<div class="interruptor" role="radiogroup" aria-label="Tipo de vale">
             <button type="button" role="radio" aria-checked=${!transferencia} onClick=${() => transferencia && alCambiar(conTipoDeVale(estado, datos, false))}>Consumo interno</button>
-            <button type="button" role="radio" aria-checked=${transferencia} onClick=${() => !transferencia && alCambiar(conTipoDeVale(estado, datos, true))}>Enviar a otro RIG o pozo</button>
+            <button type="button" role="radio" aria-checked=${transferencia} onClick=${() => !transferencia && alCambiar(conTipoDeVale(estado, datos, true))}>Transferencia</button>
           </div>`
         : html`<span></span>`}
       <${BotonFecha} fecha=${datos.fecha} alCambiar=${(fecha) => cambiar({ fecha })} />
@@ -255,7 +257,7 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
               opciones=${destinos.map((d) => ({ valor: d, etiqueta: d }))}
               elegida=${destinos.find((d) => mismo(d, datos.destino)) ?? null}
               alElegir=${(destino) => {
-                cambiar({ destino });
+                alCambiar(conDestino(datos, destino));
                 enfocarNombre();
               }}
             />
@@ -264,9 +266,9 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
               <${CampoSugerido}
                 id="otro-destino"
                 valor=${esDestinoConocido(datos.destino, datos.origen || undefined) ? "" : datos.destino}
-                alCambiar=${(destino) => cambiar({ destino })}
+                alCambiar=${(destino) => alCambiar(conDestino(datos, destino))}
                 sugerencias=${lugares.filter((l) => !esDestinoConocido(l, datos.origen || undefined) && !mismo(l, datos.origen))}
-                placeholder="Escribe un RIG o pozo…"
+                placeholder="Escribe otro destino…"
                 ariaLabel="Otro destino"
               />
             </label>

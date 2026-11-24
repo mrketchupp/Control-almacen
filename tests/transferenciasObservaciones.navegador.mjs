@@ -68,8 +68,12 @@ test("transferencia: observaciones protegidas, edición explícita y etapa separ
   const cambiarEtapa = page.getByRole("button", { name: "Cambiar etapa", exact: true });
   if (await cambiarEtapa.count()) await cambiarEtapa.click();
   await page.getByLabel("Etapa de perforación", { exact: true }).fill('12 1/4"');
-  await page.getByText('Observaciones de TRANSFERENCIAS y etapa 12 1/4" se llenan solas.', { exact: true }).waitFor();
+  // Ronda 35: la línea «PARA USO EN» dice el destino (el del formato, RIG 48) y cambia al elegir otro.
+  await page.getByText('Las observaciones dicen «PARA USO EN RIG 48» y la etapa 12 1/4".', { exact: true }).waitFor();
+  await page.getByRole("radio", { name: "RIG 165", exact: true }).click();
+  await page.getByText('Las observaciones dicen «PARA USO EN RIG 165» y la etapa 12 1/4".', { exact: true }).waitFor();
   await editar.click();
+  assert.match(await page.getByRole("textbox", { name: "Observaciones de la transferencia", exact: true }).inputValue(), /^MATERIAL SUMINISTRADO PARA USO EN RIG 165$/m);
   const entrada = page.getByRole("textbox", { name: "Observaciones de la transferencia", exact: true });
   assert.doesNotMatch(await entrada.inputValue(), /ETAPA DE PERFORACION/);
   await entrada.fill("OBSERVACION PERSONALIZADA\nSEGUNDA LINEA");

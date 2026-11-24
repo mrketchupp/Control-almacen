@@ -9,6 +9,7 @@ import {
   areaTransferencia,
   areasConsumo,
   conArea,
+  conDestino,
   conTipoDeVale,
   destinosTransferencia,
   esDestinoConocido,
@@ -25,6 +26,7 @@ import {
 } from "../src/servicios/pasosVale.js";
 import * as v from "../src/servicios/vales.js";
 import { Indices } from "../src/nucleo/estado.js";
+import { conUsoEn, tieneUsoEn } from "../src/nucleo/areas.js";
 import { cargaSintetica } from "./ayuda.js";
 
 const USUARIO = "ALMACENISTA UNO";
@@ -115,7 +117,8 @@ test("paso 1: áreas de consumo, destinos de transferencia sin el RIG propio y c
   b.lineas.push({ ...v.lineaDesdeExistencia(estado, sellos.id), cantidad: "1" });
   const mecanico = conArea(estado, b, area(estado, "MECANICO").id);
   assert.equal(b.plantilla_area_id, null, "no cambia el original");
-  assert.deepEqual([mecanico.depto_destino, mecanico.recibio_nombre, mecanico.lineas.length], ["MECANICO", "MECANICO UNO", 1]);
+  // Quién recibe: el del vale más reciente de MECANICO (el folio 7 migrado), no el fijo de la plantilla (Ronda 35).
+  assert.deepEqual([mecanico.depto_destino, mecanico.recibio_nombre, mecanico.lineas.length], ["MECANICO", "MECANICO UNOO", 1]);
   assert.equal(esTransferencia(estado, mecanico), false);
   // A transferencia: el área TRANSFERENCIAS sin destino (se elige); las partidas, fecha y etapa se quedan.
   const t = conTipoDeVale(estado, { ...mecanico, etapa_perforacion: '8 1/2"' }, true);
@@ -166,4 +169,80 @@ test("paso 3: lo que falta antes de emitir, a dónde lleva cada cosa y las fotos
   // Los datos para emitir: entrega quien está en turno, sin filas en blanco.
   const listo = paraEmitir(estado, b, "OTRO ALMACENISTA");
   assert.deepEqual([listo.entrego_nombre, listo.lineas.length], ["OTRO ALMACENISTA", 2]);
+});
+
+// ---------------------------------------------------------------- Ronda 35
+
+test("transferencia: la línea «PARA USO EN» de las observaciones dice el destino elegido", () => {
+  assert.equal(conUsoEn("MATERIAL SUMINISTRADO PARA USO EN MANTENIMIENTO DEL RIG 91\nETAPA DE PERFORACION: 8", "rig  48"),
+    "MATERIAL SUMINISTRADO PARA USO EN RIG 48\nETAPA DE PERFORACION: 8");
+  assert.equal(conUsoEn("Material para uso en algo", "BASE MARIN"), "Material para uso en BASE MARIN");
+  // Sin la línea: se agrega antes de la etapa (o al final); sin destino, nada cambia.
+  assert.equal(conUsoEn("CUMPLE\nETAPA DE PERFORACION: 8", "RIG 90"), "CUMPLE\nPARA USO EN RIG 90\nETAPA DE PERFORACION: 8");
+  assert.equal(conUsoEn("", "RIG 90"), "PARA USO EN RIG 90");
+  assert.equal(conUsoEn("CUMPLE\nPARA USO EN RIG 48", "  "), "CUMPLE\nPARA USO EN RIG 48");
+  assert.equal(tieneUsoEn("SIN DESTINO"), false);
+
+  const { estado } = cargaSintetica();
+  const t = conTipoDeVale(estado, v.nuevoBorrador(estado, { usuario: USUARIO }), true);
+  assert.match(t.observaciones, /PARA USO EN MANTENIMIENTO DEL RIG 91/, "antes de elegir, el texto del formato");
+  assert.equal(textoObservaciones(estado, t), "Al elegir el destino, las observaciones dicen «PARA USO EN …».");
+  const a48 = conDestino(t, "RIG 48");
+  assert.equal(a48.destino, "RIG 48");
+  assert.match(a48.observaciones, /^MATERIAL SUMINISTRADO PARA USO EN RIG 48$/m);
+  assert.match(textoObservaciones(estado, { ...a48, etapa_perforacion: '8 1/2"' }), /^Las observaciones dicen «PARA USO EN RIG 48» y la etapa 8 1\/2"\.$/);
+  // Cambiar de destino (botón u «Otro destino») vuelve a cambiar la línea; el resto del texto y la etapa se quedan.
+  const otro = conDestino(a48, "Pozo Sintetico 7");
+  assert.match(otro.observaciones, /PARA USO EN POZO SINTETICO 7\nETAPA DE PERFORACION/);
+  assert.equal(otro.observaciones.split("\n")[0], t.observaciones.split("\n")[0]);
+  assert.equal(v.observacionesDelVale(estado, { ...otro, etapa_perforacion: "17" }).split("\n").at(-1), "ETAPA DE PERFORACION: 17");
+});
+
+test("nombres: se sugiere a quien recibió en el vale más reciente del área (y a quien autorizó, si el área lo pide)", () => {
+  const { estado } = cargaSintetica();
+  const mecanico = area(estado, "MECANICO");
+  const emitir = (cambios, plantilla = mecanico) => {
+    const b = v.nuevoBorrador(estado, { usuario: USUARIO, plantillaId: plantilla.id, fecha: "2026-10-03" });
+    Object.assign(b, cambios);
+    b.lineas.push({ ...v.lineaNoInventariada(estado, 136), cantidad: "1", um: "LTS" }); // diésel: sin existencia que se acabe
+    return v.emitirBorrador(estado, b.id, { usuario: USUARIO })[0];
+  };
+  const sugerido = (plantilla = mecanico) => {
+    const b = conArea(estado, v.nuevoBorrador(estado, { usuario: USUARIO }), plantilla.id);
+    return [b.recibio_nombre, b.recibio_puesto];
+  };
+  // El último de MECANICO es el folio 7 (migrado): MECANICO UNOO.
+  assert.equal(sugerido()[0], "MECANICO UNOO");
+  emitir({ recibio_nombre: "PEDRO SINTETICO", recibio_puesto: "AYUDANTE" });
+  assert.deepEqual(sugerido(), ["PEDRO SINTETICO", "AYUDANTE"]);
+  emitir({ recibio_nombre: "JUAN SINTETICO", recibio_puesto: "MECANICO" });
+  assert.deepEqual(sugerido(), ["JUAN SINTETICO", "MECANICO"], "el siguiente ya sugiere al del último vale");
+  // El puesto, el que tiene hoy en la lista; con otro nombre unificado, el que se quedó; una persona desactivada no.
+  estado.personas.find((p) => p.nombre === "JUAN SINTETICO").puesto = "SUPERVISOR";
+  assert.deepEqual(sugerido(), ["JUAN SINTETICO", "SUPERVISOR"]);
+  const pedro = estado.personas.find((p) => p.nombre === "PEDRO SINTETICO");
+  estado.alias = { ...(estado.alias ?? {}), "JUAN SINTETICO": pedro.id };
+  assert.equal(sugerido()[0], "PEDRO SINTETICO");
+  pedro.activo = false;
+  assert.equal(sugerido()[0], mecanico.recibe_nombre, "sin sugerencia válida queda el de la plantilla");
+  // Un área sin vales: el de su plantilla. Otra área no se mezcla.
+  assert.equal(sugerido(area(estado, "SOLDADOR"))[0], v.ultimoValeDeArea(estado, area(estado, "SOLDADOR"))?.recibio_nombre ?? area(estado, "SOLDADOR").recibe_nombre);
+  // Transferencia: quién transporta y quién autoriza, del último vale de transferencia; MECANICO no lleva autoriza.
+  const transferencias = area(estado, "TRANSFERENCIAS");
+  emitir({ destino: "RIG 48", recibio_nombre: "CHOFER SINTETICO", recibio_puesto: "CHOFER", autorizo_nombre: "JEFE SINTETICO", autorizo_puesto: "RIG MANAGER" }, transferencias);
+  const t = conTipoDeVale(estado, v.nuevoBorrador(estado, { usuario: USUARIO }), true);
+  assert.deepEqual([t.recibio_nombre, t.autorizo_nombre, t.autorizo_puesto, t.destino], ["CHOFER SINTETICO", "JEFE SINTETICO", "RIG MANAGER", ""]);
+  pedro.activo = true;
+  delete estado.alias["JUAN SINTETICO"];
+  emitir({ recibio_nombre: "JUAN SINTETICO", autorizo_nombre: "NO VA" });
+  const m = conArea(estado, v.nuevoBorrador(estado, { usuario: USUARIO }), mecanico.id);
+  assert.deepEqual([m.recibio_nombre, m.autorizo_nombre], ["JUAN SINTETICO", mecanico.autoriza_nombre ?? ""]);
+});
+
+test("NOV: las firmas se sugieren solo de vales hechos aquí (en los migrados van por posición)", () => {
+  const { estado } = cargaSintetica();
+  const nov = area(estado, "NOV");
+  const b = conArea(estado, v.nuevoBorrador(estado, { usuario: USUARIO }), nov.id);
+  assert.equal(v.ultimoValeDeArea(estado, nov, { migrados: false }), null, "la fixture solo trae migrados de NOV");
+  assert.deepEqual([b.recibio_nombre, b.firma_extra_izq_nombre], [nov.recibe_nombre ?? "", nov.firmas_extra?.izq?.nombre ?? ""]);
 });

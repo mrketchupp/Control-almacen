@@ -94,6 +94,30 @@ export const tieneEtapa = (observaciones) => RE_ETAPA.test(String(observaciones 
 /** Texto de observaciones sin la línea de etapa, para editar ambos datos por separado. */
 export const sinEtapa = (observaciones) => String(observaciones ?? "").split(/\r?\n/).filter((linea) => !RE_ETAPA.test(linea)).join("\n");
 
+// ---------------------------------------------------------------- «PARA USO EN» de las transferencias (Ronda 35)
+
+const RE_USO = /^([^\n]*?\bPARA\s+USO\s+EN\b)[^\n]*$/im;
+
+/** ¿Las observaciones traen una línea «… PARA USO EN …»? */
+export const tieneUsoEn = (observaciones) => RE_USO.test(String(observaciones ?? ""));
+
+/**
+ * Las observaciones de una transferencia diciendo a dónde va: en la línea «… PARA USO EN …», lo que sigue es el
+ * destino elegido («MATERIAL SUMINISTRADO PARA USO EN RIG 48»). Sin esa línea y con `agregar` (al elegir el destino en
+ * el vale nuevo), se agrega «PARA USO EN …» antes de la etapa; al corregir un vale no se agrega. Sin destino, igual.
+ */
+export function conUsoEn(observaciones, destino, { agregar = true } = {}) {
+  const texto = String(observaciones ?? "");
+  const valor = String(destino ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+  if (!valor) return texto;
+  if (RE_USO.test(texto)) return texto.replace(RE_USO, (_, inicio) => `${inicio} ${valor}`);
+  if (!agregar) return texto;
+  const lineas = texto ? texto.split(/\r?\n/) : [];
+  const etapa = lineas.findIndex((linea) => RE_ETAPA.test(linea));
+  lineas.splice(etapa < 0 ? lineas.length : etapa, 0, `PARA USO EN ${valor}`);
+  return lineas.join("\n");
+}
+
 /** Las mismas observaciones con otra etapa; si no traen la línea, se agrega al final. */
 export function conEtapa(observaciones, etapa) {
   const texto = String(observaciones ?? "");

@@ -135,13 +135,14 @@ test("vale de salida en 3 pasos", async (t) => {
     assert.equal(await page.getByRole("radio", { checked: true, name: "MECANICO" }).count(), 0);
     await cerrarAvisos();
     await capturar("paso-1-vacio");
-    // «2» (con el foco fuera de los campos) elige MECANICO y pasa al nombre, que trae la plantilla del área.
+    // «2» (con el foco fuera de los campos) elige MECANICO y pasa al nombre, que trae a quien recibió en el vale más
+    // reciente del área (Ronda 35: el folio 7, migrado, dice MECANICO UNOO).
     await page.locator("#paso-vale").focus();
     await page.keyboard.press("2");
     await page.getByRole("radio", { name: "MECANICO", checked: true }).waitFor();
     assert.equal(await page.getByText("Falta el área", { exact: true }).count(), 0);
     await page.waitForFunction(() => document.activeElement?.id === "quien-recibe");
-    assert.equal(await nombre.inputValue(), "MECANICO UNO");
+    assert.equal(await nombre.inputValue(), "MECANICO UNOO");
     await page.getByText("Suelen recibir en MECANICO", { exact: true }).waitFor();
     // Escribir filtra la lista; ↓ y Enter eligen (el puesto se llena con el último que tuvo).
     await nombre.fill("mecanico");
@@ -389,7 +390,7 @@ test("vale de salida en 3 pasos", async (t) => {
   await t.test("paso 1: transferencia (destino, quién transporta y quién autoriza) y NOV con sus firmas extra", async () => {
     await cerrarAvisos();
     await page.getByRole("button", { name: "＋ Nuevo vale", exact: true }).click();
-    await page.getByRole("radio", { name: "Enviar a otro RIG o pozo", exact: true }).click();
+    await page.getByRole("radio", { name: "Transferencia", exact: true }).click();
     // Los destinos del usuario, sin el RIG propio; ninguno elegido.
     const destinos = page.getByRole("radiogroup", { name: "¿A dónde se envía?" }).getByRole("radio");
     assert.deepEqual(await destinos.allInnerTexts(), ["RIG 48", "RIG 90", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);

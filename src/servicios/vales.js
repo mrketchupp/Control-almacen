@@ -4,7 +4,7 @@
 //
 // Ver docs/05-flujos.md §1 y §3 y los requerimientos RF-10 a RF-21.
 
-import { conEtapa, etapaDe, etiquetasFirmasExtra, tieneDatosFijos, tieneEtapa, tipoDeArea } from "../nucleo/areas.js";
+import { conEtapa, conUsoEn, etapaDe, etiquetasFirmasExtra, tieneDatosFijos, tieneEtapa, tipoDeArea } from "../nucleo/areas.js";
 import { CERO, aNumero, dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, corteDe, cortesVigentes, cuentaParaSaldo } from "../nucleo/existencias.js";
@@ -246,28 +246,59 @@ export function aplicarPlantilla(estado, borrador, plantillaId) {
     observaciones: p.observaciones ?? "",
     naturaleza: p.naturaleza || "CONSUMO",
   });
-  // Externas (NOV): se parte del último vale del área (mismas personas y partidas, sin cantidades).
-  if (tipoDeArea(p) === "EXTERNO") {
-    const ultimo = ultimoValeDeArea(estado, p);
-    if (ultimo) {
-      // Las personas, solo de vales hechos aquí: en los migrados del DIARIO van por posición.
-      const personas = ["recibio_nombre", "recibio_puesto", "firma_extra_izq_nombre", "firma_extra_izq_puesto", "firma_extra_der_nombre", "firma_extra_der_puesto"];
-      const conPersonas = ultimoValeDeArea(estado, p, { migrados: false });
-      if (conPersonas) for (const campo of personas) if (texto(conPersonas[campo])) borrador[campo] = conPersonas[campo];
-      if (!lineasCapturadas(borrador.lineas).length) {
-        const indices = new Indices(estado);
-        borrador.lineas = ultimo.lineas.filter((l) => Number.isInteger(l.codigo)).map((l) => {
-          const base = conArticulo(estado, lineaVacia(p.lote_defecto ?? ""), l.codigo, { indices, descripcion: l.descripcion });
-          const misma = opcionesDeClave(estado, l.codigo, { indices }).find((o) => o.id === l.existencia_id || o.clave === l.clave);
-          if (misma) return conExistencia(estado, base, misma.id, indices);
-          return { ...base, clave: base.clave || l.clave || "", um: base.um || l.um || "" };
-        });
-      }
-    }
+  firmasDelUltimoVale(estado, p, borrador);
+  // Externas (NOV): se parte también de las partidas del último vale del área (sin cantidades).
+  const ultimo = tipoDeArea(p) === "EXTERNO" ? ultimoValeDeArea(estado, p) : null;
+  if (ultimo && !lineasCapturadas(borrador.lineas).length) {
+    const indices = new Indices(estado);
+    borrador.lineas = ultimo.lineas.filter((l) => Number.isInteger(l.codigo)).map((l) => {
+      const base = conArticulo(estado, lineaVacia(p.lote_defecto ?? ""), l.codigo, { indices, descripcion: l.descripcion });
+      const misma = opcionesDeClave(estado, l.codigo, { indices }).find((o) => o.id === l.existencia_id || o.clave === l.clave);
+      if (misma) return conExistencia(estado, base, misma.id, indices);
+      return { ...base, clave: base.clave || l.clave || "", um: base.um || l.um || "" };
+    });
   }
+  // Transferencia (Ronda 35): «… PARA USO EN …» dice el destino que trae el formato (en el vale se cambia al elegir otro).
+  if (tipoDeArea(p) === "TRANSFERENCIA") borrador.observaciones = conUsoEn(borrador.observaciones, borrador.destino, { agregar: false });
   borrador.observaciones = observacionesDelVale(estado, borrador) ?? "";
   if (p.lote_defecto) for (const l of borrador.lineas) if (!l.lote) l.lote = p.lote_defecto;
   return borrador;
+}
+
+// Las firmas que se recuerdan del último vale del área (nombre y puesto).
+const FIRMAS_RECORDADAS = [
+  ["recibio_nombre", "recibio_puesto"],
+  ["autorizo_nombre", "autorizo_puesto"],
+  ["firma_extra_izq_nombre", "firma_extra_izq_puesto"],
+  ["firma_extra_der_nombre", "firma_extra_der_puesto"],
+];
+
+/** El nombre con que sigue la persona en la lista (si se unificó, el que se quedó). */
+function nombreVigente(estado, nombre) {
+  const id = estado.alias?.[nombre];
+  return (id !== undefined && estado.personas.find((x) => x.id === id)?.nombre) || nombre;
+}
+
+/**
+ * Ronda 35 (pedido del usuario): quien recibe, quien autoriza y las firmas extra salen del vale emitido más reciente del
+ * área — si en el último cambiaste a Pedro, el siguiente ya sugiere a Pedro —; sin vales, quedan las de la plantilla.
+ * El puesto, el que tiene hoy la persona en la lista (o el del vale). Autoriza y firmas extra, solo si el área las
+ * pide; una persona desactivada no se sugiere. En NOV, solo de vales hechos aquí: en los migrados del DIARIO las firmas
+ * van por posición.
+ */
+function firmasDelUltimoVale(estado, area, borrador) {
+  const ultimo = ultimoValeDeArea(estado, area, { migrados: tipoDeArea(area) !== "EXTERNO" });
+  if (!ultimo) return;
+  const vale = conFirmasPorPapel(estado, ultimo);
+  const pide = { autorizo_nombre: requiereAutoriza(estado, borrador), firma_extra_izq_nombre: Boolean(area.firmas_extra), firma_extra_der_nombre: Boolean(area.firmas_extra) };
+  for (const [campo, campoPuesto] of FIRMAS_RECORDADAS) {
+    if (pide[campo] === false || !texto(vale[campo])) continue;
+    const nombre = nombreVigente(estado, texto(vale[campo]));
+    const persona = estado.personas.find((x) => x.nombre === nombre);
+    if (persona?.activo === false) continue;
+    borrador[campo] = nombre;
+    borrador[campoPuesto] = persona?.puesto ?? vale[campoPuesto] ?? "";
+  }
 }
 
 /** Área de un vale: la de su plantilla o, en los migrados, la de su departamento. */

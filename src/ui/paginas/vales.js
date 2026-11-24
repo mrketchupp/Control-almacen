@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { PUESTOS_AUTORIZAN, conEtapa, etiquetasFirmasExtra, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
+import { PUESTOS_AUTORIZAN, conEtapa, conUsoEn, etiquetasFirmasExtra, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
 import { aNumero, dec } from "../../nucleo/decimal.js";
 import { Indices, npMostrado } from "../../nucleo/estado.js";
 import { calcularSaldos } from "../../nucleo/existencias.js";
@@ -453,7 +453,9 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
             <div class="rejilla-campos">
               <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
               <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
-              <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino} alCambiar=${(valor) => cambiar({ destino: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
+              <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino}
+                alCambiar=${(valor) => cambiar(tipo === "TRANSFERENCIA" ? { destino: valor, observaciones: conUsoEn(datos.observaciones, valor, { agregar: false }) } : { destino: valor })}
+                sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
               <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
                 <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
               <//>
