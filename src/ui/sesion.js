@@ -258,6 +258,24 @@ export class Sesion {
     await this.respaldoAutomatico();
   }
 
+  /**
+   * La carpeta de trabajo arrastrada desde el Explorador de Windows (Ronda 35): como `elegirCarpeta`, sin el diálogo de
+   * Edge (que a veces no entrega las de OneDrive). Si el permiso de escritura no se concede aquí, se pide con un clic.
+   */
+  async fijarCarpeta(carpeta) {
+    if (carpeta?.kind !== "directory") throw new Error(`«${carpeta?.name ?? "Eso"}» no es una carpeta: arrastra la carpeta donde quieres trabajar.`);
+    this.carpeta = carpeta;
+    try {
+      this.permiso = await permisoCarpeta(carpeta, true);
+    } catch {
+      this.permiso = "prompt";
+    }
+    await this.backend.guardarAjuste("carpeta", carpeta);
+    this._cambio();
+    this.avisar("exito", `Carpeta elegida: ${carpeta.name}. Ahí se guardarán respaldos y exportaciones.`);
+    if (this.permiso === "granted") await this.respaldoAutomatico();
+  }
+
   /** El navegador pide confirmar el permiso de la carpeta una vez por sesión (requiere clic). */
   async activarCarpeta() {
     this.permiso = await permisoCarpeta(this.carpeta, true);

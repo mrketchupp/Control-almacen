@@ -7247,17 +7247,180 @@ button.mosaico:hover .mosaico-abrir {
   margin-inline: auto;
 }
 
-.carga-introduccion {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 4px 16px;
-  margin-bottom: 14px;
+/* Ronda 35: un paso a la vez; abajo, Regresar y Continuar en grande. */
+.carga-paso {
+  animation: carga-entra var(--dur-media) ease-out;
 }
 
-.carga-introduccion p {
+@keyframes carga-entra {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+
+.carga-navegacion {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px 0;
+  background: linear-gradient(transparent, var(--fondo) 35%);
+}
+
+.carga-navegacion .boton {
+  min-width: 180px;
+  justify-content: center;
+}
+
+.carga-navegacion .boton.deshabilitado {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.carga-nota-final {
+  margin: 8px 0 0;
+  text-align: right;
+}
+
+.carga-archivos-elegidos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 0 0 14px;
+  color: var(--ok);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Bienvenida (inicio sin datos, Ronda 35): dos caminos grandes y luego la carpeta de trabajo. */
+.bienvenida {
+  max-width: 880px;
+  margin: 24px auto 0;
+}
+
+.bienvenida-cabeza {
+  margin-bottom: 22px;
+  text-align: center;
+}
+
+.bienvenida-cabeza h2 {
+  margin: 0 0 6px;
+  font-size: 1.9rem;
+}
+
+.bienvenida-cabeza p {
   margin: 0;
+  color: var(--texto-suave);
+  font-size: 1.05rem;
+}
+
+.bienvenida-caminos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 18px;
+}
+
+.camino {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 200px;
+  padding: 26px 24px;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-corta) ease, transform var(--dur-corta) ease;
+}
+
+.camino:hover,
+.camino:focus-visible {
+  border-color: var(--primario);
+  transform: translateY(-2px);
+}
+
+.camino strong {
+  font-size: 1.3rem;
+}
+
+.camino > span:last-child {
+  color: var(--texto-suave);
+}
+
+.camino-icono {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 6px;
+  border-radius: 14px;
+  background: var(--primario-suave);
+  color: var(--primario);
+}
+
+.camino-principal {
+  border-color: var(--primario);
+}
+
+.camino-principal .camino-icono {
+  background: var(--primario);
+  color: var(--sobre-primario);
+}
+
+.paso-bienvenida-cuerpo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 30px 24px;
+  text-align: center;
+}
+
+.paso-bienvenida-cuerpo h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.paso-bienvenida-cuerpo > .nota {
+  margin: 0;
+  max-width: 520px;
+}
+
+.soltar-carpeta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 460px);
+  padding: 22px 16px;
+  border: 2px dashed var(--borde);
+  border-radius: 14px;
+}
+
+.soltar-carpeta.encima {
+  border-color: var(--primario);
+  background: var(--primario-suave);
+}
+
+.bienvenida-respaldo {
+  width: min(100%, 620px);
+  text-align: left;
+}
+
+.carga-progreso.pasos-bienvenida {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .carga-progreso {

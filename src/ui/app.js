@@ -261,7 +261,8 @@ function useEnlaces(actual) {
     pendientes: "Partidas por ubicar",
     etiquetas: "Etiquetas por imprimir",
   };
-  const principales = enlaces.filter(([clave, p]) => p.grupo !== "mas" && (!p.soloConAviso || insignia[clave] || clave === actual));
+  // Sin datos, el menú solo lleva a Inicio (Ronda 35): la bienvenida guía la carpeta y la primera carga sin saltarse pasos.
+  const principales = enlaces.filter(([clave, p]) => p.grupo !== "mas" && (vacia ? clave === "inicio" : !p.soloConAviso || insignia[clave] || clave === actual));
   const mas = enlaces.filter(([, p]) => p.grupo === "mas");
   return { principales, mas, insignia, titulos };
 }
@@ -301,6 +302,7 @@ function etiquetaEnlace(clave, p, insignia, titulos) {
  * encima del contenido (Esc o clic fuera lo cierran). Ya no hay barra inferior ni menú de hamburguesa.
  */
 function Navegacion({ actual, masAbierta, iconos, encima, conInventario, alAlternar, alCerrarEncima }) {
+  const vacia = useSesion().almacen.vacio;
   const { principales, mas, insignia, titulos } = useEnlaces(actual);
   const textoAlternar = iconos ? "Expandir menú" : "Contraer menú";
   const enlace = ([clave, p]) => html`<a href=${`#${clave}`} class=${clave === actual ? "activo" : ""}
@@ -320,7 +322,7 @@ function Navegacion({ actual, masAbierta, iconos, encima, conInventario, alAlter
         </button>
       </div>
       <div class="nav-principal" id="menu-principal">${principales.map(enlace)}</div>
-      <${BotonMas} enlaces=${mas} abierta=${masAbierta} insignia=${insignia} />
+      ${vacia ? null : html`<${BotonMas} enlaces=${mas} abierta=${masAbierta} insignia=${insignia} />`}
     </nav>`;
 }
 
@@ -404,7 +406,7 @@ function Marco() {
   const rutaFondo = esDeMas(ruta) ? fondo.current : ruta;
   let clave = paginaDeHash(rutaFondo);
   const definicion = PAGINAS[clave];
-  const activa = clave === "vale" || clave === "entrada" ? "historial" : clave;
+  const activa = clave === "vale" || clave === "entrada" ? "historial" : clave === "carga" ? "inicio" : clave;
   if (definicion.requiereDatos && sesion.almacen.vacio) clave = "inicio";
   if (definicion.soloVacia && !sesion.almacen.vacio) clave = "inicio";
   const Componente = PAGINAS[clave].componente;
@@ -432,7 +434,7 @@ function Marco() {
       <${Navegacion} actual=${activa} masAbierta=${Boolean(seccion)} iconos=${compacto && !encima} encima=${encima}
         conInventario=${!compacto} alAlternar=${alternarMenu} alCerrarEncima=${cerrarEncima} />
       <main class="contenido" key=${clave}>
-        ${["vale", "entrada", "inicio"].includes(clave) && !(clave === "inicio" && sesion.almacen.vacio) ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
+        ${["vale", "entrada", "inicio"].includes(clave) ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
         <${Componente} key=${["vale", "entrada", "reporte"].includes(clave) ? rutaFondo : clave} />
       </main>
     </div>

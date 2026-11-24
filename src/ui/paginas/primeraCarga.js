@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { aNumero } from "../../nucleo/decimal.js";
 import { ddmmaa, fmtFecha, hoyIso } from "../../nucleo/fechas.js";
 import { leerArchivoSubido } from "../../almacen/archivos.js";
@@ -33,12 +33,13 @@ function resumenVales(libro) {
   };
 }
 
-function Paso({ numero, titulo, listo, deshabilitado, children }) {
-  return html`<section class=${`tarjeta paso ${deshabilitado ? "paso-deshabilitado" : ""} ${listo ? "paso-listo" : ""}`}>
+/** Un paso de la primera carga (Ronda 35: se ve uno a la vez; su número va en la barra de arriba). */
+function Paso({ numero, titulo, children }) {
+  return html`<section class="tarjeta paso" aria-labelledby=${`t-carga-${numero}`}>
     <header class="tarjeta-cabeza">
-      <h2><span class="paso-numero">${listo ? "✓" : numero}</span>${titulo}</h2>
+      <h2 id=${`t-carga-${numero}`}>${titulo}</h2>
     </header>
-    ${deshabilitado ? html`<p class="nota">${numero === "2" ? "Elige los dos archivos para continuar." : "Completa los datos del conteo base."}</p>` : children}
+    ${children}
   </section>`;
 }
 
@@ -148,15 +149,21 @@ export function ReporteCarga({ reporte }) {
   `;
 }
 
+/**
+ * Primera carga en 3 pasos, uno a la vez (Ronda 35, pedido del usuario): 1 · los dos Excel (al tener los dos pasa sola al
+ * siguiente), 2 · el conteo base y 3 · revisar y cargar (el ensayo se hace solo al llegar). Abajo, Regresar y Continuar
+ * en grande; Regresar del primero vuelve a la bienvenida.
+ */
 export function PaginaPrimeraCarga() {
   const sesion = useSesion();
+  const [paso, setPaso] = useState(1);
   const [inventario, setInventario] = useState(null);
   const [vales, setVales] = useState(null);
   const [revision, setRevision] = useState(null);
   const [fechaConteo, setFechaConteo] = useState("");
   const [folioCorte, setFolioCorte] = useState("");
   const [folioManual, setFolioManual] = useState(false);
-  const [usuario, setUsuario] = useState("");
+  const [usuario, setUsuario] = useState(sesion.usuario ?? "");
   const [ensayo, setEnsayo] = useState(null);
 
   const resumen = useMemo(() => (vales ? resumenVales(vales.libro) : null), [vales]);
@@ -168,6 +175,15 @@ export function PaginaPrimeraCarga() {
     const sugerido = sugerirFolioCorte(libroVales.renglones, fecha);
     setFolioCorte(sugerido === null ? "0" : String(sugerido));
   };
+
+  // Con los dos archivos, pasa sola al conteo base (solo al completarlos: cambiar uno después no la mueve).
+  const ambos = Boolean(inventario && vales);
+  const antes = useRef(ambos);
+  useEffect(() => {
+    if (ambos && !antes.current && paso === 1) setPaso(2);
+    antes.current = ambos;
+  }, [ambos]);
+  useEffect(() => window.scrollTo(0, 0), [paso]);
 
   const cargarInventario = (archivo) =>
     seguirConArchivo(sesion, archivo.name) &&
@@ -200,25 +216,25 @@ export function PaginaPrimeraCarga() {
       sesion.avisar("exito", `Lista de revisión guardada en ${destino}`);
     });
 
-  const cargarRevision = (archivo) =>
-    sesion.tarea("Leyendo tus respuestas…", async () => {
-      invalidar();
-      const respuestas = leerRevision(await leerArchivoSubido(archivo), vales.libro.renglones);
-      setRevision({ nombre: archivo.name, respuestas });
-    });
-
   const opcionesListas = inventario && vales && fechaConteo && folioCorte !== "" && usuario.trim();
 
-  const ensayar = () =>
+  const opcionesCarga = (respuestas) => ({
+    folioCorte: Number(folioCorte),
+    fechaConteo,
+    usuario: usuario.trim().toUpperCase(),
+    respuestas,
+    idInventario: sesion.inventario.id,
+  });
+  const ensayar = (respuestas = revision?.respuestas) =>
     sesion.tarea("Ensayando la carga…", async () => {
-      const resultado = ejecutarPrimeraCarga(inventario.libro, vales.libro, {
-        folioCorte: Number(folioCorte),
-        fechaConteo,
-        usuario: usuario.trim().toUpperCase(),
-        respuestas: revision?.respuestas,
-        idInventario: sesion.inventario.id,
-      });
-      setEnsayo(resultado);
+      setEnsayo(ejecutarPrimeraCarga(inventario.libro, vales.libro, opcionesCarga(respuestas)));
+    });
+
+  const cargarRevision = (archivo) =>
+    sesion.tarea("Leyendo tus respuestas…", async () => {
+      const respuestas = leerRevision(await leerArchivoSubido(archivo), vales.libro.renglones);
+      setRevision({ nombre: archivo.name, respuestas });
+      setEnsayo(ejecutarPrimeraCarga(inventario.libro, vales.libro, opcionesCarga(respuestas)));
     });
 
   const cargar = () => {
@@ -226,13 +242,7 @@ export function PaginaPrimeraCarga() {
     return sesion.tarea("Guardando la carga…", async () => {
       // Se vuelve a ejecutar para guardar exactamente lo que se ensayó con las opciones actuales.
       const nombre = usuario.trim().toUpperCase();
-      const { estado } = ejecutarPrimeraCarga(inventario.libro, vales.libro, {
-        folioCorte: Number(folioCorte),
-        fechaConteo,
-        usuario: nombre,
-        respuestas: revision?.respuestas,
-        idInventario: sesion.inventario.id,
-      });
+      const { estado } = ejecutarPrimeraCarga(inventario.libro, vales.libro, opcionesCarga(revision?.respuestas));
       agregarAlmacenista(estado, nombre);
       fijarUsuarioEnTurno(estado, nombre);
       await sesion.almacen.cargarPrimeraVez(estado, [
@@ -246,20 +256,36 @@ export function PaginaPrimeraCarga() {
     });
   };
 
+  const continuar = () => {
+    if (paso === 1 && ambos) setPaso(2);
+    else if (paso === 2 && opcionesListas) {
+      setPaso(3);
+      ensayar();
+    }
+  };
+  const regresar = () => {
+    if (paso === 1) location.hash = "#inicio/cero";
+    else setPaso(paso - 1);
+  };
+  // Enter en el conteo base continúa (como en el vale de salida).
+  const enterContinua = (e) => {
+    if (e.key === "Enter" && paso === 2 && opcionesListas && e.target?.tagName === "INPUT") {
+      e.preventDefault();
+      continuar();
+    }
+  };
+
   const r = revision?.respuestas;
   const partidasInventario = inventario?.libro.hojas.reduce((total, hoja) => total + hoja.renglones.length, 0) ?? 0;
-  return html`
-    <div class="primera-carga">
-    <div class="carga-introduccion">
-      <p>Carga los dos Excel de <strong>${sesion.inventario.id}</strong>, revisa el resultado y confirma.</p>
-      <span class="nota">Los archivos originales se conservan.</span>
-    </div>
-    <ol class="carga-progreso" aria-label="Progreso de la carga">
-      <li class=${inventario && vales ? "completo" : "actual"}>1. Archivos</li>
-      <li class=${opcionesListas ? "completo" : inventario && vales ? "actual" : ""}>2. Conteo base</li>
-      <li class=${ensayo ? "completo" : opcionesListas ? "actual" : ""}>3. Revisar y cargar</li>
-    </ol>
-    <${Paso} numero="1" titulo="Archivos de ${sesion.inventario.id}" listo=${inventario && vales}>
+  const archivosElegidos = ambos
+    ? html`<p class="carga-archivos-elegidos">
+        <span>✓ ${inventario.nombre}</span><span>✓ ${vales.nombre}</span>
+        <button type="button" class="enlace-boton" onClick=${() => setPaso(1)}>Cambiar archivos</button>
+      </p>`
+    : null;
+  let cuerpo;
+  if (paso === 1) {
+    cuerpo = html`<${Paso} numero="1" titulo=${`Los dos Excel de ${sesion.inventario.id}`}>
       <div class="carga-archivos">
         <div class=${`carga-archivo ${inventario ? "carga-archivo-listo" : ""}`}>
           <h3>Inventario físico (.xlsx)</h3>
@@ -279,7 +305,7 @@ export function PaginaPrimeraCarga() {
             : null}
         </div>
         <div class=${`carga-archivo ${vales ? "carga-archivo-listo" : ""}`}>
-          <h3>Vales de salida (.xlsm o .xlsx)</h3>
+          <h3>Libro de vales (.xlsm o .xlsx)</h3>
           <p class="nota">El libro con la hoja DIARIO y los formatos de vales.</p>
           <${ElegirArchivo} etiqueta=${vales ? "Cambiar libro de vales" : "Elegir libro de vales"} acepta=".xlsm,.xlsx" alElegir=${cargarVales} tipo=${vales ? "secundario" : "primario"} />
           ${vales
@@ -294,23 +320,11 @@ export function PaginaPrimeraCarga() {
             : null}
         </div>
       </div>
-      ${inventario && vales ? html`<${Detalles} resumen=${revision ? `Correcciones del historial: ${revision.nombre}` : "Corregir historial antes de cargar (opcional)"}>
-        <p class="nota">Descarga la lista de datos dudosos, corrígela en Excel y vuelve a subirla.</p>
-        <div class="acciones-linea">
-          <${Boton} onClick=${generarLista}>Generar lista de revisión<//>
-          <${ElegirArchivo} etiqueta=${revision ? "Cambiar lista contestada" : "Subir lista contestada"} acepta=".xlsx" alElegir=${cargarRevision} />
-          ${revision ? html`<${Boton} tipo="texto" onClick=${() => { setRevision(null); invalidar(); }}>Quitar<//>` : null}
-        </div>
-        ${revision ? html`<${Aviso} tipo="exito" titulo="Correcciones listas para revisar">
-          ${r.correcciones.size} partidas corregidas · ${r.eliminar.size} por eliminar · ${r.codigos.size} códigos ·
-          ${r.alias.size} nombres unificados · ${r.normalizaciones.size} valores normalizados
-          ${r.advertencias.length ? html`<ul>${r.advertencias.map((a) => html`<li>${a}</li>`)}</ul>` : null}
-        <//>` : null}
-      <//>` : null}
-    <//>
-
-    <${Paso} numero="2" titulo="Conteo base" listo=${opcionesListas} deshabilitado=${!(inventario && vales)}>
-      <div class="formulario">
+    <//>`;
+  } else if (paso === 2) {
+    cuerpo = html`<${Paso} numero="2" titulo="Conteo base">
+      ${archivosElegidos}
+      <div class="formulario" onKeyDown=${enterContinua}>
         <label>
           <span>Fecha del conteo físico</span>
           <input
@@ -322,7 +336,7 @@ export function PaginaPrimeraCarga() {
               if (!folioManual) sugerirCorte(e.currentTarget.value);
             }}
           />
-          <small>Fecha sugerida desde el archivo.</small>
+          <small>Sugerida desde el nombre del archivo.</small>
         </label>
         <label>
           <span>Último folio ya reflejado en el conteo (folio de corte)</span>
@@ -337,8 +351,8 @@ export function PaginaPrimeraCarga() {
             }}
           />
           <small>
-            Los vales posteriores al <strong>${folioCorte || "0"}</strong> se descontarán del inventario.
-            ${folioManual ? html` <a href="#carga" onClick=${(e) => { e.preventDefault(); setFolioManual(false); sugerirCorte(fechaConteo); }}>Usar sugerido</a>` : " Puedes ajustar el folio sugerido."}
+            Los vales posteriores al <strong>${folioCorte || "0"}</strong> se descuentan del inventario.
+            ${folioManual ? html` <a href="#carga" onClick=${(e) => { e.preventDefault(); setFolioManual(false); sugerirCorte(fechaConteo); }}>Usar sugerido</a>` : null}
           </small>
         </label>
         <label>
@@ -346,17 +360,42 @@ export function PaginaPrimeraCarga() {
           <input type="text" value=${usuario} placeholder="Nombre como firma los vales" onInput=${(e) => { setUsuario(e.currentTarget.value); invalidar(); }} />
         </label>
       </div>
-    <//>
-
-    <${Paso} numero="3" titulo="Revisar y cargar" listo=${Boolean(ensayo)} deshabilitado=${!opcionesListas}>
-      <p class="nota">Ensaya para revisar los datos antes de guardarlos.</p>
-      <div class="acciones-linea"><${Boton} tipo=${ensayo ? "secundario" : "primario"} onClick=${ensayar}>${ensayo ? "Repetir ensayo" : "Ensayar"}<//></div>
-      ${ensayo ? html`<div class="carga-revision"><${ReporteCarga} reporte=${ensayo.reporte} /></div>
-        <div class="carga-confirmacion">
-          <div><strong>¿Todo revisado?</strong><p class="nota">Al guardar se crea el primer respaldo${sesion.carpetaLista ? html` en <code>${sesion.carpeta.name}</code>` : " en Descargas"}.</p></div>
-          <${Boton} tipo="primario" onClick=${cargar}>Cargar definitivamente<//>
-        </div>` : null}
-    <//>
+    <//>`;
+  } else {
+    cuerpo = html`<${Paso} numero="3" titulo="Revisar y cargar">
+      ${archivosElegidos}
+      ${ensayo
+        ? html`<div class="carga-revision"><${ReporteCarga} reporte=${ensayo.reporte} /></div>
+            <${Detalles} resumen=${revision ? `Correcciones del historial: ${revision.nombre}` : "Corregir datos dudosos del historial antes de cargar (opcional)"}>
+              <p class="nota">Descarga la lista de datos dudosos, corrígela en Excel y vuelve a subirla.</p>
+              <div class="acciones-linea">
+                <${Boton} onClick=${generarLista}>Generar lista de revisión<//>
+                <${ElegirArchivo} etiqueta=${revision ? "Cambiar lista contestada" : "Subir lista contestada"} acepta=".xlsx" alElegir=${cargarRevision} />
+                ${revision ? html`<${Boton} tipo="texto" onClick=${() => { setRevision(null); ensayar(null); }}>Quitar<//>` : null}
+              </div>
+              ${revision ? html`<${Aviso} tipo="exito" titulo="Correcciones aplicadas al ensayo">
+                ${r.correcciones.size} partidas corregidas · ${r.eliminar.size} por eliminar · ${r.codigos.size} códigos ·
+                ${r.alias.size} nombres unificados · ${r.normalizaciones.size} valores normalizados
+                ${r.advertencias.length ? html`<ul>${r.advertencias.map((a) => html`<li>${a}</li>`)}</ul>` : null}
+              <//>` : null}
+            <//>`
+        : html`<p class="nota">Ensayando la carga…</p>`}
+    <//>`;
+  }
+  const puedeContinuar = paso === 1 ? ambos : paso === 2 ? Boolean(opcionesListas) : false;
+  return html`
+    <div class="primera-carga">
+      <ol class="carga-progreso" aria-label="Progreso de la carga">
+        ${["Archivos", "Conteo base", "Revisar y cargar"].map((nombre, i) => html`<li key=${nombre} class=${i + 1 < paso ? "completo" : i + 1 === paso ? "actual" : ""}>${i + 1}. ${nombre}</li>`)}
+      </ol>
+      <div class="carga-paso" key=${paso}>${cuerpo}</div>
+      <div class="carga-navegacion">
+        <${Boton} tamano="grande" onClick=${regresar}>← Regresar<//>
+        ${paso < 3
+          ? html`<${Boton} tipo="primario" tamano="grande" disabled=${!puedeContinuar} onClick=${continuar}>Continuar →<//>`
+          : html`<${Boton} tipo="primario" tamano="grande" disabled=${!ensayo} onClick=${cargar}>Cargar definitivamente<//>`}
+      </div>
+      ${paso === 3 && ensayo ? html`<p class="nota carga-nota-final">Al cargar se crea el primer respaldo${sesion.carpetaLista ? html` en <code>${sesion.carpeta.name}</code>` : " en Descargas"}.</p>` : null}
     </div>
   `;
 }

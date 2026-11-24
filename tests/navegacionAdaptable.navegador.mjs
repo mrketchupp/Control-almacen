@@ -170,16 +170,15 @@ test("navegación adaptable y preferencia de menú compacto en Chromium", async 
     await terminar();
   });
 
-  await t.test("sin datos (320): Primera carga en el menú y Respaldos y Ayuda en Ajustes y más", async () => {
+  await t.test("sin datos (320): el menú solo lleva a Inicio (ni Primera carga ni Ajustes y más) y la bienvenida cabe", async () => {
     const { page, terminar } = await abrir({ width: 320, height: 680 }, true);
     await sinDesbordamiento(page);
     const nav = page.locator(".navegacion");
-    assert.equal(await nav.getByRole("link", { name: "Primera carga", exact: true }).isVisible(), true);
-    await nav.getByRole("link", { name: /^Ajustes y más/ }).click();
-    const mas = page.getByRole("dialog", { name: "Ajustes y más" });
-    await mas.waitFor();
-    assert.equal(await mas.getByRole("link", { name: /Respaldos/ }).isVisible(), true);
-    assert.equal(await mas.getByRole("link", { name: /Ayuda/ }).isVisible(), true);
+    assert.deepEqual(await nav.getByRole("link").evaluateAll((a) => a.map((x) => x.getAttribute("aria-label"))), ["Inicio"]);
+    assert.equal(await nav.getByRole("link", { name: /^Ajustes y más/ }).count(), 0);
+    await page.evaluate(() => { location.hash = "#inicio"; });
+    await page.getByRole("button", { name: /Empezar desde cero/ }).waitFor();
+    await sinDesbordamiento(page);
     await terminar();
   });
 });

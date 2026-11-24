@@ -53,15 +53,29 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     return { nombre: archivo.suggestedFilename(), datos: new Uint8Array(await readFile(await archivo.path())) };
   };
   try {
+    // Ronda 35: la bienvenida tiene dos caminos; «Empezar desde cero» pide la carpeta y luego la carga, un paso a la vez.
+    await page.goto(`${origen}/#inicio`);
+    assert.deepEqual(await page.locator(".navegacion a").allInnerTexts().then((t) => t.map((x) => x.trim())), ["Inicio"], "sin datos, el menú solo lleva a Inicio");
+    await page.getByRole("button", { name: /Empezar desde cero/ }).click();
+    await page.getByRole("heading", { name: "Elige tu carpeta de trabajo", exact: true }).waitFor();
+    await page.getByRole("button", { name: "← Regresar", exact: true }).click();
+    await page.getByRole("button", { name: /Seguir desde un respaldo/ }).waitFor();
     await page.goto(`${origen}/#carga`);
     await page.locator("label.boton").filter({ hasText: /^Elegir inventario$/ }).locator("input[type=file]").setInputFiles(fixtures.inventario);
+    await page.locator(".primera-carga .carga-archivo-listo").waitFor(); // se lee en un momento
+    assert.equal(await page.locator(".primera-carga .carga-archivo-listo").count(), 1, "con un archivo sigue en el paso 1");
     await page.locator("label.boton").filter({ hasText: /^Elegir libro de vales$/ }).locator("input[type=file]").setInputFiles(fixtures.vales);
+    // Con los dos archivos pasa solo al conteo base: los archivos ya no se ven, solo su nombre arriba.
+    await page.getByRole("heading", { name: "Conteo base", exact: true }).waitFor();
+    assert.equal(await page.locator(".carga-archivo").count(), 0);
+    assert.match(await page.locator(".carga-archivos-elegidos").innerText(), /INVENTARIO[\s\S]*VALES/);
     await page.getByLabel(/Fecha del conteo físico/).fill("2026-09-03");
     await page.getByLabel(/Último folio ya reflejado en el conteo/).fill(String(FOLIO_CORTE));
     await page.getByPlaceholder("Nombre como firma los vales").fill("ALMACENISTA UNO");
-    await page.getByRole("button", { name: "Ensayar", exact: true }).click();
+    await page.getByRole("button", { name: "Continuar →", exact: true }).click();
+    // Al llegar a «Revisar y cargar» el ensayo se hace solo.
     await page.getByRole("button", { name: "Cargar definitivamente", exact: true }).waitFor({ state: "visible" });
-    assert.equal(await page.locator(".primera-carga .carga-archivo-listo").count(), 2);
+    await page.locator(".carga-revision").waitFor();
     assert.match(await page.locator(".carga-revision").innerText(), /Correcciones aplicadas/);
     if (process.env.COMENTARIOS_SCREENSHOTS) await page.screenshot({ path: join(process.env.COMENTARIOS_SCREENSHOTS, "primera-carga.png"), fullPage: true });
     for (const [nombre, vista] of [["ventana", { width: 960, height: 700 }], ["movil", { width: 390, height: 844 }]]) {

@@ -1,67 +1,132 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
-import { otrosInventarios } from "../../nucleo/inventarios.js";
 import { fijarAjuste } from "../../servicios/catalogos.js";
 import { resumen } from "../../servicios/consultas.js";
 import { folioEntrada } from "../../servicios/entradas.js";
 import { siguienteFolio } from "../../servicios/vales.js";
-import { Bento, Boton, Tarjeta, useSesion } from "../componentes.js";
+import { Bento, Boton, ElegirArchivo, Tarjeta, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { SubirSharePoint } from "./sharepoint.js";
-import { leerDeCarpeta } from "../../almacen/archivos.js";
+import { leerArchivoSubido, leerDeCarpeta } from "../../almacen/archivos.js";
 import { CARPETA_RESPALDOS } from "../sesion.js";
 import { RespaldoReciente, restaurarConConfirmacion, useRespaldoReciente } from "./respaldos.js";
+import { ZonaSoltar } from "./carpetas.js";
 
+/** El camino de la bienvenida que se abre desde el hash (`#inicio/cero`, `#inicio/respaldo`): Regresar de la carga. */
+const caminoDelHash = () => {
+  const camino = location.hash.replace(/^#\/?/, "").split("/")[1];
+  return camino === "cero" || camino === "respaldo" ? camino : null;
+};
+
+/**
+ * Inicio sin datos (Ronda 35, pedido del usuario): poco texto y dos caminos grandes — empezar desde cero (la carpeta
+ * de trabajo y luego la primera carga) o seguir desde un respaldo —; cada uno sigue paso a paso con Continuar y Regresar.
+ */
 function Bienvenida() {
   const sesion = useSesion();
+  const [camino, setCamino] = useState(caminoDelHash);
+  if (camino) return html`<${CarpetaDeTrabajo} camino=${camino} alRegresar=${() => setCamino(null)} />`;
+  return html`<div class="bienvenida">
+    <header class="bienvenida-cabeza">
+      <h2>Bienvenido</h2>
+      <p>Inventario ${sesion.inventario.id} · ¿cómo quieres empezar?</p>
+    </header>
+    <div class="bienvenida-caminos">
+      <button type="button" class="camino camino-principal" onClick=${() => setCamino("cero")}>
+        <span class="camino-icono" aria-hidden="true"><${Icono} nombre="carga" tam=${30} /></span>
+        <strong>Empezar desde cero</strong>
+        <span>Con tu inventario y tu libro de vales de Excel.</span>
+      </button>
+      <button type="button" class="camino" onClick=${() => setCamino("respaldo")}>
+        <span class="camino-icono" aria-hidden="true"><${Icono} nombre="respaldos" tam=${30} /></span>
+        <strong>Seguir desde un respaldo</strong>
+        <span>Si ya trabajabas con la herramienta en otro equipo o navegador.</span>
+      </button>
+    </div>
+  </div>`;
+}
+
+/** «1 · Carpeta de trabajo  2 · Primera carga» (o «2 · Restaurar»): dónde va, como en la primera carga. */
+export function PasosBienvenida({ camino, actual }) {
+  const pasos = camino === "respaldo" ? ["Carpeta de trabajo", "Restaurar"] : ["Carpeta de trabajo", "Primera carga"];
+  return html`<ol class="carga-progreso pasos-bienvenida" aria-label="Pasos">
+    ${pasos.map((nombre, i) => html`<li key=${nombre} class=${i + 1 < actual ? "completo" : i + 1 === actual ? "actual" : ""}>${i + 1}. ${nombre}</li>`)}
+  </ol>`;
+}
+
+/**
+ * Elegir la carpeta de trabajo (donde quedan los respaldos y los Excel exportados), con el explorador o arrastrándola.
+ * Desde cero: Continuar lleva a la primera carga. Desde un respaldo: con la carpeta se ve su respaldo más reciente
+ * para restaurarlo, o se elige un .zip de cualquier lugar.
+ */
+function CarpetaDeTrabajo({ camino, alRegresar }) {
+  const sesion = useSesion();
   const reciente = useRespaldoReciente(sesion);
-  const inventario = sesion.inventario.id;
-  return html`
-    ${reciente
-      ? html`<${Tarjeta} titulo="Encontramos un respaldo en tu carpeta">
-          <p>Si ya usabas la herramienta en otro navegador o equipo, restaura el más reciente y sigues donde te quedaste.</p>
-          <${RespaldoReciente}
-            respaldo=${reciente}
-            alRestaurar=${async () =>
-              restaurarConConfirmacion(sesion, await leerDeCarpeta(sesion.carpeta, CARPETA_RESPALDOS, reciente.nombre), reciente.nombre)}
-          />
-        <//>`
-      : null}
-    <${Tarjeta} titulo=${`Bienvenido · inventario ${inventario}`}>
-      <p>
-        El inventario <strong>${inventario}</strong> está <strong>vacío</strong>: no trae datos de nadie. Tus datos entran desde tus
-        propios Excel y se quedan <strong>solo en este equipo</strong> (en el almacenamiento de Edge). Nada se envía a internet.
-      </p>
+  const [nota, setNota] = useState(null);
+  const lista = sesion.carpeta && sesion.permiso === "granted";
+  const desdeRespaldo = camino === "respaldo";
+  const elegir = () =>
+    sesion.tarea("Eligiendo carpeta…", async () => {
+      try {
+        await sesion.elegirCarpeta();
+        setNota(null);
+      } catch (error) {
+        if (error?.name !== "AbortError") throw error;
+        setNota("¿La elegiste y no pasó nada? Arrástrala desde el Explorador de Windows al recuadro punteado.");
+      }
+    });
+  const soltar = (promesa) =>
+    sesion.tarea("Usando la carpeta…", async () => {
+      await sesion.fijarCarpeta(await promesa);
+      setNota(null);
+    });
+  const restaurarReciente = async () => restaurarConConfirmacion(sesion, await leerDeCarpeta(sesion.carpeta, CARPETA_RESPALDOS, reciente.nombre), reciente.nombre);
+  return html`<div class="bienvenida paso-bienvenida">
+    <${PasosBienvenida} camino=${camino} actual=${desdeRespaldo && lista ? 2 : 1} />
+    <section class="tarjeta paso-bienvenida-cuerpo" aria-labelledby="t-carpeta">
+      <span class="camino-icono" aria-hidden="true"><${Icono} nombre="carpeta" tam=${30} /></span>
+      <h2 id="t-carpeta">${desdeRespaldo ? "¿Dónde están tus respaldos?" : "Elige tu carpeta de trabajo"}</h2>
       <p class="nota">
-        ${otrosInventarios(inventario).join(" y ")} lleva sus datos por separado (vales, folios, inventario, respaldos y conciliación).
-        Cambias de uno a otro arriba, junto al nombre de la herramienta.
+        ${desdeRespaldo
+          ? "La carpeta de trabajo que usabas (por ejemplo, OneDrive › ControlAlmacen)."
+          : "Ahí se guardan los respaldos y los Excel que exportes (por ejemplo, OneDrive › ControlAlmacen)."}
       </p>
-      <ol class="pasos">
-        <li>
-          <strong>Elige una carpeta para respaldos</strong> (recomendado: <code>OneDrive\\ControlAlmacen</code>). Ahí
-          se guardan respaldos diarios y los Excel exportados.
-          <div class="acciones-linea">
-            ${sesion.soportaCarpetas
-              ? html`<${Boton} tipo=${sesion.carpeta ? "secundario" : "primario"} onClick=${() =>
-                  sesion.tarea("Eligiendo carpeta…", () => sesion.elegirCarpeta())}>
-                  ${sesion.carpeta ? `Carpeta: ${sesion.carpeta.name} (cambiar)` : "Elegir carpeta"}
-                <//>`
-              : html`<em>Este navegador no permite elegir carpeta; los archivos irán a Descargas.</em>`}
-          </div>
-        </li>
-        <li>
-          <strong>Primera carga:</strong> sube tu inventario (.xlsx) y tu libro de vales (.xlsm). Primero se hace un
-          ensayo con reporte; nada se guarda hasta que lo confirmes.
-          <div class="acciones-linea"><a class="boton boton-primario" href="#carga">Empezar primera carga</a></div>
-        </li>
-        <li>
-          <strong>¿Ya tenías datos en otro equipo o navegador?</strong> Restaura un respaldo.
-          <div class="acciones-linea"><a class="boton boton-secundario" href="#respaldos">Ir a respaldos</a></div>
-        </li>
-      </ol>
-    <//>
-  `;
+      ${sesion.soportaCarpetas
+        ? html`<${ZonaSoltar} clase="soltar-carpeta" tipo="directory" etiqueta="carpeta de trabajo" alSoltar=${soltar}>
+            <${Boton} tipo=${sesion.carpeta ? "secundario" : "primario"} tamano="grande" onClick=${elegir}>
+              ${sesion.carpeta ? `Carpeta: ${sesion.carpeta.name} · cambiar` : "Elegir carpeta"}
+            <//>
+            <span class="nota">o arrástrala aquí desde el Explorador</span>
+          <//>`
+        : html`<p class="aviso aviso-info">Este navegador guardará los archivos en Descargas.</p>`}
+      ${nota ? html`<p class="nota nota-pendiente">${nota}</p>` : null}
+      ${sesion.carpeta && sesion.permiso !== "granted"
+        ? html`<${Boton} tipo="primario" onClick=${() => sesion.tarea("Pidiendo permiso…", () => sesion.activarCarpeta())}>Permitir usar «${sesion.carpeta.name}»<//>`
+        : null}
+      ${lista && reciente
+        ? html`<div class="bienvenida-respaldo">
+            ${desdeRespaldo ? null : html`<p class="nota">En esta carpeta ya hay un respaldo: puedes seguir desde ahí.</p>`}
+            <${RespaldoReciente} respaldo=${reciente} alRestaurar=${restaurarReciente} />
+          </div>`
+        : null}
+      ${desdeRespaldo && lista && !reciente ? html`<p class="nota">En esta carpeta no hay respaldos de ${sesion.inventario.id}.</p>` : null}
+      ${desdeRespaldo
+        ? html`<div class="acciones-linea">
+            <${ElegirArchivo} etiqueta="Elegir un respaldo (.zip)…" acepta=".zip"
+              alElegir=${async (archivo) => restaurarConConfirmacion(sesion, await leerArchivoSubido(archivo), archivo.name)} />
+          </div>`
+        : null}
+    </section>
+    <div class="carga-navegacion">
+      <${Boton} tamano="grande" onClick=${alRegresar}>← Regresar<//>
+      ${desdeRespaldo
+        ? null
+        : html`<a class=${`boton boton-primario boton-grande ${sesion.carpeta || !sesion.soportaCarpetas ? "" : "deshabilitado"}`}
+            href="#carga" aria-disabled=${sesion.carpeta || !sesion.soportaCarpetas ? undefined : "true"}
+            onClick=${(e) => !(sesion.carpeta || !sesion.soportaCarpetas) && e.preventDefault()}>Continuar →</a>`}
+    </div>
+  </div>`;
 }
 
 export function EstadoAlmacenamiento() {
