@@ -106,10 +106,10 @@ test("paso 1: áreas de consumo, destinos de transferencia sin el RIG propio y c
   const { estado } = cargaSintetica();
   assert.deepEqual(areasConsumo(estado).map((a) => a.nombre), ["SOLDADOR", "MECANICO", "NOV"]);
   assert.equal(areaTransferencia(estado).nombre, "TRANSFERENCIAS");
-  assert.deepEqual(destinosTransferencia(), ["RIG 48", "RIG 90", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
-  assert.deepEqual(destinosTransferencia("RIG 48"), ["RIG 90", "RIG 91", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
-  assert.equal(esDestinoConocido("rig  165"), true);
-  assert.equal(esDestinoConocido("POZO 7"), false);
+  assert.deepEqual(destinosTransferencia(estado), ["RIG 48", "RIG 90", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
+  assert.deepEqual(destinosTransferencia(estado, "RIG 48"), ["RIG 90", "RIG 91", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
+  assert.equal(esDestinoConocido(estado, "rig  165"), true);
+  assert.equal(esDestinoConocido(estado, "POZO 7"), false);
 
   const indices = new Indices(estado);
   const sellos = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 706);

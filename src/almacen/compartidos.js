@@ -26,6 +26,7 @@ export const VALORES_COMPARTIDOS = {
   personalizacion: {}, // por almacenista: tema, avisos, animaciones
   np_en_lote: false, // Ronda 34: copiar el NP al LOTE en los vales de salida
   etiquetas: {}, // Ronda 20: diseño de la hoja y logos / texto de cada inventario (servicios/etiquetas.js)
+  destinos_transferencia: null, // Ronda 35: destinos de «¿A dónde se envía?» (null = los de fábrica)
 };
 export const BD_COMUN = "control-almacen-comun";
 const CLAVE = "compartidos";

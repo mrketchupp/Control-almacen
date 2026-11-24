@@ -68,16 +68,20 @@ export function estadoDePasos(actual) {
 /**
  * A dónde se puede enviar una transferencia (decisión del usuario, Ronda 34): los RIG y las bases con que se
  * intercambia material. El equipo propio (`ORIGEN_EQUIPO`) no se ofrece; cualquier otro se escribe en *Otro destino*.
+ * Ronda 35: es la lista de fábrica; en *Áreas y destinos* se agregan otros (`config.destinos_transferencia`).
  */
 export const DESTINOS_TRANSFERENCIA = Object.freeze(["RIG 48", "RIG 90", "RIG 91", "RIG 165", "RIG 256", "BASE IXACHI", "BASE MARIN"]);
 
-const igualLugar = (a, b) => texto(a).toUpperCase().replace(/\s+/g, " ") === texto(b).toUpperCase().replace(/\s+/g, " ");
+export const igualLugar = (a, b) => texto(a).toUpperCase().replace(/\s+/g, " ") === texto(b).toUpperCase().replace(/\s+/g, " ");
+
+/** La lista de destinos: la del usuario (compartida entre DLTA y GSM) o, si no ha cambiado nada, la de fábrica. */
+export const listaDestinos = (estado) => (Array.isArray(estado?.config?.destinos_transferencia) ? estado.config.destinos_transferencia : DESTINOS_TRANSFERENCIA);
 
 /** Los destinos que se muestran como botones: todos menos el equipo de donde sale el vale. */
-export const destinosTransferencia = (origen = ORIGEN_EQUIPO) => DESTINOS_TRANSFERENCIA.filter((d) => !igualLugar(d, origen));
+export const destinosTransferencia = (estado, origen = ORIGEN_EQUIPO) => listaDestinos(estado).filter((d) => !igualLugar(d, origen));
 
 /** ¿El destino escrito es uno de los botones? (si no, se ve en *Otro destino*). */
-export const esDestinoConocido = (destino, origen = ORIGEN_EQUIPO) => destinosTransferencia(origen).some((d) => igualLugar(d, destino));
+export const esDestinoConocido = (estado, destino, origen = ORIGEN_EQUIPO) => destinosTransferencia(estado, origen).some((d) => igualLugar(d, destino));
 
 /** El área con que se hacen las transferencias (la primera vigente de tipo transferencia), o null si no hay. */
 export function areaTransferencia(estado) {

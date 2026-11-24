@@ -205,7 +205,7 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
   const conTransferencias = Boolean(areaTransferencia(estado)) || transferencia;
   const area = plantillaArea(estado, datos.plantilla_area_id);
   const areas = areasConsumo(estado, datos.plantilla_area_id);
-  const destinos = destinosTransferencia(datos.origen || undefined);
+  const destinos = destinosTransferencia(estado, datos.origen || undefined);
   const lugares = useMemo(() => listas(estado).lugares, [estado.plantillas_area, estado.vales]);
   const extras = firmasExtraDe(estado, datos);
   const autoriza = requiereAutoriza(estado, datos);
@@ -265,9 +265,9 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
               <span>Otro destino</span>
               <${CampoSugerido}
                 id="otro-destino"
-                valor=${esDestinoConocido(datos.destino, datos.origen || undefined) ? "" : datos.destino}
+                valor=${esDestinoConocido(estado, datos.destino, datos.origen || undefined) ? "" : datos.destino}
                 alCambiar=${(destino) => alCambiar(conDestino(datos, destino))}
-                sugerencias=${lugares.filter((l) => !esDestinoConocido(l, datos.origen || undefined) && !mismo(l, datos.origen))}
+                sugerencias=${lugares.filter((l) => !esDestinoConocido(estado, l, datos.origen || undefined) && !mismo(l, datos.origen))}
                 placeholder="Escribe otro destino…"
                 ariaLabel="Otro destino"
               />

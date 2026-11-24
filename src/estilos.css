@@ -10656,4 +10656,97 @@ kbd.tecla {
   }
 }
 
+/* ---------------------------------------------------------------- Ronda 35: plantillas del vale, áreas y destinos */
 
+.plantillas-vale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plantilla-vale {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie-2);
+}
+
+.plantilla-cabeza {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.plantilla-cabeza strong {
+  font-size: 1.05rem;
+}
+
+.plantilla-cabeza small {
+  color: var(--texto-suave);
+}
+
+.plantilla-observaciones {
+  display: -webkit-box;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.elegir-plantilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 10px;
+}
+
+.opcion-plantilla {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opcion-plantilla small {
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+}
+
+.opcion-plantilla:hover:not(:disabled) {
+  border-color: var(--primario);
+}
+
+.opcion-plantilla.elegida {
+  border: 2px solid var(--primario);
+  background: var(--primario-suave);
+}
+
+.opcion-plantilla:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.nuevo-nombre .campo,
+.editor-area > .campo,
+.editor-plantilla .campo {
+  margin-bottom: 12px;
+}

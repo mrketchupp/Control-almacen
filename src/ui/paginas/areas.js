@@ -1,105 +1,235 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { TIPOS_AREA, etiquetasFirmasExtra, tipoDeArea } from "../../nucleo/areas.js";
-import { areaVacia, borrarArea, descartarArea, guardarArea, guardarPersona, reponerArea, usosDeArea } from "../../servicios/catalogos.js";
+import { ORIGEN_EQUIPO, etiquetasFirmasExtra, tipoDeArea } from "../../nucleo/areas.js";
+import { areaVacia, borrarArea, descartarArea, guardarArea, guardarPersona, reponerArea } from "../../servicios/catalogos.js";
+import { igualLugar, listaDestinos } from "../../servicios/pasosVale.js";
 import { aliasDe, marcarDistintas, personasRepetidas, previaActualizacionPuesto, unificarPersonas, usosPorNombre } from "../../servicios/personas.js";
+import {
+  PLANTILLAS_VALE,
+  agregarDestino,
+  cambiarPlantillaDeArea,
+  fijarDestinos,
+  guardarPlantillaVale,
+  nombrePlantilla,
+  nuevaArea,
+  plantillaVale,
+  quitarDestino,
+  usosDelArea,
+} from "../../servicios/plantillasVale.js";
 import { Aviso, Boton, Buscador, CampoSugerido, Detalles, Lista, Pastilla, Tabla, Tarjeta, Ventana, confirmar, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 
-function EditorArea({ area, hojas, alTerminar }) {
+// Ronda 35 (pedido del usuario): solo tres plantillas del vale (Consumo interno, NOV y Transferencia); cada área es un
+// nombre con su plantilla y los destinos de una transferencia son los nombres de Transferencia.
+
+/** Las tres plantillas como botones grandes de una sola elección. */
+function ElegirPlantilla({ valor, alCambiar, bloqueada = false }) {
+  return html`<div class="elegir-plantilla" role="radiogroup" aria-label="Plantilla">
+    ${PLANTILLAS_VALE.map(
+      (p) => html`<button type="button" role="radio" key=${p.tipo} aria-checked=${valor === p.tipo} disabled=${bloqueada && valor !== p.tipo}
+        class=${`opcion-plantilla ${valor === p.tipo ? "elegida" : ""}`} onClick=${() => alCambiar(p.tipo)}>
+        <strong>${p.nombre}</strong><small>${p.detalle}</small>
+      </button>`,
+    )}
+  </div>`;
+}
+
+/** Agregar un nombre: área (Consumo interno o NOV) o destino (Transferencia). */
+function NuevoNombre({ alTerminar }) {
   const sesion = useSesion();
-  const [datos, setDatos] = useState({ ...areaVacia(), ...area, tipo: tipoDeArea({ ...areaVacia(), ...area }) });
-  const fijo = datos.tipo !== "TRANSFERENCIA";
+  const [nombre, setNombre] = useState("");
+  const [tipo, setTipo] = useState("INTERNO");
+  const [depto, setDepto] = useState("");
   const [error, setError] = useState(null);
+  const destino = tipo === "TRANSFERENCIA";
+  const guardar = () =>
+    sesion.tarea("Guardando…", async () => {
+      try {
+        const limpio = nombre.trim().toUpperCase();
+        await sesion.almacen.modificar((e) => (destino ? agregarDestino(e, limpio, sesion.usuario) : nuevaArea(e, { nombre: limpio, tipo, depto_destino: depto }, sesion.usuario)));
+        sesion.avisar("exito", destino ? `${limpio} ya sale en «¿A dónde se envía?».` : `Área ${limpio} lista: sale al hacer vales de ${nombrePlantilla(tipo).toLowerCase()}.`);
+        alTerminar();
+      } catch (e) {
+        setError(e.message);
+      }
+    });
+  return html`<${Tarjeta} titulo="Agregar área o destino" clase="tarjeta-correccion nuevo-nombre">
+    <label class="campo campo-grande">
+      <span>Nombre</span>
+      <input id="nuevo-nombre" value=${nombre} placeholder=${destino ? "Ej. RIG 302" : "Ej. ELECTRICO"} onInput=${(e) => setNombre(e.currentTarget.value)}
+        onKeyDown=${(e) => e.key === "Enter" && nombre.trim() && guardar()} />
+    </label>
+    <div class="campo">
+      <span>Plantilla</span>
+      <${ElegirPlantilla} valor=${tipo} alCambiar=${setTipo} />
+    </div>
+    ${destino
+      ? html`<p class="nota">Será un destino más en «¿A dónde se envía?» (igual en DLTA y GSM).</p>`
+      : html`<label class="campo">
+          <span>Departamento que se imprime (si no es el mismo nombre)</span>
+          <input value=${depto} placeholder=${nombre.trim().toUpperCase() || "El mismo nombre"} onInput=${(e) => setDepto(e.currentTarget.value)} />
+        </label>`}
+    ${error ? html`<${Aviso} tipo="error">${error}<//>` : null}
+    <div class="acciones-linea">
+      <${Boton} tipo="primario" disabled=${!nombre.trim()} onClick=${guardar}>${destino ? "Agregar destino" : "Agregar área"}<//>
+      <${Boton} onClick=${alTerminar}>Cancelar<//>
+    </div>
+  <//>`;
+}
+
+/**
+ * Editar un área: su nombre, su plantilla (solo si aún no tiene vales), el departamento que se imprime y, en *Más
+ * opciones*, lo de siempre (quién recibe y autoriza si no hay vales, autoriza obligatorio, lote, activa, firmas de NOV).
+ * El formato y las observaciones son de la plantilla.
+ */
+function EditorArea({ area, alTerminar }) {
+  const sesion = useSesion();
   const estado = sesion.estado;
+  const [datos, setDatos] = useState({ ...areaVacia(), ...area, tipo: tipoDeArea({ ...areaVacia(), ...area }) });
+  const [error, setError] = useState(null);
+  const usos = usosDelArea(estado, area);
+  const conVales = usos.vales + usos.borradores > 0;
   const unicos = (valores) => [...new Set(valores.filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
   const sugerencias = {
     personas: unicos(estado.personas.filter((p) => p.activo !== false).map((p) => p.nombre)),
     puestos: unicos(estado.personas.map((p) => p.puesto)),
-    deptos: unicos(estado.plantillas_area.flatMap((p) => [p.depto_destino, p.depto_origen])),
-    lugares: unicos(estado.plantillas_area.flatMap((p) => [p.destino, p.origen])),
   };
   const poner = (clave) => (valor) => setDatos({ ...datos, [clave]: valor });
-  const campo = (clave, etiqueta, opciones = {}) => html`<div class=${`campo ${opciones.ancho ? `campo-${opciones.ancho}` : ""}`}>
+  const campo = (clave, etiqueta, opciones = {}) => html`<div class="campo">
     <span>${etiqueta}</span>
-    ${opciones.area
-      ? html`<textarea rows="3" value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })} aria-label=${etiqueta}></textarea>`
-      : opciones.sugerencias
-        ? html`<${CampoSugerido} valor=${datos[clave] ?? ""} alCambiar=${poner(clave)} sugerencias=${opciones.sugerencias} ariaLabel=${etiqueta} />`
-        : html`<input value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })} aria-label=${etiqueta} />`}
+    ${opciones.sugerencias
+      ? html`<${CampoSugerido} valor=${datos[clave] ?? ""} alCambiar=${poner(clave)} sugerencias=${opciones.sugerencias} ariaLabel=${etiqueta} />`
+      : html`<input value=${datos[clave] ?? ""} onInput=${(e) => setDatos({ ...datos, [clave]: e.currentTarget.value })} aria-label=${etiqueta} />`}
   </div>`;
   const extra = datos.firmas_extra;
   const etiquetas = etiquetasFirmasExtra(datos);
-  const ponerExtra = (lado, parte) => (valor) =>
-    setDatos({ ...datos, firmas_extra: { ...extra, [lado]: { ...extra[lado], [parte]: valor } } });
+  const ponerExtra = (lado, parte) => (valor) => setDatos({ ...datos, firmas_extra: { ...extra, [lado]: { ...extra[lado], [parte]: valor } } });
   const guardar = () =>
     sesion.tarea("Guardando área…", async () => {
       try {
-        await sesion.almacen.modificar((e) => guardarArea(e, datos, sesion.usuario));
+        await sesion.almacen.modificar((e) => {
+          const otraPlantilla = datos.tipo !== tipoDeArea(area);
+          const guardada = guardarArea(e, { ...datos, tipo: tipoDeArea(area) }, sesion.usuario);
+          if (otraPlantilla) cambiarPlantillaDeArea(e, guardada.id, datos.tipo, sesion.usuario);
+        });
         sesion.avisar("exito", `Área ${datos.nombre.toUpperCase()} guardada.`);
         alTerminar();
       } catch (e) {
         setError(e.message);
       }
     });
-  return html`<${Tarjeta} titulo=${datos.id ? `Editar área ${area.nombre}` : "Nueva área"} clase="tarjeta-correccion">
-    <p class="nota">Estos datos se copian al vale al elegir el área.</p>
+  return html`<${Tarjeta} titulo=${`Editar ${area.nombre}`} clase="tarjeta-correccion editor-area">
     <div class="editor-encabezado">
-      ${campo("nombre", "Nombre del área")}
-      <div class="campo">
-        <span>Formato de impresión (hoja del libro de vales)</span>
-        <${Lista}
-          valor=${datos.hoja_excel ?? ""}
-          alCambiar=${(valor) => setDatos({ ...datos, hoja_excel: valor || null })}
-          ariaLabel="Formato de impresión"
-          opciones=${[{ valor: "", etiqueta: "— Según el departamento —" }, ...hojas.map((h) => ({ valor: h, etiqueta: h.trim() }))]}
-        />
-      </div>
-      <div class="campo">
-        <span>Tipo de área</span>
-        <${Lista}
-          valor=${datos.tipo}
-          alCambiar=${poner("tipo")}
-          ariaLabel="Tipo de área"
-          opciones=${Object.entries(TIPOS_AREA).map(([valor, etiqueta]) => ({ valor, etiqueta }))}
-        />
-      </div>
-      ${datos.tipo === "INTERNO"
-        ? html`<p class="nota campo-2">Interna: el vale sale de <strong>RIG 91 · ALMACEN</strong> y llega a <strong>RIG 91 · ${datos.depto_destino || "(depto. destino)"}</strong>.</p>`
-        : html`${datos.tipo === "EXTERNO" ? null : html`${campo("origen", "Origen", { sugerencias: sugerencias.lugares })}${campo("depto_origen", "Depto. origen", { sugerencias: sugerencias.deptos })}`}
-            ${campo("destino", "Destino", { sugerencias: sugerencias.lugares })}`}
-      ${campo("depto_destino", "Depto. destino", { sugerencias: sugerencias.deptos })}
-      ${campo("recibe_nombre", "Recibe (habitual)", { sugerencias: sugerencias.personas })}
-      ${campo("recibe_puesto", "Puesto de quien recibe", { sugerencias: sugerencias.puestos })}
-      ${campo("autoriza_nombre", "Autoriza (habitual)", { sugerencias: sugerencias.personas })}
-      ${campo("autoriza_puesto", "Puesto de quien autoriza", { sugerencias: sugerencias.puestos })}
-      <label class="campo campo-casilla">
-        <input type="checkbox" checked=${datos.requiere_autoriza} onChange=${(e) => setDatos({ ...datos, requiere_autoriza: e.currentTarget.checked })} />
-        <span>Exigir "Autorizó" en esta área</span>
-      </label>
-      ${campo("lote_defecto", "Lote por defecto")}
-      <label class="campo campo-casilla">
-        <input type="checkbox" checked=${datos.activo !== false} onChange=${(e) => setDatos({ ...datos, activo: e.currentTarget.checked })} />
-        <span>Activa (aparece al hacer vales)</span>
-      </label>
-      ${extra
-        ? ["izq", "der"].map(
-            (lado) => html`<div class="campo">
-                <span>${etiquetas[lado]} (nombre habitual)</span>
-                <${CampoSugerido} valor=${extra[lado]?.nombre ?? ""} alCambiar=${ponerExtra(lado, "nombre")} sugerencias=${sugerencias.personas} ariaLabel=${etiquetas[lado]} />
-              </div>
-              <div class="campo">
-                <span>Puesto (${etiquetas[lado].toLowerCase()})</span>
-                <${CampoSugerido} valor=${extra[lado]?.puesto ?? ""} alCambiar=${ponerExtra(lado, "puesto")} sugerencias=${sugerencias.puestos} ariaLabel=${`Puesto ${etiquetas[lado]}`} />
-              </div>`,
-          )
-        : null}
-      ${campo("observaciones", fijo ? "Observaciones que se imprimen (la línea ETAPA DE PERFORACION se llena en cada vale)" : "Observaciones que se imprimen", { area: true, ancho: "todo" })}
+      ${campo("nombre", "Nombre")}
+      ${campo("depto_destino", "Departamento que se imprime")}
     </div>
+    <div class="campo">
+      <span>Plantilla${conVales ? " · ya tiene vales: para otra, agrega un área nueva" : ""}</span>
+      <${ElegirPlantilla} valor=${datos.tipo} alCambiar=${(tipo) => tipo !== "TRANSFERENCIA" && setDatos({ ...datos, tipo })} bloqueada=${conVales} />
+    </div>
+    <${Detalles} resumen="Más opciones">
+      <p class="nota">Quién recibe y quién autoriza se llenan con los del último vale del área; estos se usan si aún no tiene vales.</p>
+      <div class="editor-encabezado">
+        ${campo("recibe_nombre", "Recibe (si aún no hay vales)", { sugerencias: sugerencias.personas })}
+        ${campo("recibe_puesto", "Puesto de quien recibe", { sugerencias: sugerencias.puestos })}
+        ${campo("autoriza_nombre", "Autoriza (si aún no hay vales)", { sugerencias: sugerencias.personas })}
+        ${campo("autoriza_puesto", "Puesto de quien autoriza", { sugerencias: sugerencias.puestos })}
+        <label class="campo campo-casilla">
+          <input type="checkbox" checked=${datos.requiere_autoriza} onChange=${(e) => setDatos({ ...datos, requiere_autoriza: e.currentTarget.checked })} />
+          <span>Exigir «Autorizó» en esta área</span>
+        </label>
+        ${campo("lote_defecto", "Lote por defecto")}
+        <label class="campo campo-casilla">
+          <input type="checkbox" checked=${datos.activo !== false} onChange=${(e) => setDatos({ ...datos, activo: e.currentTarget.checked })} />
+          <span>Activa (sale al hacer vales)</span>
+        </label>
+        ${extra
+          ? ["izq", "der"].map(
+              (lado) => html`<div class="campo">
+                  <span>${etiquetas[lado]} (si aún no hay vales)</span>
+                  <${CampoSugerido} valor=${extra[lado]?.nombre ?? ""} alCambiar=${ponerExtra(lado, "nombre")} sugerencias=${sugerencias.personas} ariaLabel=${etiquetas[lado]} />
+                </div>
+                <div class="campo">
+                  <span>Puesto (${etiquetas[lado].toLowerCase()})</span>
+                  <${CampoSugerido} valor=${extra[lado]?.puesto ?? ""} alCambiar=${ponerExtra(lado, "puesto")} sugerencias=${sugerencias.puestos} ariaLabel=${`Puesto ${etiquetas[lado]}`} />
+                </div>`,
+            )
+          : null}
+      </div>
+    <//>
     ${error ? html`<${Aviso} tipo="error">${error}<//>` : null}
     <div class="acciones-linea">
       <${Boton} tipo="primario" onClick=${guardar}>Guardar área<//>
       <${Boton} onClick=${alTerminar}>Cancelar<//>
     </div>
+  <//>`;
+}
+
+/** Editar una plantilla: el formato impreso y las observaciones, iguales en todas sus áreas. */
+function EditorPlantilla({ tipo, hojas, alTerminar }) {
+  const sesion = useSesion();
+  const plantilla = plantillaVale(sesion.estado, tipo);
+  const [hoja, setHoja] = useState(plantilla.hoja_excel ?? "");
+  const [observaciones, setObservaciones] = useState(plantilla.observaciones ?? "");
+  const [error, setError] = useState(null);
+  const guardar = () =>
+    sesion.tarea("Guardando plantilla…", async () => {
+      try {
+        const n = await sesion.almacen.modificar((e) => guardarPlantillaVale(e, tipo, { hoja_excel: hoja || null, observaciones }, sesion.usuario));
+        sesion.avisar("exito", n ? `Plantilla ${plantilla.nombre} guardada en ${n} ${n === 1 ? "área" : "áreas"}.` : `Plantilla ${plantilla.nombre}: no había nada que cambiar.`);
+        alTerminar();
+      } catch (e) {
+        setError(e.message);
+      }
+    });
+  return html`<${Tarjeta} titulo=${`Plantilla ${plantilla.nombre}`} clase="tarjeta-correccion editor-plantilla">
+    <p class="nota">
+      ${plantilla.areas.length
+        ? `La usan: ${plantilla.areas.map((a) => a.nombre).join(", ")}. Lo que cambies aquí queda igual en todas (y en cómo se reimprimen sus vales).`
+        : "Aún no hay áreas con esta plantilla."}
+    </p>
+    ${plantilla.distintas.length ? html`<${Aviso} tipo="info">${plantilla.distintas.join(", ")} ${plantilla.distintas.length === 1 ? "tiene" : "tienen"} otro formato u otras observaciones: al guardar quedan como estas.<//>` : null}
+    <div class="campo">
+      <span>Formato impreso (hoja del libro de vales)</span>
+      <${Lista}
+        valor=${hoja}
+        alCambiar=${(valor) => setHoja(valor || "")}
+        ariaLabel="Formato impreso"
+        opciones=${[{ valor: "", etiqueta: "— Según el departamento —" }, ...hojas.map((h) => ({ valor: h, etiqueta: h.trim() }))]}
+      />
+    </div>
+    <label class="campo">
+      <span>Observaciones que se imprimen${tipo === "TRANSFERENCIA" ? " (la línea «PARA USO EN» dice el destino de cada vale)" : ""}</span>
+      <textarea rows="4" value=${observaciones} onInput=${(e) => setObservaciones(e.currentTarget.value)} aria-label="Observaciones de la plantilla"></textarea>
+    </label>
+    <p class="nota">La línea ETAPA DE PERFORACION se llena en cada vale.</p>
+    ${error ? html`<${Aviso} tipo="error">${error}<//>` : null}
+    <div class="acciones-linea">
+      <${Boton} tipo="primario" onClick=${guardar}>Guardar plantilla<//>
+      <${Boton} onClick=${alTerminar}>Cancelar<//>
+    </div>
+  <//>`;
+}
+
+/** Las tres plantillas, cada una con su formato, cuántas áreas la usan y sus observaciones. */
+function PlantillasVale({ hojas, alEditar }) {
+  const sesion = useSesion();
+  return html`<${Tarjeta} titulo="Plantillas del vale">
+    <p class="nota">Solo hay tres. Cada área usa una; el formato y las observaciones se cambian aquí para todas sus áreas.</p>
+    <ul class="plantillas-vale">
+      ${PLANTILLAS_VALE.map((base) => {
+        const p = plantillaVale(sesion.estado, base.tipo);
+        const destinos = base.tipo === "TRANSFERENCIA" ? listaDestinos(sesion.estado).filter((d) => !igualLugar(d, ORIGEN_EQUIPO)).length : 0;
+        const cuantos = base.tipo === "TRANSFERENCIA" ? `${destinos} ${destinos === 1 ? "destino" : "destinos"}` : `${p.areas.length} ${p.areas.length === 1 ? "área" : "áreas"}`;
+        return html`<li class="plantilla-vale" key=${base.tipo}>
+          <div class="plantilla-cabeza">
+            <strong>${base.nombre}</strong>
+            <small>${cuantos} · formato ${(p.hoja_excel || "según el departamento").trim()}</small>
+          </div>
+          <p class="plantilla-observaciones">${p.observaciones || "Sin observaciones."}</p>
+          <${Boton} tamano="chico" disabled=${!p.areas.length && base.tipo !== "TRANSFERENCIA"} onClick=${() => alEditar(base.tipo)}>Editar<//>
+        </li>`;
+      })}
+    </ul>
   <//>`;
 }
 
@@ -322,7 +452,6 @@ function Personas() {
   <//>`;
 }
 
-const TIPO = { INTERNO: "Interna", EXTERNO: "Externa", TRANSFERENCIA: "Transferencia" };
 const usosEnTexto = (u) => [u.vales ? `${u.vales} ${u.vales === 1 ? "vale" : "vales"}` : "", u.borradores ? `${u.borradores} ${u.borradores === 1 ? "borrador" : "borradores"}` : ""].filter(Boolean).join(" y ");
 
 /**
@@ -349,7 +478,8 @@ function useQuitarArea(alQuitar) {
     });
   };
   const quitar = (area) => {
-    const usos = usosDeArea(sesion.estado, area.id);
+    // También cuentan los vales migrados del DIARIO (llevan el área por su departamento): esos se imprimen con ella.
+    const usos = usosDelArea(sesion.estado, area);
     return usos.vales || usos.borradores ? descartar(area, usos) : borrar(area);
   };
   const recuperar = (area) =>
@@ -362,43 +492,62 @@ function useQuitarArea(alQuitar) {
 
 export function PaginaAreas() {
   const sesion = useSesion();
-  const [editando, setEditando] = useState(null);
+  const estado = sesion.estado;
+  const [editando, setEditando] = useState(null); // { area } | { plantilla } | { nuevo: true }
   const [hojas, setHojas] = useState([]);
   useEffect(() => {
     sesion.hojasFormato().then(setHojas).catch(() => setHojas([]));
   }, []);
-  const todas = [...sesion.estado.plantillas_area].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-  const activas = todas.filter((a) => a.activo !== false);
+  const todas = [...estado.plantillas_area].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+  // Las áreas de Transferencia son la plantilla: en la lista van sus destinos.
+  const activas = todas.filter((a) => a.activo !== false && tipoDeArea(a) !== "TRANSFERENCIA");
   const descartadas = todas.filter((a) => a.activo === false);
-  const usos = new Map(todas.map((a) => [a.id, usosDeArea(sesion.estado, a.id)]));
-  const { quitar, borrar, recuperar } = useQuitarArea((area) => editando?.id === area.id && setEditando(null));
+  const usos = new Map(todas.map((a) => [a.id, usosDelArea(estado, a)]));
+  const { quitar, borrar, recuperar } = useQuitarArea((area) => editando?.area?.id === area.id && setEditando(null));
   const enUso = (a) => {
     const u = usos.get(a.id);
     return u.vales + u.borradores;
   };
+  const quitarDestinoConDeshacer = (nombre) =>
+    sesion.tarea("Quitando…", async () => {
+      const antes = [...listaDestinos(estado)];
+      await sesion.almacen.modificar((e) => quitarDestino(e, nombre, sesion.usuario));
+      sesion.avisar("exito", `${nombre} ya no sale en «¿A dónde se envía?». Los vales que ya lo usan no cambian.`, 8000, {
+        etiqueta: "↶ Deshacer",
+        alHacer: () => sesion.almacen.modificar((e) => fijarDestinos(e, antes, sesion.usuario)),
+      });
+    });
+  const filas = [
+    ...activas.map((a) => ({ id: `a${a.id}`, nombre: a.nombre, tipo: tipoDeArea(a), area: a })),
+    // El equipo propio nunca sale como destino (de él salen los vales): no se lista.
+    ...listaDestinos(estado).filter((d) => !igualLugar(d, ORIGEN_EQUIPO)).map((d) => ({ id: `d${d}`, nombre: d, tipo: "TRANSFERENCIA", destino: d })),
+  ];
   return html`
-    ${editando ? html`<${EditorArea} area=${editando} hojas=${hojas} alTerminar=${() => setEditando(null)} />` : null}
-    <${Tarjeta} titulo="Áreas (plantillas del vale)" acciones=${html`<${Boton} onClick=${() => setEditando(areaVacia())}>＋ Nueva área<//>`}>
-      <p class="nota">
-        Sustituyen a las hojas del libro de vales: al elegir el área, el vale se llena con estos datos. <em>Quitar…</em> borra un área que
-        ningún vale usa; si ya tiene vales, la descarta (deja de salir al hacer vales y se puede recuperar).
-      </p>
+    ${editando?.plantilla ? html`<${EditorPlantilla} tipo=${editando.plantilla} hojas=${hojas} alTerminar=${() => setEditando(null)} />` : null}
+    ${editando?.area ? html`<${EditorArea} key=${editando.area.id} area=${editando.area} alTerminar=${() => setEditando(null)} />` : null}
+    ${editando?.nuevo ? html`<${NuevoNombre} alTerminar=${() => setEditando(null)} />` : null}
+    <${PlantillasVale} hojas=${hojas} alEditar=${(tipo) => setEditando({ plantilla: tipo })} />
+    <${Tarjeta} titulo="Áreas y destinos" acciones=${html`<${Boton} onClick=${() => setEditando({ nuevo: true })}>＋ Agregar<//>`}>
+      <p class="nota">Cada nombre usa una plantilla. Los de Transferencia son los destinos de «¿A dónde se envía?» (los mismos en DLTA y GSM).</p>
       <${Tabla}
-        filas=${activas}
-        vacia="No hay áreas activas: agrega una o recupera una descartada."
+        filas=${filas}
+        vacia="No hay áreas ni destinos: agrega uno."
         columnas=${[
-          { clave: "nombre", titulo: "Área" },
-          { titulo: "Destino", render: (a) => a.depto_destino || "—" },
-          { titulo: "Recibe", render: (a) => a.recibe_nombre || "—" },
-          { titulo: "Tipo", render: (a) => TIPO[tipoDeArea(a)] },
-          { titulo: "Formato", render: (a) => (a.hoja_excel || "según depto.").trim() },
-          { titulo: "Vales", numero: true, render: (a) => usos.get(a.id).vales || "—" },
+          { clave: "nombre", titulo: "Nombre" },
+          { titulo: "Plantilla", render: (f) => html`<${Pastilla} tono=${f.tipo === "TRANSFERENCIA" ? "info" : f.tipo === "EXTERNO" ? "lugar" : "ok"}>${nombrePlantilla(f.tipo)}<//>` },
+          { titulo: "Departamento", render: (f) => (f.area ? f.area.depto_destino || "—" : "—") },
+          { titulo: "Vales", numero: true, render: (f) => (f.area ? usos.get(f.area.id).vales || "—" : "—") },
           {
             titulo: "",
-            render: (a) => html`<div class="acciones-fila">
-              <${Boton} tamano="chico" onClick=${() => setEditando(a)}>Editar<//>
-              <${Boton} tamano="chico" tipo="texto" title=${enUso(a) ? `La usan ${usosEnTexto(usos.get(a.id))}: se descarta` : "Nadie la usa: se borra"} onClick=${() => quitar(a)}>Quitar…<//>
-            </div>`,
+            render: (f) =>
+              f.area
+                ? html`<div class="acciones-fila">
+                    <${Boton} tamano="chico" onClick=${() => setEditando({ area: f.area })}>Editar<//>
+                    <${Boton} tamano="chico" tipo="texto" title=${enUso(f.area) ? `La usan ${usosEnTexto(usos.get(f.area.id))}: se descarta` : "Nadie la usa: se borra"} onClick=${() => quitar(f.area)}>Quitar…<//>
+                  </div>`
+                : html`<div class="acciones-fila">
+                    <${Boton} tamano="chico" tipo="texto" onClick=${() => quitarDestinoConDeshacer(f.destino)}>Quitar<//>
+                  </div>`,
           },
         ]}
       />
@@ -409,7 +558,7 @@ export function PaginaAreas() {
               filas=${descartadas}
               columnas=${[
                 { clave: "nombre", titulo: "Área" },
-                { titulo: "Tipo", render: (a) => TIPO[tipoDeArea(a)] },
+                { titulo: "Plantilla", render: (a) => nombrePlantilla(tipoDeArea(a)) },
                 { titulo: "Usada en", render: (a) => usosEnTexto(usos.get(a.id)) || "ningún vale" },
                 {
                   titulo: "",
