@@ -189,3 +189,21 @@ test("el respaldo del inicio del día va después de abrir; si la carpeta no lis
   assert.equal(sesion.carpeta.hijos.get("respaldos").hijos.size, 1);
   assert.equal(sesion.respaldoDeHoy, true);
 });
+
+// ---------------------------------------------------------------- «Permitir» sin aviso de Edge
+
+test("permisoCarpeta: si Edge no responde al pedir el permiso, no se espera para siempre y se toma la respuesta tardía", async () => {
+  const { SIN_RESPUESTA, permisoCarpeta } = await import("../src/almacen/archivos.js");
+  let responder;
+  const carpeta = { kind: "directory", name: "ONEDRIVE", queryPermission: async () => "prompt", requestPermission: () => new Promise((r) => (responder = r)) };
+  const tardias = [];
+  const estado = await permisoCarpeta(carpeta, true, { limiteMs: 20, alLlegarTarde: (e) => tardias.push(e) });
+  assert.equal(estado, SIN_RESPUESTA);
+  responder("granted");
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(tardias, ["granted"]);
+  // Sin pedir, solo consulta; si la consulta tampoco responde, también se deja de esperar.
+  assert.equal(await permisoCarpeta(carpeta, false), "prompt");
+  assert.equal(await permisoCarpeta({ ...carpeta, queryPermission: nunca }, true, { limiteMs: 20 }), SIN_RESPUESTA);
+  assert.equal(await permisoCarpeta({ ...carpeta, requestPermission: async () => "granted" }, true), "granted");
+});

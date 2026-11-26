@@ -331,6 +331,17 @@ h3 {
   flex-wrap: wrap;
 }
 
+/* Ronda 36: Edge no mostró su aviso de permiso (OneDrive sin responder): la explicación es larga, se lee a la izquierda. */
+.banner-alerta {
+  justify-content: space-between;
+  border-bottom: 2px solid var(--alerta);
+}
+
+.banner-alerta > span {
+  flex: 1 1 420px;
+  max-width: 960px;
+}
+
 .marco {
   --ancho-menu: 236px;
 }

@@ -334,7 +334,13 @@ respondía era escribir, abría al minuto). Aplicado:
   se restaura en una nueva; si ni así, la pantalla explica cómo borrarla a mano.
 - ☑ **Ya está abierta → Abrir aquí**: la otra ventana suelta sus bases, deja de guardar y lo dice (*Usar esta ventana*
   la recupera).
-- ☐ Del usuario: abrir la versión nueva en el equipo del almacén. Si se queda en algún paso, pegar el diagnóstico.
+- ☑ Revisión del usuario: ya abre (3–4 s en *Leyendo los datos…*), pero **«Permitir» se quedaba en «Pidiendo permiso…»**
+  y Edge nunca mostró su aviso (en DLTA y GSM; sin errores en la consola). Lo más probable: OneDrive sigue sin responder
+  desde el apagón (el arranque se colgaba listando esa misma carpeta) y Edge se queda esperándolo antes de preguntar. Ahora pedir permiso tiene tiempo límite (15 s): el
+  aviso de arriba explica qué revisar (abrir la carpeta en el Explorador; si tarda, reiniciar OneDrive) con *Intentar otra
+  vez*; si Edge contesta después, se usa su respuesta. Lo mismo en el inicio, *Respaldos* y las carpetas del reporte. Con
+  permiso, el respaldo del día va en segundo plano (ya no detiene la pantalla).
+- ☐ Del usuario: revisar OneDrive (o reiniciarlo) y volver a pulsar *Permitir*; si sigue sin aviso, pegar el diagnóstico.
 
 **Ronda 35 — correcciones del usuario (vale, inicio, menú, áreas).** Aplicada en 6 etapas en `main`:
 - ☑ Menú lateral: sin la barra horizontal del menú de íconos (los botones medían 1 px más que el espacio); con el menú

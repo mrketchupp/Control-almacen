@@ -4,7 +4,7 @@
 // Nada se guarda solo: solo al pulsar «Descargar».
 
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { ErrorEscritura, SinElegir, descargar, explicarErrorEscritura, permisoCarpeta, soportaCarpetas } from "../../almacen/archivos.js";
+import { ErrorEscritura, SIN_RESPUESTA, SinElegir, descargar, explicarErrorEscritura, permisoCarpeta, soportaCarpetas, textoSinRespuesta } from "../../almacen/archivos.js";
 import { LIBROS, RUTAS, VARIABLES, abrirRuta, carpetasPara, hayArchivo, problemaDeRuta } from "../../almacen/destinos.js";
 import { anotar, borrarRegistro, describirHandle, registro, suscribirRegistro, textoRegistro } from "../../almacen/registro.js";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
@@ -43,12 +43,15 @@ export async function guardarEnSuLugar(sesion, tipo, alTerminarOriginal = null, 
     const reintentar = () => guardarEnSuLugar(sesion, tipo, alTerminar, opciones, { antes });
     const conPermiso = destino.clase === "carpeta" ? destino.raiz : destino.archivo;
     anotar("descargar", `${tipo} del ${fecha} → ${destino.clase === "carpeta" ? `${describirHandle(destino.raiz)} / ${destino.ruta}` : describirHandle(destino.archivo)}`);
-    if ((await permisoCarpeta(conPermiso, true)) !== "granted") {
-      anotar("descargar", `${tipo}: sin permiso de Edge, no se generó`);
+    const permiso = await permisoCarpeta(conPermiso, true);
+    if (permiso !== "granted") {
+      anotar("descargar", `${tipo}: sin permiso de Edge (${permiso}), no se generó`);
       sesion.avisar(
         "advertencia",
-        `Edge no dio permiso para guardar en «${conPermiso.name}». Pulsa otra vez «Descargar» y elige «Editar archivos» (si ya no lo pregunta, recarga la página).`,
-        15000,
+        permiso === SIN_RESPUESTA
+          ? textoSinRespuesta(conPermiso.name)
+          : `Edge no dio permiso para guardar en «${conPermiso.name}». Pulsa otra vez «Descargar» y elige «Editar archivos» (si ya no lo pregunta, recarga la página).`,
+        permiso === SIN_RESPUESTA ? 30000 : 15000,
         otroLugar,
       );
       return;
@@ -291,11 +294,13 @@ export function VentanaCarpetas({ fecha = hoyIso(), alCerrar }) {
     });
   const permitir = () =>
     hacer("Pidiendo permiso…", async () => {
-      await permisoCarpeta(destinos.raiz, true);
+      if ((await permisoCarpeta(destinos.raiz, true, { alLlegarTarde: () => setVersion((v) => v + 1) })) === SIN_RESPUESTA) throw new Error(textoSinRespuesta(destinos.raiz.name));
     });
   const buscar = () =>
     hacer("Buscando las carpetas…", async () => {
-      if ((await permisoCarpeta(destinos.raiz, true)) !== "granted") throw new Error(`Edge no dio permiso para leer «${destinos.raiz.name}».`);
+      const permiso = await permisoCarpeta(destinos.raiz, true);
+      if (permiso === SIN_RESPUESTA) throw new Error(textoSinRespuesta(destinos.raiz.name));
+      if (permiso !== "granted") throw new Error(`Edge no dio permiso para leer «${destinos.raiz.name}».`);
       const propuestas = await sesion.buscarRutasReporte();
       const halladas = RUTAS.filter((id) => propuestas[id]);
       contar(halladas.length ? "ok" : "alerta", halladas.length ? `Encontré las de ${halladas.join(", ")}.` : "No encontré las carpetas de los inventarios en la base.");

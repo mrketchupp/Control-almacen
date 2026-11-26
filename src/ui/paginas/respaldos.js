@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { fmtFechaHora, hoyIso } from "../../nucleo/fechas.js";
-import { descargar, leerArchivoSubido, leerDeCarpeta } from "../../almacen/archivos.js";
+import { SIN_RESPUESTA, descargar, leerArchivoSubido, leerDeCarpeta, textoSinRespuesta } from "../../almacen/archivos.js";
 import { leerRespaldo, revisarInventario } from "../../almacen/respaldos.js";
 import { otrosInventarios } from "../../nucleo/inventarios.js";
 import { CARPETA_RESPALDOS } from "../sesion.js";
@@ -145,6 +145,7 @@ export function PaginaRespaldos() {
                 : null}
               ${sesion.carpeta ? html`<span>Actual: <code>${sesion.carpeta.name}</code> ${sesion.permiso === "granted" ? html`<span class="ok">✓ lista</span>` : html`<span class="alerta">sin permiso</span>`}</span>` : null}
             </div>
+            ${sesion.carpeta && sesion.permiso === SIN_RESPUESTA ? html`<p class="nota nota-pendiente">${textoSinRespuesta(sesion.carpeta.name)}</p>` : null}
           `
         : html`<${Aviso} tipo="advertencia">Este navegador no permite elegir carpetas. Usa Microsoft Edge o Google Chrome para respaldos automáticos; mientras tanto los respaldos se descargan.<//>`}
     <//>

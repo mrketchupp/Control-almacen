@@ -36,6 +36,20 @@ function colgar() {
     }
     return get.call(this, clave);
   };
+  // Edge no muestra su aviso de permiso (OneDrive sin responder): requestPermission nunca responde, o responde tarde.
+  if (localStorage.getItem("prueba:permiso-colgado") === "1") {
+    const tarde = Number(localStorage.getItem("prueba:permiso-tarde-ms") || 0);
+    FileSystemHandle.prototype.queryPermission = async function () {
+      return this.__concedido ? "granted" : "prompt";
+    };
+    FileSystemHandle.prototype.requestPermission = function () {
+      if (!tarde) return new Promise(() => {});
+      return new Promise((r) => setTimeout(() => {
+        this.__concedido = true;
+        r("granted");
+      }, tarde));
+    };
+  }
   if (localStorage.getItem("prueba:carpeta-no-lista") === "1") {
     const nunca = () => new Promise(() => {});
     FileSystemDirectoryHandle.prototype.entries = function () {
@@ -151,6 +165,27 @@ test("arranque: nada lo deja en «Cargando…» y siempre hay salida", async (t)
     // El respaldo del inicio del día se escribe en la carpeta aunque no se puedan quitar los viejos.
     await page.waitForFunction(() => /respaldo.*del inicio del día: TRABAJO\/respaldos\/almacen_/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""), null, { timeout: 40000 });
     await banderas({ carpeta: false, "carpeta-no-lista": false });
+  });
+
+  await t.test("«Permitir» sin aviso de Edge: a los 15 s explica qué revisar y, si Edge responde tarde, lo usa", async () => {
+    await cargarFixture();
+    await banderas({ carpeta: true, "permiso-colgado": true });
+    await page.evaluate(() => localStorage.setItem("prueba:permiso-tarde-ms", "19000"));
+    await page.goto(origen + "/#inicio");
+    await page.locator(".navegacion").waitFor();
+    const banner = page.locator(".banner");
+    await banner.getByRole("button", { name: "Permitir" }).click();
+    await page.getByText("Pidiendo permiso…").first().waitFor();
+    await banner.getByText("Edge no mostró el aviso para dar permiso a «TRABAJO»").waitFor({ timeout: 20000 });
+    assert.equal(await page.getByText("Pidiendo permiso…").count(), 0, "ya no se queda pidiendo permiso");
+    assert.equal(await banner.getByRole("button", { name: "Intentar otra vez" }).count(), 1);
+    if (CAPTURAS) await page.screenshot({ path: join(CAPTURAS, "permiso-sin-respuesta.png") });
+    // Edge respondió tarde: se toma, el aviso se va y se hace el respaldo del día en la carpeta.
+    await banner.waitFor({ state: "detached", timeout: 15000 });
+    await page.waitForFunction(() => /Edge respondió tarde «granted»/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""));
+    await page.waitForFunction(() => /del inicio del día: TRABAJO\/respaldos\/almacen_/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""), null, { timeout: 20000 });
+    await banderas({ carpeta: false, "permiso-colgado": false });
+    await page.evaluate(() => localStorage.removeItem("prueba:permiso-tarde-ms"));
   });
 
   await t.test("la base no responde: la carga dice el paso, ofrece salidas y el rescate restaura un respaldo", async () => {

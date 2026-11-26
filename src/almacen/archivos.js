@@ -2,6 +2,7 @@
 // con la API de acceso a archivos del navegador, o descargas normales si no hay carpeta.
 
 import { anotar, describirHandle } from "./registro.js";
+import { conTiempo, esTiempo } from "./tiempo.js";
 
 export const soportaCarpetas = () => typeof window !== "undefined" && "showDirectoryPicker" in window;
 
@@ -282,17 +283,44 @@ export async function elegirCarpeta() {
   return window.showDirectoryPicker({ id: "control-almacen", mode: "readwrite", startIn: "documents" });
 }
 
-/** 'granted' | 'prompt' | 'denied'. Con `pedir`, solicita el permiso (requiere un clic). */
-export async function permisoCarpeta(carpeta, pedir = false) {
+/**
+ * Ronda 36 (fallo reportado tras un apagón: al pulsar «Permitir» se quedaba en «Pidiendo permiso…» y Edge nunca mostró
+ * su aviso): Edge no respondió al pedir el permiso. Lo más probable es que OneDrive no respondiera (el arranque ya se
+ * había colgado listando esa misma carpeta) y Edge se quedara esperándolo antes de mostrar su aviso.
+ */
+export const SIN_RESPUESTA = "sin-respuesta";
+export const LIMITE_PERMISO_MS = 15000;
+
+/** Qué se le dice al usuario cuando Edge no mostró el aviso del permiso. */
+export const textoSinRespuesta = (nombre) =>
+  `Edge no mostró el aviso para dar permiso a «${nombre}». Puede pasar cuando OneDrive no responde (por ejemplo, después de un apagón): abre esa carpeta en el Explorador de Windows y, si tarda o no abre, reinicia OneDrive. Luego vuelve a intentarlo. Mientras, los respaldos se descargan en Descargas.`;
+
+/**
+ * 'granted' | 'prompt' | 'denied' | SIN_RESPUESTA. Con `pedir`, solicita el permiso (requiere un clic). Si Edge no
+ * responde en `limiteMs` se deja de esperar (SIN_RESPUESTA); si responde después, `alLlegarTarde(estado)`.
+ */
+export async function permisoCarpeta(carpeta, pedir = false, { limiteMs = LIMITE_PERMISO_MS, alLlegarTarde = null } = {}) {
   if (!carpeta) return "denied";
   const opciones = { mode: "readwrite" };
+  let pedido = null;
   try {
-    const antes = await carpeta.queryPermission(opciones);
+    const antes = await conTiempo(carpeta.queryPermission(opciones), limiteMs);
     if (antes === "granted" || !pedir) return antes;
-    const estado = await carpeta.requestPermission(opciones);
+    pedido = carpeta.requestPermission(opciones);
+    const estado = await conTiempo(pedido, limiteMs);
     anotar("permiso", `${describirHandle(carpeta)} (editar): estaba «${antes}», Edge respondió «${estado}»`);
     return estado;
   } catch (error) {
+    if (esTiempo(error)) {
+      anotar("permiso", `${describirHandle(carpeta)} (editar): Edge no respondió en ${limiteMs / 1000} s${pedido ? " (no mostró su aviso)" : " al consultarlo"}`);
+      pedido
+        ?.then((estado) => {
+          anotar("permiso", `${describirHandle(carpeta)} (editar): Edge respondió tarde «${estado}»`);
+          alLlegarTarde?.(estado);
+        })
+        .catch(() => {});
+      return SIN_RESPUESTA;
+    }
     if (pedir) anotar("permiso", `${describirHandle(carpeta)} (editar): no se pudo pedir`, error);
     return "denied";
   }

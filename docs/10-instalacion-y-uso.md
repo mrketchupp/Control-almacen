@@ -425,6 +425,10 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
   La otra ventana deja de guardar cambios y lo dice. Con *Usar esta ventana*, la recuperas.
 - El respaldo del inicio del día se hace ya abierta la herramienta. Si OneDrive no responde, se avisa, se descarga en
   *Descargas* y se sigue trabajando.
+- **«Permitir» no muestra el aviso de Edge:** a los 15 s la herramienta deja de esperar y lo explica arriba. Lo más
+  probable es que OneDrive no responda y Edge se quede esperándolo antes de preguntar. Abre la carpeta en el Explorador de Windows. Si
+  tarda o no abre, reinicia OneDrive: en la nube junto al reloj, *Configuración → Pausar sincronización* o *Salir de OneDrive*,
+  y ábrelo otra vez desde Inicio. Luego pulsa **Intentar otra vez**. Si Edge contesta tarde, la herramienta toma su respuesta.
 - Ocultar o mostrar la carpeta donde está el HTML no cambia nada: los datos viven en Edge, no en esa carpeta.
 
 ## 6. Para desarrollo

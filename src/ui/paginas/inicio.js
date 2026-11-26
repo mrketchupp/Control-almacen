@@ -8,7 +8,7 @@ import { Bento, Boton, ElegirArchivo, Tarjeta, useSesion } from "../componentes.
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { SubirSharePoint } from "./sharepoint.js";
-import { leerArchivoSubido, leerDeCarpeta } from "../../almacen/archivos.js";
+import { SIN_RESPUESTA, leerArchivoSubido, leerDeCarpeta, textoSinRespuesta } from "../../almacen/archivos.js";
 import { CARPETA_RESPALDOS } from "../sesion.js";
 import { RespaldoReciente, restaurarConConfirmacion, useRespaldoReciente } from "./respaldos.js";
 import { ZonaSoltar } from "./carpetas.js";
@@ -104,6 +104,7 @@ function CarpetaDeTrabajo({ camino, alRegresar }) {
       ${sesion.carpeta && sesion.permiso !== "granted"
         ? html`<${Boton} tipo="primario" onClick=${() => sesion.tarea("Pidiendo permiso…", () => sesion.activarCarpeta())}>Permitir usar «${sesion.carpeta.name}»<//>`
         : null}
+      ${sesion.carpeta && sesion.permiso === SIN_RESPUESTA ? html`<p class="nota nota-pendiente">${textoSinRespuesta(sesion.carpeta.name)}</p>` : null}
       ${lista && reciente
         ? html`<div class="bienvenida-respaldo">
             ${desdeRespaldo ? null : html`<p class="nota">En esta carpeta ya hay un respaldo: puedes seguir desde ahí.</p>`}

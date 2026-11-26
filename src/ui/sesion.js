@@ -4,6 +4,7 @@
 import { hoyIso } from "../nucleo/fechas.js";
 import { usuarioEnTurno } from "../servicios/consultas.js";
 import {
+  SIN_RESPUESTA,
   SinElegir,
   borrarDeCarpeta,
   causaDeError,
@@ -292,12 +293,30 @@ export class Sesion {
    * @returns la promesa del respaldo (para las pruebas)
    */
   alAbrir({ esperaMs = ESPERA_RESPALDO_AL_ABRIR_MS } = {}) {
-    return new Promise((resolver) => setTimeout(resolver, esperaMs))
-      .then(() => this.respaldoAutomatico())
-      .catch((error) => {
-        console.warn("Respaldo del inicio del día:", error);
-        anotar("respaldo", "del inicio del día", error);
-      });
+    return new Promise((resolver) => setTimeout(resolver, esperaMs)).then(() => this._respaldarSinEsperar());
+  }
+
+  /** El respaldo del inicio del día sin detener lo que se está haciendo (OneDrive puede tardar). */
+  _respaldarSinEsperar() {
+    return this.respaldoAutomatico().catch((error) => {
+      console.warn("Respaldo del inicio del día:", error);
+      anotar("respaldo", "del inicio del día", error);
+    });
+  }
+
+  /**
+   * Pide el permiso de la carpeta de trabajo. Ronda 36: si Edge no muestra su aviso (OneDrive sin responder), a los
+   * LIMITE_PERMISO_MS se deja de esperar (permiso = SIN_RESPUESTA, que el aviso de arriba explica); si Edge responde
+   * después, se usa esa respuesta. Con permiso, el respaldo del día va en segundo plano.
+   */
+  async _pedirPermisoCarpeta(carpeta) {
+    const alLlegarTarde = (estado) => {
+      if (this.carpeta !== carpeta) return;
+      this.permiso = estado;
+      this._cambio();
+      if (estado === "granted") this._respaldarSinEsperar();
+    };
+    this.permiso = await permisoCarpeta(carpeta, true, { alLlegarTarde });
   }
 
   async actualizarUso(limiteMs = LIMITE_AL_ABRIR_MS) {
@@ -314,11 +333,11 @@ export class Sesion {
   async elegirCarpeta() {
     const carpeta = await elegirCarpeta();
     this.carpeta = carpeta;
-    this.permiso = await permisoCarpeta(carpeta, true);
+    await this._pedirPermisoCarpeta(carpeta);
     await this.backend.guardarAjuste("carpeta", carpeta);
     this._cambio();
     this.avisar("exito", `Carpeta elegida: ${carpeta.name}. Ahí se guardarán respaldos y exportaciones.`);
-    await this.respaldoAutomatico();
+    this._respaldarSinEsperar();
   }
 
   /**
@@ -329,21 +348,21 @@ export class Sesion {
     if (carpeta?.kind !== "directory") throw new Error(`«${carpeta?.name ?? "Eso"}» no es una carpeta: arrastra la carpeta donde quieres trabajar.`);
     this.carpeta = carpeta;
     try {
-      this.permiso = await permisoCarpeta(carpeta, true);
+      await this._pedirPermisoCarpeta(carpeta);
     } catch {
       this.permiso = "prompt";
     }
     await this.backend.guardarAjuste("carpeta", carpeta);
     this._cambio();
     this.avisar("exito", `Carpeta elegida: ${carpeta.name}. Ahí se guardarán respaldos y exportaciones.`);
-    if (this.permiso === "granted") await this.respaldoAutomatico();
+    if (this.permiso === "granted") this._respaldarSinEsperar();
   }
 
   /** El navegador pide confirmar el permiso de la carpeta una vez por sesión (requiere clic). */
   async activarCarpeta() {
-    this.permiso = await permisoCarpeta(this.carpeta, true);
+    await this._pedirPermisoCarpeta(this.carpeta);
     this._cambio();
-    if (this.permiso === "granted") await this.respaldoAutomatico();
+    if (this.permiso === "granted") this._respaldarSinEsperar();
   }
 
   async olvidarCarpeta() {
@@ -359,7 +378,8 @@ export class Sesion {
    * @returns texto del destino
    */
   async guardarArchivo(ruta, nombre, datos, { pedirPermiso = true } = {}) {
-    if (pedirPermiso && this.carpeta && this.permiso !== "granted") this.permiso = await permisoCarpeta(this.carpeta, true);
+    // Si Edge ya no respondió al pedirlo (SIN_RESPUESTA), no se vuelve a esperar: se descarga (se reintenta desde el aviso).
+    if (pedirPermiso && this.carpeta && this.permiso !== "granted" && this.permiso !== SIN_RESPUESTA) await this._pedirPermisoCarpeta(this.carpeta);
     if (this.carpetaLista) {
       try {
         return await escribirEnCarpeta(this.carpeta, ruta, nombre, datos);

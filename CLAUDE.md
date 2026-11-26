@@ -234,6 +234,11 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `revisarRespaldo`, `loQueSePierde`, `copiaDeRescate` (respaldo «rescate» a Descargas; ErrorTiempo → recarga sin copia),
   `restaurarDeEmergencia` (sobre la base; si no responde o falla, `borrarBaseIndexedDB` y en una nueva; ErrorRespaldo no
   toca nada). `onversionchange` cierra la conexión que tenía. Pruebas `rescate.test.js` y Chromium `arranque.navegador.mjs`.
+  Revisión del usuario: «Permitir» se quedaba en «Pidiendo permiso…» sin aviso de Edge (OneDrive sin responder).
+  `permisoCarpeta(carpeta, pedir, { limiteMs = LIMITE_PERMISO_MS (15 s), alLlegarTarde })` devuelve `SIN_RESPUESTA` si
+  Edge no contesta (y anota en el registro); `textoSinRespuesta(nombre)` lo explica en `BannerPermiso` (*Intentar otra
+  vez*, `.banner-alerta`), inicio, *Respaldos* y *Carpetas…*. `Sesion._pedirPermisoCarpeta` toma la respuesta tardía;
+  `guardarArchivo` no vuelve a pedir con `SIN_RESPUESTA` (descarga); `_respaldarSinEsperar` tras dar o elegir carpeta.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

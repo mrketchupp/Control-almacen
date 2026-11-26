@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { SIN_RESPUESTA, textoSinRespuesta } from "../almacen/archivos.js";
 import { hoyIso, fmtFechaHora } from "../nucleo/fechas.js";
 import { agregarAlmacenista, almacenistas, fijarUsuarioEnTurno, lineasPorUbicar } from "../servicios/consultas.js";
 import { Boton, ContextoSesion, Lista, Ventana, useSesion } from "./componentes.js";
@@ -343,9 +344,13 @@ function AjustesYMas({ seccion, alCerrar }) {
 function BannerPermiso() {
   const sesion = useSesion();
   if (!sesion.carpeta || sesion.permiso === "granted" || sesion.almacen.vacio) return null;
-  return html`<div class="banner">
-    <span>Para respaldar en <strong>${sesion.carpeta.name}</strong>, el navegador pide confirmar el permiso en cada sesión.</span>
-    <${Boton} tipo="primario" onClick=${() => sesion.tarea("Pidiendo permiso…", () => sesion.activarCarpeta())}>Permitir<//>
+  // Ronda 36: Edge no mostró su aviso (OneDrive sin responder): se explica qué revisar y se puede intentar otra vez.
+  const sinRespuesta = sesion.permiso === SIN_RESPUESTA;
+  return html`<div class=${`banner ${sinRespuesta ? "banner-alerta" : ""}`}>
+    ${sinRespuesta
+      ? html`<span>${textoSinRespuesta(sesion.carpeta.name)}</span>`
+      : html`<span>Para respaldar en <strong>${sesion.carpeta.name}</strong>, el navegador pide confirmar el permiso en cada sesión.</span>`}
+    <${Boton} tipo="primario" onClick=${() => sesion.tarea("Pidiendo permiso…", () => sesion.activarCarpeta())}>${sinRespuesta ? "Intentar otra vez" : "Permitir"}<//>
   </div>`;
 }
 
