@@ -424,6 +424,8 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 - Restaurar respaldo… guarda antes en *Descargas* una copia de lo que hay y dice qué vales se pierden (se capturan otra
   vez, en orden).
 - Los datos viven en Edge, no en la carpeta del HTML: ocultarla o moverla no cambia nada.
+- *Permitir en cada visita* dura mientras Edge siga abierto: con la herramienta abierta como archivo, al cerrar Edge lo
+  vuelve a pedir. Es normal.
 
 ## 6. Para desarrollo
 

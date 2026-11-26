@@ -342,7 +342,9 @@ respondía era escribir, abría al minuto). Aplicado:
   (*Descargas*). Si nadie pulsa *Permitir* en 2 min, también. El aviso queda en una línea: *Edge no dio acceso a «X».
   Respaldo de hoy en Descargas ✓* con **Elegir carpeta…** (explorador de Windows, que da el permiso en el mismo diálogo).
   Si luego hay permiso, el de hoy también va a la carpeta. Pantallas de arranque y rescate con textos de una línea.
-- ☐ Del usuario: probar «Permitir» y, si Edge no pregunta, «Elegir carpeta…».
+- ☑ Del usuario: volver a elegir la carpeta (en *Respaldos*) hizo que Edge preguntara otra vez el permiso.
+- Nota: abierta como archivo (`file://`), Edge no guarda «Permitir en cada visita» al cerrarse; lo pide en cada sesión de
+  Edge. Solo una dirección web (opción B de `docs/10`) lo conserva.
 
 **Ronda 35 — correcciones del usuario (vale, inicio, menú, áreas).** Aplicada en 6 etapas en `main`:
 - ☑ Menú lateral: sin la barra horizontal del menú de íconos (los botones medían 1 px más que el espacio); con el menú
