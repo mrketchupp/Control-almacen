@@ -26,13 +26,26 @@ function terminada(tx) {
   });
 }
 
+/**
+ * Ronda 36: la herramienta se abrió en otra ventana («Abrir aquí») y esta ya no debe escribir nada (pisaría lo de la
+ * otra: un vale con un folio que la otra también usa).
+ */
+export class BaseSoltada extends Error {
+  constructor() {
+    super("Esta ventana ya no guarda cambios: la herramienta se abrió en otra ventana.");
+    this.name = "BaseSoltada";
+  }
+}
+
 export class BackendIndexedDB {
   constructor(nombre = NOMBRE_BD) {
     this.nombre = nombre;
     this.bd = null;
+    this.soltada = false;
   }
 
   async abrir() {
+    if (this.soltada) throw new BaseSoltada();
     if (this.bd) return this.bd;
     const peticion = indexedDB.open(this.nombre, VERSION_BD);
     peticion.onupgradeneeded = () => {
@@ -42,8 +55,17 @@ export class BackendIndexedDB {
       if (!bd.objectStoreNames.contains("ajustes")) bd.createObjectStore("ajustes");
       if (!bd.objectStoreNames.contains("instantaneas")) bd.createObjectStore("instantaneas", { autoIncrement: true });
     };
-    this.bd = await promesa(peticion);
-    this.bd.onversionchange = () => this.bd.close();
+    const bd = await promesa(peticion);
+    // Si otra ventana borra o cambia la base (restaurar de emergencia), esta conexión se suelta sin estorbar.
+    bd.onversionchange = () => {
+      bd.close();
+      if (this.bd === bd) this.bd = null;
+    };
+    if (this.soltada) {
+      bd.close();
+      throw new BaseSoltada();
+    }
+    this.bd = bd;
     return this.bd;
   }
 
@@ -51,6 +73,12 @@ export class BackendIndexedDB {
   cerrar() {
     this.bd?.close();
     this.bd = null;
+  }
+
+  /** Ronda 36: desde ahora nada se lee ni se escribe con este backend (la herramienta se abrió en otra ventana). */
+  soltar() {
+    this.soltada = true;
+    this.cerrar();
   }
 
   async _leer(almacen, clave) {
@@ -141,6 +169,18 @@ export class BackendIndexedDB {
   }
 }
 
+/**
+ * Borra la base de un inventario completa (Ronda 36, restaurar de emergencia cuando la base no responde). Con otra
+ * conexión abierta, espera a que se cierre (cada ventana cierra la suya al pedirlo); quien llama pone el tiempo límite.
+ */
+export function borrarBaseIndexedDB(nombre) {
+  return new Promise((resolver, rechazar) => {
+    const peticion = indexedDB.deleteDatabase(nombre);
+    peticion.onsuccess = () => resolver();
+    peticion.onerror = () => rechazar(peticion.error ?? new Error(`No se pudo borrar la base ${nombre}.`));
+  });
+}
+
 /** Mismo contrato que BackendIndexedDB, en memoria (pruebas). */
 export class BackendMemoria {
   constructor() {
@@ -151,6 +191,8 @@ export class BackendMemoria {
   }
 
   cerrar() {}
+
+  soltar() {}
 
   async leerEstado() {
     return this.estado ? structuredClone(this.estado) : null;

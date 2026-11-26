@@ -21,6 +21,7 @@ import {
 } from "../almacen/archivos.js";
 import { Compartidos } from "../almacen/compartidos.js";
 import { anotar, describirHandle } from "../almacen/registro.js";
+import { conTiempo, oSiNo } from "../almacen/tiempo.js";
 import { CLAVE_DESTINOS, destinoDe, normalizarDestinos, normalizarRuta, proponerRutas, rutaDeCarpetas, RUTAS } from "../almacen/destinos.js";
 import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
@@ -42,6 +43,16 @@ const TIPOS_LIBRO = { ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
  * cada respaldo sube varios MB a OneDrive y, mientras sube, Edge puede no lograr guardar el siguiente Excel.
  */
 export const HORAS_ENTRE_RESPALDOS_AL_EXPORTAR = 4;
+
+/**
+ * Ronda 36 (fallo reportado: tras un corte de luz se quedaba en «Cargando…»): lo que el arranque espera de lo que no es
+ * la base de datos (permiso de la carpeta, ajustes compartidos, almacenamiento persistente) tiene tiempo límite, y el
+ * respaldo del inicio del día se hace ya abierta la herramienta, unos segundos después, sin detenerla.
+ */
+export const LIMITE_AL_ABRIR_MS = 8000;
+export const ESPERA_RESPALDO_AL_ABRIR_MS = 1500;
+/** Listar y borrar respaldos viejos en la carpeta (OneDrive puede no responder: entonces se deja para otro día). */
+export const LIMITE_RETENCION_MS = 20000;
 
 /** Lo que dura la salida de un aviso (se desvanece y su hueco se cierra; en estilos.css, .toast-hueco.saliendo). */
 export const SALIDA_AVISO_MS = 340;
@@ -242,32 +253,56 @@ export class Sesion {
     }
   }
 
-  async iniciar() {
+  /**
+   * Lo que se necesita para dibujar la herramienta. Ronda 36: nada de la carpeta de trabajo (OneDrive) ni de lo que
+   * comparten los inventarios puede detenerla: cada cosa tiene tiempo límite y el respaldo del día va en `alAbrir`.
+   * @param alPaso (id) => void: «datos», «compartidos», «carpeta», «abrir» (los textos están en ui/arranque.js)
+   */
+  async iniciar({ alPaso = () => {}, limiteMs = LIMITE_AL_ABRIR_MS } = {}) {
+    alPaso("datos");
     await this.almacen.iniciar();
-    // La etapa de perforación es la misma en DLTA y GSM: toma la última que se cambió en cualquiera.
-    await this.compartidos?.sincronizar().catch((error) => console.warn("Ajustes compartidos:", error));
+    // La etapa de perforación es la misma en DLTA y GSM: toma la última que se cambió en cualquiera. Si la base
+    // común no responde, se sigue (la sincronización sigue en su cola y termina cuando pueda).
+    alPaso("compartidos");
+    if (this.compartidos) {
+      await conTiempo(this.compartidos.sincronizar(), limiteMs, "La base de los ajustes compartidos no respondió").catch((error) => {
+        console.warn("Ajustes compartidos:", error);
+        anotar("arranque", "ajustes compartidos: se siguió sin ellos", error);
+      });
+    }
+    alPaso("carpeta");
     this.carpeta = await this.backend.leerAjuste("carpeta");
-    this.permiso = this.carpeta ? await permisoCarpeta(this.carpeta) : null;
-    this.destinos = normalizarDestinos(await this._bdDestinos.leerAjuste(CLAVE_DESTINOS).catch(() => null));
+    this.permiso = this.carpeta ? await oSiNo(permisoCarpeta(this.carpeta), limiteMs, "prompt") : null;
+    this.destinos = normalizarDestinos(await oSiNo(this._bdDestinos.leerAjuste(CLAVE_DESTINOS), limiteMs, null));
     this.ultimoRespaldo = await this.backend.leerAjuste("ultimo_respaldo");
     this.exportoConDialogo = Boolean(await this.backend.leerAjuste("exporto_con_dialogo"));
-    if (navigator.storage?.persisted) {
-      this.persistente = await navigator.storage.persisted();
-      if (!this.persistente && navigator.storage.persist) this.persistente = await navigator.storage.persist();
+    const almacenamiento = globalThis.navigator?.storage;
+    if (almacenamiento?.persisted) {
+      this.persistente = await oSiNo(almacenamiento.persisted(), limiteMs, null);
+      if (!this.persistente && almacenamiento.persist) this.persistente = await oSiNo(almacenamiento.persist(), limiteMs, null);
     }
-    await this.actualizarUso();
+    await this.actualizarUso(limiteMs);
+    alPaso("abrir");
     this._cambio();
-    await this.respaldoAutomatico();
   }
 
-  async actualizarUso() {
-    if (navigator.storage?.estimate) {
-      try {
-        this.uso = await navigator.storage.estimate();
-      } catch {
-        this.uso = null;
-      }
-    }
+  /**
+   * Ya dibujada la herramienta: el respaldo del inicio del día (copia interna y, con permiso, en la carpeta), unos
+   * segundos después para no trabar lo primero que se ve. Si la carpeta no responde, se avisa y se sigue trabajando.
+   * @returns la promesa del respaldo (para las pruebas)
+   */
+  alAbrir({ esperaMs = ESPERA_RESPALDO_AL_ABRIR_MS } = {}) {
+    return new Promise((resolver) => setTimeout(resolver, esperaMs))
+      .then(() => this.respaldoAutomatico())
+      .catch((error) => {
+        console.warn("Respaldo del inicio del día:", error);
+        anotar("respaldo", "del inicio del día", error);
+      });
+  }
+
+  async actualizarUso(limiteMs = LIMITE_AL_ABRIR_MS) {
+    const almacenamiento = globalThis.navigator?.storage;
+    if (almacenamiento?.estimate) this.uso = await oSiNo(almacenamiento.estimate(), limiteMs, null);
   }
 
   // ------------------------------------------------------------ carpeta
@@ -524,18 +559,27 @@ export class Sesion {
     return destino;
   }
 
-  async aplicarRetencion() {
-    try {
+  /**
+   * Borra los respaldos viejos de la carpeta. Ronda 36: con tiempo límite (con OneDrive recién encendido, listar la
+   * carpeta podía no terminar nunca y la herramienta no abría); si no responde, se intenta otro día.
+   */
+  async aplicarRetencion({ limiteMs = LIMITE_RETENCION_MS } = {}) {
+    const limpiar = async () => {
       const nombres = (await listarCarpeta(this.carpeta, CARPETA_RESPALDOS)).map((a) => a.nombre);
       for (const nombre of respaldosABorrar(nombres, { inventario: this.almacen.inventario })) await borrarDeCarpeta(this.carpeta, CARPETA_RESPALDOS, nombre);
+    };
+    try {
+      await conTiempo(limpiar(), limiteMs, "La carpeta de respaldos no respondió al quitar los viejos");
     } catch (error) {
       console.warn("Retención de respaldos:", error);
+      anotar("respaldo", "quitar respaldos viejos de la carpeta: se deja para después", error);
     }
   }
 
   async listarRespaldos() {
     if (!this.carpetaLista) return [];
-    const archivos = await listarCarpeta(this.carpeta, CARPETA_RESPALDOS);
+    // Ronda 36: si OneDrive no responde, la lista no se queda cargando para siempre.
+    const archivos = await conTiempo(listarCarpeta(this.carpeta, CARPETA_RESPALDOS), LIMITE_RETENCION_MS, "La carpeta de respaldos no respondió (¿OneDrive se está sincronizando?)");
     return archivos
       .map((a) => ({ ...a, info: infoDeNombre(a.nombre, this.almacen.inventario) }))
       .filter((a) => a.info)
@@ -558,9 +602,12 @@ export class Sesion {
     if (!this.respaldoDeHoy) {
       await this.almacen.instantanea("inicio del día");
       if (this.carpetaLista) {
+        const inicio = Date.now();
         try {
-          await this.respaldar("inicio", { descargarSiNoHayCarpeta: false });
+          const destino = await this.respaldar("inicio", { descargarSiNoHayCarpeta: false });
+          anotar("respaldo", `del inicio del día: ${destino} (${((Date.now() - inicio) / 1000).toFixed(1)} s)`);
         } catch (error) {
+          anotar("respaldo", "del inicio del día", error);
           this.avisar("advertencia", `No se pudo crear el respaldo automático: ${error.message}`);
         }
       }

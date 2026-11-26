@@ -1366,6 +1366,203 @@ body.con-ventana .toast-hueco.saliendo .toast {
   color: var(--texto-suave);
 }
 
+/* ---------------------------------------------------------------- arranque (Ronda 36)
+   Pantallas antes de que abra la herramienta: el paso en que va la carga y, si se queda, qué hacer; «ya está abierta»
+   con Abrir aquí; «se abrió en otra ventana»; restaurar de emergencia. */
+
+.arranque {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: var(--fondo);
+}
+
+.arranque-tarjeta {
+  display: grid;
+  gap: 14px;
+  width: min(580px, 100%);
+  padding: 24px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  box-shadow: var(--sombra);
+}
+
+.arranque-tarjeta > p {
+  margin: 0;
+}
+
+.arranque-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.arranque-icono {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--primario);
+  background: var(--primario-suave);
+  border-radius: 10px;
+}
+
+.arranque-tarjeta-error {
+  border-color: var(--error);
+}
+
+.arranque-tarjeta-error .arranque-icono {
+  color: var(--error);
+  background: var(--error-suave);
+}
+
+.arranque-paso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+.arranque-segundos {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.arranque-giro {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--borde);
+  border-top-color: var(--primario);
+  border-radius: 50%;
+  animation: arranque-giro 0.8s linear infinite;
+}
+
+@keyframes arranque-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.arranque-atorada {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--borde);
+}
+
+.arranque-atorada > p,
+.arranque-manual p {
+  margin: 0;
+}
+
+.arranque-ayuda,
+.arranque-diagnostico {
+  display: grid;
+  gap: 10px;
+}
+
+.arranque-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.arranque-nota {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--texto-suave);
+}
+
+.arranque-ok,
+.arranque-alerta,
+.arranque-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radio);
+}
+
+.arranque-ok {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--ok-suave);
+}
+
+.arranque-ok svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ok);
+}
+
+.arranque-alerta {
+  background: var(--alerta-suave);
+  border-left: 4px solid var(--alerta);
+}
+
+.arranque-error {
+  background: var(--error-suave);
+  border-left: 4px solid var(--error);
+}
+
+.arranque-resumen {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--superficie-2);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.arranque-resumen p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.arranque-resumen p + p {
+  color: var(--texto-suave);
+}
+
+.arranque-manual ol {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding-left: 22px;
+}
+
+.arranque code {
+  padding: 1px 4px;
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--neutro-suave);
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.arranque-texto {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  resize: vertical;
+}
+
+@media (max-width: 480px) {
+  .arranque-tarjeta {
+    padding: 18px 16px;
+  }
+
+  .arranque-acciones > * {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
 /* ---------------------------------------------------------------- vales (Fase 2) */
 
 .pestanas {

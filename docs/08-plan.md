@@ -319,6 +319,23 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 36 — no abría después de un apagón (fallo reportado).** Tras un corte de luz, una ventana se quedaba en
+*Cargando…* para siempre y las demás decían *ya está abierta*, sin salida; reiniciar no lo arreglaba. Causa encontrada:
+al abrir se esperaba el respaldo del inicio del día en la carpeta de OneDrive y, al quitar los respaldos viejos, listar
+la carpeta no tenía tiempo límite (reproducido en Chromium: con la carpeta sin responder no abría nunca; si lo que no
+respondía era escribir, abría al minuto). Aplicado:
+- ☑ La herramienta se dibuja en cuanto se leen los datos; el respaldo del día va después, en segundo plano. Todo lo de la
+  carpeta tiene tiempo límite (escribir 60 s, listar y borrar 20 s), igual que el permiso, lo compartido y el almacenamiento.
+- ☑ La pantalla de carga dice en qué paso va; a los 12 s en un paso ofrece **Recargar**, **Restaurar un respaldo…** y el
+  **diagnóstico** (copiar o descargar; el registro anota los pasos que tardan).
+- ☑ **Restaurar de emergencia** (pedido del usuario: «borrar los datos y empezar desde un respaldo»): sin abrir la
+  herramienta, copia de lo que hay en Descargas (si se puede leer), revisión del respaldo (fecha, hasta qué folio llega y
+  qué folios de este equipo se perderían) y restauración solo del inventario abierto. Si la base no responde, se borra y
+  se restaura en una nueva; si ni así, la pantalla explica cómo borrarla a mano.
+- ☑ **Ya está abierta → Abrir aquí**: la otra ventana suelta sus bases, deja de guardar y lo dice (*Usar esta ventana*
+  la recupera).
+- ☐ Del usuario: abrir la versión nueva en el equipo del almacén. Si se queda en algún paso, pegar el diagnóstico.
+
 **Ronda 35 — correcciones del usuario (vale, inicio, menú, áreas).** Aplicada en 6 etapas en `main`:
 - ☑ Menú lateral: sin la barra horizontal del menú de íconos (los botones medían 1 px más que el espacio); con el menú
   completo, DLTA | GSM va arriba, a la izquierda de *Contraer menú* (con el de íconos, en la cabecera).

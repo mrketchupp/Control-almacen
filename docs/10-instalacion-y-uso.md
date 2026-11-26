@@ -411,6 +411,22 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 
 > ⚠️ Si alguien borra en Edge "Cookies y otros datos de sitios", se borran los datos de trabajo. Se recuperan restaurando el último respaldo.
 
+### 5.1 Si no abre (por ejemplo, después de un apagón)
+
+- **Se queda cargando:** la pantalla dice en qué paso va (*Leyendo los datos de este equipo…*, *Revisando la carpeta de
+  trabajo…*). Si un paso pasa de 12 segundos, aparecen **Recargar**, **Restaurar un respaldo…** y **Copiar diagnóstico**
+  (o *Descargar .txt*), para pegarlo en la conversación del proyecto. Recarga una vez. Si vuelve a quedarse en el mismo paso, restaura un respaldo.
+- **Restaurar un respaldo…** (sin abrir la herramienta): primero intenta guardar en *Descargas* una copia de lo que hay
+  (`almacen_…_rescate.zip`), luego eliges el `.zip` más reciente de la carpeta `respaldos` y revisas su fecha y hasta qué
+  folio llega. Si este equipo tiene vales posteriores, lo dice: hay que capturarlos otra vez, en el mismo orden, para que
+  conserven sus folios. Solo reemplaza el inventario abierto (el otro no se toca). Si la base no responde, se borra y se
+  restaura en una nueva. Si ni así se puede, la pantalla explica cómo borrarla a mano (F12 → Aplicación → IndexedDB).
+- **«La herramienta ya está abierta»:** si no encuentras la otra ventana o se quedó en *Cargando…*, pulsa **Abrir aquí**.
+  La otra ventana deja de guardar cambios y lo dice. Con *Usar esta ventana*, la recuperas.
+- El respaldo del inicio del día se hace ya abierta la herramienta. Si OneDrive no responde, se avisa, se descarga en
+  *Descargas* y se sigue trabajando.
+- Ocultar o mostrar la carpeta donde está el HTML no cambia nada: los datos viven en Edge, no en esa carpeta.
+
 ## 6. Para desarrollo
 
 Requisitos: Node 22 y Python 3 con `openpyxl` (solo para generar los Excel sintéticos de las pruebas).

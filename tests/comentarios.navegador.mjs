@@ -55,6 +55,7 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
   try {
     // Ronda 35: la bienvenida tiene dos caminos; «Empezar desde cero» pide la carpeta y luego la carga, un paso a la vez.
     await page.goto(`${origen}/#inicio`);
+    await page.locator(".navegacion a").first().waitFor(); // Ronda 36: antes se ve la pantalla de carga
     assert.deepEqual(await page.locator(".navegacion a").allInnerTexts().then((t) => t.map((x) => x.trim())), ["Inicio"], "sin datos, el menú solo lleva a Inicio");
     await page.getByRole("button", { name: /Empezar desde cero/ }).click();
     await page.getByRole("heading", { name: "Elige tu carpeta de trabajo", exact: true }).waitFor();
