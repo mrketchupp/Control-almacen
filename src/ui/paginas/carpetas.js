@@ -49,9 +49,9 @@ export async function guardarEnSuLugar(sesion, tipo, alTerminarOriginal = null, 
       sesion.avisar(
         "advertencia",
         permiso === SIN_RESPUESTA
-          ? textoSinRespuesta(conPermiso.name)
+          ? `Edge no dio acceso a «${conPermiso.name}». Usa «Guardar como…».`
           : `Edge no dio permiso para guardar en «${conPermiso.name}». Pulsa otra vez «Descargar» y elige «Editar archivos» (si ya no lo pregunta, recarga la página).`,
-        permiso === SIN_RESPUESTA ? 30000 : 15000,
+        15000,
         otroLugar,
       );
       return;

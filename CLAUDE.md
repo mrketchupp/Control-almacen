@@ -234,11 +234,15 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `revisarRespaldo`, `loQueSePierde`, `copiaDeRescate` (respaldo «rescate» a Descargas; ErrorTiempo → recarga sin copia),
   `restaurarDeEmergencia` (sobre la base; si no responde o falla, `borrarBaseIndexedDB` y en una nueva; ErrorRespaldo no
   toca nada). `onversionchange` cierra la conexión que tenía. Pruebas `rescate.test.js` y Chromium `arranque.navegador.mjs`.
-  Revisión del usuario: «Permitir» se quedaba en «Pidiendo permiso…» sin aviso de Edge (OneDrive sin responder).
-  `permisoCarpeta(carpeta, pedir, { limiteMs = LIMITE_PERMISO_MS (15 s), alLlegarTarde })` devuelve `SIN_RESPUESTA` si
-  Edge no contesta (y anota en el registro); `textoSinRespuesta(nombre)` lo explica en `BannerPermiso` (*Intentar otra
-  vez*, `.banner-alerta`), inicio, *Respaldos* y *Carpetas…*. `Sesion._pedirPermisoCarpeta` toma la respuesta tardía;
-  `guardarArchivo` no vuelve a pedir con `SIN_RESPUESTA` (descarga); `_respaldarSinEsperar` tras dar o elegir carpeta.
+  Revisiones del usuario: «Permitir» se quedaba en «Pidiendo permiso…» sin aviso de Edge (el código de pedir permiso
+  es el mismo desde F1). `permisoCarpeta(carpeta, pedir, { limiteMs = LIMITE_PERMISO_MS (6 s), alLlegarTarde })` →
+  `SIN_RESPUESTA` (anotado en el registro; la respuesta tardía se usa). **Siempre hay respaldo:**
+  `respaldoAutomatico({ aDescargas })` (copia interna una vez al día, `_copiaInterna`; archivo en la carpeta con permiso
+  o, con `aDescargas`, en Descargas; `respaldoDeHoyEnDescargas` → al tener permiso también a la carpeta; nunca pide
+  permiso: `respaldar(…, { pedirPermiso: false })`); `activarCarpeta` sin permiso → a Descargas; `alAbrir` agenda
+  `ESPERA_RESPALDO_A_DESCARGAS_MS` (2 min sin permiso → Descargas; `Sesion.cerrar` lo cancela). `BannerPermiso`: una
+  línea, *Permitir* o, con `SIN_RESPUESTA`/`denied`, **Elegir carpeta…** (`elegirCarpeta` con `delExplorador`;
+  `_usarCarpeta` también para lo arrastrado) y *Respaldo de hoy en Descargas ✓*. Textos de arranque y rescate de una línea.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
@@ -468,6 +472,9 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 8. **Pruebas con Excel sintéticos**; si un caso real revela un problema, reprodúcelo en `generar.py` con datos inventados.
 
 ## Convenciones
+- **Textos de la interfaz cortos y de acción** (pedido del usuario, Ronda 36): una línea que diga qué pasa y un botón con
+  qué hacer. Sin explicar el porqué ni detalles técnicos: quien usa la herramienta no los lee. Las explicaciones van en
+  `docs/`, en el registro o en el diagnóstico. En la conversación con el usuario, también conciso.
 - **Idioma:** interfaz, documentación, mensajes de commit y comentarios en español. Nombres del dominio en español (`Vale`, `Existencia`, `Folio`); términos técnicos genéricos pueden ir en inglés.
 - JavaScript moderno (módulos ES), sin TypeScript ni JSX (Preact + `htm`). Dependencias mínimas y sin red.
 - Capas: `nucleo/` no importa de `ui/`, `almacen/`, `importadores/` ni `exportadores/`. Todo lo que no es `ui/` ni `almacen/archivos.js`/`bd.js` debe correr en Node sin navegador.

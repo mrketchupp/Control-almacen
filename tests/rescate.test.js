@@ -207,3 +207,36 @@ test("permisoCarpeta: si Edge no responde al pedir el permiso, no se espera para
   assert.equal(await permisoCarpeta({ ...carpeta, queryPermission: nunca }, true, { limiteMs: 20 }), SIN_RESPUESTA);
   assert.equal(await permisoCarpeta({ ...carpeta, requestPermission: async () => "granted" }, true), "granted");
 });
+
+// ---------------------------------------------------------------- siempre hay respaldo
+
+/** Descargas de prueba: `descargar` usa un <a download> que aquí solo anota el nombre. */
+function conDescargas(t) {
+  const descargas = [];
+  const antes = { document: globalThis.document, crear: URL.createObjectURL };
+  globalThis.document = { createElement: () => { const a = { click: () => descargas.push(a.download), remove() {} }; return a; }, body: { appendChild() {} } };
+  URL.createObjectURL = () => "blob:prueba";
+  t.after(() => { globalThis.document = antes.document; URL.createObjectURL = antes.crear; });
+  return descargas;
+}
+
+test("sin permiso de la carpeta, el respaldo del día va a Descargas; al tener permiso, también a la carpeta", async (t) => {
+  const descargas = conDescargas(t);
+  const sesion = await sesionConCarpeta([]);
+  await sesion.iniciar({ limiteMs: 30 });
+  sesion.permiso = "prompt"; // Edge no dio el permiso en esta sesión
+  await sesion.respaldoAutomatico();
+  assert.deepEqual(descargas, [], "sin `aDescargas` no descarga (espera a que se dé el permiso)");
+  await sesion.respaldoAutomatico({ aDescargas: true });
+  assert.equal(descargas.length, 1);
+  assert.match(descargas[0], /^almacen_\d{4}-\d{2}-\d{2}_\d{6}_inicio\.zip$/);
+  assert.equal(sesion.respaldoDeHoyEnDescargas, true);
+  await sesion.respaldoAutomatico({ aDescargas: true });
+  assert.equal(descargas.length, 1, "uno al día");
+  assert.equal(sesion.permiso, "prompt", "nunca pide permiso sin un clic");
+  sesion.permiso = "granted";
+  await sesion.respaldoAutomatico();
+  assert.equal(sesion.carpeta.hijos.get("respaldos").hijos.size, 1, "con permiso, el de hoy también en la carpeta");
+  assert.equal(sesion.respaldoDeHoyEnDescargas, false);
+  assert.equal(sesion.almacen.backend.instantaneas.length, 1, "una copia interna al día");
+});

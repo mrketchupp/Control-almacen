@@ -284,16 +284,16 @@ export async function elegirCarpeta() {
 }
 
 /**
- * Ronda 36 (fallo reportado tras un apagón: al pulsar «Permitir» se quedaba en «Pidiendo permiso…» y Edge nunca mostró
- * su aviso): Edge no respondió al pedir el permiso. Lo más probable es que OneDrive no respondiera (el arranque ya se
- * había colgado listando esa misma carpeta) y Edge se quedara esperándolo antes de mostrar su aviso.
+ * Ronda 36 (fallo reportado tras un apagón): al pulsar «Permitir» Edge nunca mostró su aviso y se quedaba en «Pidiendo
+ * permiso…». La forma de pedirlo es la misma desde la primera versión; Edge dejó de contestar con esa carpeta. Ahora se
+ * espera poco: sin respuesta, el respaldo va a Descargas y se ofrece elegir la carpeta otra vez (el explorador de
+ * Windows da el permiso por otro camino).
  */
 export const SIN_RESPUESTA = "sin-respuesta";
-export const LIMITE_PERMISO_MS = 15000;
+export const LIMITE_PERMISO_MS = 6000;
 
-/** Qué se le dice al usuario cuando Edge no mostró el aviso del permiso. */
-export const textoSinRespuesta = (nombre) =>
-  `Edge no mostró el aviso para dar permiso a «${nombre}». Puede pasar cuando OneDrive no responde (por ejemplo, después de un apagón): abre esa carpeta en el Explorador de Windows y, si tarda o no abre, reinicia OneDrive. Luego vuelve a intentarlo. Mientras, los respaldos se descargan en Descargas.`;
+/** Lo que se dice cuando Edge no dio acceso a una carpeta (corto: qué hacer). */
+export const textoSinRespuesta = (nombre) => `Edge no dio acceso a «${nombre}». Elígela otra vez.`;
 
 /**
  * 'granted' | 'prompt' | 'denied' | SIN_RESPUESTA. Con `pedir`, solicita el permiso (requiere un clic). Si Edge no

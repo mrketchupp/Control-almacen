@@ -14,29 +14,22 @@ import { anotar, textoError, textoRegistro } from "../almacen/registro.js";
 import { ErrorRespaldo } from "../almacen/respaldos.js";
 import { loQueSePierde } from "../almacen/rescate.js";
 import { esTiempo } from "../almacen/tiempo.js";
-import { fmtFecha, fmtFechaHora } from "../nucleo/fechas.js";
+import { fmtFechaHora } from "../nucleo/fechas.js";
 import { Boton, ElegirArchivo } from "./componentes.js";
 import { html } from "./html.js";
 import { Icono } from "./iconos.js";
 
+// Textos cortos y de acción (pedido del usuario): quien usa la herramienta no lee explicaciones.
 export const TEXTOS_PASO = Object.freeze({
-  candado: "Revisando que no esté abierta en otra ventana…",
-  datos: "Leyendo los datos de este equipo…",
-  compartidos: "Revisando los ajustes compartidos…",
-  carpeta: "Revisando la carpeta de trabajo…",
+  candado: "Abriendo…",
+  datos: "Leyendo datos…",
+  compartidos: "Leyendo ajustes…",
+  carpeta: "Revisando la carpeta…",
   abrir: "Abriendo…",
 });
 
 /** Si un paso tarda más que esto, la pantalla de carga ofrece qué hacer. */
 export const AYUDA_TRAS_MS = 12000;
-
-const POR_QUE = {
-  datos: "El almacenamiento de Edge no responde. Puede pasar después de un apagón o de un reinicio forzado.",
-  compartidos: "La base que comparten los inventarios no responde.",
-  carpeta: "La carpeta de trabajo (OneDrive) no responde.",
-  candado: "Edge no confirma si la herramienta está abierta en otra ventana.",
-  abrir: "La herramienta no termina de dibujarse.",
-};
 
 const folioE = (n) => `E-${String(n).padStart(4, "0")}`;
 
@@ -76,17 +69,12 @@ function Diagnostico({ texto }) {
       setEstado("manual");
     }
   };
+  const bajar = () => descargar(`diagnostico control almacen ${new Date().toISOString().slice(0, 10)}.txt`, new TextEncoder().encode(texto()));
   return html`<div class="arranque-diagnostico">
-    <div class="arranque-acciones">
-      <${Boton} onClick=${copiar}><${Icono} nombre="copiar" tam=${18} /> ${estado === "copiado" ? "Copiado" : "Copiar diagnóstico"}<//>
-      <${Boton} onClick=${() => descargar(`diagnostico control almacen ${new Date().toISOString().slice(0, 10)}.txt`, new TextEncoder().encode(texto()))}>
-        <${Icono} nombre="descargar" tam=${18} /> Descargar .txt
-      <//>
-    </div>
-    ${estado === "copiado" ? html`<p class="arranque-nota">Pégalo en la conversación para revisarlo.</p>` : null}
+    <${Boton} tipo="texto" onClick=${copiar}><${Icono} nombre="copiar" tam=${16} /> ${estado === "copiado" ? "Diagnóstico copiado ✓" : "Copiar diagnóstico"}<//>
     ${estado === "manual"
-      ? html`<textarea class="arranque-texto" readonly rows="6" onFocus=${(e) => e.currentTarget.select()} aria-label="Diagnóstico">${texto()}</textarea>
-          <p class="arranque-nota">Edge no dejó copiarlo: selecciónalo aquí (Ctrl + A, Ctrl + C) o descárgalo.</p>`
+      ? html`<textarea class="arranque-texto" readonly rows="5" onFocus=${(e) => e.currentTarget.select()} aria-label="Diagnóstico">${texto()}</textarea>
+          <${Boton} tipo="texto" onClick=${bajar}><${Icono} nombre="descargar" tam=${16} /> Descargar .txt<//>`
       : null}
   </div>`;
 }
@@ -100,19 +88,13 @@ function Tarjeta({ icono = null, tono = "", titulo, children }) {
   </div>`;
 }
 
-/** Lo que se puede hacer si no abre: Recargar, Restaurar un respaldo…, diagnóstico. */
-function Salidas({ inventario, alRecargar, alRestaurar, diagnostico }) {
+/** Lo que se puede hacer si no abre: Recargar, Restaurar respaldo…, diagnóstico. */
+function Salidas({ alRecargar, alRestaurar, diagnostico }) {
   return html`<div class="arranque-ayuda">
     <div class="arranque-acciones">
       <${Boton} tipo="primario" onClick=${alRecargar}>Recargar<//>
-      ${alRestaurar ? html`<${Boton} onClick=${alRestaurar}><${Icono} nombre="respaldos" tam=${18} /> Restaurar un respaldo…<//>` : null}
+      ${alRestaurar ? html`<${Boton} onClick=${alRestaurar}><${Icono} nombre="respaldos" tam=${18} /> Restaurar respaldo…<//>` : null}
     </div>
-    ${alRestaurar
-      ? html`<p class="arranque-nota">
-          <strong>Restaurar un respaldo</strong> reemplaza los datos de ${inventario.id} en este equipo por los del respaldo que elijas (el
-          otro inventario no se toca). Antes intenta guardar en Descargas una copia de lo que hay.
-        </p>`
-      : null}
     <${Diagnostico} texto=${diagnostico} />
   </div>`;
 }
@@ -136,8 +118,8 @@ export function PantallaCarga({ inventario, paso, desde, alRecargar, alRestaurar
     </p>
     ${atorada
       ? html`<div class="arranque-atorada">
-          <p><strong>Se quedó en este paso.</strong> ${POR_QUE[paso] ?? ""} Recarga una vez; si vuelve a quedarse aquí, restaura un respaldo.</p>
-          <${Salidas} inventario=${inventario} alRecargar=${alRecargar} alRestaurar=${alRestaurar} diagnostico=${diagnostico} />
+          <p><strong>Se quedó aquí.</strong></p>
+          <${Salidas} alRecargar=${alRecargar} alRestaurar=${alRestaurar} diagnostico=${diagnostico} />
         </div>`
       : null}
   <//>`;
@@ -153,21 +135,20 @@ export function PantallaYaAbierta({ alAbrirAqui, alReintentar }) {
     setOcupado(null);
     if (!pudo) setSigue(true);
   };
-  return html`<${Tarjeta} icono="candado" titulo="La herramienta ya está abierta">
-    <p>Está abierta en otra ventana o pestaña de Edge. Usa esa para no pisar los cambios.</p>
-    <p class="arranque-nota">¿No la encuentras, o se quedó en «Cargando…»? Ábrela aquí: la otra deja de guardar cambios.</p>
+  return html`<${Tarjeta} icono="candado" titulo="Ya está abierta en otra ventana">
+    <p class="arranque-nota">«Abrir aquí»: la otra deja de guardar.</p>
     <div class="arranque-acciones">
       <${Boton} tipo="primario" disabled=${Boolean(ocupado)} onClick=${hacer("aqui", alAbrirAqui)}>${ocupado === "aqui" ? "Abriendo…" : "Abrir aquí"}<//>
       <${Boton} disabled=${Boolean(ocupado)} onClick=${hacer("reintentar", alReintentar)}>${ocupado === "reintentar" ? "Revisando…" : "Reintentar"}<//>
     </div>
-    ${sigue ? html`<p class="arranque-nota" role="status">Sigue abierta en otra ventana.</p>` : null}
+    ${sigue ? html`<p class="arranque-nota" role="status">Sigue abierta.</p>` : null}
   <//>`;
 }
 
 /** La herramienta se abrió en otra ventana: esta ya no guarda. */
 export function PantallaRobada({ alUsarEsta }) {
   return html`<${Tarjeta} icono="candado" titulo="Se abrió en otra ventana">
-    <p>Esta ventana ya no guarda cambios, para no pisar los de la otra. Puedes cerrarla.</p>
+    <p class="arranque-nota">Esta ya no guarda.</p>
     <div class="arranque-acciones">
       <${Boton} onClick=${alUsarEsta}>Usar esta ventana<//>
     </div>
@@ -178,28 +159,23 @@ export function PantallaRobada({ alUsarEsta }) {
 export function PantallaError({ titulo, texto, inventario, alRecargar, alRestaurar, diagnostico }) {
   return html`<${Tarjeta} icono="error" tono="error" titulo=${titulo}>
     <p>${texto}</p>
-    ${inventario ? html`<${Salidas} inventario=${inventario} alRecargar=${alRecargar} alRestaurar=${alRestaurar} diagnostico=${diagnostico} />` : null}
+    ${inventario ? html`<${Salidas} alRecargar=${alRecargar} alRestaurar=${alRestaurar} diagnostico=${diagnostico} />` : null}
   <//>`;
 }
 
 function Resumen({ r }) {
-  const partes = [
-    r.ultimaSalida ? `vales de salida hasta el ${r.ultimaSalida}` : "sin vales de salida",
-    r.ultimaEntrada ? `entradas hasta la ${folioE(r.ultimaEntrada)}` : null,
-    r.ultimoDia ? `último día con vales: ${fmtFecha(r.ultimoDia)}` : null,
-  ].filter(Boolean);
+  const partes = [r.ultimaSalida ? `hasta el vale ${r.ultimaSalida}` : "sin vales", r.ultimaEntrada ? `entrada ${folioE(r.ultimaEntrada)}` : null].filter(Boolean);
   return html`<span>${partes.join(" · ")}</span>`;
 }
 
 /** Cómo borrar a mano la base de este inventario cuando ni la herramienta puede. */
 function LimpiarAMano({ inventario }) {
   return html`<div class="arranque-manual">
-    <p><strong>El almacenamiento de Edge no responde ni deja borrarse desde aquí.</strong> Para limpiarlo a mano:</p>
+    <p><strong>No se pudo borrar desde aquí.</strong> A mano:</p>
     <ol>
-      <li>Cierra esta y cualquier otra ventana de la herramienta.</li>
-      <li>Ábrela otra vez y, en cuanto aparezca, presiona <kbd class="tecla">F12</kbd> (o <kbd class="tecla">Ctrl</kbd> + <kbd class="tecla">Mayús</kbd> + <kbd class="tecla">I</kbd>).</li>
-      <li>Ve a <strong>Aplicación</strong> → <strong>Almacenamiento</strong> → <strong>IndexedDB</strong>, haz clic derecho en <strong>${inventario.bd}</strong> → <strong>Eliminar base de datos</strong> (solo esa: es la de ${inventario.id}).</li>
-      <li>Cierra las herramientas de desarrollo, recarga (<kbd class="tecla">F5</kbd>) y elige <strong>Seguir desde un respaldo</strong>.</li>
+      <li>Cierra las demás ventanas de la herramienta.</li>
+      <li><kbd class="tecla">F12</kbd> → <strong>Aplicación</strong> → <strong>IndexedDB</strong> → clic derecho en <strong>${inventario.bd}</strong> → <strong>Eliminar base de datos</strong>.</li>
+      <li><kbd class="tecla">F5</kbd> → <strong>Seguir desde un respaldo</strong>.</li>
     </ol>
   </div>`;
 }
@@ -281,53 +257,46 @@ export function PantallaRescate({ inventario, sinCopia = false, copiar, alColgad
   };
 
   const pierde = respaldo && copia?.resumen ? loQueSePierde(copia.resumen, respaldo.resumen) : null;
+  const rango = ([a, b]) => (a === b ? `${a}` : `${a}–${b}`);
 
-  return html`<${Tarjeta} icono="respaldos" titulo=${`Restaurar un respaldo de ${inventario.id}`}>
+  return html`<${Tarjeta} icono="respaldos" titulo=${`Restaurar respaldo · ${inventario.id}`}>
     ${fase === "copiando" || fase === "recargando"
       ? html`<p class="arranque-paso" aria-live="polite"><span class="arranque-giro" aria-hidden="true"></span>
-          ${fase === "copiando" ? "Intentando guardar una copia de lo que hay en este equipo…" : "No respondió: recargando para seguir…"}</p>`
+          ${fase === "copiando" ? "Guardando copia de lo que hay…" : "Recargando…"}</p>`
       : null}
     ${copia?.estado === "guardada"
-      ? html`<p class="arranque-ok"><${Icono} nombre="ok" tam=${18} /> Se guardó en Descargas una copia de lo que había: <strong>${copia.nombre}</strong> (<${Resumen} r=${copia.resumen} />).</p>`
-      : copia?.estado === "sin-datos"
-        ? html`<p class="arranque-nota">En este equipo no hay datos de ${inventario.id} que copiar.</p>`
-        : copia?.estado === "colgada"
-          ? html`<p class="arranque-alerta">No se pudieron leer los datos de este equipo (por eso no abría): no hay copia que guardar.</p>`
-          : copia?.estado === "no-se-pudo"
-            ? html`<p class="arranque-alerta">No se pudo guardar una copia de lo que había (${copia.error}).</p>`
-            : null}
+      ? html`<p class="arranque-ok"><${Icono} nombre="ok" tam=${18} /> Copia de lo que había: Descargas/${copia.nombre}</p>`
+      : copia?.estado === "colgada" || copia?.estado === "no-se-pudo"
+        ? html`<p class="arranque-alerta">No se pudo leer lo que había.</p>`
+        : null}
     ${fase === "elegir"
-      ? html`<p>Elige el respaldo más reciente de ${inventario.id}: está en tu carpeta de trabajo, en <strong>respaldos</strong>, y se llama
-            <code>${inventario.respaldo}AAAA-MM-DD_HHMMSS_….zip</code>.</p>
+      ? html`<p>Elige el respaldo más reciente (<code>${inventario.respaldo}…zip</code>).</p>
           <div class="arranque-acciones">
-            <${ElegirArchivo} etiqueta="Elegir el respaldo (.zip)…" acepta=".zip" tipo="primario" alElegir=${elegir} />
-            <${Boton} onClick=${alSalir}>Salir sin restaurar<//>
+            <${ElegirArchivo} etiqueta="Elegir respaldo…" acepta=".zip" tipo="primario" alElegir=${elegir} />
+            <${Boton} onClick=${alSalir}>Salir<//>
           </div>`
       : null}
     ${fase === "revisado" && respaldo
       ? html`<div class="arranque-resumen">
             <p><strong>${respaldo.nombre}</strong></p>
-            <p>Respaldo del ${respaldo.resumen.fecha_hora ? fmtFechaHora(respaldo.resumen.fecha_hora) : "?"} · <${Resumen} r=${respaldo.resumen} /></p>
+            <p>${respaldo.resumen.fecha_hora ? fmtFechaHora(respaldo.resumen.fecha_hora) : "?"} · <${Resumen} r=${respaldo.resumen} /></p>
           </div>
           ${pierde?.salidas || pierde?.entradas
             ? html`<p class="arranque-alerta">
-                En este equipo hay ${pierde.salidas ? `vales de salida del ${pierde.salidas[0]} al ${pierde.salidas[1]}` : ""}${pierde.salidas && pierde.entradas ? " y " : ""}${pierde.entradas ? `entradas de la ${folioE(pierde.entradas[0])} a la ${folioE(pierde.entradas[1])}` : ""}
-                que el respaldo no tiene. Si restauras, captúralos otra vez en el mismo orden para que conserven sus folios (la copia en Descargas los tiene).
+                Se pierden ${pierde.salidas ? `los vales ${rango(pierde.salidas)}` : ""}${pierde.salidas && pierde.entradas ? " y " : ""}${pierde.entradas ? `las entradas ${rango(pierde.entradas.map(folioE))}` : ""}: captúralos otra vez, en orden.
               </p>`
             : copia?.estado !== "guardada" && copia?.estado !== "sin-datos"
-              ? html`<p class="arranque-alerta">No se sabe qué había en este equipo después de ese respaldo: compara con tus vales impresos el último folio. Lo posterior se captura otra vez, en el mismo orden.</p>`
+              ? html`<p class="arranque-alerta">Revisa tu último vale impreso: lo posterior se captura otra vez, en orden.</p>`
               : null}
           <div class="arranque-acciones">
-            <${Boton} tipo="peligro" onClick=${confirmar}>Restaurar este respaldo<//>
+            <${Boton} tipo="peligro" onClick=${confirmar}>Restaurar<//>
             <${ElegirArchivo} etiqueta="Elegir otro…" acepta=".zip" alElegir=${elegir} />
-            <${Boton} onClick=${alSalir}>Salir sin restaurar<//>
+            <${Boton} onClick=${alSalir}>Salir<//>
           </div>`
       : null}
-    ${fase === "restaurando"
-      ? html`<p class="arranque-paso" aria-live="polite"><span class="arranque-giro" aria-hidden="true"></span> Restaurando… Si la base no responde, se borra y se intenta en una nueva (puede tardar un par de minutos).</p>`
-      : null}
+    ${fase === "restaurando" ? html`<p class="arranque-paso" aria-live="polite"><span class="arranque-giro" aria-hidden="true"></span> Restaurando…</p>` : null}
     ${fase === "listo"
-      ? html`<p class="arranque-ok" role="status"><${Icono} nombre="ok" tam=${18} /> Listo: ${inventario.id} quedó como en el respaldo${resultado?.borrada ? " (la base anterior no respondía y se borró)" : ""}.</p>
+      ? html`<p class="arranque-ok" role="status"><${Icono} nombre="ok" tam=${18} /> Listo.</p>
           <div class="arranque-acciones"><${Boton} tipo="primario" onClick=${alTerminar}>Abrir la herramienta<//></div>`
       : null}
     ${fase === "manual" ? html`<${LimpiarAMano} inventario=${inventario} />` : null}

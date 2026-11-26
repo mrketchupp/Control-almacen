@@ -331,15 +331,19 @@ h3 {
   flex-wrap: wrap;
 }
 
-/* Ronda 36: Edge no mostró su aviso de permiso (OneDrive sin responder): la explicación es larga, se lee a la izquierda. */
+/* Ronda 36: Edge no dio acceso a la carpeta: una línea y «Elegir carpeta…». */
 .banner-alerta {
-  justify-content: space-between;
   border-bottom: 2px solid var(--alerta);
 }
 
 .banner-alerta > span {
-  flex: 1 1 420px;
-  max-width: 960px;
+  flex: 0 1 auto;
+}
+
+.banner-ok {
+  color: var(--ok);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .marco {

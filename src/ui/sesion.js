@@ -52,6 +52,8 @@ export const HORAS_ENTRE_RESPALDOS_AL_EXPORTAR = 4;
  */
 export const LIMITE_AL_ABRIR_MS = 8000;
 export const ESPERA_RESPALDO_AL_ABRIR_MS = 1500;
+/** Si en este tiempo nadie dio permiso a la carpeta, el respaldo del día se descarga (siempre hay respaldo). */
+export const ESPERA_RESPALDO_A_DESCARGAS_MS = 120000;
 /** Listar y borrar respaldos viejos en la carpeta (OneDrive puede no responder: entonces se deja para otro día). */
 export const LIMITE_RETENCION_MS = 20000;
 
@@ -292,15 +294,26 @@ export class Sesion {
    * segundos después para no trabar lo primero que se ve. Si la carpeta no responde, se avisa y se sigue trabajando.
    * @returns la promesa del respaldo (para las pruebas)
    */
-  alAbrir({ esperaMs = ESPERA_RESPALDO_AL_ABRIR_MS } = {}) {
+  alAbrir({ esperaMs = ESPERA_RESPALDO_AL_ABRIR_MS, esperaDescargasMs = ESPERA_RESPALDO_A_DESCARGAS_MS } = {}) {
+    // Ronda 36: si nadie da permiso a la carpeta, a los 2 min el respaldo del día se descarga (siempre hay respaldo).
+    clearTimeout(this._aDescargas);
+    this._aDescargas = setTimeout(() => {
+      if (!this.carpetaLista) this._respaldarSinEsperar({ aDescargas: true });
+    }, esperaDescargasMs);
+    this._aDescargas?.unref?.();
     return new Promise((resolver) => setTimeout(resolver, esperaMs)).then(() => this._respaldarSinEsperar());
   }
 
-  /** El respaldo del inicio del día sin detener lo que se está haciendo (OneDrive puede tardar). */
-  _respaldarSinEsperar() {
-    return this.respaldoAutomatico().catch((error) => {
-      console.warn("Respaldo del inicio del día:", error);
-      anotar("respaldo", "del inicio del día", error);
+  /** Al dejar esta sesión (otro inventario u otra ventana): nada pendiente sigue corriendo. */
+  cerrar() {
+    clearTimeout(this._aDescargas);
+  }
+
+  /** El respaldo del día sin detener lo que se está haciendo (la carpeta puede tardar). */
+  _respaldarSinEsperar(opciones = {}) {
+    return this.respaldoAutomatico(opciones).catch((error) => {
+      console.warn("Respaldo del día:", error);
+      anotar("respaldo", "del día", error);
     });
   }
 
@@ -319,6 +332,20 @@ export class Sesion {
     this.permiso = await permisoCarpeta(carpeta, true, { alLlegarTarde });
   }
 
+  /** La carpeta de trabajo nueva (del explorador o arrastrada): se guarda, se pide el permiso y se respalda. */
+  async _usarCarpeta(carpeta) {
+    this.carpeta = carpeta;
+    try {
+      await this._pedirPermisoCarpeta(carpeta);
+    } catch {
+      this.permiso = "prompt";
+    }
+    await this.backend.guardarAjuste("carpeta", carpeta);
+    this._cambio();
+    this.avisar("exito", `Carpeta: ${carpeta.name}.`);
+    this._respaldarSinEsperar({ aDescargas: this.permiso !== "granted" });
+  }
+
   async actualizarUso(limiteMs = LIMITE_AL_ABRIR_MS) {
     const almacenamiento = globalThis.navigator?.storage;
     if (almacenamiento?.estimate) this.uso = await oSiNo(almacenamiento.estimate(), limiteMs, null);
@@ -330,14 +357,23 @@ export class Sesion {
     return soportaCarpetas();
   }
 
+  /**
+   * Elegir la carpeta de trabajo en el explorador de Windows. Ronda 36: también es la salida cuando Edge no muestra su
+   * aviso de permiso (al elegirla, Edge da el permiso en el mismo diálogo). Si el explorador no entrega nada, se dice
+   * corto y no pasa nada más.
+   */
   async elegirCarpeta() {
-    const carpeta = await elegirCarpeta();
-    this.carpeta = carpeta;
-    await this._pedirPermisoCarpeta(carpeta);
-    await this.backend.guardarAjuste("carpeta", carpeta);
-    this._cambio();
-    this.avisar("exito", `Carpeta elegida: ${carpeta.name}. Ahí se guardarán respaldos y exportaciones.`);
-    this._respaldarSinEsperar();
+    let carpeta;
+    try {
+      carpeta = await delExplorador("la carpeta", () => elegirCarpeta(), { alLlegarTarde: (tardia) => this.tarea("Usando la carpeta…", () => this._usarCarpeta(tardia)) });
+    } catch (error) {
+      if (error instanceof SinElegir || causaDeError(error) === "colgado") {
+        this.avisar("advertencia", "No llegó la carpeta. Prueba con otra.");
+        return;
+      }
+      throw error;
+    }
+    await this._usarCarpeta(carpeta);
   }
 
   /**
@@ -346,23 +382,17 @@ export class Sesion {
    */
   async fijarCarpeta(carpeta) {
     if (carpeta?.kind !== "directory") throw new Error(`«${carpeta?.name ?? "Eso"}» no es una carpeta: arrastra la carpeta donde quieres trabajar.`);
-    this.carpeta = carpeta;
-    try {
-      await this._pedirPermisoCarpeta(carpeta);
-    } catch {
-      this.permiso = "prompt";
-    }
-    await this.backend.guardarAjuste("carpeta", carpeta);
-    this._cambio();
-    this.avisar("exito", `Carpeta elegida: ${carpeta.name}. Ahí se guardarán respaldos y exportaciones.`);
-    if (this.permiso === "granted") this._respaldarSinEsperar();
+    await this._usarCarpeta(carpeta);
   }
 
-  /** El navegador pide confirmar el permiso de la carpeta una vez por sesión (requiere clic). */
+  /**
+   * El navegador pide confirmar el permiso de la carpeta una vez por sesión (requiere clic). Ronda 36: si Edge no
+   * contesta o lo niega, el respaldo del día va a Descargas (siempre hay respaldo).
+   */
   async activarCarpeta() {
     await this._pedirPermisoCarpeta(this.carpeta);
     this._cambio();
-    if (this.permiso === "granted") this._respaldarSinEsperar();
+    this._respaldarSinEsperar({ aDescargas: this.permiso !== "granted" });
   }
 
   async olvidarCarpeta() {
@@ -563,12 +593,12 @@ export class Sesion {
 
   // ------------------------------------------------------------ respaldos
 
-  async respaldar(motivo = "manual", { descargarSiNoHayCarpeta = true } = {}) {
+  async respaldar(motivo = "manual", { descargarSiNoHayCarpeta = true, pedirPermiso = true } = {}) {
     if (!this.estado) throw new Error("No hay datos que respaldar.");
     const respaldo = await this.almacen.respaldo(motivo);
     let destino;
     if (this.carpetaLista || descargarSiNoHayCarpeta) {
-      destino = await this.guardarArchivo(CARPETA_RESPALDOS, respaldo.nombre, respaldo.datos);
+      destino = await this.guardarArchivo(CARPETA_RESPALDOS, respaldo.nombre, respaldo.datos, { pedirPermiso });
     } else {
       return null;
     }
@@ -616,21 +646,31 @@ export class Sesion {
     return Boolean(this.ultimoRespaldo && this.ultimoRespaldo.fecha_hora.slice(0, 10) === hoyIso());
   }
 
-  /** Un respaldo al día en la carpeta (si hay permiso) y una copia interna. */
-  async respaldoAutomatico() {
+  /** ¿El respaldo de hoy quedó solo en Descargas? (cuando la carpeta no tenía permiso) */
+  get respaldoDeHoyEnDescargas() {
+    return this.respaldoDeHoy && String(this.ultimoRespaldo?.destino ?? "").startsWith("Descargas/");
+  }
+
+  /**
+   * El respaldo del día: una copia interna y un archivo en la carpeta (con permiso). Ronda 36: con `aDescargas`, si la
+   * carpeta no tiene permiso el archivo va a Descargas (siempre hay respaldo); si el de hoy quedó en Descargas y luego
+   * la carpeta tiene permiso, también va a la carpeta. Nunca pide permiso (sin un clic Edge lo negaría).
+   */
+  async respaldoAutomatico({ aDescargas = false } = {}) {
     if (this.almacen.vacio) return;
-    if (!this.respaldoDeHoy) {
+    if (this.respaldoDeHoy && !(this.respaldoDeHoyEnDescargas && this.carpetaLista)) return;
+    if (this._copiaInterna !== hoyIso()) {
+      this._copiaInterna = hoyIso();
       await this.almacen.instantanea("inicio del día");
-      if (this.carpetaLista) {
-        const inicio = Date.now();
-        try {
-          const destino = await this.respaldar("inicio", { descargarSiNoHayCarpeta: false });
-          anotar("respaldo", `del inicio del día: ${destino} (${((Date.now() - inicio) / 1000).toFixed(1)} s)`);
-        } catch (error) {
-          anotar("respaldo", "del inicio del día", error);
-          this.avisar("advertencia", `No se pudo crear el respaldo automático: ${error.message}`);
-        }
-      }
+    }
+    if (!this.carpetaLista && !aDescargas) return;
+    const inicio = Date.now();
+    try {
+      const destino = await this.respaldar("inicio", { descargarSiNoHayCarpeta: true, pedirPermiso: false });
+      anotar("respaldo", `del día: ${destino} (${((Date.now() - inicio) / 1000).toFixed(1)} s)`);
+    } catch (error) {
+      anotar("respaldo", "del día", error);
+      this.avisar("advertencia", `No se pudo crear el respaldo: ${error.message}`);
     }
   }
 

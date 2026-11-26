@@ -194,6 +194,7 @@ async function abrirInventario(id, { alPaso = () => {} } = {}) {
   recordarInventario(inventario.id);
   marcarInventario(inventario.id);
   dibujar(html`<${App} key=${inventario.id} sesion=${sesion} />`);
+  anterior?.cerrar();
   anterior?.compartidos?.cerrar();
   if (anterior) cerrarBase(anterior.backend);
   // El respaldo del inicio del día, ya abierta (si la carpeta no responde, no detiene nada).
@@ -236,10 +237,7 @@ async function arrancar() {
     if (perdida) return;
     console.error(error);
     anotar("arranque", "no se pudo abrir", error);
-    pantallaError(
-      "No se pudo abrir el almacenamiento local",
-      `El navegador no permitió leer los datos (${error.message}). Si estás en una ventana InPrivate, abre una ventana normal; si no, recarga y, si vuelve a pasar, restaura un respaldo.`,
-    );
+    pantallaError("No abrió", `No se pudieron leer los datos (${error.message}).`);
     return;
   }
   if (!perdida) anotar("arranque", `abierta en ${((Date.now() - carga.inicio) / 1000).toFixed(1)} s (${carga.pasos.join(", ")})`);
@@ -300,6 +298,7 @@ function perderCandado() {
   if (perdida) return;
   perdida = true;
   anotar("arranque", "la herramienta se abrió en otra ventana: esta dejó de guardar");
+  abierta?.cerrar();
   abierta?.compartidos?.cerrar();
   for (const backend of bases) backend.soltar();
   dibujar(
@@ -356,7 +355,7 @@ function seguir() {
   carga.inicio = carga.desde = Date.now();
   const rescate = deVentana.leer(CLAVE_RESCATE);
   if (rescate) modoRescate(rescate);
-  else arrancar().catch((error) => pantallaError("Error al iniciar", error.message));
+  else arrancar().catch((error) => pantallaError("No abrió", error.message));
 }
 
 function yaAbierta() {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { SIN_RESPUESTA, textoSinRespuesta } from "../almacen/archivos.js";
+import { SIN_RESPUESTA } from "../almacen/archivos.js";
 import { hoyIso, fmtFechaHora } from "../nucleo/fechas.js";
 import { agregarAlmacenista, almacenistas, fijarUsuarioEnTurno, lineasPorUbicar } from "../servicios/consultas.js";
 import { Boton, ContextoSesion, Lista, Ventana, useSesion } from "./componentes.js";
@@ -344,13 +344,18 @@ function AjustesYMas({ seccion, alCerrar }) {
 function BannerPermiso() {
   const sesion = useSesion();
   if (!sesion.carpeta || sesion.permiso === "granted" || sesion.almacen.vacio) return null;
-  // Ronda 36: Edge no mostró su aviso (OneDrive sin responder): se explica qué revisar y se puede intentar otra vez.
-  const sinRespuesta = sesion.permiso === SIN_RESPUESTA;
-  return html`<div class=${`banner ${sinRespuesta ? "banner-alerta" : ""}`}>
-    ${sinRespuesta
-      ? html`<span>${textoSinRespuesta(sesion.carpeta.name)}</span>`
-      : html`<span>Para respaldar en <strong>${sesion.carpeta.name}</strong>, el navegador pide confirmar el permiso en cada sesión.</span>`}
-    <${Boton} tipo="primario" onClick=${() => sesion.tarea("Pidiendo permiso…", () => sesion.activarCarpeta())}>${sinRespuesta ? "Intentar otra vez" : "Permitir"}<//>
+  // Ronda 36: corto y con una sola acción. Si Edge no dio acceso (no preguntó o lo negó), se elige la carpeta otra vez
+  // en el explorador de Windows; mientras, el respaldo del día va a Descargas.
+  const sinAcceso = sesion.permiso === SIN_RESPUESTA || sesion.permiso === "denied";
+  const enDescargas = sesion.respaldoDeHoyEnDescargas;
+  return html`<div class=${`banner ${sinAcceso ? "banner-alerta" : ""}`}>
+    <span>
+      ${sinAcceso ? html`Edge no dio acceso a <strong>${sesion.carpeta.name}</strong>.` : html`Respaldos: falta permiso para <strong>${sesion.carpeta.name}</strong>.`}
+      ${enDescargas ? html` <span class="banner-ok">Respaldo de hoy en Descargas ✓</span>` : null}
+    </span>
+    ${sinAcceso
+      ? html`<${Boton} tipo="primario" onClick=${() => sesion.tarea("Eligiendo carpeta…", () => sesion.elegirCarpeta())}>Elegir carpeta…<//>`
+      : html`<${Boton} tipo="primario" onClick=${() => sesion.tarea("Pidiendo permiso…", () => sesion.activarCarpeta())}>Permitir<//>`}
   </div>`;
 }
 

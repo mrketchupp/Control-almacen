@@ -163,27 +163,32 @@ test("arranque: nada lo deja en «Cargando…» y siempre hay salida", async (t)
     await page.locator(".navegacion").waitFor({ timeout: 8000 });
     assert.ok(Date.now() - inicio < 8000, `abrió en ${Date.now() - inicio} ms`);
     // El respaldo del inicio del día se escribe en la carpeta aunque no se puedan quitar los viejos.
-    await page.waitForFunction(() => /respaldo.*del inicio del día: TRABAJO\/respaldos\/almacen_/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""), null, { timeout: 40000 });
+    await page.waitForFunction(() => /respaldo.*del día: TRABAJO\/respaldos\/almacen_/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""), null, { timeout: 40000 });
     await banderas({ carpeta: false, "carpeta-no-lista": false });
   });
 
-  await t.test("«Permitir» sin aviso de Edge: a los 15 s explica qué revisar y, si Edge responde tarde, lo usa", async () => {
+  await t.test("«Permitir» sin aviso de Edge: a los 6 s el respaldo va a Descargas, ofrece «Elegir carpeta…» y usa la respuesta tardía", async () => {
     await cargarFixture();
     await banderas({ carpeta: true, "permiso-colgado": true });
-    await page.evaluate(() => localStorage.setItem("prueba:permiso-tarde-ms", "19000"));
+    await page.evaluate(() => localStorage.setItem("prueba:permiso-tarde-ms", "10000"));
     await page.goto(origen + "/#inicio");
     await page.locator(".navegacion").waitFor();
     const banner = page.locator(".banner");
+    assert.equal((await banner.innerText()).replace(/\s+/g, " ").trim(), "Respaldos: falta permiso para TRABAJO. Permitir");
+    const descarga = page.waitForEvent("download", { timeout: 15000 });
     await banner.getByRole("button", { name: "Permitir" }).click();
     await page.getByText("Pidiendo permiso…").first().waitFor();
-    await banner.getByText("Edge no mostró el aviso para dar permiso a «TRABAJO»").waitFor({ timeout: 20000 });
+    // Edge no preguntó: el respaldo del día se descarga y el aviso ofrece elegir la carpeta otra vez.
+    assert.match((await descarga).suggestedFilename(), /^almacen_\d{4}-\d{2}-\d{2}_\d{6}_inicio\.zip$/);
+    await banner.getByRole("button", { name: "Elegir carpeta…" }).waitFor();
+    await banner.getByText("Respaldo de hoy en Descargas ✓").waitFor();
+    assert.match(await banner.innerText(), /^Edge no dio acceso a TRABAJO\./);
     assert.equal(await page.getByText("Pidiendo permiso…").count(), 0, "ya no se queda pidiendo permiso");
-    assert.equal(await banner.getByRole("button", { name: "Intentar otra vez" }).count(), 1);
-    if (CAPTURAS) await page.screenshot({ path: join(CAPTURAS, "permiso-sin-respuesta.png") });
-    // Edge respondió tarde: se toma, el aviso se va y se hace el respaldo del día en la carpeta.
+    if (CAPTURAS) await page.screenshot({ path: join(CAPTURAS, "permiso-sin-respuesta.png"), clip: { x: 0, y: 0, width: 1100, height: 140 } });
+    // Edge respondió tarde: se toma, el aviso se va y el respaldo de hoy también queda en la carpeta.
     await banner.waitFor({ state: "detached", timeout: 15000 });
     await page.waitForFunction(() => /Edge respondió tarde «granted»/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""));
-    await page.waitForFunction(() => /del inicio del día: TRABAJO\/respaldos\/almacen_/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""), null, { timeout: 20000 });
+    await page.waitForFunction(() => /del día: TRABAJO\/respaldos\/almacen_/.test(localStorage.getItem("control-almacen:registro-archivos") ?? ""), null, { timeout: 20000 });
     await banderas({ carpeta: false, "permiso-colgado": false });
     await page.evaluate(() => localStorage.removeItem("prueba:permiso-tarde-ms"));
   });
@@ -192,24 +197,24 @@ test("arranque: nada lo deja en «Cargando…» y siempre hay salida", async (t)
     await cargarFixture();
     await banderas({ "colgar-base": true });
     await page.goto(origen + "/#inicio");
-    await page.getByText("Leyendo los datos de este equipo…").waitFor();
-    await page.getByText("Se quedó en este paso.").waitFor({ timeout: 20000 });
-    for (const nombre of ["Recargar", "Restaurar un respaldo…", "Copiar diagnóstico", "Descargar .txt"]) {
+    await page.getByText("Leyendo datos…").waitFor();
+    await page.getByText("Se quedó aquí.").waitFor({ timeout: 20000 });
+    for (const nombre of ["Recargar", "Restaurar respaldo…", "Copiar diagnóstico"]) {
       assert.equal(await page.getByRole("button", { name: nombre }).count(), 1, nombre);
     }
     if (CAPTURAS) await page.screenshot({ path: join(CAPTURAS, "arranque-atorada.png") });
-    await page.getByRole("button", { name: "Restaurar un respaldo…" }).click();
+    await page.getByRole("button", { name: "Restaurar respaldo…" }).click();
     // Modo rescate: intenta copiar lo que hay; la base no responde → recarga sola y sigue sin copia.
-    await page.getByRole("heading", { name: "Restaurar un respaldo de DLTA" }).waitFor();
-    await page.getByText("No se pudieron leer los datos de este equipo").waitFor({ timeout: 30000 });
+    await page.getByRole("heading", { name: "Restaurar respaldo · DLTA" }).waitFor();
+    await page.getByText("No se pudo leer lo que había.").waitFor({ timeout: 30000 });
     await page.locator('input[type="file"]').setInputFiles(archivoRespaldo);
     await page.getByText(respaldo.nombre).waitFor();
-    assert.match(await page.locator(".arranque-resumen").innerText(), new RegExp(`Respaldo del 25/11/2026 08:00 · vales de salida hasta el ${penultimaRespaldo}`));
-    assert.match(await page.locator(".arranque-alerta").last().innerText(), /No se sabe qué había en este equipo/);
+    assert.match(await page.locator(".arranque-resumen").innerText(), new RegExp(`25/11/2026 08:00 · hasta el vale ${penultimaRespaldo}`));
+    assert.match(await page.locator(".arranque-alerta").last().innerText(), /Revisa tu último vale impreso/);
     if (CAPTURAS) await page.screenshot({ path: join(CAPTURAS, "arranque-rescate.png") });
     await banderas({ "colgar-base": false });
-    await page.getByRole("button", { name: "Restaurar este respaldo" }).click();
-    await page.getByText("Listo: DLTA quedó como en el respaldo").waitFor();
+    await page.getByRole("button", { name: "Restaurar", exact: true }).click();
+    await page.getByText("Listo.").waitFor();
     await page.getByRole("button", { name: "Abrir la herramienta" }).click();
     await page.locator(".navegacion").waitFor();
     assert.equal(await ultimaSalidaGuardada(), penultimaRespaldo);
@@ -221,9 +226,9 @@ test("arranque: nada lo deja en «Cargando…» y siempre hay salida", async (t)
     await page.locator(".navegacion").waitFor();
     const otra = await nueva();
     await otra.goto(origen + "/#inicio");
-    await otra.getByRole("heading", { name: "La herramienta ya está abierta" }).waitFor();
+    await otra.getByRole("heading", { name: "Ya está abierta en otra ventana" }).waitFor();
     await otra.getByRole("button", { name: "Reintentar" }).click();
-    await otra.getByText("Sigue abierta en otra ventana.").waitFor();
+    await otra.getByText("Sigue abierta.").waitFor();
     if (CAPTURAS) await otra.screenshot({ path: join(CAPTURAS, "arranque-ya-abierta.png") });
     await otra.getByRole("button", { name: "Abrir aquí" }).click();
     await otra.locator(".navegacion").waitFor();
@@ -242,12 +247,12 @@ test("arranque: nada lo deja en «Cargando…» y siempre hay salida", async (t)
     await page.goto(origen + "/#inicio");
     const copia = await descarga;
     assert.match(copia.suggestedFilename(), /^almacen_\d{4}-\d{2}-\d{2}_\d{6}_rescate\.zip$/);
-    await page.getByText("Se guardó en Descargas una copia de lo que había").waitFor();
+    await page.getByText("Copia de lo que había: Descargas/").waitFor();
     await page.locator('input[type="file"]').setInputFiles(archivoRespaldo);
     const alerta = page.locator(".arranque-alerta");
     await alerta.waitFor();
-    assert.match(await alerta.innerText(), new RegExp(`vales de salida del ${penultimaRespaldo + 1} al ${ultima}`));
-    await page.getByRole("button", { name: "Salir sin restaurar" }).click();
+    assert.match(await alerta.innerText(), new RegExp(`Se pierden los vales ${penultimaRespaldo + 1}–${ultima}`));
+    await page.getByRole("button", { name: "Salir", exact: true }).click();
     await page.locator(".navegacion").waitFor();
     assert.equal(await ultimaSalidaGuardada(), ultima, "salir sin restaurar no cambia nada");
   });

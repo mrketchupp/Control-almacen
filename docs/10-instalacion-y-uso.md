@@ -411,25 +411,19 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 
 > ⚠️ Si alguien borra en Edge "Cookies y otros datos de sitios", se borran los datos de trabajo. Se recuperan restaurando el último respaldo.
 
-### 5.1 Si no abre (por ejemplo, después de un apagón)
+### 5.1 Si algo no responde
 
-- **Se queda cargando:** la pantalla dice en qué paso va (*Leyendo los datos de este equipo…*, *Revisando la carpeta de
-  trabajo…*). Si un paso pasa de 12 segundos, aparecen **Recargar**, **Restaurar un respaldo…** y **Copiar diagnóstico**
-  (o *Descargar .txt*), para pegarlo en la conversación del proyecto. Recarga una vez. Si vuelve a quedarse en el mismo paso, restaura un respaldo.
-- **Restaurar un respaldo…** (sin abrir la herramienta): primero intenta guardar en *Descargas* una copia de lo que hay
-  (`almacen_…_rescate.zip`), luego eliges el `.zip` más reciente de la carpeta `respaldos` y revisas su fecha y hasta qué
-  folio llega. Si este equipo tiene vales posteriores, lo dice: hay que capturarlos otra vez, en el mismo orden, para que
-  conserven sus folios. Solo reemplaza el inventario abierto (el otro no se toca). Si la base no responde, se borra y se
-  restaura en una nueva. Si ni así se puede, la pantalla explica cómo borrarla a mano (F12 → Aplicación → IndexedDB).
-- **«La herramienta ya está abierta»:** si no encuentras la otra ventana o se quedó en *Cargando…*, pulsa **Abrir aquí**.
-  La otra ventana deja de guardar cambios y lo dice. Con *Usar esta ventana*, la recuperas.
-- El respaldo del inicio del día se hace ya abierta la herramienta. Si OneDrive no responde, se avisa, se descarga en
-  *Descargas* y se sigue trabajando.
-- **«Permitir» no muestra el aviso de Edge:** a los 15 s la herramienta deja de esperar y lo explica arriba. Lo más
-  probable es que OneDrive no responda y Edge se quede esperándolo antes de preguntar. Abre la carpeta en el Explorador de Windows. Si
-  tarda o no abre, reinicia OneDrive: en la nube junto al reloj, *Configuración → Pausar sincronización* o *Salir de OneDrive*,
-  y ábrelo otra vez desde Inicio. Luego pulsa **Intentar otra vez**. Si Edge contesta tarde, la herramienta toma su respuesta.
-- Ocultar o mostrar la carpeta donde está el HTML no cambia nada: los datos viven en Edge, no en esa carpeta.
+| Ves | Haz |
+|---|---|
+| *Se quedó aquí.* (al abrir) | **Recargar**. Si vuelve a pasar: **Restaurar respaldo…** y elige el `.zip` más reciente. |
+| *Ya está abierta en otra ventana* | **Abrir aquí** (la otra deja de guardar). |
+| *Respaldos: falta permiso para «X».* | **Permitir**. |
+| *Edge no dio acceso a «X».* | **Elegir carpeta…** y elige la misma carpeta (u otra). El respaldo de hoy ya quedó en *Descargas*. |
+
+- Siempre hay respaldo: con permiso, en la carpeta; sin permiso, en *Descargas* (uno al día por inventario).
+- Restaurar respaldo… guarda antes en *Descargas* una copia de lo que hay y dice qué vales se pierden (se capturan otra
+  vez, en orden).
+- Los datos viven en Edge, no en la carpeta del HTML: ocultarla o moverla no cambia nada.
 
 ## 6. Para desarrollo
 
