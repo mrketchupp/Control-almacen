@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { fmtFecha, hoyIso, sumarDias } from "../../nucleo/fechas.js";
 import { hayPartidasFx } from "../../servicios/consultas.js";
 import { describirCorte } from "../../servicios/corte.js";
@@ -70,6 +70,11 @@ export function PaginaReporte() {
   const [fecha, setFechaLocal] = useState(fechaDeRuta() ?? hoy);
   const [descargados, setDescargados] = useState({});
   const [carpetas, setCarpetas] = useState(false);
+  // Ronda 38: ¿Edge sigue respondiendo con la carpeta base y los libros de vales? Los perdidos (tras un apagón) se
+  // marcan en su tarjeta y «Descargar» pide elegirlos otra vez en ese mismo clic, sin esperar.
+  useEffect(() => {
+    sesion.revisarDestinos().catch(() => {});
+  }, [sesion.destinos]);
   const setFecha = (f) => {
     if (!f) return;
     setFechaLocal(f);

@@ -319,6 +319,20 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 38 — el reporte diario no se guardaba en sus carpetas (fallo reportado con grabación y registro).** Tras el
+apagón, Edge «perdió» la carpeta base (INVENTARIO DIARIO) y los libros de vales fijados: nada de lo que se les pregunta
+responde (el registro: *Edge no respondió en 6 s al consultarlo*), al elegir la carpeta otra vez la herramienta se quedaba
+en *Eligiendo la carpeta…* (la comparaba con la perdida) y guardarla junto con los libros perdidos fallaba (*Failed to
+write blobs*), así que al recargar volvían los perdidos. Aplicado:
+- ☑ Lo que no contesta en 2.5 s queda como **perdido** (no se vuelve a esperar). La tarjeta del reporte dice *⚠ Al
+  descargar, elígela otra vez* y **Descargar** abre el explorador en ese mismo clic: la carpeta (o el libro, con «Guardar
+  como» con su nombre) queda fijada otra vez y el archivo del día se guarda ahí.
+- ☑ Elegir la carpeta otra vez ya no espera a la perdida. Al guardar, cada perdido se cambia por una marca con su nombre
+  (para pedirlo otra vez aun después de recargar) y lo demás sí se guarda; si la base común no guarda, queda en la del
+  inventario (al abrir, gana la más reciente).
+- ☐ Del usuario: elegir otra vez INVENTARIO DIARIO y los dos libros de vales (una vez) y revisar que *Descargar* guarde
+  directo.
+
 **Ronda 37 — reporte de pruebas externas** (`docs/reporte-pruebas-externas-2026-11-26.md`, once hallazgos). Cada uno se
 reprodujo con las fixtures sintéticas (`tests/pruebasExternas.test.js` y `.navegador.mjs`, que fallan con la versión
 anterior) y se corrigió:

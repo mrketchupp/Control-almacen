@@ -128,19 +128,24 @@ test("2 · un bit cambiado en una plantilla del respaldo se detecta siempre (ant
   const { respaldo } = await respaldoSintetico();
   const entrada = leerZip(respaldo.datos).find((e) => e.nombre.startsWith("plantillas/"));
   const inicio = entrada.comprimido.byteOffset - respaldo.datos.byteOffset;
+  const archivo = entrada.nombre.slice("plantillas/".length);
+  const original = leerRespaldo(respaldo.datos).plantillas.find((p) => p.archivo === archivo).datos;
+  const igual = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
   let detectados = 0;
   for (let i = 0; i < 200; i++) {
     const copia = new Uint8Array(respaldo.datos);
     const byte = inicio + Math.floor(Math.random() * entrada.comprimido.length);
     copia[byte] ^= 1 << Math.floor(Math.random() * 8);
     try {
-      leerRespaldo(copia);
+      // Solo pasa si el bit no cambia nada (p. ej. el relleno del último byte del bloque comprimido).
+      const leida = leerRespaldo(copia).plantillas.find((p) => p.archivo === archivo).datos;
+      assert.ok(igual(leida, original), `byte ${byte - inicio}: plantilla cambiada y aceptada`);
     } catch (error) {
       assert.ok(error instanceof ErrorRespaldo, error.message);
       detectados++;
     }
   }
-  assert.equal(detectados, 200);
+  assert.ok(detectados >= 195, `detectados ${detectados} de 200`);
   assert.throws(() => descomprimir({ ...entrada, crc: entrada.crc ^ 1 }), (e) => e instanceof ErrorZip && e.parte === entrada.nombre);
 });
 

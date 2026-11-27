@@ -1,7 +1,7 @@
 // Controlador de la aplicación: une el almacén de datos, la carpeta de respaldos y
 // los avisos para la interfaz. No dibuja nada.
 
-import { hoyIso } from "../nucleo/fechas.js";
+import { ahoraIso, hoyIso } from "../nucleo/fechas.js";
 import { usuarioEnTurno } from "../servicios/consultas.js";
 import {
   SIN_RESPUESTA,
@@ -15,15 +15,20 @@ import {
   elegirDondeGuardar,
   escribirEnArchivo,
   escribirEnCarpeta,
+  estaPerdido,
+  LIMITE_CONSULTA_MS,
+  marcaPerdido,
   listarCarpeta,
   permisoCarpeta,
+  responde,
   soportaCarpetas,
   soportaGuardarComo,
+  vigilarDialogo,
 } from "../almacen/archivos.js";
 import { Compartidos } from "../almacen/compartidos.js";
 import { anotar, describirHandle } from "../almacen/registro.js";
 import { conTiempo, oSiNo } from "../almacen/tiempo.js";
-import { CLAVE_DESTINOS, destinoDe, normalizarDestinos, normalizarRuta, proponerRutas, rutaDeCarpetas, RUTAS } from "../almacen/destinos.js";
+import { CLAVE_DESTINOS, destinoDe, LIBROS, normalizarDestinos, normalizarRuta, proponerRutas, rutaDeCarpetas, RUTAS } from "../almacen/destinos.js";
 import { infoDeNombre, leerRespaldo, respaldosABorrar, revisarInventario } from "../almacen/respaldos.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
 import { deOtroInventario, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
@@ -276,7 +281,7 @@ export class Sesion {
     alPaso("carpeta");
     this.carpeta = await this.backend.leerAjuste("carpeta");
     this.permiso = this.carpeta ? await oSiNo(permisoCarpeta(this.carpeta), limiteMs, "prompt") : null;
-    this.destinos = normalizarDestinos(await oSiNo(this._bdDestinos.leerAjuste(CLAVE_DESTINOS), limiteMs, null));
+    this.destinos = normalizarDestinos(await this._leerDestinos(limiteMs));
     this.ultimoRespaldo = await this.backend.leerAjuste("ultimo_respaldo");
     this.exportoConDialogo = Boolean(await this.backend.leerAjuste("exporto_con_dialogo"));
     const almacenamiento = globalThis.navigator?.storage;
@@ -437,12 +442,73 @@ export class Sesion {
     return destinoDe(this.destinos, tipo, this.inventario.id);
   }
 
+  /**
+   * Los destinos guardados: los de la base común y, si una vez no se pudieron guardar ahí, la copia de la base de este
+   * inventario (Ronda 38); se usa la más reciente (`guardado_en`).
+   */
+  async _leerDestinos(limiteMs = LIMITE_AL_ABRIR_MS) {
+    const comun = await oSiNo(this._bdDestinos.leerAjuste(CLAVE_DESTINOS), limiteMs, null);
+    if (this._bdDestinos === this.backend) return comun;
+    const propia = await oSiNo(this.backend.leerAjuste(CLAVE_DESTINOS), limiteMs, null);
+    if (!propia) return comun;
+    return !comun || String(propia.guardado_en ?? "") > String(comun.guardado_en ?? "") ? propia : comun;
+  }
+
+  /** Los handles de los destinos (carpeta base y libros de vales), con su lugar. */
+  _handlesDestinos(destinos = this.destinos) {
+    return [["raiz", destinos.raiz], ...LIBROS.map((id) => [id, destinos.vales[id]])].filter(([, h]) => h);
+  }
+
+  /**
+   * Revisa si Edge responde con la carpeta base y los libros de vales (Ronda 38: tras el apagón quedaron perdidos y
+   * nada de lo que se les pregunta contesta). @returns los perdidos: [«raiz» | id del libro]
+   */
+  async revisarDestinos() {
+    const lista = this._handlesDestinos();
+    const respuestas = await Promise.all(lista.map(([, h]) => responde(h)));
+    const perdidos = lista.filter((_, i) => !respuestas[i]).map(([clave]) => clave);
+    if (perdidos.length) this._cambio();
+    return perdidos;
+  }
+
   async _guardarDestinos(destinos) {
     this.destinos = normalizarDestinos(destinos);
     this._cambio(); // se ve de inmediato aunque guardarlo en el navegador tarde
+    const escribir = (bd) => conLimite(bd.guardarAjuste(CLAVE_DESTINOS, { ...this.destinos, guardado_en: ahoraIso() }), 10000, null, "el navegador no respondió");
     try {
-      await conLimite(this._bdDestinos.guardarAjuste(CLAVE_DESTINOS, this.destinos), 10000, null, "el navegador no respondió");
-    } catch (error) {
+      await escribir(this._bdDestinos);
+      return;
+    } catch (primero) {
+      // Ronda 38: una carpeta o un libro que Edge perdió (tras un apagón) hace fallar todo el guardado («Failed to write
+      // blobs»). En su lugar se guarda una marca con su nombre («Descargar» pedirá elegirlo otra vez) y lo demás.
+      const perdidos = await this.revisarDestinos();
+      if (perdidos.length) {
+        const marcado = (clave, handle) => (perdidos.includes(clave) && handle && !handle.perdido ? marcaPerdido(handle) : handle);
+        this.destinos = normalizarDestinos({
+          ...this.destinos,
+          raiz: marcado("raiz", this.destinos.raiz),
+          vales: Object.fromEntries(LIBROS.map((id) => [id, marcado(id, this.destinos.vales[id])])),
+        });
+        this._cambio();
+        anotar("carpetas", `se marcaron las que Edge perdió (elegirlas otra vez): ${perdidos.join(", ")}`, primero);
+      }
+      let error = primero;
+      try {
+        await escribir(this._bdDestinos);
+        return;
+      } catch (segundo) {
+        error = segundo;
+      }
+      // La base común no los acepta: se guardan en la de este inventario (al abrir, gana la más reciente).
+      if (this._bdDestinos !== this.backend) {
+        try {
+          await escribir(this.backend);
+          anotar("carpetas", "guardadas en la base de este inventario (la común no las aceptó)", error);
+          return;
+        } catch (tercero) {
+          error = tercero;
+        }
+      }
       anotar("carpetas", "no se pudieron guardar en el navegador", error);
       throw new Error(`Las carpetas quedaron fijadas solo hasta cerrar la herramienta: el navegador no las guardó (${error?.name ?? ""} ${error?.message ?? error}).`, { cause: error });
     }
@@ -455,9 +521,10 @@ export class Sesion {
    *   (si responde después, `alLlegarTarde(carpeta)`)
    */
   async elegirCarpetaReporte({ alLlegarTarde = null } = {}) {
+    const anterior = this.destinos.raiz && !estaPerdido(this.destinos.raiz) ? this.destinos.raiz : null;
     const raiz = await delExplorador(
       "la carpeta",
-      () => window.showDirectoryPicker({ id: "control-almacen-reporte", mode: "readwrite", startIn: this.destinos.raiz ?? "desktop" }),
+      () => window.showDirectoryPicker({ id: "control-almacen-reporte", mode: "readwrite", startIn: anterior ?? "desktop" }),
       { alLlegarTarde },
     );
     return this.fijarCarpetaReporte(raiz);
@@ -488,10 +555,21 @@ export class Sesion {
     return { raiz, propuestas, error };
   }
 
+  /** La carpeta base, si hay y Edge no la perdió (Ronda 38). */
+  _raizUsable() {
+    const raiz = this.destinos.raiz;
+    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    if (estaPerdido(raiz)) throw new Error(`Edge perdió la carpeta «${raiz.name}». Elígela otra vez con «Cambiar…».`);
+    return raiz;
+  }
+
   /** ¿La carpeta elegida es la misma base que ya había? (entonces se conservan las rutas escritas) */
   async _mismaBase(raiz) {
+    const actual = this.destinos.raiz;
+    // Ronda 38: con la carpeta que Edge perdió, compararla nunca respondía y se quedaba en «Eligiendo la carpeta…».
+    if (!actual || estaPerdido(actual)) return false;
     try {
-      return Boolean(this.destinos.raiz && (await this.destinos.raiz.isSameEntry(raiz)));
+      return Boolean(await oSiNo(actual.isSameEntry(raiz), LIMITE_CONSULTA_MS, false));
     } catch {
       return false;
     }
@@ -499,8 +577,7 @@ export class Sesion {
 
   /** Vuelve a buscar las rutas en la carpeta base (botón «Buscar otra vez»). @returns las propuestas */
   async buscarRutasReporte() {
-    const raiz = this.destinos.raiz;
-    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    const raiz = this._raizUsable();
     const propuestas = await conLimite(proponerRutas(raiz), 20000, null, `Edge tardó demasiado en leer «${raiz.name}» (¿OneDrive está sincronizando?)`);
     const rutas = { ...this.destinos.rutas };
     for (const id of RUTAS) if (propuestas[id]) rutas[id] = propuestas[id];
@@ -518,16 +595,14 @@ export class Sesion {
    * elegidos se vuelven {año} y {mes}. @returns la ruta @throws SinElegir / ErrorEscritura como elegirCarpetaReporte
    */
   async explorarRutaReporte(id, { alLlegarTarde = null } = {}) {
-    const raiz = this.destinos.raiz;
-    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    const raiz = this._raizUsable();
     const elegida = await delExplorador("la carpeta", () => window.showDirectoryPicker({ id: "control-almacen-reporte-ruta", mode: "read", startIn: raiz }), { alLlegarTarde });
     return this.fijarRutaDesdeCarpeta(id, elegida);
   }
 
   /** La ruta de un inventario desde una carpeta de dentro de la base (elegida o arrastrada). @returns la ruta */
   async fijarRutaDesdeCarpeta(id, carpeta) {
-    const raiz = this.destinos.raiz;
-    if (!raiz) throw new Error("Primero elige la carpeta base de los inventarios.");
+    const raiz = this._raizUsable();
     if (carpeta?.kind !== "directory") throw new Error(`«${carpeta?.name ?? "Eso"}» no es una carpeta.`);
     const partes = await raiz.resolve(carpeta);
     if (!partes) {
@@ -551,7 +626,7 @@ export class Sesion {
       "el archivo",
       () => window.showOpenFilePicker({
         id: "control-almacen-vales",
-        startIn: this.destinos.vales[id] ?? "desktop",
+        startIn: this.destinos.vales[id] && !estaPerdido(this.destinos.vales[id]) ? this.destinos.vales[id] : "desktop",
         multiple: false,
         excludeAcceptAllOption: true,
         types: [{ description: "Libro de Excel", accept: Object.fromEntries(extensiones.map((e) => [TIPOS_LIBRO[e], [e]])) }],
@@ -560,6 +635,16 @@ export class Sesion {
     );
     if (!elegidos?.[0]) throw new SinElegir("el archivo");
     return this.fijarLibroVales(id, elegidos[0]);
+  }
+
+  /**
+   * Ronda 38: el libro de vales otra vez, con «Guardar como» (trae el permiso de escribir sin otro aviso de Edge), para
+   * cuando Edge perdió el que estaba fijado. Queda fijado. @returns el archivo, o null si se canceló
+   */
+  async elegirLibroValesGuardando(id, nombre) {
+    const archivo = await vigilarDialogo(elegirDondeGuardar(nombre, { id: "control-almacen-vales", startIn: "desktop" }));
+    if (!archivo) return null;
+    return this.fijarLibroVales(id, archivo);
   }
 
   /** La extensión del libro de vales de ese inventario (solo se sabe la del abierto). */

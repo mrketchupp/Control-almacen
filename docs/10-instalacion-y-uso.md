@@ -419,6 +419,8 @@ te manda la base (no pide fecha: solo importa qué partidas tienen folio de AX; 
 | *Ya está abierta en otra ventana* | **Abrir aquí** (la otra deja de guardar). |
 | *Respaldos: falta permiso para «X».* | **Permitir**. |
 | *Edge no dio acceso a «X».* | **Elegir carpeta…** y elige la misma carpeta (u otra). El respaldo de hoy ya quedó en *Descargas*. |
+| *Edge perdió la carpeta «X».* / *Edge perdió «VALES…».* (reporte diario) | **Elegir la carpeta…** / **Elegir el libro…** y elige la misma. Se guarda ahí y queda fijada otra vez. |
+| *⚠ Al descargar, elígela otra vez* (en la tarjeta del reporte) | **Descargar**: abre el explorador; elige la misma carpeta o libro. |
 
 - Siempre hay respaldo: con permiso, en la carpeta; sin permiso, en *Descargas* (uno al día por inventario).
 - Restaurar respaldo… guarda antes en *Descargas* una copia de lo que hay y dice qué vales se pierden (se capturan otra

@@ -4,7 +4,7 @@
 // Nada se guarda solo: solo al pulsar «Descargar».
 
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { ErrorEscritura, SIN_RESPUESTA, SinElegir, descargar, explicarErrorEscritura, permisoCarpeta, soportaCarpetas, textoSinRespuesta } from "../../almacen/archivos.js";
+import { ErrorEscritura, SIN_RESPUESTA, SinElegir, descargar, estaPerdido, explicarErrorEscritura, permisoCarpeta, soportaCarpetas, textoSinRespuesta } from "../../almacen/archivos.js";
 import { LIBROS, RUTAS, VARIABLES, abrirRuta, carpetasPara, hayArchivo, problemaDeRuta } from "../../almacen/destinos.js";
 import { anotar, borrarRegistro, describirHandle, registro, suscribirRegistro, textoRegistro } from "../../almacen/registro.js";
 import { fmtFecha, hoyIso } from "../../nucleo/fechas.js";
@@ -35,22 +35,31 @@ export async function guardarEnSuLugar(sesion, tipo, alTerminarOriginal = null, 
     anotar("descargar", `${tipo} del ${fecha}: ${resultado.motivo ? `no quedó en su lugar (${resultado.motivo}); quedó en ${resultado.destino}` : `guardado en ${resultado.destino}`}`);
     alTerminarOriginal?.(resultado);
   };
+  const conPermiso = destino.clase === "carpeta" ? destino.raiz : destino.archivo;
+  // Ronda 38: Edge perdió esta carpeta o este libro (tras el apagón no responde): se elige otra vez y se guarda ahí,
+  // en el mismo clic (el explorador solo abre dentro de un clic).
+  if (estaPerdido(conPermiso)) return elegirOtraVez(sesion, tipo, destino, alTerminarOriginal, opciones, { antes });
   const clave = `${tipo}|${fecha}`;
   if (enCurso.has(clave)) return; // doble clic: ya se está guardando
   enCurso.add(clave);
   try {
     const otroLugar = { etiqueta: "Guardar como…", alHacer: () => exportarConDialogo(sesion, tipo, alTerminar, opciones) };
     const reintentar = () => guardarEnSuLugar(sesion, tipo, alTerminar, opciones, { antes });
-    const conPermiso = destino.clase === "carpeta" ? destino.raiz : destino.archivo;
     anotar("descargar", `${tipo} del ${fecha} → ${destino.clase === "carpeta" ? `${describirHandle(destino.raiz)} / ${destino.ruta}` : describirHandle(destino.archivo)}`);
     const permiso = await permisoCarpeta(conPermiso, true);
+    if (permiso === SIN_RESPUESTA) {
+      anotar("descargar", `${tipo}: Edge no responde con «${conPermiso.name}», no se generó`);
+      sesion.avisar("advertencia", textoPerdido(conPermiso, destino), 20000, {
+        etiqueta: destino.clase === "carpeta" ? "Elegir la carpeta…" : "Elegir el libro…",
+        alHacer: () => elegirOtraVez(sesion, tipo, destino, alTerminarOriginal, opciones, { antes }),
+      });
+      return;
+    }
     if (permiso !== "granted") {
       anotar("descargar", `${tipo}: sin permiso de Edge (${permiso}), no se generó`);
       sesion.avisar(
         "advertencia",
-        permiso === SIN_RESPUESTA
-          ? `Edge no dio acceso a «${conPermiso.name}». Usa «Guardar como…».`
-          : `Edge no dio permiso para guardar en «${conPermiso.name}». Pulsa otra vez «Descargar» y elige «Editar archivos» (si ya no lo pregunta, recarga la página).`,
+        `Edge no dio permiso para guardar en «${conPermiso.name}». Pulsa otra vez «Descargar» y elige «Editar archivos» (si ya no lo pregunta, recarga la página).`,
         15000,
         otroLugar,
       );
@@ -112,10 +121,60 @@ export async function guardarEnSuLugar(sesion, tipo, alTerminarOriginal = null, 
   }
 }
 
+/** Edge perdió la carpeta base o el libro de vales: qué hacer, en una línea. */
+export const textoPerdido = (handle, destino) =>
+  destino.clase === "carpeta" ? `Edge perdió la carpeta «${handle.name}». Elígela otra vez.` : `Edge perdió «${handle.name}». Elígelo otra vez.`;
+
+/**
+ * Ronda 38 (fallo reportado tras el apagón): la carpeta base o el libro de vales que Edge perdió se elige otra vez en el
+ * explorador (queda fijado; la base nueva no espera a la perdida) y el archivo del día se guarda ahí mismo. El libro de
+ * vales se elige con «Guardar como» con su nombre, que ya trae el permiso de escribir.
+ */
+async function elegirOtraVez(sesion, tipo, destino, alTerminar, opciones, { antes = null } = {}) {
+  const fecha = opciones.corte ?? hoyIso();
+  const avisarError = (error) => {
+    console.warn(error);
+    if (error instanceof SinElegir || error?.causa === "colgado") sesion.avisar("advertencia", error.message, 20000);
+    else sesion.avisar("error", error?.message || String(error));
+  };
+  if (destino.clase === "archivo") {
+    let archivo;
+    try {
+      archivo = await sesion.elegirLibroValesGuardando(destino.id, sesion.almacen.nombreExportacion(tipo, fecha, opciones));
+    } catch (error) {
+      avisarError(error);
+      return;
+    }
+    if (!archivo) return; // canceló «Guardar como»
+    anotar("descargar", `${tipo}: libro de vales elegido otra vez: ${describirHandle(archivo)}`);
+    if (antes && !antes()) return;
+    await generar(sesion, tipo, archivo, opciones, alTerminar, { reintentar: () => guardarEnSuLugar(sesion, tipo, alTerminar, opciones, { antes }) });
+    return;
+  }
+  // Mientras el explorador está abierto y luego se buscan las carpetas de cada inventario dentro de la base.
+  const fallo = await sesion.tarea("Eligiendo la carpeta…", async () => {
+    try {
+      await sesion.elegirCarpetaReporte();
+      return null;
+    } catch (error) {
+      return error;
+    }
+  });
+  if (fallo) {
+    avisarError(fallo);
+    return;
+  }
+  anotar("descargar", `${tipo}: carpeta base elegida otra vez: ${describirHandle(sesion.destinos.raiz)}`);
+  if (!sesion.destinoReporte(tipo)) return exportarConDialogo(sesion, tipo, alTerminar, opciones);
+  return guardarEnSuLugar(sesion, tipo, alTerminar, opciones, { antes });
+}
+
 /** Qué dice la tarjeta del reporte de dónde va a quedar (sin revisar el disco). */
 export function textoDestino(sesion, tipo, fecha) {
   const destino = sesion.destinoReporte(tipo);
   if (!destino) return null;
+  const handle = destino.clase === "archivo" ? destino.archivo : destino.raiz;
+  if (estaPerdido(handle)) return `⚠ Al descargar, elíge${destino.clase === "archivo" ? "lo" : "la"} otra vez`;
   if (destino.clase === "archivo") return `Reemplaza ${destino.archivo.name}`;
   return [destino.raiz.name, ...carpetasPara(destino.ruta, fecha).map((c) => c.nombre)].join(" › ");
 }
@@ -123,8 +182,10 @@ export function textoDestino(sesion, tipo, fecha) {
 /** 'granted' | 'prompt' | 'denied' sin pedir nada (para mostrar el estado). */
 const consultar = (handle) => (handle ? permisoCarpeta(handle, false) : Promise.resolve(null));
 
-function EstadoPermiso({ permiso }) {
+function EstadoPermiso({ permiso, archivo = false }) {
   if (!permiso) return null;
+  // Ronda 38: Edge ya no responde con ella (tras el apagón): solo sirve elegirla otra vez.
+  if (permiso === SIN_RESPUESTA) return html`<span class="alerta carpeta-permiso">⚠ Edge ${archivo ? "lo" : "la"} perdió: elíge${archivo ? "lo" : "la"} otra vez</span>`;
   return permiso === "granted"
     ? html`<span class="ok carpeta-permiso">✓ con permiso</span>`
     : html`<span class="nota carpeta-permiso">Edge pedirá permiso al guardar</span>`;
@@ -381,7 +442,7 @@ export function VentanaCarpetas({ fecha = hoyIso(), alCerrar }) {
         </div>
         <div class="acciones-linea">
           <${Boton} tipo=${destinos.raiz ? "secundario" : "primario"} onClick=${elegirBase}>${destinos.raiz ? "Cambiar…" : "Elegir carpeta…"}<//>
-          ${destinos.raiz && permisos.raiz && permisos.raiz !== "granted" ? html`<${Boton} onClick=${permitir}>Revisar las carpetas<//>` : null}
+          ${destinos.raiz && permisos.raiz && permisos.raiz !== "granted" && permisos.raiz !== SIN_RESPUESTA ? html`<${Boton} onClick=${permitir}>Revisar las carpetas<//>` : null}
           ${destinos.raiz ? html`<${Boton} tipo="texto" onClick=${buscar}>Buscar otra vez<//>` : null}
         </div>
       <//>
@@ -424,7 +485,7 @@ export function VentanaCarpetas({ fecha = hoyIso(), alCerrar }) {
         (id) => html`<${ZonaSoltar} clase="carpeta-fila carpeta-fila-libro" key=${id} tipo="file" etiqueta=${`Libro de vales de ${id}`} alSoltar=${soltado("Leyendo el archivo…", usarLibro(id))}>
           <span class=${`carpeta-id carpeta-id-${id}`}>${id}</span>
           <span class=${`carpeta-archivo ${destinos.vales[id] ? "" : "nota"}`}>
-            ${destinos.vales[id] ? html`<code>${destinos.vales[id].name}</code> <${EstadoPermiso} permiso=${permisos[id]} />` : "Sin archivo: «Descargar» abre «Guardar como»"}
+            ${destinos.vales[id] ? html`<code>${destinos.vales[id].name}</code> <${EstadoPermiso} permiso=${permisos[id]} archivo />` : "Sin archivo: «Descargar» abre «Guardar como»"}
             <span class="nota zona-pista">o arrástralo aquí</span>
           </span>
           <${Boton} tipo=${destinos.vales[id] ? "texto" : "secundario"} onClick=${() => elegirLibro(id)} aria-label=${`${destinos.vales[id] ? "Cambiar" : "Elegir"} el libro de vales de ${id}`}>${destinos.vales[id] ? "Cambiar…" : "Elegir archivo…"}<//>

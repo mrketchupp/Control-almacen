@@ -18,7 +18,7 @@ import {
   proponerRutas,
   rutaDeCarpetas,
 } from "../src/almacen/destinos.js";
-import { SinElegir } from "../src/almacen/archivos.js";
+import { SIN_RESPUESTA, SinElegir, estaPerdido, permisoCarpeta, responde } from "../src/almacen/archivos.js";
 import { MAXIMO_REGISTRO, anotar, borrarRegistro, registro, textoError, textoRegistro } from "../src/almacen/registro.js";
 import { guardarEnSuLugar, textoDestino } from "../src/ui/paginas/carpetas.js";
 import { Sesion } from "../src/ui/sesion.js";
@@ -482,4 +482,133 @@ test("registro: qué pidió la herramienta y qué respondió Edge, para pegarlo 
   assert.equal(registro().at(-1).detalle, String(MAXIMO_REGISTRO + 9));
   borrarRegistro();
   assert.match(textoRegistro(), /\(sin entradas\)$/);
+});
+
+// ---------------------------------------------------------------- Ronda 38: lo que Edge perdió tras el apagón
+
+/**
+ * Como Edge con las carpetas y archivos guardados antes del apagón (registro del usuario): nada de lo que se les
+ * pregunta responde nunca, y guardarlos junto con otros falla todo («Failed to write blobs»).
+ */
+function perdido(handle) {
+  const nunca = () => new Promise(() => {});
+  for (const metodo of ["queryPermission", "requestPermission", "isSameEntry", "resolve", "getDirectoryHandle", "getFileHandle", "createWritable"]) handle[metodo] = nunca;
+  handle.entries = async function* () { await nunca(); };
+  handle.roto = true;
+  return handle;
+}
+
+function baseComunDeEdge(Backend) {
+  const comun = new Backend();
+  const guardarAjuste = comun.guardarAjuste.bind(comun);
+  comun.guardarAjuste = async (clave, valor) => {
+    const handles = [valor?.raiz, ...Object.values(valor?.vales ?? {})];
+    if (clave === CLAVE_DESTINOS && handles.some((h) => h?.roto)) throw Object.assign(new Error("Failed to write blobs."), { name: "DataError" });
+    return guardarAjuste(clave, valor);
+  };
+  return comun;
+}
+
+test("Ronda 38: Edge perdió la carpeta y el libro: se dice, se eligen otra vez y se guardan sin los perdidos", async (t) => {
+  navegador(t);
+  const { almacen } = await almacenReporteGsm({ inventario: "GSM", conTabla: true });
+  const comun = baseComunDeEdge(almacen.backend.constructor);
+  const sesion = new Sesion(almacen, almacen.backend, { comun });
+  sinAvisosAlTerminar(t, sesion);
+  const vieja = perdido(base());
+  const libroViejo = perdido(new ArchivoFalso("VALES DE SALIDA GSM.xlsm"));
+  sesion.destinos = normalizarDestinos({ raiz: vieja, rutas: { GSM: RUTA_GSM, FX: "FX/{año}/{mes}" }, vales: { GSM: libroViejo } });
+
+  // «Descargar» del inventario: no se queda esperando; dice qué hacer y ofrece elegirla.
+  const t0 = Date.now();
+  assert.equal(await guardar(sesion, "INVENTARIO"), null);
+  assert.ok(Date.now() - t0 < 4000, "deja de esperar a la carpeta perdida");
+  const aviso = sesion.avisos.at(-1);
+  assert.equal(aviso.texto, "Edge perdió la carpeta «INVENTARIO DIARIO». Elígela otra vez.");
+  assert.equal(aviso.accion.etiqueta, "Elegir la carpeta…");
+  assert.ok(estaPerdido(vieja));
+  assert.equal(await permisoCarpeta(vieja, true), SIN_RESPUESTA, "ya no se vuelve a esperar");
+  assert.equal(textoDestino(sesion, "INVENTARIO", FECHA_REPORTE_GSM), "⚠ Al descargar, elígela otra vez");
+
+  // Elegirla otra vez: no se compara con la perdida (antes: «Eligiendo la carpeta…» para siempre), queda guardada con
+  // el libro perdido como marca, y el inventario del día se guarda en ella.
+  const nueva = base();
+  window.showDirectoryPicker = async () => nueva;
+  await aviso.accion.alHacer();
+  const nombre = sesion.almacen.nombreExportacion("INVENTARIO", FECHA_REPORTE_GSM);
+  assert.ok(nueva.en("GSM PRUEBA", "01. INVENTARIO", "2026", "10. OCTUBRE").hijo(nombre), "guardado en la carpeta elegida otra vez");
+  const guardado = await comun.leerAjuste(CLAVE_DESTINOS);
+  assert.equal(guardado.raiz, nueva);
+  assert.deepEqual(guardado.vales.GSM, { perdido: true, kind: "file", name: "VALES DE SALIDA GSM.xlsm" });
+  assert.equal(guardado.rutas.GSM, RUTA_GSM);
+
+  // El libro: «Descargar» abre «Guardar como» con su nombre en ese mismo clic, queda fijado y se guarda.
+  const libroNuevo = new ArchivoFalso("VALES DE SALIDA GSM.xlsm");
+  const pedidos = [];
+  window.showSaveFilePicker = async (o) => {
+    pedidos.push(o);
+    return libroNuevo;
+  };
+  assert.equal(textoDestino(sesion, "VALES", FECHA_REPORTE_GSM), "⚠ Al descargar, elígelo otra vez");
+  await guardar(sesion, "VALES");
+  assert.equal(pedidos.length, 1);
+  assert.equal(pedidos[0].suggestedName, "VALES DE SALIDA GSM.xlsm");
+  assert.equal(libroNuevo.escrituras, 1);
+  assert.equal((await comun.leerAjuste(CLAVE_DESTINOS)).vales.GSM, libroNuevo);
+  assert.equal(textoDestino(sesion, "VALES", FECHA_REPORTE_GSM), "Reemplaza VALES DE SALIDA GSM.xlsm");
+});
+
+test("Ronda 38: tras recargar, la marca del perdido sigue: «Descargar» pide elegirlo sin esperar", async (t) => {
+  navegador(t);
+  const { almacen } = await almacenReporteGsm({ inventario: "GSM", conTabla: true });
+  const comun = new (almacen.backend.constructor)();
+  await comun.guardarAjuste(CLAVE_DESTINOS, { raiz: { perdido: true, kind: "directory", name: "INVENTARIO DIARIO" }, rutas: { GSM: RUTA_GSM }, vales: {} });
+  const sesion = new Sesion(almacen, almacen.backend, { comun });
+  sinAvisosAlTerminar(t, sesion);
+  sesion.destinos = normalizarDestinos(await sesion._leerDestinos());
+  await assert.rejects(sesion.explorarRutaReporte("GSM"), /Edge perdió la carpeta «INVENTARIO DIARIO»\. Elígela otra vez con «Cambiar…»\./);
+  const nueva = base();
+  let abierto = 0;
+  window.showDirectoryPicker = async () => {
+    abierto++;
+    return nueva;
+  };
+  const t0 = Date.now();
+  await guardar(sesion, "INVENTARIO");
+  assert.equal(abierto, 1, "abre el explorador en el mismo clic");
+  assert.ok(Date.now() - t0 < 2000);
+  assert.ok(nueva.en("GSM PRUEBA", "01. INVENTARIO", "2026", "10. OCTUBRE").hijo(sesion.almacen.nombreExportacion("INVENTARIO", FECHA_REPORTE_GSM)));
+  assert.equal(sesion.destinos.raiz, nueva);
+});
+
+test("Ronda 38: si la base común no guarda, quedan en la de este inventario y al abrir gana la más reciente", async (t) => {
+  navegador(t);
+  const { almacen } = await almacenReporteGsm({ inventario: "GSM", conTabla: true });
+  const comun = new (almacen.backend.constructor)();
+  await comun.guardarAjuste(CLAVE_DESTINOS, { raiz: base(), rutas: { GSM: "VIEJA/{año}" }, vales: {}, guardado_en: "2026-11-01T08:00:00" });
+  comun.guardarAjuste = async () => {
+    throw Object.assign(new Error("Failed to write blobs."), { name: "DataError" });
+  };
+  const sesion = new Sesion(almacen, almacen.backend, { comun });
+  sinAvisosAlTerminar(t, sesion);
+  const nueva = base();
+  await sesion.fijarCarpetaReporte(nueva);
+  const propia = await almacen.backend.leerAjuste(CLAVE_DESTINOS);
+  assert.equal(propia.raiz, nueva);
+  const otra = new Sesion(almacen, almacen.backend, { comun });
+  const leidos = normalizarDestinos(await otra._leerDestinos());
+  assert.equal(leidos.raiz, nueva, "la de este inventario es más reciente");
+  assert.equal(leidos.rutas.GSM, RUTA_GSM);
+});
+
+test("Ronda 38: responde() distingue a un perdido y lo olvida si contesta tarde", async () => {
+  assert.equal(await responde(new ArchivoFalso("A.xlsm")), true);
+  let contestar;
+  const lento = new ArchivoFalso("B.xlsm");
+  lento.queryPermission = () => new Promise((r) => { contestar = r; });
+  assert.equal(await responde(lento, 50), false);
+  assert.ok(estaPerdido(lento));
+  contestar("granted");
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(!estaPerdido(lento), "contestó: ya no está perdido");
 });

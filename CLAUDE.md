@@ -268,6 +268,19 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `nombreConFecha` reemplaza el último bloque de dígitos que es fecha (DDMMAA, AAAAMMDD o DDMMAAAA; si no hay, la
   agrega); `sinPrefijoPrincipal` en `LibroLeido.texto` (`<x:sheetData>`); `leerJsonTolerante` vuelve el RangeError
   `ErrorJson`. El código de barras sin acentos ya avisaba en el editor (sin cambio).
+- Ronda 38 (fallo reportado con grabación y el registro de *Carpetas…*): tras el apagón, los handles guardados antes
+  (carpeta base del reporte, libros de vales) quedaron **perdidos**: `queryPermission`, `isSameEntry`… nunca responden y
+  guardarlos en IndexedDB junto con otros falla todo (`DataError` «Failed to write blobs»). `almacen/archivos.js`:
+  `LIMITE_CONSULTA_MS = 2500`, `responde(handle)` y `estaPerdido` (WeakSet de la sesión o la marca guardada
+  `marcaPerdido` = `{ perdido: true, kind, name }`; si contesta tarde, deja de estar perdido); `permisoCarpeta` devuelve
+  `SIN_RESPUESTA` al momento con un perdido y marca el que no contesta la consulta. `Sesion`: `revisarDestinos()` (la
+  página del reporte lo corre al abrir), `_mismaBase` con límite y sin perdidos, `_raizUsable`, `_guardarDestinos` (si
+  falla: los perdidos se cambian por su marca y se reintenta; si la común sigue sin guardar, en la base del inventario
+  con `guardado_en`) y `_leerDestinos` (la más reciente de las dos), `elegirLibroValesGuardando` («Guardar como» con el
+  nombre del libro, ya con permiso de escribir). `guardarEnSuLugar`: con un perdido, `elegirOtraVez` en el mismo clic
+  (base: `elegirCarpetaReporte` y sigue; libro: `elegirLibroValesGuardando` y `generar`); si la consulta no contesta,
+  aviso `textoPerdido` con *Elegir la carpeta…* / *Elegir el libro…*. `textoDestino` y `EstadoPermiso` lo marcan.
+  Pruebas en `destinos.test.js` (`perdido()`, `baseComunDeEdge`).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

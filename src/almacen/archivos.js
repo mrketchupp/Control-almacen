@@ -291,9 +291,45 @@ export async function elegirCarpeta() {
  */
 export const SIN_RESPUESTA = "sin-respuesta";
 export const LIMITE_PERMISO_MS = 6000;
+// Consultar el permiso nunca muestra un aviso: Edge contesta al momento. Si no, la carpeta o el archivo está perdido.
+export const LIMITE_CONSULTA_MS = 2500;
 
 /** Lo que se dice cuando Edge no dio acceso a una carpeta (corto: qué hacer). */
 export const textoSinRespuesta = (nombre) => `Edge no dio acceso a «${nombre}». Elígela otra vez.`;
+
+/**
+ * Ronda 38 (registro del usuario, tras el apagón): las carpetas y archivos guardados antes del corte de luz quedaron
+ * «perdidos» en Edge: nada de lo que se les pregunta responde (consultar el permiso, compararlos) y, guardados junto
+ * con otros, hacen fallar todo el guardado («Failed to write blobs»). Elegidos otra vez, funcionan. Los que no
+ * respondieron se recuerdan aquí (mientras la página esté abierta) para no volver a esperarlos.
+ */
+const perdidos = new WeakSet();
+/** Perdido en esta sesión, o la marca que quedó guardada en su lugar (`marcaPerdido`). */
+export const estaPerdido = (handle) => Boolean(handle) && typeof handle === "object" && (handle.perdido === true || perdidos.has(handle));
+
+/**
+ * Lo que se guarda en lugar de un handle perdido: su nombre y que hay que elegirlo otra vez. Así, aun después de
+ * recargar, «Descargar» sabe que debe abrir el explorador (y no se pierde cuál libro o carpeta estaba fijado).
+ */
+export const marcaPerdido = (handle) => ({ perdido: true, kind: handle?.kind ?? null, name: handle?.name ?? "" });
+
+/** ¿Edge responde con este handle? Si no contesta en `ms`, queda como perdido (si contesta después, deja de estarlo). */
+export async function responde(handle, ms = LIMITE_CONSULTA_MS) {
+  if (!handle) return false;
+  if (estaPerdido(handle)) return false;
+  let consulta;
+  try {
+    consulta = Promise.resolve(handle.queryPermission({ mode: "read" }));
+    await conTiempo(consulta, ms);
+    return true;
+  } catch (error) {
+    if (!esTiempo(error)) return true; // contestó (con un error): no está perdido
+    perdidos.add(handle);
+    anotar("permiso", `${describirHandle(handle)}: Edge no responde con ella (perdida)`);
+    consulta?.then(() => perdidos.delete(handle), () => perdidos.delete(handle));
+    return false;
+  }
+}
 
 /**
  * 'granted' | 'prompt' | 'denied' | SIN_RESPUESTA. Con `pedir`, solicita el permiso (requiere un clic). Si Edge no
@@ -301,10 +337,15 @@ export const textoSinRespuesta = (nombre) => `Edge no dio acceso a «${nombre}»
  */
 export async function permisoCarpeta(carpeta, pedir = false, { limiteMs = LIMITE_PERMISO_MS, alLlegarTarde = null } = {}) {
   if (!carpeta) return "denied";
+  // Ya se sabe que Edge no responde con ella: no se vuelve a esperar (cada consulta colgada se queda pendiente en Edge).
+  if (estaPerdido(carpeta)) return SIN_RESPUESTA;
   const opciones = { mode: "readwrite" };
   let pedido = null;
+  let consulta = null;
   try {
-    const antes = await conTiempo(carpeta.queryPermission(opciones), limiteMs);
+    consulta = Promise.resolve(carpeta.queryPermission(opciones));
+    const antes = await conTiempo(consulta, Math.min(limiteMs, LIMITE_CONSULTA_MS));
+    consulta = null;
     if (antes === "granted" || !pedir) return antes;
     pedido = carpeta.requestPermission(opciones);
     const estado = await conTiempo(pedido, limiteMs);
@@ -312,7 +353,12 @@ export async function permisoCarpeta(carpeta, pedir = false, { limiteMs = LIMITE
     return estado;
   } catch (error) {
     if (esTiempo(error)) {
-      anotar("permiso", `${describirHandle(carpeta)} (editar): Edge no respondió en ${limiteMs / 1000} s${pedido ? " (no mostró su aviso)" : " al consultarlo"}`);
+      if (!pedido && consulta) {
+        // Ni siquiera contestó la consulta: está perdida (Ronda 38). Hay que elegirla otra vez.
+        perdidos.add(carpeta);
+        consulta.then(() => perdidos.delete(carpeta), () => perdidos.delete(carpeta));
+      }
+      anotar("permiso", `${describirHandle(carpeta)} (editar): Edge no respondió en ${(pedido ? limiteMs : Math.min(limiteMs, LIMITE_CONSULTA_MS)) / 1000} s${pedido ? " (no mostró su aviso)" : " al consultarlo"}`);
       pedido
         ?.then((estado) => {
           anotar("permiso", `${describirHandle(carpeta)} (editar): Edge respondió tarde «${estado}»`);
