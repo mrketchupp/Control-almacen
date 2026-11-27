@@ -16,6 +16,7 @@ import {
   descartarBorrador,
   disponibles,
   emitirBorrador,
+  fechaDelBorrador,
   firmasExtraDe,
   lineaEnBlanco,
   lineaVacia,
@@ -991,7 +992,7 @@ export function PaginaValesSalida() {
       destino: datos.destino || null,
       recibe: datos.recibio_nombre,
       puesto: datos.recibio_puesto,
-      fecha: datos.fecha,
+      fecha: fechaDelBorrador(datos),
       entrega: enTurno?.entrego_nombre ?? null,
       folio,
       // Ronda 35: en el paso 3 también se ve quién autoriza y la etapa, si el vale los lleva (ahí se marca si faltan).

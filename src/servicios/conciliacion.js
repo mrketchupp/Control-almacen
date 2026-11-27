@@ -17,7 +17,7 @@ import { CERO, dec, decTexto, sumar } from "../nucleo/decimal.js";
 import { ratio } from "../nucleo/difflib.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
-import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
+import { ahoraIso, esFechaIso, fmtFecha } from "../nucleo/fechas.js";
 import { duenoDe } from "../nucleo/inventarios.js";
 import { fechaMinimaPropuesta, valeAdmitido } from "../nucleo/justificantes.js";
 import { claveEstricta, claveLaxa, compactar, mayusculas, sinDimension } from "../nucleo/normalizar.js";
@@ -50,7 +50,7 @@ export function corteConHuella(estado, huella) {
  * folioSalida (opcional): último folio de salida que la base ya capturó en AX (P-03).
  */
 export function registrarCorteAx(estado, { fecha, almacen, archivo = null, huella = null, folioSalida = null, renglones }, usuario = null) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(fecha))) throw new ErrorConciliacion("Falta la fecha del corte de AX.");
+  if (!esFechaIso(texto(fecha))) throw new ErrorConciliacion("Falta la fecha del corte de AX.");
   if (!renglones?.length) throw new ErrorConciliacion(`El reporte no trae partidas del almacén ${almacen}.`);
   const folio = hay(folioSalida) && texto(folioSalida) !== "" ? Number(folioSalida) : null;
   if (folio !== null && (!Number.isInteger(folio) || folio < 0)) throw new ErrorConciliacion("El folio de corte debe ser un número entero.");

@@ -319,6 +319,25 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 37 — reporte de pruebas externas** (`docs/reporte-pruebas-externas-2026-11-26.md`, once hallazgos). Cada uno se
+reprodujo con las fixtures sintéticas (`tests/pruebasExternas.test.js` y `.navegador.mjs`, que fallan con la versión
+anterior) y se corrigió:
+- ☑ 1 (crítico): una cantidad con «+» (`+5`) ya no tumba el conteo ni el vale; vale 5. Lo que no es una cantidad
+  (`1e5`, `1.000.5`, más de 9 enteros) se marca: *Escribe solo números (ej. 2 o 2.5).* Si una sección falla al
+  dibujarse, solo ella dice *Esta sección falló.* (Recargar, Reintentar, diagnóstico) y las demás siguen.
+- ☑ 2: los respaldos y los Excel se comprueban al leerlos (CRC de cada parte y huella de cada plantilla al restaurar):
+  uno dañado dice *El respaldo está dañado (…). Elige otro respaldo.* en lugar de restaurarse.
+- ☑ 3: el cierre del día va **por fecha** (antes por folio): el vale de ayer capturado hoy entra en el cierre de ayer y el
+  de hoy no, y el inventario de ese día cuadra con su reporte. *Ya lo subí* marca solo lo que va en ese libro. Un
+  borrador al que nadie le eligió fecha sale con la de **hoy** (antes, el que quedaba abierto de un día para otro salía
+  con la de ayer). Sin fechas futuras ni imposibles (`2026-02-30`).
+- ☑ 4: no se emite un vale sobre una partida que un conteo quitó mientras el borrador esperaba (*Ya no está en el
+  inventario*: se elige otra clave). Corregir un vale viejo de esa partida sigue funcionando.
+- ☑ 5–11: cantidades basura, celdas de más de 32 767 caracteres (se cortan), respaldos manipulados (rechazo claro;
+  secuencias reparadas), fecha del nombre exportado (la última que es fecha, no el primer bloque de 6 dígitos), Excel con
+  `<x:sheetData>` (Open XML SDK) y JSON de Copilot con miles de niveles.
+- Sin cambio: el código de barras sin acentos (`ÑANDÚ` → `NANDU`) ya avisa en el editor de diseños; es como debe ser.
+
 **Ronda 36 — no abría después de un apagón (fallo reportado).** Tras un corte de luz, una ventana se quedaba en
 *Cargando…* para siempre y las demás decían *ya está abierta*, sin salida; reiniciar no lo arreglaba. Causa encontrada:
 al abrir se esperaba el respaldo del inicio del día en la carpeta de OneDrive y, al quitar los respaldos viejos, listar

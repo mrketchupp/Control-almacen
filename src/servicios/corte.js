@@ -2,7 +2,10 @@
 // exportar el libro de vales y el inventario como estaban ese día aunque después se hayan hecho
 // más vales, entradas, conteos o movimientos.
 //
-//  - Vales de salida hasta el último folio con fecha ≤ al día (los folios van en orden).
+//  - Vales de salida con fecha ≤ al día (Ronda 37). Antes se cortaba por folio, pero un vale de ayer
+//    capturado hoy (o un borrador que se quedó abierto) tiene un folio mayor que los de hoy: el cierre de
+//    ayer llevaba el vale de hoy y su inventario no cuadraba con el reporte. Los que no traen fecha
+//    (migrados), por folio.
 //  - Entradas recibidas hasta ese día (`fechaDelDia` = fecha de recibido, Ronda 22). Como se puede
 //    corregir, ya no van en orden de folio: E-0002 pudo recibirse antes que E-0001.
 //  - Conteos y reacomodos con fecha posterior se deshacen (cada línea guarda la cantidad y el
@@ -28,6 +31,24 @@ export function ultimoFolioAl(estado, tipo, fecha) {
 }
 
 /**
+ * Salidas al cierre del día: las de fecha ≤ al día; las que no tienen fecha, hasta el último folio con fecha.
+ * @returns {{ incluidas: Set<folio>, ultima, fuera: [folio] }} ultima = el folio más alto incluido;
+ *   fuera = folios menores que `ultima` con fecha posterior (un vale de ayer capturado hoy deja fuera los de hoy)
+ */
+export function salidasAlCierre(estado, fecha) {
+  const ultima = ultimoFolioAl(estado, "SALIDA", fecha);
+  const incluidas = new Set();
+  const fuera = [];
+  for (const v of estado.vales) {
+    if (v.tipo !== "SALIDA" || !hay(v.folio)) continue;
+    const dia = fechaDelDia(v);
+    if (dia ? dia <= fecha : v.folio <= ultima) incluidas.add(v.folio);
+    else if (v.folio < ultima) fuera.push(v.folio);
+  }
+  return { incluidas, ultima, fuera: fuera.sort((a, b) => a - b) };
+}
+
+/**
  * Entradas recibidas al cierre del día (por fecha de recibido, no por folio).
  * @returns {{ incluidas: Set<folio>, ultima, fuera: [folio] }} ultima = el folio más alto incluido;
  *   fuera = folios menores que `ultima` que se recibieron después (huecos en el orden de folio)
@@ -48,15 +69,17 @@ export function entradasAlCierre(estado, fecha) {
 
 /**
  * Copia del estado como estaba al cierre del día.
- * @returns {{ estado, salida, entrada, fuera, entradas, fecha, revertidos, excluidos }} salida = folio de corte
- *   de las salidas; entrada = la entrada de folio más alto recibida hasta ese día; fuera = las de folio menor
- *   recibidas después; entradas = cuántas entran
+ * @returns {{ estado, salida, salidasFuera, entrada, fuera, entradas, fecha, revertidos, excluidos }} salida = la
+ *   salida de folio más alto con fecha hasta ese día; salidasFuera = las de folio menor con fecha posterior;
+ *   entrada = la entrada de folio más alto recibida hasta ese día; fuera = las de folio menor recibidas después;
+ *   entradas = cuántas entran
  */
 export function estadoAlCierre(estadoActual, fecha) {
   const estado = structuredClone(estadoActual);
-  const salida = ultimoFolioAl(estado, "SALIDA", fecha);
+  const salidas = salidasAlCierre(estado, fecha);
+  const salida = salidas.ultima;
   const { incluidas, ultima: entrada, fuera } = entradasAlCierre(estado, fecha);
-  estado.vales = estado.vales.filter((v) => !hay(v.folio) || (v.tipo === "ENTRADA" ? incluidas.has(v.folio) : v.folio <= salida));
+  estado.vales = estado.vales.filter((v) => !hay(v.folio) || (v.tipo === "ENTRADA" ? incluidas : salidas.incluidas).has(v.folio));
 
   // Conteos posteriores al día: se deshacen del más reciente al más antiguo.
   const posteriores = estado.conteos.filter((c) => c.lineas && c.fecha > fecha);
@@ -107,21 +130,20 @@ export function estadoAlCierre(estadoActual, fecha) {
   }
   estado.existencias = estado.existencias.filter((e) => !quitar.has(e.id));
   estado.conteo_en_curso = null;
-  return { estado, salida, entrada, fuera, entradas: incluidas.size, fecha, revertidos: revertidos.size, excluidos: quitar.size };
+  return { estado, salida, salidasFuera: salidas.fuera, entrada, fuera, entradas: incluidas.size, fecha, revertidos: revertidos.size, excluidos: quitar.size };
 }
 
-const folios = (lista) => {
-  const textos = lista.map(folioEntrada);
-  return textos.length === 1 ? textos[0] : `${textos.slice(0, -1).join(", ")} y ${textos.at(-1)}`;
-};
+const unir = (textos) => (textos.length === 1 ? textos[0] : `${textos.slice(0, -1).join(", ")} y ${textos.at(-1)}`);
+const folios = (lista) => unir(lista.map(folioEntrada));
 
 /**
  * Texto del corte para mostrar: "vales de salida hasta el folio 555 · entradas recibidas hasta el 03/10/2026:
  * hasta E-0004 (menos E-0003, recibida después)".
  */
-export function describirCorte({ salida, entrada, fuera = [], fecha = null }) {
+export function describirCorte({ salida, salidasFuera = [], entrada, fuera = [], fecha = null }) {
   const hasta = fecha ? `hasta el ${fmtFecha(fecha)}` : "hasta ese día";
   const entradas = entrada ? `hasta ${folioEntrada(entrada)}` : "ninguna";
   const huecos = fuera.length ? ` (menos ${folios(fuera)}, ${fuera.length === 1 ? "recibida" : "recibidas"} después)` : "";
-  return `vales de salida hasta el folio ${salida || "—"} · entradas recibidas ${hasta}: ${entradas}${huecos}`;
+  const sinSalidas = salidasFuera.length ? ` (menos ${unir(salidasFuera.map(String))}, de otro día)` : "";
+  return `vales de salida hasta el folio ${salida || "—"}${sinSalidas} · entradas recibidas ${hasta}: ${entradas}${huecos}`;
 }

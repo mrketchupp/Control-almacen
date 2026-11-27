@@ -3,7 +3,7 @@
 // Las entradas cuentan el día en que se recibieron (`fechaDelDia`, Ronda 22), no el de su vale.
 
 import { fechaDelDia } from "../nucleo/fechas.js";
-import { entradasAlCierre, ultimoFolioAl } from "./corte.js";
+import { entradasAlCierre, salidasAlCierre } from "./corte.js";
 import { folioEntrada } from "./entradas.js";
 import { areaDeVale, conFirmasPorPapel, ultimoEnvio, valesPorEnviar } from "./vales.js";
 
@@ -32,16 +32,16 @@ export function reporteDelDia(estado, fecha) {
     .filter((v) => v.tipo === "ENTRADA" && v.estado === "EMITIDO" && fechaDelDia(v) === fecha)
     .sort((a, b) => a.folio - b.folio)
     .map((v) => ({ vale: v, folio: folioEntrada(v.folio), folio_externo: v.folio_externo ?? "", origen: v.origen ?? "", partidas: partidas(v), fecha_vale: v.fecha ?? null }));
-  const corteSalida = ultimoFolioAl(estado, "SALIDA", fecha);
+  const { incluidas, ultima: corteSalida, fuera: salidasFuera } = salidasAlCierre(estado, fecha);
   const { ultima, fuera } = entradasAlCierre(estado, fecha);
   return {
     fecha,
     salidas,
     entradas,
     partidas: salidas.reduce((t, s) => t + s.partidas, 0),
-    corte: { salida: corteSalida, entrada: ultima, fuera, fecha },
-    // Vales posteriores al día (no van en los archivos de este reporte).
-    despues: estado.vales.filter((v) => v.tipo === "SALIDA" && v.folio > corteSalida && v.estado === "EMITIDO").length,
-    porSubir: valesPorEnviar(estado, { hastaFolio: corteSalida }),
+    corte: { salida: corteSalida, salidasFuera, entrada: ultima, fuera, fecha },
+    // Vales de días posteriores (no van en los archivos de este reporte; por fecha, Ronda 37).
+    despues: estado.vales.filter((v) => v.tipo === "SALIDA" && v.estado === "EMITIDO" && !incluidas.has(v.folio)).length,
+    porSubir: valesPorEnviar(estado, { hastaFolio: corteSalida, hastaFecha: fecha }),
   };
 }

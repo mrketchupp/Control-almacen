@@ -129,7 +129,7 @@ test("reporte al cierre: E-0002 recibida antes que E-0001 entra sola; lo que cre
   // El reporte del 03 lista la E-0002 (aunque su vale sea del 02); el del 04 dice qué folio quedó fuera.
   assert.deepEqual(reporteDelDia(estado, "2026-10-03").entradas.map((x) => x.folio), ["E-0002"]);
   assert.deepEqual(reporteDelDia(estado, "2026-10-02").entradas, []);
-  assert.deepEqual(reporteDelDia(estado, "2026-10-04").corte, { salida: 9, entrada: e2.folio, fuera: [e1.folio], fecha: "2026-10-04" });
+  assert.deepEqual(reporteDelDia(estado, "2026-10-04").corte, { salida: 9, salidasFuera: [], entrada: e2.folio, fuera: [e1.folio], fecha: "2026-10-04" });
 
   // Una entrada registrada después, recibida el 03, que llega a la partida que creó E-0001: esa partida ya
   // existía el 04 (con lo de E-0003, no con lo de E-0001).

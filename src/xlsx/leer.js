@@ -20,6 +20,16 @@ export function esFormatoFecha(codigo) {
   return CARACTER_FECHA.test(codigo.split(";")[0].replace(QUITAR_FORMATO, ""));
 }
 
+// Ronda 37: el Open XML SDK y varios generadores de reportes escriben `<x:sheetData>`, `<x:row>`, `<x:c>`… con el
+// espacio de nombres de SpreadsheetML en un prefijo. Aquí las etiquetas se buscan sin prefijo: se le quita al leer.
+const NS_PRINCIPAL = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+const DECLARA_PREFIJO = new RegExp(`xmlns:([A-Za-z_][\\w.-]*)\\s*=\\s*["']${NS_PRINCIPAL.replace(/[./]/g, "\\$&")}["']`);
+
+export function sinPrefijoPrincipal(xml) {
+  const m = DECLARA_PREFIJO.exec(xml.slice(0, 20000));
+  return m ? xml.replace(new RegExp(`<(/?)${m[1].replace(/\./g, "\\.")}:`, "g"), "<$1") : xml;
+}
+
 export class LibroLeido {
   constructor(datos) {
     this.entradas = new Map(leerZip(datos).map((e) => [e.nombre, e]));
@@ -51,7 +61,7 @@ export class LibroLeido {
 
   texto(parte) {
     // Como cualquier lector de XML, los saltos de línea CR LF se normalizan a LF.
-    if (!this._textos.has(parte)) this._textos.set(parte, bytesATexto(this.bytes(parte)).replace(/\r\n?/g, "\n"));
+    if (!this._textos.has(parte)) this._textos.set(parte, sinPrefijoPrincipal(bytesATexto(this.bytes(parte)).replace(/\r\n?/g, "\n")));
     return this._textos.get(parte);
   }
 

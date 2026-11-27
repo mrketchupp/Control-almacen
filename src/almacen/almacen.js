@@ -4,7 +4,7 @@
 // se vuelve el estado vigente (como una transacción). Los cambios se atienden
 // de uno en uno, en orden.
 
-import { ddmmaa, ahoraIso, hoyIso } from "../nucleo/fechas.js";
+import { ddmmaa, ahoraIso, hoyIso, isoDesdePartes } from "../nucleo/fechas.js";
 import { estaVacio, migrarEstado } from "../nucleo/estado.js";
 import { exportarSolicitudAjuste, nombreSolicitud } from "../exportadores/ajuste.js";
 import { exportarEntradas, nombreEntradas } from "../exportadores/entradas.js";
@@ -16,7 +16,7 @@ import { Indices } from "../nucleo/estado.js";
 import { DUENO_FX, INVENTARIO_DEFECTO, inventarioPorId } from "../nucleo/inventarios.js";
 import { leerVales } from "../importadores/vales.js";
 import { completarAreaDesdeFormulario } from "../servicios/primeraCarga.js";
-import { CARPETA_FOTOS, crearRespaldo, leerRespaldo, revisarInventario } from "./respaldos.js";
+import { CARPETA_FOTOS, ErrorRespaldo, crearRespaldo, leerRespaldo, revisarInventario } from "./respaldos.js";
 
 export class SinPlantilla extends Error {}
 export class BaseNoVacia extends Error {}
@@ -36,14 +36,29 @@ function nombreVales(nombreOriginal, inventario) {
   return inventario === "GSM" ? `VALES DE SALIDA GSM${extension(nombreOriginal)}` : nombreOriginal;
 }
 
-/** Reemplaza la fecha DDMMAA del nombre original (o la agrega al final). */
+// Un bloque de dígitos del nombre que es una fecha: DDMMAA (6) o AAAAMMDD / DDMMAAAA (8). Devuelve cómo escribir otra.
+function formaDeFecha(bloque) {
+  const n = (a, b) => Number(bloque.slice(a, b));
+  // DDMMAA sin exigir el calendario (un nombre con «310926» también lleva su fecha ahí); 910001 o 123456, no.
+  if (bloque.length === 6) return n(0, 2) >= 1 && n(0, 2) <= 31 && n(2, 4) >= 1 && n(2, 4) <= 12 ? ddmmaa : null;
+  if (isoDesdePartes(n(0, 4), n(4, 6), n(6, 8)) && n(0, 4) >= 1990) return (iso) => iso.replace(/-/g, "");
+  if (isoDesdePartes(n(4, 8), n(2, 4), n(0, 2)) && n(4, 8) >= 1990) return (iso) => `${iso.slice(8, 10)}${iso.slice(5, 7)}${iso.slice(0, 4)}`;
+  return null;
+}
+
+/**
+ * Reemplaza la fecha del nombre original (o la agrega al final). Ronda 37: es el último bloque de dígitos que es una
+ * fecha, no el primero de 6 dígitos («INVENTARIO RIG 910001 280926.xlsx», «INVENTARIO_20260926.xlsx»).
+ */
 export function nombreConFecha(nombreOriginal, iso) {
   const i = nombreOriginal.lastIndexOf(".");
   const base = i < 0 ? nombreOriginal : nombreOriginal.slice(0, i);
   const sufijo = i < 0 ? "" : nombreOriginal.slice(i);
-  const texto = ddmmaa(iso);
-  if (/\d{6}(?!\d)/.test(base)) return base.replace(/\d{6}(?!\d)/, texto) + sufijo;
-  return `${base} ${texto}${sufijo}`;
+  const fechas = [...base.matchAll(/(?<!\d)(\d{8}|\d{6})(?!\d)/g)].map((m) => ({ m, forma: formaDeFecha(m[1]) })).filter((x) => x.forma);
+  const ultima = fechas.at(-1);
+  if (!ultima) return `${base} ${ddmmaa(iso)}${sufijo}`;
+  const { m, forma } = ultima;
+  return `${base.slice(0, m.index)}${forma(iso)}${base.slice(m.index + m[1].length)}${sufijo}`;
 }
 
 /**
@@ -317,6 +332,13 @@ export class Almacen {
     const estado = migrarEstado(leido);
     revisarInventario(estado, this.inventario);
     return this._enCola(async () => {
+      // Ronda 37: cada plantilla debe ser la que se registró (su huella); una dañada estropea todas las exportaciones.
+      for (const p of plantillas) {
+        const esperada = estado.plantillas_excel.find((r) => r.archivo === p.archivo)?.sha256;
+        if (/^[0-9a-f]{64}$/.test(esperada ?? "") && (await sha256(p.datos)) !== esperada) {
+          throw new ErrorRespaldo(`El respaldo está dañado (plantilla ${p.archivo}). Elige otro respaldo.`);
+        }
+      }
       const ahora = ahoraIso();
       const archivos = plantillas.map((p) => {
         const registro = estado.plantillas_excel.find((r) => r.archivo === p.archivo);

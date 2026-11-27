@@ -1477,6 +1477,26 @@ body.con-ventana .toast-hueco.saliendo .toast {
   margin: 0;
 }
 
+/* Una sección que falló al dibujarse (SeccionSegura): el resto de la herramienta sigue. */
+.seccion-fallo {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
+  margin: 24px auto;
+  padding: 18px 20px;
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--error);
+  border-radius: var(--radio, 12px);
+  background: var(--superficie);
+}
+
+.seccion-fallo-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
 .arranque-ayuda,
 .arranque-diagnostico {
   display: grid;

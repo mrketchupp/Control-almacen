@@ -5,7 +5,7 @@
 // los códigos y «Dimensión o NP» sus claves —, y si la dimensión escrita no está en un código, ese código ofrece
 // «Usar «…»» tal como se escribió (espacios, guiones, comillas, letras): ya no se adivina qué palabra es qué.
 
-import { aNumero } from "../nucleo/decimal.js";
+import { aNumero, problemaDeCantidad } from "../nucleo/decimal.js";
 import { Indices, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { DUENO_FX, duenoDe } from "../nucleo/inventarios.js";
@@ -229,7 +229,8 @@ export function estadoPartida(estado, l, { indices = new Indices(estado), codigo
   // Con `codigosConPartidas` (los códigos con partidas en el inventario) no se recorre el inventario en cada tecla.
   const tienePartidas = Number.isInteger(l.codigo) && (codigosConPartidas ? codigosConPartidas.has(l.codigo) : opcionesDeClave(estado, l.codigo, { indices }).length > 0);
   return {
-    sinCantidad: !texto(l.cantidad),
+    // Vacía o que no es una cantidad («1e5», «1.000.5»): igual falta escribirla bien.
+    sinCantidad: ["falta", "numero"].includes(problemaDeCantidad(l.cantidad)),
     sinClave: !conExistencia && !l.no_inventariado,
     noDescuenta: !conExistencia && Boolean(l.no_inventariado) && tienePartidas,
     noInventariado: !conExistencia && Boolean(l.no_inventariado) && !tienePartidas,

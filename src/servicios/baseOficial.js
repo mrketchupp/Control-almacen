@@ -25,7 +25,7 @@
 import { CERO, dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
-import { ahoraIso, fmtFecha } from "../nucleo/fechas.js";
+import { ahoraIso, esFechaIso, fmtFecha } from "../nucleo/fechas.js";
 import { DUENO_FX, duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { mayusculas, sinDimension, unidad } from "../nucleo/normalizar.js";
 import { corteConHuella, dimensionAx, emparejar, fisicoPorVariante, registrarCorteAx, umComparable } from "./conciliacion.js";
@@ -437,7 +437,7 @@ function umPara(estado, codigo, umAx) {
  * @returns {{ conteo, resumen, corteAx }} corteAx = el reporte de AX registrado ahora (null si ya estaba)
  */
 export function aplicarBaseOficial(estado, { hojas, fecha, folioSalida = null, decisiones = {}, archivo = null, huella = null }, usuario = null) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(fecha))) throw new ErrorBaseOficial("Falta la fecha del conteo.");
+  if (!esFechaIso(texto(fecha))) throw new ErrorBaseOficial("Falta la fecha del conteo.");
   const analisis = analizarKardex(estado, hojas, { fecha, folioSalida });
   if (!analisis.contadas.length) throw new ErrorBaseOficial("El Kardex no trae partidas con conteo para este inventario.");
   const plan = planBaseOficial(estado, analisis, decisiones);

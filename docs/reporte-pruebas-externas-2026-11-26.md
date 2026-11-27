@@ -232,3 +232,24 @@ partida (`000000706`, SELLOS, INV, PZA, 555001, 3).
 * QR: mensajes de más de 213 bytes se rechazan con mensaje claro; con emojis y acentos genera matriz válida.
 * `__proto__` / `constructor.prototype` en el JSON de Copilot: no contamina prototipos.
 * Corrupción del `estado.json` dentro del respaldo: se detecta (por accidente, porque el JSON queda inválido).
+
+---
+
+## Respuesta (Ronda 37, 27/11/2026)
+
+Cada hallazgo quedó reproducido en `tests/pruebasExternas.test.js` (Node) y `tests/pruebasExternas.navegador.mjs`
+(Chromium); las pruebas fallan con la versión anterior y pasan con esta.
+
+| # | Estado | Qué se hizo |
+|---|---|---|
+| 1 | ✅ | `dec()` nunca lanza y quita el «+». Lo escrito a mano se valida con `cantidadEscrita` / `problemaDeCantidad` (vales, entradas, conteos, reacomodos, Copilot). `SeccionSegura`: si una sección truena, solo ella muestra «Esta sección falló.» |
+| 2 | ✅ | `descomprimir` comprueba tamaño y CRC-32 de cada parte; `Almacen.restaurar` compara cada plantilla con su `sha256`. 200 de 200 bits cambiados se detectan. |
+| 3 | ✅ | `estadoAlCierre` corta las salidas por fecha (`salidasAlCierre`, `salidasFuera`); *Ya lo subí* con `hastaFecha`. Sin fechas futuras; el borrador sin fecha elegida sale con la de hoy (`fecha_elegida`, `fechaDelBorrador`). |
+| 4 | ✅ | `validarVale` rechaza una partida inactiva (salvo las que ya tenía el vale que se corrige). |
+| 5 | ✅ | Notación científica, `_`, separadores y más de 9 enteros: «Escribe solo números (ej. 2 o 2.5).»; `dec` rechaza exponentes de más de 40. |
+| 6 | ✅ | `cortarCelda` (32 767) en `plantilla.js` y `nuevo.js`. |
+| 7 | ✅ | `esFechaIso` (calendario) en vales, conteos, entradas, cortes de AX y base oficial. |
+| 8 | ✅ | `leerRespaldo` / `validarEstado`: rechazo con mensaje claro de cada caso de la tabla; `repararSecuencias`; plantillas solo registradas y sin ruta; tamaño declarado absurdo = dañado. |
+| 9 | ✅ | `nombreConFecha`: el último bloque que es fecha (DDMMAA, AAAAMMDD o DDMMAAAA); si no hay, la agrega. |
+| 10 | ✅ | `sinPrefijoPrincipal` al leer cada parte. |
+| 11 | ✅ / — | `leerJsonTolerante`: `ErrorJson` en lugar de RangeError. `codigo128` sin cambio: el editor ya avisa «no admite acentos… lleva «…»». |

@@ -17,7 +17,7 @@ import {
   esTransferencia,
   textoObservaciones,
 } from "../../servicios/pasosVale.js";
-import { firmasExtraDe, observacionesDelVale, pideEtapa, plantillaArea, requiereAutoriza } from "../../servicios/vales.js";
+import { conFechaElegida, fechaDelBorrador, firmasExtraDe, observacionesDelVale, pideEtapa, plantillaArea, requiereAutoriza } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { fechaCorta } from "./pasosVale.js";
@@ -189,7 +189,7 @@ function BotonFecha({ fecha, alCambiar }) {
     <button type="button" class=${`boton boton-secundario boton-fecha ${fecha && fecha !== hoy ? "fecha-distinta" : ""}`} onClick=${abrir}>
       Fecha: ${fecha === hoy ? `hoy · ${fechaCorta(fecha).replace("Hoy · ", "")}` : fechaCorta(fecha)} <span aria-hidden="true">▾</span>
     </button>
-    <input ref=${campo} type="date" class="fecha-oculta" tabIndex="-1" aria-label="Fecha del vale" value=${fecha}
+    <input ref=${campo} type="date" class="fecha-oculta" tabIndex="-1" aria-label="Fecha del vale" value=${fecha} max=${hoy}
       onChange=${(e) => e.currentTarget.value && alCambiar(e.currentTarget.value)} />
   </div>`;
 }
@@ -245,7 +245,7 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
             <button type="button" role="radio" aria-checked=${transferencia} onClick=${() => !transferencia && alCambiar(conTipoDeVale(estado, datos, true))}>Transferencia</button>
           </div>`
         : html`<span></span>`}
-      <${BotonFecha} fecha=${datos.fecha} alCambiar=${(fecha) => cambiar({ fecha })} />
+      <${BotonFecha} fecha=${fechaDelBorrador(datos)} alCambiar=${(fecha) => cambiar(conFechaElegida(fecha))} />
     </div>
 
     <div class="paso-quien-mitades">

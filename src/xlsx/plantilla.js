@@ -9,7 +9,7 @@ import { FechaCelda } from "../nucleo/fechas.js";
 import { Big } from "../nucleo/decimal.js";
 import { desplazarFormula, desplazarFormula2D, indiceColumna, separarRango, separarReferencia } from "./celdas.js";
 import { carpeta, rutaRels, TIPOS, unir } from "./rutas.js";
-import { atributos, atributosATexto, cambiarEtiqueta, desescapar, escaparTexto, escaparX, ponerAtributo } from "./xml.js";
+import { atributos, atributosATexto, cambiarEtiqueta, cortarCelda, desescapar, escaparTexto, escaparX, ponerAtributo } from "./xml.js";
 import { bytesATexto, descomprimir, escribirZip, leerZip, reemplazarEntrada, textoABytes } from "./zip.js";
 
 export class ErrorPlantilla extends Error {}
@@ -151,7 +151,7 @@ export class PaqueteOOXML {
 // ---------------------------------------------------------------- celdas
 
 function textoCelda(texto) {
-  return escaparTexto(escaparX(texto));
+  return escaparTexto(escaparX(cortarCelda(texto)));
 }
 
 /** <c> para un valor: número, fecha (FechaCelda), texto (en línea) o vacío. */

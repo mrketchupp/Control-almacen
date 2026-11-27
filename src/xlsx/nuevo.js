@@ -4,7 +4,7 @@
 import { Big } from "../nucleo/decimal.js";
 import { FechaCelda } from "../nucleo/fechas.js";
 import { letraColumna } from "./celdas.js";
-import { escaparAtributo, escaparTexto, escaparX } from "./xml.js";
+import { cortarCelda, escaparAtributo, escaparTexto, escaparX } from "./xml.js";
 import { crearZip } from "./zip.js";
 
 const NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
@@ -242,7 +242,7 @@ export class LibroNuevo {
       `<sst xmlns="${NS}" count="${this.textos.length}" uniqueCount="${this.textos.length}">` +
       this.textos
         .map((t) => {
-          const texto = escaparTexto(escaparX(t));
+          const texto = escaparTexto(escaparX(cortarCelda(t)));
           const preservar = t !== t.trim() || /\n/.test(t) ? ' xml:space="preserve"' : "";
           return `<si><t${preservar}>${texto}</t></si>`;
         })

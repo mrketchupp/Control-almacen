@@ -9,7 +9,22 @@ const FIRMA_LOCAL = 0x04034b50;
 const FIRMA_CENTRAL = 0x02014b50;
 const FIRMA_FIN = 0x06054b50;
 
-export class ErrorZip extends Error {}
+/** `parte`: la entrada dañada (CRC o tamaño que no cuadran), para decir cuál en el mensaje. */
+export class ErrorZip extends Error {
+  constructor(mensaje, { parte = null } = {}) {
+    super(mensaje);
+    this.parte = parte;
+  }
+}
+
+// Ronda 37 (reporte de pruebas externas): las partes se comprueban al descomprimirlas. Un bit cambiado en una
+// plantilla (OneDrive a medio sincronizar) pasaba sin aviso y dañaba después todas las exportaciones.
+// Ninguna parte de un libro o de un respaldo llega a esto; un tamaño mayor es un archivo dañado (y reservarlo
+// costaría gigas de memoria antes de descubrirlo).
+export const TAMANO_MAXIMO_PARTE = 512 * 1024 * 1024;
+const RAZON_MAXIMA_DEFLATE = 1032; // deflate no comprime más de ~1032 a 1
+
+const danado = (nombre) => new ErrorZip(`El archivo está dañado (${nombre}). Vuelve a copiarlo o usa otro.`, { parte: nombre });
 
 const codificador = new TextEncoder();
 const decodificador = new TextDecoder("utf-8");
@@ -102,10 +117,20 @@ export function leerZip(datos) {
   return entradas;
 }
 
+/** Los bytes de la parte; ErrorZip (con `parte`) si su tamaño o su CRC-32 no son los del directorio. */
 export function descomprimir(entrada) {
-  if (entrada.metodo === 0) return entrada.comprimido;
-  if (entrada.metodo === 8) return inflateSync(entrada.comprimido, { out: new Uint8Array(entrada.tamano) });
-  throw new ErrorZip(`Método de compresión no soportado (${entrada.metodo}) en ${entrada.nombre}`);
+  let datos;
+  if (entrada.metodo === 0) datos = entrada.comprimido;
+  else if (entrada.metodo === 8) {
+    if (entrada.tamano > TAMANO_MAXIMO_PARTE || entrada.tamano > entrada.comprimido.length * RAZON_MAXIMA_DEFLATE + 64) throw danado(entrada.nombre);
+    try {
+      datos = inflateSync(entrada.comprimido, { out: new Uint8Array(entrada.tamano) });
+    } catch {
+      throw danado(entrada.nombre);
+    }
+  } else throw new ErrorZip(`Método de compresión no soportado (${entrada.metodo}) en ${entrada.nombre}`);
+  if (datos.length !== entrada.tamano || crc32(datos) !== entrada.crc) throw danado(entrada.nombre);
+  return datos;
 }
 
 /** Todas las partes descomprimidas: Map nombre → Uint8Array (en orden). */

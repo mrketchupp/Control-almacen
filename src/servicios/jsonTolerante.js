@@ -260,6 +260,13 @@ export function leerJsonTolerante(texto) {
   }
   const lector = new Lector(t);
   lector.i = inicio;
-  const valor = lector.valor();
+  let valor;
+  try {
+    valor = lector.valor();
+  } catch (error) {
+    // Ronda 37: «[[[[…» con miles de niveles agotaba la pila (RangeError crudo).
+    if (error instanceof RangeError) throw new ErrorJson("La respuesta trae demasiados niveles: copia solo el bloque de código.");
+    throw error;
+  }
   return { valor, arreglos: [...lector.arreglos].filter((a) => !NOTAS_LEVES.has(a)) };
 }

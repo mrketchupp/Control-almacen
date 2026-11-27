@@ -59,7 +59,7 @@ export function textoDiagnostico({ inventario, version, situacion = "" }) {
 }
 
 /** Copiar el diagnóstico; si el navegador no deja, se muestra para copiarlo a mano o se descarga. */
-function Diagnostico({ texto }) {
+export function Diagnostico({ texto }) {
   const [estado, setEstado] = useState(null); // null | "copiado" | "manual"
   const copiar = async () => {
     try {

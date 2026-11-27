@@ -234,6 +234,43 @@ export function migrarEstado(estado) {
   return estado;
 }
 
+// Dónde vive el id que da cada secuencia (ver `siguienteId`).
+const IDS_DE_SECUENCIA = {
+  vale: (e) => e.vales,
+  vale_linea: (e) => (e.vales ?? []).flatMap((v) => v?.lineas ?? []),
+  variante: (e) => e.variantes,
+  ubicacion: (e) => e.ubicaciones,
+  conteo: (e) => e.conteos,
+  existencia: (e) => e.existencias,
+  persona: (e) => e.personas,
+  plantilla_area: (e) => e.plantillas_area,
+  borrador: (e) => e.borradores,
+  borrador_entrada: (e) => e.borradores_entrada,
+  reacomodo: (e) => e.reacomodos,
+  corte_ax: (e) => e.cortes_ax,
+  auditoria: (e) => e.auditoria,
+  seguimiento_base: (e) => e.seguimientos_base,
+  envio: (e) => e.envios,
+  asignacion_ax: (e) => (e.cortes_ax ?? []).flatMap((c) => c?.asignaciones ?? []),
+  cambio: (e) => (e.vales ?? []).map((v) => ({ id: v?.cambio })),
+};
+
+/**
+ * Ronda 37: ninguna secuencia queda por debajo del id más alto que ya existe. Un respaldo con `secuencias = {}`
+ * (o dañado) hacía que los ids nuevos volvieran a empezar en 1 y chocaran con los que había. Lo usa
+ * `leerRespaldo`: lo que la herramienta guarda ya es coherente.
+ */
+export function repararSecuencias(estado) {
+  if (!estado.secuencias || typeof estado.secuencias !== "object" || Array.isArray(estado.secuencias)) estado.secuencias = {};
+  for (const [nombre, deDonde] of Object.entries(IDS_DE_SECUENCIA)) {
+    const actual = estado.secuencias[nombre];
+    let maximo = Number.isInteger(actual) && actual > 0 ? actual : 0;
+    for (const x of deDonde(estado) ?? []) if (Number.isInteger(x?.id) && x.id > maximo) maximo = x.id;
+    if (maximo || actual !== undefined) estado.secuencias[nombre] = maximo;
+  }
+  return estado;
+}
+
 export function siguienteId(estado, coleccion) {
   const actual = estado.secuencias[coleccion] || 0;
   estado.secuencias[coleccion] = actual + 1;

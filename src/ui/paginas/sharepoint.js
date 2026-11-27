@@ -90,16 +90,16 @@ export function generar(sesion, tipo, archivo, opciones, alTerminar, { fallo = n
 }
 
 /**
- * Botón de completado: "ya subí el libro de vales al SharePoint". Con hastaFolio (reporte de un
- * día) solo se marcan los vales hasta ese folio; los posteriores siguen pendientes.
+ * Botón de completado: "ya subí el libro de vales al SharePoint". Con hastaFolio y hastaFecha (reporte de un
+ * día) solo se marcan los vales que van en ese libro (hasta ese día); los demás siguen pendientes.
  */
-export function BotonSubido({ pendientes, tamano = "", hastaFolio = null }) {
+export function BotonSubido({ pendientes, tamano = "", hastaFolio = null, hastaFecha = null }) {
   const sesion = useSesion();
   const marcar = () => {
     const hasta = hastaFolio ? ` (hasta el folio ${hastaFolio})` : "";
     if (!confirmar(`¿Ya subiste al SharePoint el libro de vales${hasta} con ${pendientes} cambio(s)? Se marcarán como subidos.`)) return;
     return sesion.tarea("Guardando…", async () => {
-      await sesion.almacen.modificar((e) => registrarEnvio(e, sesion.usuario, { hastaFolio }));
+      await sesion.almacen.modificar((e) => registrarEnvio(e, sesion.usuario, { hastaFolio, hastaFecha }));
       sesion.avisar("exito", "Listo: marcado como subido al SharePoint.");
     });
   };

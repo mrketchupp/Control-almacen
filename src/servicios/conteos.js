@@ -6,10 +6,10 @@
 //
 // Ver docs/05-flujos.md §4.
 
-import { CERO, dec, decTexto } from "../nucleo/decimal.js";
+import { CERO, TEXTO_CANTIDAD_NO_NUMERO, cantidadEscrita, dec, decTexto, problemaDeCantidad } from "../nucleo/decimal.js";
 import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { calcularSaldos, cuentaParaSaldo } from "../nucleo/existencias.js";
-import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { ahoraIso, esFechaIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, claveLaxa, unidad } from "../nucleo/normalizar.js";
 import { DUENO_FX, duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { corregirDimensionNp, crearRenglon, describirRenglon, lugarCorto, renglonDe, ubicacionesOrdenadas } from "./inventario.js";
@@ -105,7 +105,7 @@ export function renglonesDelConteo(estado, datos = estado.conteo_en_curso, { ind
       const r = describirRenglon(estado, e.id, { indices, saldos: totales });
       const correccion = (datos.correcciones ?? []).find((c) => c.existencia_id === e.id);
       const capturado = correccion?.quitar ? "0" : datos.capturas?.[e.id];
-      const contado = texto(capturado) === "" ? null : dec(capturado);
+      const contado = texto(capturado) === "" ? null : cantidadEscrita(capturado);
       return {
         id: e.id,
         ubicacion_id: e.ubicacion_id,
@@ -172,13 +172,13 @@ export function validarConteo(estado, datos = estado.conteo_en_curso) {
   const errores = [];
   const error = (id, campo, mensaje) => errores.push({ id, campo, mensaje });
   if (!datos) return [{ id: null, campo: "conteo", mensaje: "No hay un conteo en captura." }];
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(datos.fecha))) error(null, "fecha", "Falta la fecha del conteo.");
+  if (!esFechaIso(texto(datos.fecha))) error(null, "fecha", "Falta la fecha del conteo.");
+  else if (texto(datos.fecha) > hoyIso()) error(null, "fecha", "La fecha del conteo no puede ser después de hoy.");
   const dentro = new Set(estado.existencias.filter((e) => e.activo !== false && datos.ubicaciones.includes(e.ubicacion_id)).map((e) => e.id));
   const quitar = new Set((datos.correcciones ?? []).filter((c) => c.quitar).map((c) => c.existencia_id));
   for (const [id, valor] of Object.entries(datos.capturas ?? {})) {
     if (!dentro.has(Number(id)) || quitar.has(Number(id))) continue;
-    const n = dec(valor);
-    if (n === null || n.lt(0)) error(Number(id), "contado", `Lo contado debe ser un número (0 o más): "${valor}".`);
+    if (problemaDeCantidad(valor, { ceroValido: true })) error(Number(id), "contado", `Lo contado debe ser un número (0 o más): "${valor}".`);
   }
   const corregidas = new Set();
   for (const c of datos.correcciones ?? []) {
@@ -196,8 +196,9 @@ export function validarConteo(estado, datos = estado.conteo_en_curso) {
     else if (estado.ubicaciones.find((u) => u.id === s.ubicacion_id)?.clase === "INV" && soloConsumible(inventarioDe(estado).id, s.codigo)) {
       error(s.uid, "ubicacion", `Partida encontrada ${n}: en ${inventarioDe(estado).id} los códigos de 3 dígitos son consumibles; elige una hoja de consumible.`);
     }
-    const c = dec(s.cantidad);
-    if (c === null || c.lte(0)) error(s.uid, "cantidad", `Partida encontrada ${n}: la cantidad debe ser mayor que 0.`);
+    const problema = problemaDeCantidad(s.cantidad);
+    if (problema === "numero") error(s.uid, "cantidad", `Partida encontrada ${n}: ${TEXTO_CANTIDAD_NO_NUMERO}.`);
+    else if (problema) error(s.uid, "cantidad", `Partida encontrada ${n}: la cantidad debe ser mayor que 0.`);
     if (!unidad(s.um)) error(s.uid, "um", `Partida encontrada ${n}: falta la unidad (UM).`);
     if (Number.isInteger(s.variante_id) && !estado.variantes.some((v) => v.id === s.variante_id && v.activo !== false && v.codigo === s.codigo)) error(s.uid, "variante", `Partida encontrada ${n}: revisa la variante de ese código.`);
   });

@@ -1,10 +1,10 @@
 // Respaldos: un .zip con el estado (JSON), las plantillas de Excel y un manifiesto.
 // Funciones puras (sin navegador) para poder probarlas.
 
-import { FORMATO_ESTADO } from "../nucleo/estado.js";
+import { FORMATO_ESTADO, repararSecuencias } from "../nucleo/estado.js";
 import { ahoraIso } from "../nucleo/fechas.js";
-import { INVENTARIO_DEFECTO, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
-import { bytesATexto, crearZip, descomprimirZip } from "../xlsx/zip.js";
+import { INVENTARIOS, INVENTARIO_DEFECTO, inventarioDe, inventarioPorId } from "../nucleo/inventarios.js";
+import { ErrorZip, bytesATexto, crearZip, descomprimirZip } from "../xlsx/zip.js";
 
 export const ARCHIVO_ESTADO = "estado.json";
 export const ARCHIVO_MANIFIESTO = "manifiesto.json";
@@ -14,6 +14,10 @@ export const CARPETA_FOTOS = "fotos/";
 const patron = (inventario) => new RegExp(`^${inventarioPorId(inventario).respaldo}(\\d{4}-\\d{2}-\\d{2})_(\\d{2})(\\d{2})(\\d{2})(?:_(.+))?\\.zip$`);
 
 export class ErrorRespaldo extends Error {}
+
+const danado = (que) => new ErrorRespaldo(`El respaldo está dañado (${que}). Elige otro respaldo.`);
+// Las plantillas y las fotos van sueltas en su carpeta: «plantillas/../fotos/x.jpg» no es una plantilla.
+const nombreSuelto = (n) => Boolean(n) && !/[\\/]/.test(n) && n !== "." && n !== "..";
 
 function limpiarMotivo(motivo) {
   return (
@@ -73,7 +77,9 @@ export function leerRespaldo(datos) {
   let partes;
   try {
     partes = descomprimirZip(datos);
-  } catch {
+  } catch (error) {
+    // Ronda 37: el CRC de cada parte se comprueba; un bit cambiado (OneDrive a medias) ya no pasa sin aviso.
+    if (error instanceof ErrorZip && error.parte) throw danado(error.parte);
     throw new ErrorRespaldo("El archivo no es un respaldo válido (no es un .zip).");
   }
   if (partes.has("almacen.db")) {
@@ -89,13 +95,24 @@ export function leerRespaldo(datos) {
     throw new ErrorRespaldo("Los datos del respaldo están dañados (JSON inválido).");
   }
   validarEstado(estado);
-  const manifiesto = partes.has(ARCHIVO_MANIFIESTO) ? JSON.parse(bytesATexto(partes.get(ARCHIVO_MANIFIESTO))) : {};
+  repararSecuencias(estado);
+  let manifiesto = {};
+  if (partes.has(ARCHIVO_MANIFIESTO)) {
+    try {
+      manifiesto = JSON.parse(bytesATexto(partes.get(ARCHIVO_MANIFIESTO)));
+    } catch {
+      throw danado(ARCHIVO_MANIFIESTO);
+    }
+    if (!manifiesto || typeof manifiesto !== "object" || Array.isArray(manifiesto)) throw danado(ARCHIVO_MANIFIESTO);
+  }
+  const registradas = new Set(estado.plantillas_excel.map((r) => r.archivo));
   const plantillas = [];
   const fotos = [];
   for (const [nombre, contenido] of partes) {
-    if (nombre.startsWith(CARPETA_PLANTILLAS) && nombre.length > CARPETA_PLANTILLAS.length) {
-      plantillas.push({ archivo: nombre.slice(CARPETA_PLANTILLAS.length), datos: contenido });
-    } else if (nombre.startsWith(CARPETA_FOTOS) && nombre.length > CARPETA_FOTOS.length) {
+    if (nombre.startsWith(CARPETA_PLANTILLAS)) {
+      const archivo = nombre.slice(CARPETA_PLANTILLAS.length);
+      if (nombreSuelto(archivo) && registradas.has(archivo)) plantillas.push({ archivo, datos: contenido });
+    } else if (nombre.startsWith(CARPETA_FOTOS) && nombreSuelto(nombre.slice(CARPETA_FOTOS.length))) {
       fotos.push({ clave: nombre, datos: contenido });
     }
   }
@@ -125,12 +142,24 @@ export function validarEstado(estado) {
   if (!estado || typeof estado !== "object" || colecciones.some((c) => !Array.isArray(estado[c]))) {
     throw new ErrorRespaldo("El archivo no contiene datos de Control de Almacén.");
   }
-  if (typeof estado.formato !== "number" || estado.formato > FORMATO_ESTADO) {
+  // Sin formato no es de la herramienta (antes decía «de una versión más nueva»).
+  if (!Number.isInteger(estado.formato) || estado.formato < 1) throw new ErrorRespaldo("El archivo no contiene datos de Control de Almacén.");
+  if (estado.formato > FORMATO_ESTADO) {
     throw new ErrorRespaldo("El respaldo es de una versión más nueva de la herramienta. Actualiza la página.");
+  }
+  // Ronda 37 (reporte de pruebas externas): un respaldo manipulado o dañado se rechaza aquí, no después con un
+  // TypeError a media pantalla.
+  for (const c of colecciones) if (estado[c].some((x) => !x || typeof x !== "object" || Array.isArray(x))) throw danado(c);
+  if (estado.plantillas_excel.some((r) => typeof r.archivo !== "string")) throw danado("plantillas_excel");
+  const inventario = estado.config?.inventario;
+  if (inventario !== undefined && inventario !== null && !INVENTARIOS.some((i) => i.id === String(inventario).trim().toUpperCase())) {
+    throw new ErrorRespaldo(`El respaldo es de un inventario que la herramienta no conoce («${inventario}»).`);
   }
   const folios = new Set();
   for (const vale of estado.vales) {
+    if (!Array.isArray(vale.lineas) || vale.lineas.some((l) => !l || typeof l !== "object")) throw danado("partidas de un vale");
     if (vale.folio === null || vale.folio === undefined) continue;
+    if (!Number.isInteger(vale.folio) || vale.folio < 0) throw danado(`folio «${vale.folio}»`);
     const clave = `${vale.tipo}:${vale.folio}`;
     if (folios.has(clave)) throw new ErrorRespaldo(`Datos inconsistentes: el folio ${clave} está repetido.`);
     folios.add(clave);

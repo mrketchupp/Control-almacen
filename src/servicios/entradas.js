@@ -16,10 +16,10 @@
 // `fecha_recibido` = cuando llegó y se registra: el día en que suma al inventario y cuenta en el reporte diario.
 
 import { DEPTO_ALMACEN, ORIGEN_EQUIPO } from "../nucleo/areas.js";
-import { CERO, dec, decTexto } from "../nucleo/decimal.js";
+import { CERO, TEXTO_CANTIDAD_NO_NUMERO, cantidadEscrita, dec, decTexto, problemaDeCantidad } from "../nucleo/decimal.js";
 import { Indices, auditar, claveVariante, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
-import { ahoraIso, fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { ahoraIso, esFechaIso, fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
 import { DUENO_FX, duenoDe, inventarioDe, soloConsumible } from "../nucleo/inventarios.js";
 import { crearRenglon, lugarCorto, renglonDe, ubicacionesSugeridas } from "./inventario.js";
@@ -423,7 +423,7 @@ export function vistaPreviaEntrada(estado, datos, { excluirValeId = null } = {})
   const acumulado = new Map();
   return lineas.map((l, i) => {
     const d = destinos[i];
-    const entra = dec(l.cantidad);
+    const entra = cantidadEscrita(l.cantidad);
     let clave = null;
     let habia = null;
     if (d.tipo === "renglon") {
@@ -472,7 +472,8 @@ export function valeDeSalida(estado, folio) {
   return estado.vales.find((v) => v.tipo === "SALIDA" && v.folio === n && v.estado === "EMITIDO") ?? null;
 }
 
-const esFecha = (v) => /^\d{4}-\d{2}-\d{2}$/.test(texto(v));
+// Que exista en el calendario (Ronda 37): «2026-02-30» tenía la forma.
+const esFecha = (v) => esFechaIso(texto(v));
 
 /**
  * Conteos físicos que pudieron contar ya el material de la entrada: los de los renglones de destino con
@@ -554,8 +555,9 @@ export function validarEntrada(estado, datos, { excluirValeId = null, hoy = hoyI
     const n = i + 1;
     if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(n, "codigo", `Partida ${n}: falta el código.`);
     if (!texto(l.descripcion)) error(n, "descripcion", `Partida ${n}: falta la descripción.`);
-    const cantidad = dec(l.cantidad);
-    if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
+    const problema = problemaDeCantidad(l.cantidad);
+    if (problema === "numero") error(n, "cantidad", `Partida ${n}: ${TEXTO_CANTIDAD_NO_NUMERO}.`);
+    else if (problema) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
     if (!texto(l.um)) error(n, "um", `Partida ${n}: falta la unidad (UM).`);
     const destino = destinoDe(estado, l, indices);
     if (destino.tipo === "pendiente") error(n, "destino", `Partida ${n}: elige a qué partida del inventario o contenedor entra.`);

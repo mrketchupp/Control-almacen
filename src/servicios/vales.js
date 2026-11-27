@@ -5,10 +5,10 @@
 // Ver docs/05-flujos.md §1 y §3 y los requerimientos RF-10 a RF-21.
 
 import { conEtapa, conUsoEn, etapaDe, etiquetasFirmasExtra, tieneDatosFijos, tieneEtapa, tipoDeArea } from "../nucleo/areas.js";
-import { CERO, aNumero, dec, decTexto } from "../nucleo/decimal.js";
+import { CERO, TEXTO_CANTIDAD_NO_NUMERO, aNumero, cantidadEscrita, dec, decTexto, problemaDeCantidad } from "../nucleo/decimal.js";
 import { Indices, auditar, dimensionMostrada, npMostrado, siguienteId, umMostrada } from "../nucleo/estado.js";
 import { calcularSaldos, corteDe, cortesVigentes, cuentaParaSaldo } from "../nucleo/existencias.js";
-import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
+import { ahoraIso, esFechaIso, fechaDelDia, fmtFecha, hoyIso } from "../nucleo/fechas.js";
 import { claveEstricta, nombrePersona, unidad } from "../nucleo/normalizar.js";
 import { DUENO_FX, duenoDe } from "../nucleo/inventarios.js";
 
@@ -352,6 +352,8 @@ export function nuevoBorrador(estado, { usuario = null, plantillaId = null, fech
     creado_por: usuario,
     plantilla_area_id: null,
     fecha,
+    // Ronda 37: si nadie eligió la fecha, el vale sale con la del día en que se emite (ver fechaDelBorrador).
+    fecha_elegida: fecha !== hoyIso(),
     origen: "",
     depto_origen: "",
     destino: "",
@@ -382,6 +384,25 @@ export function nuevoBorrador(estado, { usuario = null, plantillaId = null, fech
 export function borrador(estado, id) {
   return estado.borradores.find((b) => b.id === id) ?? null;
 }
+
+/**
+ * ¿Alguien eligió la fecha del borrador? Los de antes de la Ronda 37 no traen `fecha_elegida`: la eligieron si es
+ * otra que la del día en que se crearon.
+ */
+export function fechaElegida(datos) {
+  if (typeof datos?.fecha_elegida === "boolean") return datos.fecha_elegida;
+  return Boolean(texto(datos?.fecha)) && texto(datos.fecha) !== String(datos?.creado_en ?? "").slice(0, 10);
+}
+
+/**
+ * Fecha con la que sale el vale: la elegida o, si nadie la eligió, la de hoy (Ronda 37, reporte de pruebas
+ * externas: un borrador que quedaba abierto de un día para otro salía con la fecha de ayer y un folio mayor que
+ * los de hoy, y el cierre del día no cuadraba).
+ */
+export const fechaDelBorrador = (datos, hoy = hoyIso()) => (fechaElegida(datos) ? texto(datos.fecha) : hoy);
+
+/** El cambio del borrador al elegir la fecha en el calendario: elegir hoy es como no elegirla. */
+export const conFechaElegida = (fecha, hoy = hoyIso()) => ({ fecha, fecha_elegida: fecha !== hoy });
 
 export function descartarBorrador(estado, id) {
   estado.borradores = estado.borradores.filter((b) => b.id !== id);
@@ -472,7 +493,10 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
   const errores = [];
   const avisos = [];
   const error = (renglon, campo, mensaje) => errores.push({ renglon, campo, mensaje });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto(datos.fecha))) error(null, "fecha", "Falta la fecha.");
+  const fecha = texto(datos.fecha);
+  if (!fecha) error(null, "fecha", "Falta la fecha.");
+  else if (!esFechaIso(fecha)) error(null, "fecha", "Revisa la fecha: no existe en el calendario.");
+  else if (fecha > hoyIso()) error(null, "fecha", "La fecha no puede ser después de hoy.");
   if (historial) {
     // Vale anterior al conteo: solo es historial (no descuenta), se corrige con lo mínimo.
     lineasCapturadas(datos.lineas).forEach((l, i) => {
@@ -493,15 +517,22 @@ export function validarVale(estado, datos, { excluirValeId = null, historial = f
   if (!lineas.length) error(null, "lineas", "El vale no tiene partidas.");
   const indices = new Indices(estado);
   const pedidos = new Map();
+  // Al corregir un vale, sus partidas de siempre se aceptan aunque un conteo las haya quitado después.
+  const previas = new Set(excluirValeId === null ? [] : (estado.vales.find((v) => v.id === excluirValeId)?.lineas ?? []).map((l) => l.existencia_id));
   lineas.forEach((l, i) => {
     const n = i + 1;
     if (!Number.isInteger(l.codigo) || l.codigo <= 0) error(n, "codigo", `Partida ${n}: falta el código.`);
     if (!texto(l.descripcion)) error(n, "descripcion", `Partida ${n}: falta la descripción.`);
-    const cantidad = dec(l.cantidad);
-    if (cantidad === null || cantidad.lte(0)) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
+    const problema = problemaDeCantidad(l.cantidad);
+    const cantidad = problema ? null : cantidadEscrita(l.cantidad);
+    if (problema === "numero") error(n, "cantidad", `Partida ${n}: ${TEXTO_CANTIDAD_NO_NUMERO}.`);
+    else if (problema) error(n, "cantidad", `Partida ${n}: la cantidad debe ser mayor que 0.`);
     if (!texto(l.um)) error(n, "um", `Partida ${n}: falta la unidad (UM).`);
     if (l.existencia_id !== null && l.existencia_id !== undefined) {
-      if (!indices.existencia(l.existencia_id)) error(n, "existencia_id", `Partida ${n}: la partida de inventario ya no existe.`);
+      const existencia = indices.existencia(l.existencia_id);
+      if (!existencia) error(n, "existencia_id", `Partida ${n}: la partida de inventario ya no existe.`);
+      // Ronda 37: un conteo (o la base oficial) la quitó mientras el borrador esperaba; su consumo no se vería en ningún lado.
+      else if (existencia.activo === false && !previas.has(l.existencia_id)) error(n, "existencia_id", `Partida ${n}: esa partida ya no está en el inventario; elige otra clave.`);
       else if (cantidad !== null) pedidos.set(l.existencia_id, (pedidos.get(l.existencia_id) ?? CERO).plus(cantidad));
     } else if (!l.no_inventariado) {
       error(n, "existencia_id", `Partida ${n}: elige la clave de la lista (o "Otra clave" si no sale del inventario).`);
@@ -598,6 +629,7 @@ export function emitirBorrador(estado, borradorId, { usuario = null, capacidad =
   const guardado = borrador(estado, borradorId);
   if (!guardado) throw new ErrorVale("El borrador ya no existe (¿se emitió en otra ventana?).");
   const datos = conDatosFijos(estado, conEntregaEnTurno(estado, guardado, usuario));
+  datos.fecha = fechaDelBorrador(guardado);
   datos.observaciones = observacionesDelVale(estado, datos);
   datos.lineas = lineasCapturadas(datos.lineas);
   const { errores } = validarVale(estado, datos);
@@ -909,12 +941,15 @@ export function ultimoEnvio(estado) {
  * vale toma un número de un contador; el envío recuerda hasta qué número incluyó.
  * Los vales migrados del Excel ya se habían enviado.
  */
-export function valesPorEnviar(estado, { hastaFolio = null } = {}) {
+export function valesPorEnviar(estado, { hastaFolio = null, hastaFecha = null } = {}) {
   const desde = ultimoEnvio(estado)?.hasta_cambio ?? 0;
   // Un vale también queda al día si se subió en un envío parcial (reporte de un día) con ese cambio.
+  // Con `hastaFecha` (reporte de un día, Ronda 37) solo los de ese día o antes, como el libro del reporte: un vale de
+  // otro día con folio menor que `hastaFolio` no va en el libro y sigue pendiente.
   return estado.vales
     .filter((v) => v.tipo === "SALIDA" && (v.cambio ?? 0) > Math.max(desde, v.subido_cambio ?? 0))
     .filter((v) => hastaFolio === null || v.folio <= hastaFolio)
+    .filter((v) => hastaFecha === null || !fechaDelDia(v) || fechaDelDia(v) <= hastaFecha)
     .map((v) => ({
       vale: v,
       motivo: v.estado === "CANCELADO" ? "cancelado" : v.migrado || v.enviado_en ? "corregido" : "nuevo",
@@ -926,14 +961,14 @@ export function valesPorEnviar(estado, { hastaFolio = null } = {}) {
  * Marca como subidos al SharePoint los vales pendientes. Con `hastaFolio` (reporte de un día) solo
  * los de ese folio o anteriores: los posteriores siguen pendientes.
  */
-export function registrarEnvio(estado, usuario = null, { hastaFolio = null } = {}) {
-  const pendientes = valesPorEnviar(estado, { hastaFolio });
+export function registrarEnvio(estado, usuario = null, { hastaFolio = null, hastaFecha = null } = {}) {
+  const pendientes = valesPorEnviar(estado, { hastaFolio, hastaFecha });
   const ahora = ahoraIso();
   for (const { vale } of pendientes) {
     if (!vale.enviado_en) vale.enviado_en = ahora;
     vale.subido_cambio = vale.cambio ?? 0;
   }
-  const parcial = hastaFolio !== null && valesPorEnviar(estado).length > 0;
+  const parcial = (hastaFolio !== null || hastaFecha !== null) && valesPorEnviar(estado).length > 0;
   const envio = {
     id: siguienteId(estado, "envio"),
     fecha_hora: ahora,

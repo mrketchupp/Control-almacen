@@ -3,11 +3,12 @@
 // (`paso`, opcional como `copia_de`: no cambia el formato del estado) y nunca llega al vale emitido.
 
 import { ORIGEN_EQUIPO, conUsoEn, tieneUsoEn, tipoDeArea } from "../nucleo/areas.js";
-import { decTexto } from "../nucleo/decimal.js";
+import { TEXTO_CANTIDAD_NO_NUMERO, decTexto, problemaDeCantidad } from "../nucleo/decimal.js";
 import {
   aplicarPlantilla,
   conDatosFijos,
   conEntregaEnTurno,
+  fechaDelBorrador,
   lineasCapturadas,
   observacionesDelVale,
   pideEtapa,
@@ -171,11 +172,13 @@ export function textoObservaciones(estado, datos) {
 /** Los datos del vale tal como se emitirán (entrega quien está en turno, datos fijos del área, sin filas en blanco). */
 export function paraEmitir(estado, datos, usuario) {
   const listo = conDatosFijos(estado, conEntregaEnTurno(estado, datos, usuario));
-  return { ...listo, observaciones: observacionesDelVale(estado, listo), lineas: lineasCapturadas(listo.lineas) };
+  return { ...listo, fecha: fechaDelBorrador(datos), observaciones: observacionesDelVale(estado, listo), lineas: lineasCapturadas(listo.lineas) };
 }
 
 // A qué paso lleva «Corregir» cada dato del encabezado.
 const PASO_DEL_CAMPO = { fecha: 1, depto_destino: 1, recibio_nombre: 1, autorizo_nombre: 1, etapa_perforacion: 1, lineas: 2 };
+
+const mayusculaInicial = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** «Partida 3: falta la unidad (UM).» → «Falta la unidad (UM).» (en su fila ya se sabe cuál partida es). */
 const sinPartida = (mensaje) => {
@@ -203,10 +206,12 @@ export function pendientesParaEmitir(estado, datos, { usuario = null, espacios =
     if (e.campo === "justificacion") continue; // va con su aviso de existencia
     const l = e.renglon ? lineas[e.renglon - 1] : null;
     if (e.campo === "cantidad") {
+      const problema = problemaDeCantidad(l?.cantidad);
+      const corto = problema === "numero" ? `${mayusculaInicial(TEXTO_CANTIDAD_NO_NUMERO)}.` : problema === "cero" ? "La cantidad debe ser mayor que 0." : "Falta la cantidad.";
       pendientes.push({
         tipo: "cantidad",
-        mensaje: `Partida ${e.renglon} · ${nombre(l)}: falta la cantidad.`,
-        corto: texto(l?.cantidad) ? "La cantidad debe ser mayor que 0." : "Falta la cantidad.",
+        mensaje: `Partida ${e.renglon} · ${nombre(l)}: ${corto.charAt(0).toLowerCase()}${corto.slice(1)}`,
+        corto,
         donde: "partida",
         paso: 2,
         campo: "cantidad",

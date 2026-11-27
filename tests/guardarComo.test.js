@@ -238,7 +238,8 @@ test("si se pudo escribir donde se eligió: resultado elegido, sin avisos de adv
 });
 
 test("avisos: se quitan solos a su tiempo, se detienen mientras se leen y no pasan de tres", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+  // El reloj simulado empieza en un día real: los vales de la fixture no pueden tener fecha posterior a «hoy» (Ronda 37).
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: new Date(2026, 10, 27, 12).getTime() });
   const sesion = await sesionConCarpeta();
   sesion.avisar("exito", "uno");
   const [uno] = sesion.avisos;

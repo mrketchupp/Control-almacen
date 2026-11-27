@@ -243,6 +243,31 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   `ESPERA_RESPALDO_A_DESCARGAS_MS` (2 min sin permiso → Descargas; `Sesion.cerrar` lo cancela). `BannerPermiso`: una
   línea, *Permitir* o, con `SIN_RESPUESTA`/`denied`, **Elegir carpeta…** (`elegirCarpeta` con `delExplorador`;
   `_usarCarpeta` también para lo arrastrado) y *Respaldo de hoy en Descargas ✓*. Textos de arranque y rescate de una línea.
+- Ronda 37 (reporte de pruebas externas, `docs/reporte-pruebas-externas-2026-11-26.md`; pruebas `pruebasExternas.test.js`
+  y Chromium `pruebasExternas.navegador.mjs`, una por hallazgo). **Cantidades:** `dec()` nunca lanza (quita el «+»;
+  big.js no lo acepta; sin `_`; null con exponente de más de 40); lo escrito por una persona se valida con
+  `cantidadEscrita` (solo dígitos y un punto, ≤ 9 enteros y 20 decimales) / `problemaDeCantidad` («falta» | «numero» |
+  «cero») y `TEXTO_CANTIDAD_NO_NUMERO` en `validarVale`, `validarEntrada` / `vistaPreviaEntrada`, `validarConteo` /
+  `renglonesDelConteo`, `reacomodar`, `estadoPartida` (cuenta como sin cantidad) y `cantidadDe` de Copilot.
+  **`SeccionSegura`** (`ui/seccionSegura.js`, límite de errores de Preact alrededor de cada página y de cada sección de
+  *Ajustes y más*): «Esta sección falló.» con Recargar, Reintentar y `Diagnostico` (exportado de `arranque.js`); lo anota
+  en el registro. **ZIP:** `descomprimir` comprueba tamaño y CRC-32 (`ErrorZip` con `parte`; `TAMANO_MAXIMO_PARTE`,
+  razón deflate ≤ 1032); `leerRespaldo` lo dice como respaldo dañado, rechaza manifiesto inválido, elementos que no son
+  objeto, vales sin `lineas`, folios que no son enteros, sin `formato` («no contiene datos») e inventario desconocido;
+  solo toma plantillas registradas con nombre suelto (sin `/`) y llama `repararSecuencias` (`nucleo/estado.js`: ninguna
+  secuencia por debajo del id más alto). `Almacen.restaurar` compara cada plantilla con su `sha256`. **Fechas:**
+  `esFechaIso` (`nucleo/fechas.js`, calendario desde 1900) en vales, conteos, entradas, cortes de AX y base oficial;
+  `validarVale` y `validarConteo` no aceptan fechas posteriores a hoy (`BotonFecha` con `max`). `nuevoBorrador` pone
+  `fecha_elegida` (opcional, sin subir formato); `fechaElegida` (sin la marca: elegida si difiere del día de
+  `creado_en`), `fechaDelBorrador` (la elegida o hoy) y `conFechaElegida` en `emitirBorrador`, `paraEmitir` y el paso 1.
+  **Cierre del día por fecha:** `salidasAlCierre` (fecha ≤ día; sin fecha, por folio; `fuera` = folios menores de otro
+  día) en `estadoAlCierre` (`salidasFuera`), `reporteDelDia` (`corte.salidasFuera`, `despues`) y `describirCorte`;
+  `valesPorEnviar` / `registrarEnvio` / `BotonSubido` con `hastaFecha`. **Partida quitada:** `validarVale` rechaza una
+  existencia con `activo: false` salvo en las partidas que el vale corregido ya tenía; pastilla *Ya no está en el
+  inventario* en el paso 2. **Robustez:** `cortarCelda` / `MAXIMO_CELDA` (`xlsx/xml.js`) en `plantilla.js` y `nuevo.js`;
+  `nombreConFecha` reemplaza el último bloque de dígitos que es fecha (DDMMAA, AAAAMMDD o DDMMAAAA; si no hay, la
+  agrega); `sinPrefijoPrincipal` en `LibroLeido.texto` (`<x:sheetData>`); `leerJsonTolerante` vuelve el RangeError
+  `ErrorJson`. El código de barras sin acentos ya avisaba en el editor (sin cambio).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,
@@ -479,7 +504,8 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - JavaScript moderno (módulos ES), sin TypeScript ni JSX (Preact + `htm`). Dependencias mínimas y sin red.
 - Capas: `nucleo/` no importa de `ui/`, `almacen/`, `importadores/` ni `exportadores/`. Todo lo que no es `ui/` ni `almacen/archivos.js`/`bd.js` debe correr en Node sin navegador.
 - Fechas como texto ISO (`AAAA-MM-DD`) en el estado; hacia Excel, número de serie con el estilo de la plantilla.
-- Cantidades como texto decimal en el estado y `Big` (big.js) en cálculos; nunca `float`.
+- Cantidades como texto decimal en el estado y `Big` (big.js) en cálculos; nunca `float`. Lo que escribe una persona se
+  lee con `cantidadEscrita` / `problemaDeCantidad`, no con `dec` (que acepta notación científica para lo que viene de Excel).
 
 ## Verificación antes de cada commit
 - `npm test && npm run build`
@@ -514,7 +540,7 @@ Pendiente: ☐ probar con el corte real del usuario (solo en local) y ajustar el
 - Personas repetidas: se unifican con `unificarPersonas` (la que queda + `estado.alias` para los otros nombres). **Nunca se reescriben los nombres de los vales**; solo la lista, las plantillas de área y lo guardado por almacenista. Las ventanas (`Ventana`) se dibujan en un portal sobre `body` (dentro de *Ajustes y más* hay `container-type`, que encerraría un `position: fixed`).
 - Menú: las páginas con `grupo: "mas"` se abren en la vista *Ajustes y más* (`Ventana` en primer plano sobre la página de fondo; el hash es el de la sección y al cerrar vuelve al fondo); `soloConAviso` (Pendientes) solo aparece con insignia. Íconos propios en `src/ui/iconos.js` (SVG en línea, sin fuentes externas). Ventanas modales: `Ventana` en `ui/componentes.js`.
 - Captura con Copilot (`servicios/capturaIA.js`): la herramienta NO se conecta; solo da instrucciones para copiar y lee el JSON pegado con `jsonTolerante.js` (repara lo cortado o mal formado, sin `eval`) y nombres parecidos.
-- Reporte diario: `estadoAlCierre(estado, fecha)` (copia del estado al cierre del día) → `Almacen.exportar(tipo, …, { corte })`. *Ya lo subí* del reporte usa `registrarEnvio(…, { hastaFolio })`.
+- Reporte diario: `estadoAlCierre(estado, fecha)` (copia del estado al cierre del día; salidas y entradas **por fecha**, Ronda 37) → `Almacen.exportar(tipo, …, { corte })`. *Ya lo subí* del reporte usa `registrarEnvio(…, { hastaFolio, hastaFecha })`.
 - Personalización por almacenista (`config.personalizacion`, `servicios/preferencias.js`) → `ui/tema.js` pone `data-tema`, `data-avisos` y `data-animaciones` en `<html>` (y lo recuerda en `localStorage` solo para el arranque). Colores siempre con variables CSS; el oscuro va en `:root[data-tema="oscuro"]` y en `prefers-color-scheme` si no eligió claro.
 - **FX** es material que AX lleva en su propio almacén y Kardex pero se descuenta en los **vales del Inventario B** (LOTE
   "FX") y comparte sus folios: por eso vive dentro de ese estado como dueño de partidas, nunca como base aparte (un vale

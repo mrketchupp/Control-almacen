@@ -7,6 +7,7 @@ import { html } from "./html.js";
 import { MenusContextuales } from "./menuContextual.js";
 import { Icono } from "./iconos.js";
 import { AvisoNoGuardado } from "./avisoGuardado.js";
+import { SeccionSegura } from "./seccionSegura.js";
 import { SelectorInventario } from "./inventario.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
 import { PaginaExportar } from "./paginas/exportar.js";
@@ -245,7 +246,7 @@ function VistaMas({ seccion, enlaces, insignia, titulos, alCerrar }) {
           <h2>${pagina.titulo}</h2>
           ${pagina.detalle ? html`<p class="nota">${pagina.detalle}</p>` : null}
         </header>
-        <${Componente} />
+        <${SeccionSegura} nombre=${seccion} inventario=${sesion.inventario}><${Componente} /><//>
       </section>
     </div>
   <//>`;
@@ -453,7 +454,9 @@ function Marco() {
         conInventario=${!compacto} alAlternar=${alternarMenu} alCerrarEncima=${cerrarEncima} />
       <main class="contenido" key=${clave}>
         ${["vale", "entrada", "inicio"].includes(clave) ? null : html`<h1>${PAGINAS[clave].titulo}</h1>`}
-        <${Componente} key=${["vale", "entrada", "reporte"].includes(clave) ? rutaFondo : clave} />
+        <${SeccionSegura} nombre=${clave} inventario=${sesion.inventario} key=${["vale", "entrada", "reporte"].includes(clave) ? rutaFondo : clave}>
+          <${Componente} />
+        <//>
       </main>
     </div>
     ${seccion ? html`<${AjustesYMas} seccion=${seccion} alCerrar=${cerrarMas} />` : null}

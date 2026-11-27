@@ -26,6 +26,17 @@ export function escaparAtributo(texto) {
     .replace(/\t/g, "&#9;");
 }
 
+/** Excel no admite más de 32 767 caracteres en una celda: con más, repara el libro al abrirlo (Ronda 37). */
+export const MAXIMO_CELDA = 32767;
+
+/** El texto de una celda cortado a lo que admite Excel (sin partir un emoji ni otro par sustituto). */
+export function cortarCelda(texto) {
+  const t = String(texto);
+  if (t.length <= MAXIMO_CELDA) return t;
+  const ultimo = t.charCodeAt(MAXIMO_CELDA - 1);
+  return t.slice(0, ultimo >= 0xd800 && ultimo <= 0xdbff ? MAXIMO_CELDA - 1 : MAXIMO_CELDA);
+}
+
 /** Excel codifica caracteres de control como _xHHHH_. */
 export function desescaparX(texto) {
   if (!texto || texto.indexOf("_x") < 0) return texto;

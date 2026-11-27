@@ -313,6 +313,7 @@ function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, edit
         ${e.noInventariado && !nuevo ? html`<${Pastilla}>No inventariado<//>` : null}
         ${nuevo ? html`<${Pastilla} tono="alerta">Código nuevo<//>` : null}
         ${e.sinClave ? html`<${Pastilla} tono="alerta">Falta la clave<//>` : null}
+        ${existencia?.activo === false ? html`<${Pastilla} tono="alerta">Ya no está en el inventario<//>` : null}
         ${existencia && existencia.dueno === DUENO_FX ? html`<${Pastilla} tono="fx">FX<//>` : null}
       </div>
       ${extra ? html`<div class="partida-lote">${extra}</div>` : null}

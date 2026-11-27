@@ -5,7 +5,7 @@
 // solo vales y la CANTIDAD nunca queda negativa. Si la variante no está en el contenedor de
 // destino, se crea su renglón al final de esa hoja. Queda en el historial y en la bitácora.
 
-import { dec, decTexto } from "../nucleo/decimal.js";
+import { TEXTO_CANTIDAD_NO_NUMERO, cantidadEscrita, dec, decTexto } from "../nucleo/decimal.js";
 import { Indices, auditar, siguienteId } from "../nucleo/estado.js";
 import { calcularSaldos } from "../nucleo/existencias.js";
 import { ahoraIso, fmtFecha, hoyIso } from "../nucleo/fechas.js";
@@ -29,7 +29,8 @@ export function reacomodar(estado, { desdeId, ubicacionId, cantidad, motivo = ""
   const destino = indices.ubicacion(ubicacionId);
   if (!destino) throw new ErrorReacomodo("Elige el contenedor de destino.");
   if (destino.id === desde.ubicacion_id) throw new ErrorReacomodo("El material ya está en ese contenedor: elige otro.");
-  const n = dec(cantidad);
+  const n = cantidadEscrita(cantidad);
+  if (n === null && String(cantidad ?? "").trim()) throw new ErrorReacomodo(`Cantidad a mover: ${TEXTO_CANTIDAD_NO_NUMERO}.`);
   if (n === null || n.lte(0)) throw new ErrorReacomodo("La cantidad a mover debe ser mayor que 0.");
   const saldos = calcularSaldos(estado);
   const total = saldos.get(desde.id).total;

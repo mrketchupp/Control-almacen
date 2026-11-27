@@ -20,6 +20,15 @@ export function isoDesdePartes(anio, mes, dia) {
   return `${String(anio).padStart(4, "0")}-${dos(mes)}-${dos(dia)}`;
 }
 
+/**
+ * 'AAAA-MM-DD' que existe en el calendario, desde 1900 (Ronda 37: «2026-02-30», «2026-13-45» o «0000-00-00» pasaban
+ * por tener la forma y Excel los volvía otra fecha).
+ */
+export function esFechaIso(valor) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof valor === "string" ? valor.trim() : "");
+  return Boolean(m) && Number(m[1]) >= 1900 && isoDesdePartes(Number(m[1]), Number(m[2]), Number(m[3])) === m[0];
+}
+
 export function isoDesdeSerial(serial) {
   const d = new Date(BASE_EXCEL + Math.trunc(serial) * DIA_MS);
   return isoDesdePartes(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());

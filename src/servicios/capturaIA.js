@@ -4,7 +4,7 @@
 // le devuelve. Aquí se lee ese JSON y se llena el borrador; lo que no se reconoce se reporta para
 // revisarlo a mano. Nada se registra hasta que el usuario confirma como siempre.
 
-import { dec, decTexto } from "../nucleo/decimal.js";
+import { cantidadEscrita, decTexto } from "../nucleo/decimal.js";
 import { Indices } from "../nucleo/estado.js";
 import { claveEstricta, claveLaxa, codigoAx, fecha as fechaIso, nombrePersona, unidad } from "../nucleo/normalizar.js";
 import {
@@ -209,8 +209,12 @@ export function describirArreglos(arreglos) {
   return `La respuesta ${partes.join(" y ")}; se corrigió automáticamente.`;
 }
 
+// «5 pzas» → 5, «+3» → 3, «2,5» → 2.5, «1,000.5» → 1000.5. Lo que no es una cantidad («1e40», enorme) queda vacío
+// para capturarlo a mano (Ronda 37).
 const cantidadDe = (v) => {
-  const n = dec(typeof v === "string" ? v.replace(",", ".").replace(/[^\d.\-]/g, "") : v);
+  if (typeof v !== "string") return decTexto(cantidadEscrita(v)) ?? "";
+  const t = v.includes(".") ? v.replace(/,/g, "") : v.replace(",", ".");
+  const n = cantidadEscrita(/^\s*[+-]?(\d+\.?\d*|\.\d+)(?![eE][+-]?\d)/.exec(t)?.[0] ?? "");
   return n === null ? "" : decTexto(n);
 };
 

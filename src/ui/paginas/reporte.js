@@ -190,7 +190,7 @@ export function PaginaReporte() {
                 )}
               </div>
               <p class="nota">Sube el libro de vales de este día y márcalo:</p>
-              <div class="acciones-linea"><${BotonSubido} pendientes=${reporte.porSubir.length} hastaFolio=${corte.salida} /></div>`
+              <div class="acciones-linea"><${BotonSubido} pendientes=${reporte.porSubir.length} hastaFolio=${corte.salida} hastaFecha=${corte.fecha} /></div>`
           : html`<p class="ok">✓ Todo lo de este día ya está subido.</p>`}
         ${posteriores > 0 ? html`<p class="nota">${posteriores} ${posteriores === 1 ? "vale posterior sigue" : "vales posteriores siguen"} pendiente(s); entran en el reporte de su día.</p>` : null}
       </section>
