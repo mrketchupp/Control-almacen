@@ -29,14 +29,17 @@ import {
 } from "../../servicios/entradas.js";
 import { variantesParecidas } from "../../servicios/inventario.js";
 import { etiquetasDeEntrada } from "../../servicios/etiquetas.js";
-import { PASOS_ENTRADA, faltaDeDondeViene, faltaParaAvanzarEntrada, nombrePasoEntrada, pasoDeEntrada } from "../../servicios/pasosEntrada.js";
+import { PASOS_ENTRADA, antesDeRegistrar, faltaDeDondeViene, faltaParaAvanzarEntrada, nombrePasoEntrada, pasoDeEntrada } from "../../servicios/pasosEntrada.js";
 import { siguienteFolio } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { irArriba } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
 import { hayAnimaciones } from "../tema.js";
-import { FOCO_DE_DONDE_VIENE, PasoDeDondeViene, ResumenDeDondeViene, VentanaCopilotEntrada } from "./deDondeViene.js";
+import { PasoAcomodo } from "./acomodo.js";
+import { FOCO_DE_DONDE_VIENE, PasoDeDondeViene, VentanaCopilotEntrada } from "./deDondeViene.js";
+import { PasoMaterialEntrada } from "./materialEntrada.js";
+import { PasoRegistrar } from "./registrarEntrada.js";
 import { BotonDescripcion } from "./descripcion.js";
 import { EtiquetasDeEntrada } from "./etiquetas.js";
 import { PasosVale, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
@@ -581,106 +584,19 @@ function ConfirmadaOk({ vale, alNueva }) {
   <//>`;
 }
 
-// Lo que requiere atención, para filtrar las partidas desde la barra.
-const ATENCION = {
-  pendientes: { etiqueta: "con datos pendientes", clase: "chip-error", texto: (n) => `⚠ ${n} ${n === 1 ? "pendiente" : "pendientes"}`, titulo: "Partidas a las que les falta algo para registrar" },
-  revisar: { etiqueta: "por revisar", clase: "chip-alerta", texto: (n) => `${n} por revisar`, titulo: "Partidas que Copilot no leyó con seguridad" },
-  nuevas: { etiqueta: "con clave nueva", clase: "chip-info", texto: (n) => `${n} con clave nueva`, titulo: "Partidas que darán de alta una variante nueva en el inventario" },
-};
-
-/** Partidas que requieren atención, por tipo (uids), y los pendientes del encabezado. */
-function requiereAtencion(estado, datos, validacion) {
-  const lineas = lineasEntradaCapturadas(datos.lineas);
-  const conError = new Set(validacion.errores.filter((e) => e.renglon).map((e) => lineas[e.renglon - 1]?.uid));
-  const nuevas = new Set(vistaPreviaEntrada(estado, datos).filter((p) => p.variante_nueva).map((p) => p.uid));
-  return {
-    pendientes: lineas.filter((l) => conError.has(l.uid)).map((l) => l.uid),
-    revisar: lineas.filter((l) => l.dudoso).map((l) => l.uid),
-    nuevas: lineas.filter((l) => nuevas.has(l.uid)).map((l) => l.uid),
-    encabezado: validacion.errores.filter((e) => !e.renglon),
-  };
-}
-
-/**
- * Barra fija del paso 2 (la de antes, hasta que llegue el paso 2 nuevo en la etapa 3 de la Ronda 39): estado del
- * borrador y las acciones. Los chips de lo que requiere atención filtran las partidas; lo que falta del encabezado
- * lleva al paso 1 (`alIrEncabezado(campo)`).
- */
-function BarraEntrada({ folio, datos, validacion, atencion, filtro, alFiltrar, verErrores, setVerErrores, alRegistrar, alCopilot, alIrEncabezado }) {
-  const lineas = lineasEntradaCapturadas(datos.lineas);
-  const faltan = validacion.errores.length;
-  const chips = Object.entries(ATENCION).filter(([tipo]) => atencion[tipo].length || filtro === tipo);
-  return html`<div class="barra-entrada" role="region" aria-label="Acciones de la entrada">
-    <div class="barra-entrada-fila">
-      <div class="barra-entrada-estado">
-        <span class="folio-grande" title="Folio interno con el que se registrará">${folio}</span>
-        <span class="chip-estado">${lineas.length} ${lineas.length === 1 ? "partida" : "partidas"}</span>
-        ${chips.map(
-          ([tipo, a]) => html`<button
-            type="button"
-            class=${`chip-estado chip-filtro ${a.clase} ${filtro === tipo ? "activo" : ""}`}
-            aria-pressed=${filtro === tipo}
-            title=${`${a.titulo}. Pulsa para ver solo esas.`}
-            onClick=${() => alFiltrar(tipo)}
-          >
-            ${a.texto(atencion[tipo].length)}${filtro === tipo ? " ✕" : ""}
-          </button>`,
-        )}
-        ${atencion.encabezado.length
-          ? html`<button type="button" class=${`chip-estado chip-error ${verErrores ? "activo" : ""}`} onClick=${() => setVerErrores(!verErrores)} aria-expanded=${verErrores}>
-              ⚠ Faltan datos del vale ▾
-            </button>`
-          : null}
-        ${!faltan && lineas.length ? html`<span class="chip-estado chip-ok">✓ lista para registrar</span>` : null}
-      </div>
-      <div class="barra-entrada-acciones">
-        <${Boton} tipo="texto" onClick=${alCopilot} title="Leer el vale desde una foto o PDF con Copilot"><${Icono} nombre="chispa" tam=${16} /> Pegar otra respuesta<//>
-        <${Boton} tipo="primario" disabled=${!lineas.length} onClick=${alRegistrar}>Registrar entrada<//>
-      </div>
-    </div>
-    ${verErrores && atencion.encabezado.length
-      ? html`<ul class="barra-errores">
-          ${atencion.encabezado.map(
-            (e) => html`<li>
-              <button type="button" class="enlace-boton" onClick=${() => alIrEncabezado(e.campo)}>${e.mensaje}</button>
-            </li>`,
-          )}
-        </ul>`
-      : null}
-  </div>`;
-}
-
-/** Lo que Copilot dejó en el borrador, partida por partida, arriba de las partidas del paso 2. */
-function lineasDeCopilot({ reporte, arreglo }) {
-  return [
-    ...(arreglo ? [`ℹ ${arreglo}`] : []),
-    `✓ ${reporte.partidas} ${reporte.partidas === 1 ? "partida cargada" : "partidas cargadas"}: ${reporte.conRenglon} a su partida del inventario${reporte.nuevas ? `, ${reporte.nuevas} con clave nueva (revisa su contenedor en "Entra a")` : ""}.`,
-    ...(reporte.sinCodigo.length ? [`⚠ Sin código legible: partida(s) ${reporte.sinCodigo.join(", ")}. Escríbelo a mano.`] : []),
-    ...(reporte.sinClave.length ? [`⚠ Sin clave legible: partida(s) ${reporte.sinClave.join(", ")}. Elígela de la lista.`] : []),
-    ...(reporte.dudosas.length ? [`⚠ Copilot marcó como dudosas las partidas ${reporte.dudosas.join(", ")} (en amarillo).`] : []),
-  ];
-}
-
 /**
  * Ronda 39 (docs/14 §3): la entrada en 4 pasos — De dónde viene → Material → Acomodo → Revisar y registrar —, como el
- * vale de salida. El paso se guarda con el borrador; regresar nunca borra nada. Mientras llegan los pasos nuevos
- * (etapas 3 a 5), el paso 2 es el editor de partidas de antes, con su botón *Registrar entrada*.
+ * vale de salida. El paso se guarda con el borrador; regresar nunca borra nada. Enter avanza (y en el 4 registra).
  */
 export function PaginaValesEntrada() {
   const sesion = useSesion();
   const estado = sesion.estado;
   const [activo, setActivo] = useState(() => sesion.tomarPestana("borradores_entrada") ?? estado.borradores_entrada[0]?.id ?? null);
   const [datos, setDatos] = useState(null);
-  const [intentado, setIntentado] = useState(false);
-  const [verErrores, setVerErrores] = useState(false);
   const [confirmada, setConfirmada] = useState(null);
   const [ventanaIA, setVentanaIA] = useState(false);
   const [cerrandoIA, setCerrandoIA] = useState(false);
-  const [reporteIA, setReporteIA] = useState(null);
-  // Filtro de lo que requiere atención: { tipo, uids } (las partidas que había al activarlo).
-  const [filtro, setFiltro] = useState(null);
-  const [recientes, setRecientes] = useState(null);
-  // §11: lo que falta del paso 1 se marca al pulsar «Continuar» (o al traer de Copilot un vale sin esos datos).
+  // §11: lo que falta se marca al pulsar «Continuar» (o al traer de Copilot un vale sin esos datos).
   const [marcar, setMarcar] = useState(false);
   useEffect(() => {
     const abrir = () => {
@@ -709,10 +625,6 @@ export function PaginaValesEntrada() {
   useEffect(() => {
     const b = borradorEntrada(estado, activo);
     setDatos(b ? structuredClone(b) : null);
-    setIntentado(false);
-    setVerErrores(false);
-    setReporteIA(null);
-    setFiltro(null);
     setMarcar(false);
   }, [activo]);
 
@@ -741,22 +653,10 @@ export function PaginaValesEntrada() {
     () => (datos ? validarEntrada(estado, { ...datos, recibio_nombre: sesion.usuario || datos.recibio_nombre }) : { errores: [], avisos: [] }),
     [estado, datos, sesion.usuario],
   );
-  const atencion = useMemo(
-    () => (datos ? requiereAtencion(estado, datos, validacion) : { pendientes: [], revisar: [], nuevas: [], encabezado: [] }),
-    [estado, datos, validacion],
-  );
-  const filtrar = (tipo) => setFiltro(filtro?.tipo === tipo ? null : { tipo, uids: new Set(atencion[tipo]) });
-  const filtroEditor = filtro
-    ? {
-        etiqueta: ATENCION[filtro.tipo].etiqueta,
-        uids: filtro.uids,
-        resueltas: new Set([...filtro.uids].filter((uid) => !atencion[filtro.tipo].includes(uid))),
-        alQuitar: () => setFiltro(null),
-      }
-    : null;
 
   const paso = datos ? pasoDeEntrada(datos) : 1;
   const faltan = datos ? faltaParaAvanzarEntrada(estado, datos, paso, { usuario: sesion.usuario }) : [];
+  const revision = useMemo(() => (datos && paso === 4 ? antesDeRegistrar(estado, datos, { usuario: sesion.usuario }) : null), [estado, datos, paso, sesion.usuario]);
   const irA = (n, foco = null) => {
     enfocarPaso.current = foco ?? true;
     setMarcar(false);
@@ -768,21 +668,22 @@ export function PaginaValesEntrada() {
     setMarcar(true);
     cambiar({ ...valor, paso: 1 });
   };
-  // «Continuar» no se deshabilita (§11): si falta algo, lo marca y lleva al primero.
+  // «Continuar» del paso 1 y del 2 no se deshabilita (§11): si falta algo, lo dice y lleva al primero.
   const continuar = () => {
     if (!faltan.length) {
       irA(paso + 1);
       return;
     }
     setMarcar(true);
-    const foco = FOCO_DE_DONDE_VIENE[faltan[0].campo];
-    if (foco) document.querySelector(foco)?.focus();
+    if (paso === 1) document.querySelector(FOCO_DE_DONDE_VIENE[faltan[0].campo])?.focus();
+    else if (paso === 2) document.getElementById("buscar-material")?.focus();
   };
-  const listaAbierta = useRef(false);
-  const teclaPaso = (e) => {
-    if (paso !== 1 || !enterParaAvanzar(e, { abiertaAlPresionar: listaAbierta.current })) return;
-    e.preventDefault();
-    continuar();
+  // Lo que impide registrar lleva a su paso y a su partida o campo (§7).
+  const irAPendiente = (p) => {
+    if (p.paso === 1) return alPaso1(p.campo);
+    if (p.paso === 3) return irA(3);
+    const foco = p.uid ? (p.campo === "cantidad" ? `#cant-${p.uid}` : `[data-partida="${p.uid}"] .boton-editar`) : null;
+    irA(2, foco);
   };
 
   const nueva = () =>
@@ -818,17 +719,10 @@ export function PaginaValesEntrada() {
   const registrar = () =>
     sesion.tarea("Registrando entrada…", async () => {
       const listo = { ...datos, recibio_nombre: sesion.usuario || datos.recibio_nombre };
-      const { errores: faltanAlRegistrar } = validarEntrada(sesion.estado, listo);
-      setIntentado(true);
-      if (faltanAlRegistrar.length) {
-        const encabezado = faltaDeDondeViene(sesion.estado, datos, { usuario: sesion.usuario });
-        if (encabezado.length) {
-          alPaso1(encabezado[0].campo);
-          return;
-        }
-        // Se muestran solo las partidas con pendientes.
-        if (atencion.pendientes.length) setFiltro({ tipo: "pendientes", uids: new Set(atencion.pendientes) });
-        irArriba({ suave: hayAnimaciones() });
+      const { errores } = validarEntrada(sesion.estado, listo);
+      if (errores.length) {
+        const r = antesDeRegistrar(sesion.estado, datos, { usuario: sesion.usuario });
+        if (r.bloquean[0]) irAPendiente(r.bloquean[0]);
         return;
       }
       const folio = folioEntrada(siguienteFolio(sesion.estado, "ENTRADA"));
@@ -848,23 +742,27 @@ export function PaginaValesEntrada() {
       } catch (error) {
         if (!(error instanceof ErrorEntrada)) throw error;
         sesion.avisar("error", error.message);
-        setVerErrores(true);
       }
     });
+  // Enter avanza; en el paso 4 registra (siempre con la confirmación del folio, como el clic).
+  const listaAbierta = useRef(false);
+  const teclaPaso = (e) => {
+    if (!enterParaAvanzar(e, { abiertaAlPresionar: listaAbierta.current })) return;
+    e.preventDefault();
+    if (paso === 4) {
+      if (revision && !revision.bloquean.length) registrar();
+    } else if (paso === 3) {
+      if (!faltan.length) irA(4);
+    } else continuar();
+  };
   // «Ver las partidas →» de *Llenar con Copilot* (§4.1): lo leído entra al borrador (las partidas, después de las que
   // ya había). Desde el paso 1 lleva al 2 si ya está lo que pide el 1; si no, se queda en el 1 con lo que falta marcado.
   const aplicarCopilot = (leido) => {
     const nuevo = { ...leido.datos, modo: "asistida" };
-    const previas = new Set(datos.lineas.map((l) => l.uid));
-    const cargadas = new Set(lineasEntradaCapturadas(nuevo.lineas).filter((l) => !previas.has(l.uid)).map((l) => l.uid));
     const falta = faltaDeDondeViene(sesion.estado, nuevo, { usuario: sesion.usuario });
     const terminar = () => {
       setVentanaIA(false);
       setCerrandoIA(false);
-      setFiltro(null);
-      setReporteIA(lineasDeCopilot(leido));
-      setRecientes(cargadas);
-      setTimeout(() => setRecientes(null), 2600);
       if (paso !== 1) cambiar(nuevo);
       else if (falta.length) alPaso1(falta[0].campo, nuevo);
       else {
@@ -903,6 +801,9 @@ export function PaginaValesEntrada() {
 
   let contenido = null;
   if (!confirmada && datos) {
+    const boton = (etiqueta, deshabilitado = false) => html`<${Boton} tipo="primario" tamano="grande" disabled=${deshabilitado} onClick=${continuar}>
+      ${etiqueta} <span class="tecla-boton" aria-hidden="true">Enter</span>
+    <//>`;
     let cuerpo;
     if (paso === 1) {
       cuerpo = html`<${PasoDeDondeViene}
@@ -912,51 +813,32 @@ export function PaginaValesEntrada() {
         marcar=${marcar}
         avisos=${validacion.avisos}
         alCopilot=${() => setVentanaIA(true)}
-        pie=${html`<${Boton} tipo="primario" tamano="grande" onClick=${continuar}>
-          Continuar a material → <span class="tecla-boton" aria-hidden="true">Enter</span>
+        pie=${boton("Continuar a material →")}
+      />`;
+    } else if (paso === 2) {
+      cuerpo = html`<${PasoMaterialEntrada}
+        datos=${datos}
+        alCambiar=${cambiar}
+        alEditarOrigen=${() => irA(1)}
+        alCopilot=${() => setVentanaIA(true)}
+        alRegresar=${html`<${Boton} tamano="grande" onClick=${() => irA(1)}>← De dónde viene<//>`}
+        avanzar=${boton("Continuar a acomodo →")}
+        falta=${marcar && faltan.length ? faltan[0].mensaje : null}
+      />`;
+    } else if (paso === 3) {
+      cuerpo = html`<${PasoAcomodo}
+        datos=${datos}
+        alCambiar=${cambiar}
+        alRegresar=${html`<${Boton} tamano="grande" onClick=${() => irA(2)}>← Material<//>`}
+        avanzar=${html`<${Boton} tipo="primario" tamano="grande" disabled=${faltan.length > 0} onClick=${() => irA(4)}>
+          Revisar y registrar → <span class="tecla-boton" aria-hidden="true">Enter</span>
         <//>`}
       />`;
     } else {
-      cuerpo = html`<div class="paso-material-anterior">
-        <${ResumenDeDondeViene} datos=${datos} alEditar=${() => irA(1)} />
-        <${BarraEntrada}
-          folio=${folio}
-          datos=${datos}
-          validacion=${validacion}
-          atencion=${atencion}
-          filtro=${filtro?.tipo ?? null}
-          alFiltrar=${filtrar}
-          verErrores=${verErrores}
-          setVerErrores=${setVerErrores}
-          alRegistrar=${registrar}
-          alCopilot=${() => setVentanaIA(true)}
-          alIrEncabezado=${(campo) => alPaso1(campo)}
-        />
-        ${reporteIA
-          ? html`<div class="reporte-ia-banner" role="status">
-              <ul class="reporte-ia">
-                ${reporteIA.map((r) => html`<li class=${r.startsWith("⚠") ? "alerta" : r.startsWith("ℹ") ? "nota" : ""}>${r}</li>`)}
-              </ul>
-              <button type="button" class="ventana-cerrar" title="Cerrar" aria-label="Cerrar el resumen" onClick=${() => setReporteIA(null)}>✕</button>
-            </div>`
-          : null}
-        <${EditorEntrada}
-          key=${datos.id}
-          datos=${datos}
-          alCambiar=${cambiar}
-          sinEncabezado=${true}
-          errores=${intentado || filtro?.tipo === "pendientes" ? validacion.errores : []}
-          avisos=${validacion.avisos}
-          filtro=${filtroEditor}
-          recientes=${recientes}
-        />
-        <div class="pie-paso">
-          <${Boton} tamano="grande" onClick=${() => irA(1)}>← De dónde viene<//>
-        </div>
-      </div>`;
+      cuerpo = html`<${PasoRegistrar} datos=${datos} folio=${folio} revision=${revision} alRegistrar=${registrar} alIrA=${(n) => irA(n)} alIr=${irAPendiente} />`;
     }
     contenido = html`
-      <p class="linea-borrador">Se registrará como <strong>${folio}</strong> · Se guarda solo</p>
+      <p class="linea-borrador">Se registrará como <strong>${folio}</strong>${paso < 4 ? " · Se guarda solo" : ""}</p>
       <${PasosVale} paso=${paso} lista=${PASOS_ENTRADA} etiqueta="Pasos de la entrada" />
       <div id="paso-entrada" ref=${contenedorPaso} class=${`paso-vale paso-entrada paso-entrada-${paso}`} tabindex="-1"
         aria-label=${`Paso ${paso} · ${nombrePasoEntrada(paso)}`}
@@ -976,9 +858,8 @@ export function PaginaValesEntrada() {
     ${!confirmada && !datos && !borradores.length
       ? html`<${Tarjeta} clase="tarjeta-inicio-vales">
           <p>
-            Registra el material que llega de la base o de otro equipo, a mano o desde la foto del vale con Copilot. Cada partida
-            entra a una partida del inventario: si el material ya está en un contenedor, se sugiere ese, y ves cuánto había y cuánto
-            queda antes de registrar.
+            Registra el material que llega de la base o de otro equipo, a mano o desde la foto del vale con Copilot: de
+            dónde viene, qué material es, en qué contenedor se guarda y listo.
           </p>
           <${Boton} tipo="primario" tamano="grande" onClick=${nueva}>＋ Nueva entrada · ${folio}<//>
         <//>`

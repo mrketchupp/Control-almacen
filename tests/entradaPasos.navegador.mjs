@@ -1,7 +1,9 @@
-// Ronda 39, etapa 2 en Chromium: el vale de entrada en 4 pasos — paso 1 *De dónde viene* y *Llenar con Copilot*
-// (docs/14 §3, §4, §11). Lo que falta se marca al pulsar «Continuar» (o Enter), el paso se guarda con el borrador,
-// regresar no borra nada y lo que lee Copilot solo se usa con «Ver las partidas →». Con CAPTURAS=<carpeta> guarda las
-// capturas a 1440, 1024, 768 y 640 px; en cada una, la cabecera y el menú se ven completos (§1).
+// Ronda 39 en Chromium: el vale de entrada en 4 pasos (docs/14 §3–§7, §11). Paso 1 *De dónde viene* y *Llenar con
+// Copilot*: lo que falta se marca al pulsar «Continuar» (o Enter), el paso se guarda con el borrador, regresar no borra
+// nada y lo que lee Copilot solo se usa con «Ver las partidas →». Paso 2 *Material*: filtros, tipo, buscador y editar
+// una partida. Paso 3 *Acomodo*: contenedor por contenedor (★ lo que vive en uno solo). Paso 4: dónde quedó cada partida
+// y *Registrar*. Con CAPTURAS=<carpeta> guarda las capturas a 1440, 1024, 768 y 640 px (CAPTURAS_FILTRO=<expresión>
+// para solo algunas); en cada una, la cabecera y el menú se ven completos (§1).
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createServer } from "node:http";
@@ -31,7 +33,7 @@ const RESPUESTA = {
 // Como la copia Copilot: en un bloque de código y, esta vez, cortada al final (se cierra sola y se avisa).
 const PEGADO = "Aquí está:\n```json\n" + JSON.stringify(RESPUESTA, null, 2).replace(/\n\}$/, "") + "\n```";
 
-test("vale de entrada en 4 pasos · paso 1", async (t) => {
+test("vale de entrada en 4 pasos", async (t) => {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
   const html = await readFile(new URL("../dist/ControlAlmacen.html", import.meta.url));
   const carpeta = await mkdtemp(join(tmpdir(), "entrada-pasos-"));
@@ -119,7 +121,9 @@ test("vale de entrada en 4 pasos · paso 1", async (t) => {
     if (document.documentElement.scrollWidth > vista.ancho + 1) problemas.push("la página se sale a lo ancho");
     return problemas.length ? `${donde}: ${problemas.join("; ")}` : null;
   }, donde);
+  const filtroCapturas = process.env.CAPTURAS_FILTRO ? new RegExp(process.env.CAPTURAS_FILTRO) : null;
   const capturar = async (nombre) => {
+    if (filtroCapturas && !filtroCapturas.test(nombre)) return;
     for (const ancho of ANCHOS) {
       await page.setViewportSize({ width: ancho, height: 900 });
       await page.waitForTimeout(250);
@@ -222,12 +226,11 @@ test("vale de entrada en 4 pasos · paso 1", async (t) => {
     await ventana.waitFor({ state: "detached" });
     await page.waitForFunction(() => document.querySelector('ol[aria-label="Pasos de la entrada"] li[aria-current="step"]')?.textContent.includes("Material"));
     assert.equal(await page.locator(".resumen-de-donde strong").innerText(), "BASE NORTE · vale B-500");
-    assert.equal(await page.locator(".partida-entrada:not(.partida-vacia)").count(), 3);
-    assert.match(await page.locator(".reporte-ia-banner").innerText(), /3 partidas cargadas/);
+    assert.equal(await page.locator(".tarjeta-entrada").count(), 3);
+    assert.match(await page.locator(".copilot-estado").innerText(), /Copilot leyó 3 partidas/);
     const despues = await esperar((e) => e.borradores_entrada.find((b) => b.id === id)?.paso === 2, "Lo de Copilot no se guardó");
     const b = despues.borradores_entrada.find((x) => x.id === id);
     assert.deepEqual([b.folio_externo, b.origen, b.fecha, b.entrego_nombre, en(b.lineas)], ["B-500", "BASE NORTE", "2026-10-20", "CHOFER DOS", 3]);
-    await capturar("paso-2-anterior");
   });
 
   await t.test("Copilot sin datos del vale: se queda en el paso 1 con el folio marcado (§11); Ctrl + V en la ventana", async () => {
@@ -257,15 +260,125 @@ test("vale de entrada en 4 pasos · paso 1", async (t) => {
     assert.equal(await pasoActual(), "1 · De dónde viene");
   });
 
-  await t.test("registrar desde el paso 2 (el de antes): la entrada no guarda el paso", async () => {
+  const tarjeta = (texto) => page.locator(".tarjeta-entrada", { hasText: texto });
+  const chip = (nombre) => page.locator(".filtros-entrada .chip-filtro-entrada", { hasText: nombre });
+
+  await t.test("paso 2: filtros, «Está bien», tipo, buscador y editar una partida", async () => {
     await page.goto(`${origen}/#entradas`);
     await page.getByRole("tab", { name: /^Vale B-500/ }).click();
-    await page.getByRole("button", { name: "Registrar entrada", exact: true }).click();
+    await page.locator(".tarjeta-entrada").first().waitFor();
+    assert.equal(await pasoActual(), "2 · Material");
+    assert.deepEqual(await page.locator(".filtros-entrada .chip-filtro-entrada").allInnerTexts(), ["Todas · 3", "Por revisar · 1", "Sin O.C. · 2", "Sin solicitante · 1"]);
+    // Lo que Copilot no tenía claro: franja ámbar con lo que leyó.
+    const dudosa = tarjeta("FLEXITALIC");
+    assert.match(await dudosa.locator(".franja-revisar").innerText(), /Copilot leyó «704 6" NP FLEXITALIC» y no está seguro/);
+    // El tipo según su existencia; la variante nueva, Consumible de fábrica.
+    assert.equal(await tarjeta("6309-2Z/C3").getByRole("radio", { name: "Inventariable" }).getAttribute("aria-checked"), "true");
+    assert.match(await tarjeta("6309-2Z/C3").locator(".nota-tipo").innerText(), /según su existencia/);
+    assert.equal(await tarjeta("6311-2RS").getByRole("radio", { name: "Consumible" }).getAttribute("aria-checked"), "true");
+    await chip("Por revisar").click();
+    assert.equal(await page.locator(".tarjeta-entrada").count(), 1);
+    await capturar("paso-2-filtro");
+    await dudosa.getByRole("button", { name: "Está bien" }).click();
+    // Sin nada por revisar, el filtro vuelve a «Todas».
+    await page.waitForFunction(() => !document.querySelector(".franja-revisar") && document.querySelectorAll(".tarjeta-entrada").length === 3);
+    assert.equal(await chip("Todas").getAttribute("aria-pressed"), "true");
+    assert.equal(await chip("Por revisar").innerText(), "Por revisar · 0");
+    await tarjeta("6311-2RS").getByRole("radio", { name: "Inventariable" }).click();
+    // Buscador de dos campos: diésel (sin existencia) y una clave que vive en un solo contenedor.
+    await page.locator("#buscar-material").fill("136");
+    await page.locator("#buscar-material").press("Shift+Enter");
+    await page.waitForFunction(() => document.activeElement?.id?.startsWith("cant-"));
+    await page.keyboard.type("300");
+    assert.match(await tarjeta("DIESEL").innerText(), /Sin existencia · no suma/);
+    await page.locator("#buscar-material").fill("701");
+    await page.locator("#buscar-material-dimension").fill("6205");
+    await page.getByRole("button", { name: /^Agregar 701 6205-2Z/ }).click();
+    await tarjeta("6205-2Z").locator("input[id^=cant-]").fill("1");
+    await tarjeta("6205-2Z").locator("input[id^=lote-]").fill("J. PEREZ");
+    await page.locator("#buscar-material").fill("");
+    await capturar("paso-2");
+    // Editar: la variante nueva con otro NP.
+    await tarjeta("6311-2RS").getByRole("button", { name: /^Editar la partida/ }).click();
+    const panel = page.getByRole("region", { name: /^Editando la partida 3/ });
+    await panel.waitFor();
+    await page.waitForFunction(() => document.activeElement?.id === "editar-dimension");
+    assert.equal(await page.locator(".tarjeta-entrada.editando").count(), 1);
+    assert.deepEqual(await panel.locator(".claves-lista li .clave-texto").allInnerTexts(), ["6309-2Z/C3", "6309-2Z/C3", "6205-2Z", "Se queda como 6311-2RS"]);
+    await panel.getByLabel("NP", { exact: true }).fill("SKF");
+    await capturar("paso-2-editar");
+    await panel.getByRole("button", { name: "Listo" }).click();
+    await panel.waitFor({ state: "detached" });
+    await page.waitForFunction(() => [...document.querySelectorAll(".tarjeta-entrada .clave-entrada")].some((e) => /6311-2RS · NP SKF/.test(e.textContent)));
+    // Cancelar · Esc deja la partida como estaba.
+    await tarjeta("6309-2Z/C3").getByRole("button", { name: /^Editar la partida/ }).click();
+    await page.waitForFunction(() => document.activeElement?.id === "editar-dimension");
+    await page.getByLabel("Dimensión", { exact: true }).fill("OTRA");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.querySelector(".panel-editar-entrada"));
+    assert.equal(await page.locator(".tarjeta-entrada", { hasText: "OTRA" }).count(), 0);
+    const b = await esperar((e) => (e.borradores_entrada.find((x) => x.folio_externo === "B-500")?.lineas ?? []).some((l) => l.np === "SKF"), "No se guardaron las partidas");
+    assert.equal(en(b.borradores_entrada.find((x) => x.folio_externo === "B-500").lineas), 5);
+    const lineas = b.borradores_entrada.find((x) => x.folio_externo === "B-500").lineas;
+    const nueva = lineas.find((l) => l.dimension === "6311-2RS");
+    assert.deepEqual([nueva.np, nueva.clase, nueva.alta], ["SKF", "INV", true]);
+    await page.getByRole("button", { name: /^Continuar a acomodo/ }).click();
+    await page.waitForFunction(() => document.querySelector('ol[aria-label="Pasos de la entrada"] li[aria-current="step"]')?.textContent.includes("Acomodo"));
+  });
+
+  await t.test("paso 3: lo que vive en un solo contenedor llega acomodado (★); lo demás, contenedor por contenedor", async () => {
+    const faltan = () => page.locator(".acomodo-izq > .lista-acomodo .fila-acomodo, .acomodo-izq > ul.lista-acomodo .fila-acomodo");
+    assert.match(await page.locator(".acomodo-titulo").innerText(), /^Faltan por acomodar · 2/);
+    assert.equal(await page.getByRole("button", { name: /^Revisar y registrar/ }).isDisabled(), true);
+    assert.match(await page.locator(".avance-acomodo").innerText(), /2 de 4 acomodadas/);
+    assert.match(await page.locator(".faltan-acomodo").innerText(), /BALEROS 6309-2Z\/C3 · BALEROS 6311-2RS/);
+    assert.match(await page.locator(".pastillas-sin").innerText(), /300 LTS/);
+    assert.match(await faltan().filter({ hasText: "6309-2Z/C3" }).innerText(), /Con existencia en #1 y #2/);
+    await capturar("paso-3");
+    // 2 = el segundo contenedor.
+    await page.locator(".paso-acomodo").click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press("2");
+    assert.equal(await page.getByRole("tab", { name: /Contenedor #2/ }).getAttribute("aria-selected"), "true");
+    assert.match(await page.locator(".acomodo-titulo").innerText(), /¿Qué guardas en el contenedor #2\?/);
+    await page.getByRole("checkbox", { name: /^6309-2Z\/C3/ }).check();
+    await page.getByRole("checkbox", { name: /^6311-2RS NP SKF/ }).check();
+    assert.match(await page.locator(".avance-acomodo").innerText(), /4 de 4 acomodadas/);
+    assert.match(await page.locator(".todo-acomodado").innerText(), /Todo acomodado/);
+    assert.match(await page.locator(".grupo-ya").innerText(), /Ya en el #2 · 2/);
+    assert.match(await page.locator(".grupo-ya .fila-acomodo", { hasText: "6309-2Z/C3" }).innerText(), /★ ya tiene existencia aquí/);
+    assert.match(await page.locator(".grupo-ya .fila-acomodo", { hasText: "6311-2RS" }).innerText(), /Partida nueva en esta hoja/);
+    await capturar("paso-3-contenedor");
+    // Desmarcar la regresa a «Faltan».
+    await page.getByRole("checkbox", { name: /^6311-2RS NP SKF/ }).uncheck();
+    assert.match(await page.locator(".avance-acomodo").innerText(), /3 de 4 acomodadas/);
+    await page.getByRole("checkbox", { name: /^6311-2RS NP SKF/ }).check();
+    await page.getByRole("button", { name: /^Revisar y registrar/ }).click();
+    await page.waitForFunction(() => document.querySelector('ol[aria-label="Pasos de la entrada"] li[aria-current="step"]')?.textContent.includes("Revisar"));
+  });
+
+  await t.test("paso 4: dónde quedó cada partida y registrar", async () => {
+    assert.deepEqual(await page.locator(".donde-quedo .chip-filtro-entrada").allInnerTexts(), ["Todos · 5", "#1 · 2", "#2 · 2", "Sin existencia · 1"]);
+    assert.match(await page.locator(".fila-donde", { hasText: "6311-2RS" }).innerText(), /nueva → 2/);
+    assert.match(await page.locator(".lista-antes").innerText(), /5 partidas con cantidad/);
+    assert.match(await page.locator(".lista-antes").innerText(), /Todas acomodadas/);
+    assert.match(await page.locator(".lista-antes").innerText(), /Lo que Copilot no tenía claro ya se revisó/);
+    assert.match(await page.locator(".lista-antes").innerText(), /sin O\.C\. · se registran como S\/OC/);
+    await capturar("paso-4");
+    await page.locator(".donde-quedo .chip-filtro-entrada", { hasText: "#2" }).click();
+    assert.equal(await page.locator(".fila-donde").count(), 2);
+    await page.getByRole("button", { name: /^Registrar entrada · E-0005/ }).click();
     await page.getByText("✓ Entrada E-0005 registrada").waitFor();
     const e = await esperar((x) => x.vales.some((v) => v.tipo === "ENTRADA" && v.folio_externo === "B-500"), "No se registró la entrada");
     const vale = e.vales.find((v) => v.tipo === "ENTRADA" && v.folio_externo === "B-500");
     assert.equal("paso" in vale, false);
-    assert.deepEqual([vale.folio, vale.origen, vale.lineas.length], [5, "BASE NORTE", 3]);
+    assert.deepEqual([vale.folio, vale.origen, vale.lineas.length], [5, "BASE NORTE", 5]);
+    const ubicacion = (l) => e.ubicaciones.find((u) => u.id === e.existencias.find((x) => x.id === l.existencia_id)?.ubicacion_id);
+    const de = (clave) => vale.lineas.find((l) => l.clave === clave);
+    assert.equal(ubicacion(de("6309-2Z/C3")).hoja_excel, "CONTENEDOR #2 INVENTARIABLE");
+    assert.equal(ubicacion(de("6311-2RS")).hoja_excel, "CONTENEDOR #2 INVENTARIABLE");
+    assert.equal(ubicacion(de("6205-2Z")).hoja_excel, "CONTENEDOR #1 INVENTARIABLE");
+    assert.equal(e.variantes.find((v) => v.id === de("6311-2RS").variante_id).np, "SKF");
+    assert.equal(vale.lineas.find((l) => l.codigo === 136).no_inventariado, true);
     assert.equal(e.borradores_entrada.length, 2);
   });
 

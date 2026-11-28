@@ -137,7 +137,7 @@ const claveNormal = (k) =>
     .replace(/^_+|_+$/g, "");
 
 /** El objeto con sus nombres llevados a los pedidos (folio, partidas, codigo…). Conserva si venía cortado. */
-function conNombres(objeto, tipo) {
+export function conNombres(objeto, tipo) {
   if (!objeto || typeof objeto !== "object" || Array.isArray(objeto)) return objeto;
   const sinonimos = SINONIMOS[tipo];
   const salida = {};

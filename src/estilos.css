@@ -11677,3 +11677,1277 @@ kbd.tecla {
     flex: 1 1 100%;
   }
 }
+
+/* ---------- paso 2 · Material de la entrada (§5): 40 % agregar · 60 % lista */
+
+.paso-material-entrada {
+  --reserva-abajo: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 20px;
+  height: var(--alto-material, auto);
+  min-height: 460px;
+}
+
+.material-entrada-izq {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panel-agregar,
+.panel-editar-entrada {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.panel-agregar h2 {
+  margin: 0;
+  font-size: 1.06rem;
+}
+
+.panel-agregar .material-buscar {
+  flex: 1;
+}
+
+.panel-agregar .campo.buscador-grande input {
+  min-height: 50px;
+  font-size: 1.1rem;
+}
+
+.copilot-estado {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--borde));
+  border-radius: 10px;
+  background: var(--ok-suave);
+  font-size: 0.9rem;
+}
+
+.copilot-estado strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ok);
+}
+
+.boton-copilot-chico {
+  align-self: flex-start;
+}
+
+.lista-entrada {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.lista-entrada-cabeza {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.lista-entrada-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.lista-entrada-titulo h2 {
+  margin: 0;
+  font-size: 1.06rem;
+}
+
+.lista-entrada-titulo .nota {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.filtros-entrada {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-filtro-entrada {
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip-filtro-entrada.con-pendiente {
+  border-color: color-mix(in srgb, var(--alerta) 45%, var(--borde));
+  color: var(--alerta);
+}
+
+.chip-filtro-entrada.activo {
+  border: 2px solid var(--primario);
+  padding: 3px 13px;
+  background: var(--primario-suave);
+  color: var(--primario);
+}
+
+.chip-filtro-entrada:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* La lista sobre gris y una tarjeta blanca por partida (§5), con su propio scroll. */
+.lista-entrada-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--neutro-suave);
+}
+
+.lista-tarjetas-entrada {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-entrada-cuerpo .lista-vacia {
+  margin: 0;
+  padding: 24px 8px;
+  color: var(--texto-suave);
+  text-align: center;
+}
+
+.tarjeta-entrada {
+  position: relative;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1), 0 2px 6px rgba(16, 24, 40, 0.06);
+  scroll-margin: 12px;
+}
+
+.tarjeta-entrada.por-revisar {
+  border: 2px solid color-mix(in srgb, var(--alerta) 55%, var(--borde));
+}
+
+/* Azul = estás editando (§2.1). */
+.tarjeta-entrada.editando {
+  border: 3px solid var(--primario);
+  box-shadow: 0 0 0 3px var(--primario-suave);
+}
+
+.etiqueta-editando {
+  position: absolute;
+  top: -12px;
+  left: 14px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--primario);
+  color: var(--sobre-primario);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tarjeta-entrada.recien {
+  animation: resaltar-recien 1.6s ease-out;
+}
+
+@keyframes resaltar-recien {
+  from {
+    box-shadow: 0 0 0 4px var(--primario-suave);
+  }
+}
+
+.franja-revisar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--alerta) 35%, var(--borde));
+  border-radius: 10px 10px 0 0;
+  background: var(--alerta-suave);
+  color: var(--texto);
+  font-size: 0.875rem;
+}
+
+.franja-revisar .icono {
+  flex: none;
+  color: var(--alerta);
+}
+
+.franja-revisar > span {
+  flex: 1 1 200px;
+}
+
+.franja-revisar strong {
+  color: var(--alerta);
+}
+
+/* Cantidad · qué es · Editar ×, y el tipo debajo de lo que es; con la lista ancha, todo en una línea. */
+.tarjeta-entrada-uno {
+  display: grid;
+  grid-template-columns: 22px 92px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "n cantidad que acciones"
+    "n cantidad tipo tipo";
+  align-items: center;
+  gap: 8px 14px;
+  padding: 12px 14px 8px;
+}
+
+.tarjeta-entrada-uno .n-entrada {
+  grid-area: n;
+}
+
+.tarjeta-entrada-uno .cantidad-entrada {
+  grid-area: cantidad;
+}
+
+.tarjeta-entrada-uno .que-entrada {
+  grid-area: que;
+}
+
+.tarjeta-entrada-uno .tipo-entrada,
+.tarjeta-entrada-uno .tipo-vacio {
+  grid-area: tipo;
+}
+
+.tarjeta-entrada-uno .acciones-entrada {
+  grid-area: acciones;
+}
+
+.lista-entrada {
+  container: lista-entrada / inline-size;
+}
+
+@container lista-entrada (min-width: 860px) {
+  .tarjeta-entrada-uno {
+    grid-template-columns: 22px 92px minmax(0, 1fr) auto auto;
+    grid-template-areas: "n cantidad que tipo acciones";
+  }
+}
+
+.n-entrada {
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.cantidad-entrada {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.cantidad-entrada input {
+  width: 100%;
+  min-height: 44px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.um-entrada {
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.que-entrada {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.clave-entrada {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-entrada {
+  color: var(--texto-suave);
+  font-weight: 500;
+}
+
+.codigo-entrada {
+  overflow: hidden;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pastillas-entrada {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.pastillas-entrada:empty {
+  display: none;
+}
+
+.pastilla-oscura {
+  background: var(--texto);
+  color: var(--superficie);
+}
+
+.tipo-entrada {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nota-tipo {
+  max-width: 12ch;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+/* Consumible | Inventariable (§5.1), como DLTA | GSM. */
+.interruptor-tipo {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--borde);
+  border-radius: 9px;
+  background: var(--superficie);
+}
+
+.interruptor-tipo button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.interruptor-tipo button[aria-checked="true"] {
+  background: var(--primario);
+  color: var(--sobre-primario);
+  font-weight: 600;
+}
+
+.interruptor-tipo button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.interruptor-tipo.bloqueado button[aria-checked="true"] {
+  opacity: 0.85;
+}
+
+/* El punto de tipo: contorno = consumible, relleno = inventariable (§7). */
+.punto-tipo {
+  display: inline-block;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--primario);
+  border-radius: 50%;
+  background: var(--superficie);
+}
+
+.punto-tipo.punto-inv {
+  background: var(--primario);
+}
+
+.punto-tipo.punto-sin {
+  border-color: var(--texto-suave);
+  background: var(--texto-suave);
+}
+
+.interruptor-tipo button[aria-checked="true"] .punto-tipo {
+  border-color: var(--sobre-primario);
+}
+
+.interruptor-tipo button[aria-checked="true"] .punto-tipo.punto-inv {
+  background: var(--sobre-primario);
+}
+
+.interruptor-tipo button[aria-checked="true"] .punto-tipo.punto-cons {
+  background: var(--primario);
+}
+
+.acciones-entrada {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.boton-quitar-partida {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+
+.boton-quitar-partida:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.tarjeta-entrada-dos {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 10px 14px;
+  padding: 6px 14px 12px 50px;
+  border-top: 1px solid var(--neutro-suave);
+}
+
+.campo-linea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.campo-linea > span:first-child {
+  flex: none;
+}
+
+.campo-linea .combo,
+.campo-linea input {
+  flex: 1;
+  min-width: 0;
+}
+
+.campo-linea input {
+  min-height: 38px;
+  font-size: 0.95rem;
+}
+
+/* Opcional, pero que se vea (§5): el campo vacío en ámbar, sin bloquear. */
+.falta-dato input {
+  border-color: color-mix(in srgb, var(--alerta) 60%, var(--borde));
+  background: color-mix(in srgb, var(--alerta-suave) 55%, var(--superficie));
+}
+
+.falta-dato input::placeholder {
+  color: var(--alerta);
+}
+
+.lista-entrada-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--borde);
+  background: var(--superficie);
+}
+
+.lista-entrada-pie .boton {
+  min-height: 48px;
+}
+
+/* ---------- editar una partida (§5.2) */
+
+.panel-editar-entrada {
+  overflow-y: auto;
+  border: 2px solid var(--primario);
+}
+
+.panel-editar-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -16px -18px 0;
+  padding: 12px 16px;
+  border-radius: 10px 10px 0 0;
+  background: var(--primario);
+  color: var(--sobre-primario);
+}
+
+.panel-editar-titulo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.panel-editar-titulo span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-editar-cabeza .boton {
+  flex: none;
+}
+
+.campos-editar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px 12px;
+}
+
+.campos-editar .campo-um-editar,
+.campos-editar .campo-codigo-editar {
+  min-width: 0;
+}
+
+.claves-codigo {
+  overflow: hidden;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+}
+
+.claves-codigo-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--superficie-2);
+  font-size: 0.85rem;
+}
+
+.claves-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.claves-lista li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.claves-lista li.actual {
+  background: var(--primario-suave);
+}
+
+.claves-lista li.variante-nueva {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border-top-style: dashed;
+}
+
+.clave-texto {
+  overflow: hidden;
+  font-family: var(--mono);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clave-donde {
+  color: var(--texto-suave);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.clave-actual {
+  color: var(--primario);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.panel-editar-pie {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+/* ---------- paso 3 · Acomodo (§6): 60 % lo que se marca · 40 % contenedores */
+
+.paso-acomodo {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.acomodo-izq {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--neutro-suave);
+}
+
+.acomodo-titulo {
+  margin: 0;
+  font-size: 1.06rem;
+}
+
+.acomodo-titulo .nota {
+  margin-left: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.acomodo-subtitulo {
+  margin: 0;
+  font-size: 1.06rem;
+}
+
+.aviso-acomodo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--primario) 30%, var(--borde));
+  border-radius: 10px;
+  background: var(--primario-suave);
+  color: var(--texto);
+  font-size: 0.9rem;
+}
+
+.aviso-acomodo strong,
+.aviso-acomodo .icono {
+  color: var(--primario);
+}
+
+.aviso-acomodo-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--alerta);
+  border-radius: 6px;
+  background: var(--alerta-suave);
+  font-weight: 600;
+}
+
+.etiqueta-grupo {
+  margin: 4px 0 0;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lista-acomodo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila-acomodo label {
+  display: grid;
+  grid-template-columns: 22px 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  cursor: pointer;
+}
+
+.fila-acomodo input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.fila-acomodo.marcada label {
+  border: 2px solid var(--primario);
+  padding: 11px 13px;
+  background: var(--primario-suave);
+}
+
+.fila-acomodo.deshabilitada label {
+  cursor: default;
+}
+
+.fila-acomodo-que {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fila-acomodo-cantidad {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pista-alerta,
+.pista-ok,
+.pista-nueva {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.pista-alerta {
+  color: var(--alerta);
+}
+
+.pista-ok {
+  color: var(--ok);
+}
+
+.pista-nueva {
+  color: var(--primario);
+}
+
+.acomodo-vacio {
+  margin: 0;
+  padding: 10px 4px;
+  color: var(--texto-suave);
+}
+
+.grupo-ya summary {
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: var(--superficie);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.grupo-ya[open] summary {
+  margin-bottom: 8px;
+}
+
+.acomodo-der {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rejilla-contenedores {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: min(420px, 50vh);
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.boton-contenedor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.boton-contenedor:hover {
+  border-color: var(--primario);
+}
+
+.boton-contenedor.elegido {
+  border-color: var(--primario);
+  background: var(--primario);
+  color: var(--sobre-primario);
+}
+
+.boton-contenedor-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.boton-contenedor-texto strong {
+  font-size: 1.05rem;
+}
+
+.boton-contenedor-texto span {
+  font-size: 0.8125rem;
+  opacity: 0.85;
+}
+
+.boton-contenedor.elegido .tecla-opcion {
+  color: var(--sobre-primario);
+}
+
+.avance-acomodo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.barra-avance {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--neutro-suave);
+}
+
+.barra-avance span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
+  transition: width var(--dur-media) ease;
+}
+
+.faltan-acomodo {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--alerta-suave);
+  font-size: 0.875rem;
+}
+
+.faltan-acomodo strong {
+  color: var(--alerta);
+}
+
+.todo-acomodado {
+  margin: 0;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.pastillas-sin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pastilla-sin {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--texto);
+  color: var(--superficie);
+  font-size: 0.8125rem;
+}
+
+.pastilla-sin .clave-entrada {
+  font-size: 0.8125rem;
+}
+
+.pie-acomodo {
+  justify-content: flex-end;
+}
+
+/* ---------- paso 4 · Revisar y registrar (§7): 60 % dónde quedó · 40 % revisar */
+
+.paso-registrar {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.donde-quedo {
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.donde-quedo-cabeza {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.donde-quedo-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.donde-quedo-titulo h2 {
+  margin: 0;
+  font-size: 1.06rem;
+}
+
+.donde-quedo-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: var(--neutro-suave);
+}
+
+.grupo-donde-cabeza {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.grupo-donde-cabeza .icono {
+  color: var(--primario);
+}
+
+.grupo-donde-cabeza.falta {
+  color: var(--alerta);
+}
+
+.filas-donde {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila-donde {
+  display: grid;
+  grid-template-columns: 12px 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.fila-donde.cambiada {
+  border-color: color-mix(in srgb, var(--alerta) 55%, var(--borde));
+  background: var(--alerta-suave);
+}
+
+.fila-donde.sin-ligar {
+  color: var(--texto-suave);
+}
+
+.fila-donde-cantidad {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fila-donde-que {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fila-donde-cuanto {
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.fila-donde-cuanto.falta {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.registrar-der {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.resumen-origen-datos {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dato-cambiado dd {
+  color: var(--alerta);
+  font-weight: 700;
+}
+
+.antes-registrar {
+  padding: 16px 18px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.antes-registrar h2 {
+  margin: 0 0 8px;
+  font-size: 1.06rem;
+}
+
+.lista-antes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-antes li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 0;
+  border-top: 1px solid var(--neutro-suave);
+}
+
+.lista-antes li > span:nth-child(2) {
+  flex: 1;
+}
+
+.marca-antes {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.lista-antes .listo .marca-antes {
+  background: var(--ok);
+  color: var(--sobre-intenso);
+}
+
+.lista-antes .pendiente .marca-antes,
+.lista-antes .bloquea .marca-antes {
+  background: var(--alerta);
+  color: var(--sobre-intenso);
+}
+
+.lista-antes .bloquea,
+.lista-antes .pendiente {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.lista-antes .informa {
+  color: var(--texto-suave);
+}
+
+.lista-antes .informa .marca-antes {
+  width: 22px;
+  background: var(--primario-suave);
+  color: var(--primario);
+}
+
+.registrar-accion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boton-registrar {
+  justify-content: center;
+  min-height: 58px;
+  font-size: 1.1rem;
+}
+
+.registrar-accion .nota {
+  margin: 0;
+  text-align: center;
+}
+
+.registrar-accion .boton-secundario {
+  align-self: flex-start;
+}
+
+/* ---------- anchos de ventana (§9) */
+
+@media (max-width: 1279px) {
+  .rejilla-contenedores {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 700–899: la lista arriba y *Agregar partidas* encima, sin alto fijo; los contenedores en una fila con scroll. */
+@media (max-width: 899px) {
+  .paso-material-entrada {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .panel-agregar .resultados-material {
+    max-height: 360px;
+  }
+
+  .lista-entrada-cuerpo {
+    overflow: visible;
+  }
+
+  .lista-entrada-pie {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+  }
+
+  .paso-acomodo,
+  .paso-registrar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rejilla-contenedores {
+    display: flex;
+    overflow-x: auto;
+    max-height: none;
+  }
+
+  .boton-contenedor {
+    flex: 0 0 200px;
+  }
+
+  .pie-acomodo {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 10px 0;
+    background: var(--fondo);
+  }
+
+  .boton-plegar-agregar {
+    display: flex;
+  }
+
+  .panel-agregar.plegado > :not(.boton-plegar-agregar) {
+    display: none;
+  }
+
+  .panel-agregar .titulo-agregar {
+    display: none;
+  }
+
+  .registrar-accion {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 10px 0;
+    background: var(--fondo);
+  }
+}
+
+@media (max-width: 699px) {
+  .tarjeta-entrada-dos {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 14px;
+  }
+
+  .campos-editar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fila-donde {
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+  }
+
+  .fila-donde-cantidad {
+    grid-column: 2;
+  }
+
+  .fila-donde-que {
+    grid-column: 2 / span 2;
+  }
+}
+
+.cantidad-entrada .um-entrada-campo {
+  width: 100%;
+  min-height: 30px;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.cantidad-entrada .um-entrada-campo.falta-um {
+  border-color: color-mix(in srgb, var(--alerta) 60%, var(--borde));
+  background: color-mix(in srgb, var(--alerta-suave) 55%, var(--superficie));
+}
+
+/* El panel de edición se desplaza completo; lo de dentro no se encoge (la lista de claves se veía cortada). */
+.panel-editar-entrada > * {
+  flex-shrink: 0;
+}
+
+/* *Agregar partidas* se pliega solo en ventana angosta (§9); a lo ancho, el botón no se ve. */
+.boton-plegar-agregar {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  font-size: 1.06rem;
+  font-weight: 700;
+  cursor: pointer;
+}

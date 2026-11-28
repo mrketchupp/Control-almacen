@@ -175,11 +175,13 @@ test("corregir la descripción de un código desde el inventario, la corrección
     borrador.lineas = [{ ...en.conRenglonExistente(estado, en.lineaEntradaVacia(), balero.id, indices), cantidad: "2" }];
     const { page, leer, errores, externas, cerrar } = await abrir(estado);
     await page.goto(`${origen}/#entradas`);
+    // Ronda 39: el lápiz está en *Editando la partida N*, junto a las claves del código.
+    await page.getByRole("button", { name: "Editar la partida 1", exact: true }).click();
     await lapiz(page, 701).click();
     await campo(page, 701).fill("descripción corregida de prueba");
     await ventana(page, 701).getByRole("button", { name: "Guardar descripción", exact: true }).click();
     await ventana(page, 701).waitFor({ state: "hidden" });
-    await page.locator(".pf-desc .descripcion", { hasText: NUEVA }).first().waitFor();
+    await page.locator(".tarjeta-entrada .codigo-entrada", { hasText: NUEVA }).first().waitFor();
     await page.waitForTimeout(1200);
     const guardado = await leer();
     assert.equal(guardado.articulos[701].descripcion, NUEVA);

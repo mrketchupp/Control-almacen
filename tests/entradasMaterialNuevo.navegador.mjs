@@ -1,4 +1,5 @@
-// Crear otra variante sin que la sugerencia recupere un número de parte ajeno.
+// Crear otra variante sin que la sugerencia recupere un número de parte ajeno. Ronda 39: en el paso 2 se edita la
+// partida (*Editando la partida N*: dimensión, NP, U.M.), se acomoda en el paso 3 y se registra en el 4.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createServer } from "node:http";
@@ -10,7 +11,7 @@ import { BackendMemoria } from "../src/almacen/bd.js";
 import { entradaConArticulo, lineaEntradaVacia, nuevoBorradorEntrada } from "../src/servicios/entradas.js";
 import { bytesInventario, bytesVales, cargaSintetica } from "./ayuda.js";
 
-test("el editor de entradas permite otra variante con el mismo tamaño, con NP distinto o sin NP", async (t) => {
+test("al editar una partida de entrada: otra variante con el mismo tamaño, con NP distinto o sin NP", async (t) => {
   const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
   const html = await readFile(new URL("../dist/ControlAlmacen.html", import.meta.url));
   const carpeta = await mkdtemp(join(tmpdir(), "entrada-material-nuevo-"));
@@ -65,25 +66,36 @@ test("el editor de entradas permite otra variante con el mismo tamaño, con NP d
       assert.fail("La entrada no guardó los datos esperados");
     };
     await page.goto(origen + "/#entradas");
-    await page.getByRole("button", { name: "Crear material nuevo", exact: true }).waitFor();
+    await page.locator(".tarjeta-entrada").first().waitFor();
     return { page, leer, esperar, sugerida, terminar: async () => { assert.deepEqual(errores, []); assert.deepEqual(externas, []); await context.close(); } };
   }
 
-  for (const np of ["", "NP-SINTETICO-NUEVO"]) await t.test(np ? "otro NP crea su variante sin modificar la existente" : "NP vacío se conserva al desenfocar, guardar y reabrir", async () => {
+  for (const np of ["", "NP-SINTETICO-NUEVO"]) await t.test(np ? "otro NP crea su variante sin modificar la existente" : "NP vacío se conserva al guardar y reabrir", async () => {
     const { page, leer, esperar, sugerida, terminar } = await abrir();
-    assert.equal(await page.getByRole("textbox", { name: "NP (número de parte)", exact: true }).inputValue(), "FLEXITALIC");
-    await page.getByRole("button", { name: "Crear material nuevo", exact: true }).click();
-    const campoNp = page.getByRole("textbox", { name: "NP (número de parte)", exact: true });
-    assert.equal(await campoNp.inputValue(), "");
+    await page.getByRole("button", { name: "Editar la partida 1", exact: true }).click();
+    const panel = page.getByRole("region", { name: /^Editando la partida 1/ });
+    // El panel pone el foco en Dimensión un cuadro después de abrirse: se espera antes de escribir en otro campo.
+    await page.waitForFunction(() => document.activeElement?.id === "editar-dimension");
+    const campoNp = panel.getByLabel("NP", { exact: true });
+    assert.equal(await campoNp.inputValue(), "FLEXITALIC");
     await campoNp.fill(np);
-    await page.getByRole("combobox", { name: "Clave / dimensión", exact: true }).fill('6"');
-    await page.getByRole("textbox", { name: "Cantidad", exact: true }).click();
-    assert.equal(await campoNp.inputValue(), np);
-    await esperar((e) => e.borradores_entrada[0].lineas[0].material_nuevo && e.borradores_entrada[0].lineas[0].np === np);
+    assert.equal(await panel.getByLabel("Dimensión", { exact: true }).inputValue(), '6"');
+    assert.match(await panel.locator(".variante-nueva").innerText(), np ? /Se queda como 6" · NP NP-SINTETICO-NUEVO/ : /Se queda como 6"/);
+    await panel.getByRole("button", { name: "Listo", exact: true }).click();
+    await esperar((e) => e.borradores_entrada[0].lineas[0].alta && e.borradores_entrada[0].lineas[0].np === np);
     await page.reload();
-    await page.getByRole("button", { name: "Elegir existente", exact: true }).waitFor();
-    assert.equal(await page.getByRole("textbox", { name: "NP (número de parte)", exact: true }).inputValue(), np);
-    await page.getByRole("button", { name: "Registrar entrada", exact: true }).click();
+    await page.locator(".tarjeta-entrada").first().waitFor();
+    assert.match(await page.locator(".tarjeta-entrada").first().innerText(), /Variante nueva/);
+    await page.getByRole("button", { name: "Editar la partida 1", exact: true }).click();
+    await page.waitForFunction(() => document.activeElement?.id === "editar-dimension");
+    assert.equal(await page.getByRole("region", { name: /^Editando la partida 1/ }).getByLabel("NP", { exact: true }).inputValue(), np);
+    await page.keyboard.press("Escape");
+    // Acomodo: el #1 (la hoja de consumibles, como la partida de la que salió) y registrar.
+    await page.getByRole("button", { name: /^Continuar a acomodo/ }).click();
+    await page.getByRole("tab", { name: /Contenedor #1/ }).click();
+    await page.locator(".fila-acomodo input[type=checkbox]").first().check();
+    await page.getByRole("button", { name: /^Revisar y registrar/ }).click();
+    await page.getByRole("button", { name: /^Registrar entrada · E-/ }).click();
     const nuevo = await esperar((e) => e.vales.some((v) => v.tipo === "ENTRADA"));
     const vale = nuevo.vales.find((v) => v.tipo === "ENTRADA"), variante = nuevo.variantes.find((v) => v.id === vale.lineas[0].variante_id);
     assert.deepEqual([variante.dimension, variante.np], ['6"', np || null]);

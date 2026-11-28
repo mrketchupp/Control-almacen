@@ -5,7 +5,10 @@
 // a la entrada registrada (`confirmarEntrada` copia solo el encabezado).
 
 import { cantidadEscrita } from "../nucleo/decimal.js";
-import { aplicarEntradaIA } from "./capturaIA.js";
+import { Indices } from "../nucleo/estado.js";
+import { avanceAcomodo } from "./acomodoEntrada.js";
+import { aplicarEntradaIA, conNombres } from "./capturaIA.js";
+import { prepararDeCopilot } from "./materialEntrada.js";
 import { lineasEntradaCapturadas, validarEntrada } from "./entradas.js";
 
 export const PASOS_ENTRADA = Object.freeze([
@@ -58,11 +61,62 @@ export function faltaMaterialEntrada(datos) {
   return alguna ? [] : [{ campo: "lineas", mensaje: "Agrega al menos una partida con su cantidad" }];
 }
 
-/** Lo que falta para avanzar desde `paso` (el acomodo llega en la etapa 4; en el 4 no se avanza: se registra). */
+/** De *Acomodo* a *Revisar y registrar* (§3): ninguna partida sin acomodar (las «sin existencia» no se acomodan). */
+export function faltaAcomodo(estado, datos, { indices = new Indices(estado) } = {}) {
+  const { faltan } = avanceAcomodo(estado, lineasEntradaCapturadas(datos.lineas), { indices });
+  return faltan.length ? [{ campo: "acomodo", mensaje: `${faltan.length === 1 ? "Falta 1 partida" : `Faltan ${faltan.length} partidas`} por acomodar` }] : [];
+}
+
+/** Lo que falta para avanzar desde `paso` (en el 4 no se avanza: se registra). */
 export function faltaParaAvanzarEntrada(estado, datos, paso = pasoDeEntrada(datos), { usuario = null } = {}) {
   if (paso === 1) return faltaDeDondeViene(estado, datos, { usuario });
   if (paso === 2) return faltaMaterialEntrada(datos);
+  if (paso === 3) return faltaAcomodo(estado, datos);
   return [];
+}
+
+// Lo que pide `validarEntrada` de cada partida, a qué paso lleva y con qué texto corto.
+const PASO_DEL_CAMPO = { codigo: 2, descripcion: 2, cantidad: 2, um: 2, destino: 3 };
+const CORTO_PARTIDA = {
+  codigo: "falta el código",
+  descripcion: "falta la descripción",
+  um: "falta la unidad (U.M.)",
+  destino: "falta acomodarla",
+};
+
+/**
+ * *Antes de registrar* (§7): lo que se revisa (✓ o pendiente) y lo que impide registrar (los errores de
+ * `validarEntrada`), cada uno con el paso y la partida o el campo que lo arregla.
+ * @returns {{ revisado: [{ id, texto, listo, aviso? }], informa: [texto], bloquean: [{ paso, campo, uid, texto }] }}
+ */
+export function antesDeRegistrar(estado, datos, { usuario = null } = {}) {
+  const lineas = lineasEntradaCapturadas(datos.lineas);
+  const { errores } = validarEntrada(estado, { ...datos, recibio_nombre: usuario || datos.recibio_nombre });
+  const bloquean = [];
+  for (const e of errores) {
+    if (e.renglon === null) {
+      if (e.campo === "lineas") bloquean.push({ paso: 2, campo: "lineas", uid: null, texto: "La entrada no tiene partidas" });
+      else bloquean.push({ paso: 1, campo: e.campo, uid: null, texto: textoCorto(e) });
+      continue;
+    }
+    const l = lineas[e.renglon - 1];
+    const corto = e.campo === "cantidad" ? (/número/.test(e.mensaje) ? "la cantidad no es un número" : "falta la cantidad") : CORTO_PARTIDA[e.campo];
+    const frase = corto && !/3 dígitos/.test(e.mensaje) ? `Partida ${e.renglon}: ${corto}` : e.mensaje.replace(/\.$/, "");
+    bloquean.push({ paso: PASO_DEL_CAMPO[e.campo] ?? 2, campo: e.campo, uid: l?.uid ?? null, texto: frase });
+  }
+  const conCantidad = lineas.filter((l) => cantidadEscrita(l.cantidad)?.gt(0)).length;
+  const { faltan } = avanceAcomodo(estado, lineas);
+  const dudosas = lineas.filter((l) => l.dudoso).length;
+  const sinOc = lineas.filter((l) => !texto(l.oc) || /^S\s*\/?\s*O\.?\s*C\.?$/i.test(texto(l.oc))).length;
+  const revisado = [
+    { id: "cantidad", listo: lineas.length > 0 && conCantidad === lineas.length, texto: lineas.length && conCantidad === lineas.length ? `${conCantidad} ${conCantidad === 1 ? "partida" : "partidas"} con cantidad` : `${lineas.length - conCantidad} sin cantidad` },
+    { id: "acomodo", listo: faltan.length === 0, texto: faltan.length ? `${faltan.length} sin acomodar` : "Todas acomodadas" },
+    ...(lineas.some((l) => l.ia || l.dudoso)
+      ? [{ id: "copilot", listo: dudosas === 0, aviso: dudosas > 0, texto: dudosas ? `${dudosas} de Copilot por revisar` : "Lo que Copilot no tenía claro ya se revisó" }]
+      : []),
+  ];
+  const informa = [...(sinOc ? [`${sinOc} sin O.C. · se registran como S/OC`] : []), "O.C. y solicitante son opcionales"];
+  return { revisado, informa, bloquean };
 }
 
 // ---------------------------------------------------------------- paso 1 · de dónde viene (§4)
@@ -126,7 +180,12 @@ export function quienesEntregan(estado) {
  *   (`reporte`: el de `aplicarEntradaIA`, con los números de partida de cada caso)
  */
 export function leerRespuestaCopilot(estado, borrador, respuesta) {
-  const { datos, reporte } = aplicarEntradaIA(estado, borrador, respuesta);
+  const { datos: llenos, reporte } = aplicarEntradaIA(estado, borrador, respuesta);
+  // Las partidas como las leyó `aplicarEntradaIA` (mismos nombres y orden), para decir qué leyó Copilot en las dudosas.
+  const vale = Array.isArray(respuesta) ? { partidas: respuesta } : conNombres(respuesta, "vale");
+  const partidas = (Array.isArray(vale?.partidas) ? vale.partidas : []).filter((p) => p && typeof p === "object").map((p) => conNombres(p, "partida"));
+  // Ronda 39: cada partida con su tipo y, solo si su variante vive en un solo contenedor, ya acomodada (§6).
+  const datos = { ...llenos, lineas: prepararDeCopilot(estado, borrador.lineas, llenos.lineas, partidas) };
   return {
     datos,
     leido: { origen: texto(datos.origen), folio: texto(datos.folio_externo), fecha: texto(datos.fecha), entrego: texto(datos.entrego_nombre) },

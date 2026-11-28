@@ -326,10 +326,11 @@ cada una (capturas en `capturas/ronda-39/etapa-N/`):
   poca altura, el menú se compacta en lugar de desplazarse.
 - ☑ Etapa 2: entrada con pasos e indicador; paso 1 · De dónde viene (con la ventana de Copilot de hoy, sin dibujos).
   Los orígenes salen de las entradas registradas; lo que falta se marca al pulsar *Continuar*; Copilot muestra lo leído
-  antes de usarlo. Mientras llega la etapa 3, el paso 2 es el editor de partidas de antes (con *Registrar entrada*).
-- ☐ Etapa 3: paso 2 · Material (lista nueva, filtros, Consumible | Inventariable, editar partida).
-- ☐ Etapa 4: paso 3 · Acomodo por contenedor.
-- ☐ Etapa 5: paso 4 · Revisar y registrar.
+  antes de usarlo.
+- ☑ Etapa 3: paso 2 · Material (lista nueva, filtros, Consumible | Inventariable, editar partida). La fila que se elige
+  en el buscador ya dice su contenedor; lo que llega de Copilot solo se acomoda si vive en un solo contenedor.
+- ☑ Etapa 4: paso 3 · Acomodo por contenedor (★ lo que vive en un solo contenedor; teclas 1…9).
+- ☑ Etapa 5: paso 4 · Revisar y registrar (lo que impide registrar lleva a su paso y partida).
 - ☐ Etapa 6: corrección de salidas y entradas desde la revisión.
 - ☐ Etapa 7: tipo por defecto en *Ajustes*, limpieza y documentación.
 

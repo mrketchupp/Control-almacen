@@ -305,10 +305,32 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   —listener en `useLayoutEffect`—, lo leído en verde sin guardar; *Ver las partidas →* lo aplica y pasa al 2 solo si
   el 1 está completo; si no, se queda en el 1 con lo que falta marcado). `PaginaValesEntrada`: franja de borradores con
   *Descartar borrador*, «Se registrará como E-000N · Se guarda solo», `#paso-entrada`; sin *Elegir modo* ni la guía de
-  Copilot. **Provisional hasta la etapa 3:** el paso 2 es el editor de antes (`EditorEntrada({ sinEncabezado })` +
-  `BarraEntrada` con *Pegar otra respuesta* y *Registrar entrada*; lo que falta del encabezado lleva al paso 1).
-  `PasosCopilot` (capturaIA.js) y los estilos de la guía quedan sin uso hasta la limpieza (etapa 7). Pruebas
-  `pasosEntrada.test.js` y Chromium `entradaPasos.navegador.mjs` (capturas con `CAPTURAS=…`).
+  Copilot. `PasosCopilot` (capturaIA.js) y los estilos de la guía quedan sin uso hasta la limpieza (etapa 7).
+  Etapas 3 a 5 (§5–§7): el paso 2 decide **qué** entra y el 3 **dónde**; la partida acomodada lleva su destino como
+  siempre (`existencia_id` o `ubicacion_id`), así que `validarEntrada` / `confirmarEntrada` no cambian. Servicios:
+  `servicios/acomodoEntrada.js` (`contenedoresDe` = los de `ubicacion.contenedor` con sus hojas INV/CONS, pueden ser más
+  o menos de 5; `acomodoDe` → sin_existencia | falta (código o clave) | pendiente (`donde`) | acomodada (`ya` = ★, `fx`);
+  `acomodar(…, numero)` en la hoja de su `clase` (si no la hay, `ErrorAcomodo`), `desacomodar`, `acomodoAutomatico` (★:
+  su variante vive en un solo contenedor de su tipo; lo de FX nunca solo), `conTipo` (§5.1 / §11), `avanceAcomodo`) y
+  `servicios/materialEntrada.js` (`tipoInicial`: existencia → regla de 3 dígitos → `config.tipo_partida_entrada`, CONS de
+  fábrica; `tipoDeLinea` con su nota; `partidaDesdeResultado`: la fila elegida = esa partida del inventario, artículo sin
+  partidas = sin existencia con la U.M. de los vales (`umDeLosVales`), «Usar «…»» y código nuevo = variante nueva;
+  `conCamposEditados` (§5.2, conserva cantidad / tipo / lote / O.C., queda revisada; el mismo material no se mueve);
+  `prepararDeCopilot` (tipo, acomodo solo con un contenedor, `ia_leyo` de lo dudoso); `porRevisar`, `filtrosDeMaterial`).
+  `pasosEntrada.js`: `faltaAcomodo` (del 3 al 4) y `antesDeRegistrar` (revisado / informa / bloquean con paso, campo y
+  `uid`); `leerRespuestaCopilot` pasa las partidas por `prepararDeCopilot` (`conNombres` ahora se exporta de capturaIA).
+  UI: `ui/paginas/materialEntrada.js` (`PasoMaterialEntrada`: izquierda *De dónde viene* + *Agregar partidas* con el
+  estado de Copilot y el `Buscador` / `Resultados` de salida con `entrada` —exportados de `material.js` junto con
+  `useBusqueda`, `useAltoDisponible`, `enfocar`…—; derecha la lista sobre gris con tarjetas `.tarjeta-entrada` (cantidad
+  y U.M. —se escribe si no es de una variante del inventario—, qué es, `InterruptorTipo`, Editar, ×, Solicita y O.C. en
+  ámbar si faltan), filtros Todas / Por revisar / Sin O.C. / Sin solicitante y el pie fijo; `EditarPartidaEntrada` a la
+  izquierda con *Cancelar · Esc* y *Listo*; *Agregar partidas* plegable a ≤ 899 px), `ui/paginas/acomodo.js`
+  (`PasoAcomodo`: contenedores como `tablist`, teclas 1…9, ↑ ↓ entre casillas, *Faltan* arriba y *Ya en el #X* plegado
+  con más de 5, avance, sin existencia en pastillas oscuras, `aria-live`; `PuntoTipo`) y `ui/paginas/registrarEntrada.js`
+  (`PasoRegistrar`, `DondeQuedo` agrupado por contenedor con hay → queda, `ResumenOrigenEntrada`, `AntesDeRegistrar`;
+  se reusan en la corrección). Las clases de la tarjeta llevan `-entrada` (`.cantidad-entrada`…): las de salida
+  (`.partida-cantidad`) traen `grid-area`. Pruebas `materialEntrada.test.js` (3 y 7 contenedores) y Chromium
+  `entradaPasos.navegador.mjs` (los 4 pasos), `entradasMaterialNuevo` y `descripcionCodigo` (editar la partida).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

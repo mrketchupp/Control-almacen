@@ -43,7 +43,7 @@ import { ResumenParaQuien } from "./pasosVale.js";
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 const partidasDe = (n) => `${n} ${n === 1 ? "partida" : "partidas"}`;
 const conCodigo = (vale) => vale.lineas.filter((l) => Number.isInteger(l.codigo)).length;
-const enfocar = (id, seleccionar = false) =>
+export const enfocar = (id, seleccionar = false) =>
   requestAnimationFrame(() => {
     const el = document.getElementById(id);
     el?.focus();
@@ -51,7 +51,7 @@ const enfocar = (id, seleccionar = false) =>
   });
 
 /** Alto que queda en la ventana desde donde empieza `ref` (sin scroll de la página completa, §8). */
-function useAltoDisponible(ref) {
+export function useAltoDisponible(ref) {
   const [alto, setAlto] = useState(null);
   useLayoutEffect(() => {
     const medir = () => {
@@ -74,14 +74,14 @@ function useAltoDisponible(ref) {
 // ---------------------------------------------------------------- buscador y resultados
 
 /** El botón ＋ de los resultados y el ratón, dibujados para la ayuda de atajos. */
-const BotonMasDibujado = () => html`<span class="tecla-mas"><${Icono} nombre="agregar" tam=${14} /></span>`;
-const DobleClic = () => html`<span class="tecla-raton"><${Icono} nombre="raton" tam=${15} />doble clic</span>`;
+export const BotonMasDibujado = () => html`<span class="tecla-mas"><${Icono} nombre="agregar" tam=${14} /></span>`;
+export const DobleClic = () => html`<span class="tecla-raton"><${Icono} nombre="raton" tam=${15} />doble clic</span>`;
 
 /**
  * Los dos campos del buscador (Ronda 35): «Código o descripción» (el código AX o palabras de su descripción) y
  * «Dimensión o NP» (la clave). Los dos son `combobox` de la misma lista de resultados; con texto, una ✕ limpia cada uno.
  */
-function Buscador({ id, material, dimension, alMaterial, alDimension, total, marcado, alTecla, etiquetaMaterial = "Código o descripción" }) {
+export function Buscador({ id, material, dimension, alMaterial, alDimension, total, marcado, alTecla, etiquetaMaterial = "Código o descripción" }) {
   const campo = (cual, valor, alEscribir, etiqueta, placeholder) => {
     const idCampo = cual === "material" ? id : `${id}-dimension`;
     // El nombre del campo es solo su etiqueta (sin la ✕ de limpiar, que está dentro de la misma etiqueta).
@@ -120,7 +120,7 @@ function Buscador({ id, material, dimension, alMaterial, alDimension, total, mar
 }
 
 /** Una clave en los resultados: dimensión · NP · contenedor · hay · ＋ (o *Actual* / *Usar esta* al editar). */
-function FilaResultado({ idLista, fila, indice, marcada, ultima, nombreArea, editando, actual, alMarcar, alElegir }) {
+function FilaResultado({ idLista, fila, indice, marcada, ultima, nombreArea, editando, actual, alMarcar, alElegir, entrada = false }) {
   const articulo = fila.tipo === "articulo";
   const descripcionFila = `${fila.codigo} ${articulo ? fila.descripcion : `${fila.clave}${fila.np ? ` NP ${fila.np}` : ""}`}`;
   return html`<div
@@ -136,7 +136,7 @@ function FilaResultado({ idLista, fila, indice, marcada, ultima, nombreArea, edi
     <span class="res-np">${fila.np || "—"}</span>
     <span class="res-contenedor">
       ${articulo
-        ? html`<${Pastilla}>No inventariado<//>`
+        ? html`<${Pastilla}>${entrada ? "Sin existencia" : "No inventariado"}<//>`
         : html`<span>${fila.lugar}${fila.fx ? html` <${Pastilla} tono="fx">FX<//>` : null}</span>
             ${ultima ? html`<span class="res-ultima">La última de ${nombreArea}</span>` : null}`}
     </span>
@@ -149,7 +149,7 @@ function FilaResultado({ idLista, fila, indice, marcada, ultima, nombreArea, edi
               e.stopPropagation();
               alElegir(fila, false);
             }}>Usar esta</button>`
-      : html`<button type="button" class="res-agregar" tabIndex="-1" aria-label=${`Agregar ${descripcionFila}`} title="Agregar al vale"
+      : html`<button type="button" class="res-agregar" tabIndex="-1" aria-label=${`Agregar ${descripcionFila}`} title=${entrada ? "Agregar a la entrada" : "Agregar al vale"}
           onClick=${(e) => {
             e.stopPropagation();
             alElegir(fila, false);
@@ -158,16 +158,20 @@ function FilaResultado({ idLista, fila, indice, marcada, ultima, nombreArea, edi
 }
 
 /** «Usar «4" X 3M»» (clave que el código no tiene) o «Agregar código 1399» (código que no está): borde punteado. */
-function FilaEspecial({ idLista, especial, indice, marcada, editando, alElegir }) {
+function FilaEspecial({ idLista, especial, indice, marcada, editando, alElegir, entrada = false }) {
   return html`<div role="option" id=${`${idLista}-op-${indice}`} aria-selected=${marcada} class=${`fila-especial ${marcada ? "marcada" : ""}`}
     onMouseDown=${(e) => e.preventDefault()} onClick=${() => alElegir(especial, false)}>
     <span class="especial-icono" aria-hidden="true"><${Icono} nombre="agregar" tam=${18} /></span>
     ${especial.tipo === "clave"
-      ? html`<span class="especial-texto"><strong>Usar «<i>${especial.clave}</i>» en ${especial.codigo}</strong>
-            <span>No está en el inventario: queda en el vale y el historial, pero no descuenta existencia.</span></span>
-          <${Pastilla} tono="alerta">No descuenta<//>`
+      ? entrada
+        ? html`<span class="especial-texto"><strong>Usar «<i>${especial.clave}</i>» en ${especial.codigo}</strong>
+              <span>No está en el inventario: entra como variante nueva.</span></span>
+            <${Pastilla} tono="info">Variante nueva<//>`
+        : html`<span class="especial-texto"><strong>Usar «<i>${especial.clave}</i>» en ${especial.codigo}</strong>
+              <span>No está en el inventario: queda en el vale y el historial, pero no descuenta existencia.</span></span>
+            <${Pastilla} tono="alerta">No descuenta<//>`
       : html`<span class="especial-texto"><strong>Agregar código ${especial.codigo}${especial.descripcion ? ` · ${especial.descripcion}` : ""}${especial.clave ? ` · «${especial.clave}»` : ""}</strong>
-            <span>No está en el catálogo: escribe su descripción en la partida; queda por confirmar.</span></span>
+            <span>${entrada ? "No está en el catálogo: escribe su descripción; se da de alta al registrar." : "No está en el catálogo: escribe su descripción en la partida; queda por confirmar."}</span></span>
           <${Pastilla} tono="alerta">Código nuevo<//>`}
   </div>`;
 }
@@ -177,7 +181,7 @@ function FilaEspecial({ idLista, especial, indice, marcada, editando, alElegir }
  * la dimensión escrita no está, «Usar «…»» al final de la tarjeta). El código nuevo va al final. `vacio`: lo que se ve
  * sin nada escrito. `alMoverADimension`: lo escrito en el primer campo es una dimensión; pasarlo al segundo.
  */
-function Resultados({ idLista, b, marcado, alMarcar, ultimas, nombreArea, editando = false, actualId = null, alElegir, vacio, alMoverADimension = null }) {
+export function Resultados({ idLista, b, marcado, alMarcar, ultimas, nombreArea, editando = false, actualId = null, alElegir, vacio, alMoverADimension = null, entrada = false }) {
   const { grupos, mas, nuevo, material, dimension } = b;
   if (!texto(material) && !texto(dimension)) return html`<div class="resultados-material"><p class="resultados-vacio">${vacio}</p></div>`;
   // Lo escrito como material es una dimensión o NP (p. ej. «6309»): se ofrece pasarlo al otro campo.
@@ -216,9 +220,10 @@ function Resultados({ idLista, b, marcado, alMarcar, ultimas, nombreArea, editan
             actual=${editando && fila.id !== null && fila.id === actualId}
             alMarcar=${alMarcar}
             alElegir=${alElegir}
+            entrada=${entrada}
           />`;
         });
-        const usar = g.usar ? ((indice += 1), html`<${FilaEspecial} idLista=${idLista} especial=${g.usar} indice=${indice} marcada=${indice === marcado} editando=${editando} alElegir=${alElegir} />`) : null;
+        const usar = g.usar ? ((indice += 1), html`<${FilaEspecial} idLista=${idLista} especial=${g.usar} indice=${indice} marcada=${indice === marcado} editando=${editando} alElegir=${alElegir} entrada=${entrada} />`) : null;
         const claves = g.filas.length && g.filas[0].tipo === "articulo" ? "sin existencia" : `${g.filas.length} ${g.filas.length === 1 ? "clave" : "claves"}`;
         return html`<div role="group" key=${g.codigo} aria-labelledby=${`${idLista}-g${g.codigo}`} class="grupo-resultados">
           <div class="grupo-cabeza" id=${`${idLista}-g${g.codigo}`}>
@@ -230,7 +235,7 @@ function Resultados({ idLista, b, marcado, alMarcar, ultimas, nombreArea, editan
           ${usar}
         </div>`;
       })}
-      ${nuevo ? ((indice += 1), html`<${FilaEspecial} idLista=${idLista} especial=${nuevo} indice=${indice} marcada=${indice === marcado} editando=${editando} alElegir=${alElegir} />`) : null}
+      ${nuevo ? ((indice += 1), html`<${FilaEspecial} idLista=${idLista} especial=${nuevo} indice=${indice} marcada=${indice === marcado} editando=${editando} alElegir=${alElegir} entrada=${entrada} />`) : null}
       ${mas ? html`<p class="resultados-vacio">${mas} ${mas === 1 ? "código más" : "códigos más"}: escribe más para encontrarlo.</p>` : null}
     </div>
   </div>`;
@@ -240,7 +245,7 @@ function Resultados({ idLista, b, marcado, alMarcar, ultimas, nombreArea, editan
  * Lo que se busca y cómo se mueve el resaltado (lo usan agregar y editar, cada uno con su estado): el material (código o
  * descripción), la dimensión o NP, los grupos, el código nuevo y las opciones en el orden en que se ven.
  */
-function useBusqueda(items, estado, { inicial = "", conCodigoNuevo = true } = {}) {
+export function useBusqueda(items, estado, { inicial = "", conCodigoNuevo = true } = {}) {
   const [material, setMaterial] = useState(inicial);
   const [dimension, setDimension] = useState("");
   const [marcado, setMarcado] = useState(0);
@@ -272,7 +277,7 @@ function useBusqueda(items, estado, { inicial = "", conCodigoNuevo = true } = {}
 }
 
 /** Esc en un campo del buscador: borra ese campo (y, si ya estaba vacío, nada). @returns true si lo usó */
-function escEnCampo(e, b, cual) {
+export function escEnCampo(e, b, cual) {
   if (e.key !== "Escape") return false;
   const valor = cual === "material" ? b.material : b.dimension;
   if (!valor) return false;
