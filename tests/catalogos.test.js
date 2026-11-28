@@ -44,6 +44,10 @@ test("ajustes: NP en el lote y etapa quedan en el estado con bitácora; la captu
   assert.deepEqual([estado.config.np_en_lote, estado.config.etapa_perforacion], [true, '6 1/8"']);
   assert.equal(estado.auditoria.filter((a) => a.entidad === "config").length, 2);
   assert.throws(() => fijarAjuste(estado, "otra_cosa", 1), ErrorCatalogo);
+  // Ronda 39: el tipo de las partidas nuevas de una entrada solo acepta Consumible o Inventariable.
+  fijarAjuste(estado, "tipo_partida_entrada", "INV", "ALMACENISTA UNO");
+  assert.equal(estado.config.tipo_partida_entrada, "INV");
+  assert.throws(() => fijarAjuste(estado, "tipo_partida_entrada", "OTRO"), ErrorCatalogo);
   assert.throws(() => fijarAjuste(estado, "captura_rapida", true), ErrorCatalogo);
 });
 

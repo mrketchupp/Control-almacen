@@ -8,7 +8,7 @@ import { Boton, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { ResumenMaterial, ResumenParaQuien } from "./pasosVale.js";
-import { EditorVale } from "./vales.js";
+import { FotosDelFormato } from "./vales.js";
 
 // Ancho de la hoja carta en pantalla con sus márgenes (8.5 in + 0.4 in por lado, a 96 px por pulgada).
 const ANCHO_HOJA = 9.3 * 96;
@@ -151,7 +151,7 @@ export function PasoEmitir({ datos, alCambiar, listo, resumen, partidas, pendien
       <${ResumenMaterial} partidas=${partidas} alEditar=${() => alIrA(2)} pendientes=${de(["partida", "material"])} alIr=${alIr} />
       <div class=${`fotos-paso ${fotos.length ? "con-pendiente" : ""}`}>
         ${fotos.map((p, i) => html`<p class="pendiente-fotos" key=${i}><span aria-hidden="true">⚠ </span>${p.corto}</p>`)}
-        <${EditorVale} seccion="fotos" datos=${datos} alCambiar=${alCambiar} />
+        <${FotosDelFormato} datos=${datos} alCambiar=${alCambiar} />
       </div>
     </div>
 

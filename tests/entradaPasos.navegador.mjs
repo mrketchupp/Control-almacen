@@ -322,6 +322,30 @@ test("vale de entrada en 4 pasos", async (t) => {
     const lineas = b.borradores_entrada.find((x) => x.folio_externo === "B-500").lineas;
     const nueva = lineas.find((l) => l.dimension === "6311-2RS");
     assert.deepEqual([nueva.np, nueva.clase, nueva.alta], ["SKF", "INV", true]);
+    // Una variante nueva que se parece a una del inventario (RF-33): «¿Es la misma que…?» y «Usar esa».
+    await page.locator("#buscar-material").fill("701");
+    await page.locator("#buscar-material-dimension").fill("6205-2ZZ");
+    // Al desplazarla arriba, la cabeza fija del grupo la tapa: el clic va directo a la opción.
+    await page.getByRole("option", { name: /Usar «6205-2ZZ» en 701/ }).dispatchEvent("click");
+    const parecida = page.locator(".tarjeta-entrada", { has: page.locator(".parecida-entrada") });
+    await parecida.waitFor();
+    assert.match(await parecida.locator(".parecida-entrada").innerText(), /¿Es la misma que 6205-2Z \(#\d/);
+    await capturar("paso-2-parecida");
+    await parecida.getByRole("button", { name: /^Usar 6205-2Z en la partida/ }).click();
+    await page.waitForFunction(() => !document.querySelector(".parecida-entrada"));
+    const usada = page.locator(".tarjeta-entrada").last();
+    assert.doesNotMatch(await usada.innerText(), /6205-2ZZ|Variante nueva/);
+    await usada.getByRole("button", { name: /^Quitar la partida/ }).click();
+    await page.waitForFunction(() => document.querySelectorAll(".tarjeta-entrada").length === 5);
+    // El aviso «Partida quitada» taparía las capturas de los pasos siguientes.
+    const cerrarAviso = page.getByRole("button", { name: "Cerrar aviso" });
+    for (let i = 0; i < 5 && (await cerrarAviso.count()); i++) await cerrarAviso.first().click().catch(() => {});
+    await page.locator("#buscar-material").fill("");
+    await page.locator("#buscar-material-dimension").fill("");
+    // Alt + N, desde cualquier campo: otra partida = al buscador.
+    await tarjeta("DIESEL").locator("input[id^=cant-]").focus();
+    await page.keyboard.press("Alt+KeyN");
+    await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
     await page.getByRole("button", { name: /^Continuar a acomodo/ }).click();
     await page.waitForFunction(() => document.querySelector('ol[aria-label="Pasos de la entrada"] li[aria-current="step"]')?.textContent.includes("Acomodo"));
   });
@@ -387,6 +411,21 @@ test("vale de entrada en 4 pasos", async (t) => {
     await page.getByRole("tab", { name: /^Vale B-400/ }).click();
     await page.getByRole("button", { name: "Descartar borrador", exact: true }).click();
     await esperar((e) => e.borradores_entrada.length === 1, "No se descartó el borrador");
+  });
+
+  await t.test("Ajustes (§10): el tipo de las partidas nuevas", async () => {
+    await page.goto(`${origen}/#ajustes`);
+    const entranComo = page.getByRole("radiogroup", { name: "Entran como" });
+    await entranComo.waitFor();
+    assert.equal(await entranComo.getByRole("radio", { name: "Consumible" }).getAttribute("aria-checked"), "true");
+    await entranComo.getByRole("radio", { name: "Inventariable" }).click();
+    await esperar((e) => e.config.tipo_partida_entrada === "INV", "No se guardó el tipo de las partidas nuevas");
+    await page.waitForFunction(() => document.querySelector('[role="radiogroup"][aria-label="Entran como"] [aria-checked="true"]')?.textContent.trim() === "Inventariable");
+    // Los avisos de los pasos anteriores taparían la tarjeta en la captura.
+    if (capturas) await page.waitForFunction(() => !document.querySelector(".toast"), null, { timeout: 30000 });
+    await capturar("ajustes-tipo");
+    await entranComo.getByRole("radio", { name: "Consumible" }).click();
+    await esperar((e) => e.config.tipo_partida_entrada === "CONS", "No se regresó a Consumible");
   });
 
   assert.deepEqual(errores, []);

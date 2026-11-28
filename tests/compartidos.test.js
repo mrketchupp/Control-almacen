@@ -99,7 +99,7 @@ test("adoptar: también los borradores que traían la etapa anterior (los cambia
   assert.deepEqual(adoptarCompartidos(estado, { etapa_perforacion: { valor: '26"' } }), []); // ya es la misma
 });
 
-test("personalización y NP en el lote son las mismas en DLTA y GSM; lo que ya no existe no regresa", async () => {
+test("personalización, NP en el lote y el tipo de las partidas nuevas son los mismos en DLTA y GSM; lo que ya no existe no regresa", async () => {
   const comun = new BackendMemoria();
   const dlta = await abrir("DLTA");
   await cargar(dlta);
@@ -114,6 +114,7 @@ test("personalización y NP en el lote son las mismas en DLTA y GSM; lo que ya n
   await gsm.modificar((e) => {
     guardarPersonalizacion(e, USUARIO, { tema: "oscuro", avisos: "abajo" });
     fijarAjuste(e, "np_en_lote", true, USUARIO);
+    fijarAjuste(e, "tipo_partida_entrada", "INV", USUARIO);
   });
   await c2.terminar();
 
@@ -122,6 +123,7 @@ test("personalización y NP en el lote son las mismas en DLTA y GSM; lo que ya n
   assert.equal(personalizacion(dlta.estado, USUARIO).tema, "oscuro");
   assert.equal(personalizacion(dlta.estado, USUARIO).avisos, "abajo");
   assert.equal(dlta.estado.config.np_en_lote, true);
+  assert.equal(dlta.estado.config.tipo_partida_entrada, "INV");
 
   // Una base común de antes de la Ronda 34 con la captura rápida y «Mi pantalla de vales»: se ignoran.
   const registro = await comun.leerAjuste("compartidos");

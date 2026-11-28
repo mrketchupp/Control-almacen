@@ -8,12 +8,12 @@
 | **Reporte diario** | En el menú, después de *Conteo físico*. **Descarga** el **libro de vales** y el **inventario** como estaban **al cierre del día elegido**; muestra los vales y entradas de ese día y lo que falta subir al SharePoint hasta ese folio |
 | Primera carga | Importar tu inventario y tu libro de vales actuales, con ensayo previo y reporte de verificación |
 | Lista de revisión | Generar la lista de renglones dudosos del DIARIO, contestarla en Excel y aplicar tus respuestas |
-| **Vales de entrada** | Registrar el material que llega de la base o de otro equipo, **a mano o desde la foto/PDF con Copilot**: contenedor sugerido, variante nueva, *hay → queda* por partida, quién solicita (LOTE), folio interno `E-0001` |
+| **Vales de entrada** | Registrar el material que llega de la base o de otro equipo en **4 pasos** (de dónde viene, material, acomodo, revisar y registrar), **a mano o desde la foto/PDF con Copilot**: el contenedor de cada partida se elige en el acomodo (★ = ya vive ahí), *hay → queda* por contenedor, quién solicita (LOTE), folio interno `E-0001` |
 | **conciliación con Dynamics AX** | Importar el reporte de inventario de AX (solo modelo INV), confirmar las parejas que se escriben distinto (corrige la dimensión / NP del inventario), ver diferencias por partida, artículo, contenedor y en pesos con los **vales en tránsito** que las explican, y descargar la **solicitud de ajuste** con colores por estado. Con el **archivo de vales de la base** sabe qué partidas ya están en AX (IN / TR) y cuáles siguen pendientes |
 | **Etiquetas** | Etiquetas de material o de código AX (lo que hacía el generador de etiquetas): de un **vale de entrada** (se sugiere al registrarla), del **inventario**, a mano o desde la lista `.json` del generador; plantillas como la precortada J-5163; logos del vale por inventario; las entradas quedan marcadas *Etiquetas impresas* |
 | **Conteo físico** | Conteo total o por contenedor: hoja de conteo para imprimir (renglones altos para escribir), captura (también desde la foto con Copilot), diferencias y material encontrado |
-| **Vales de salida** | Hacer vales en pestañas (borradores): datos a la izquierda, partidas al centro como en el vale impreso, folio automático e impresión |
-| Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (el motivo se llena solo con los cambios) |
+| **Vales de salida** | Hacer vales en **3 pasos** (para quién, material, revisar y emitir), en pestañas (borradores), con folio automático e impresión |
+| Historial de vales | Consultar el DIARIO con **filtros combinables** (código, área, quién recibió, estado, fechas y texto); abrir cualquier folio para imprimirlo o **corregirlo** (se abre en la revisión y el motivo se llena solo con los cambios) |
 | Inventario | Consultar existencias por contenedor, con búsqueda y filtros |
 | Pendientes | Indicar de qué renglón del inventario salió cada vale posterior al conteo |
 | Exportar y enviar | Generar `VALES DE SALIDA <inventario>.xlsm` e `INVENTARIO…xlsx` idénticos a los actuales, ver qué falta **subir al SharePoint** y traer vales hechos en el Excel |
@@ -175,7 +175,7 @@ cero, **Continuar** lleva a la primera carga, que va **un paso a la vez** (*1. A
    - Puedes tener **varios vales abiertos** (pestañas con el número de partidas); se guardan solos y no gastan folio hasta que los emites. *Descartar borrador* los elimina sin dejar hueco en los folios; si fue por error, pulsa **↶ Deshacer** en el aviso.
    - Si el vale tiene más partidas que el formato (21 en todas las áreas; 4 en NOV, por las fotos), se ofrece dividirlo en folios consecutivos.
    - El vale impreso tiene **el mismo formato en todas las áreas**: fecha y folio con línea sencilla, partidas en Arial 9 centradas y con todas sus líneas, 21 partidas, *PRESENTACIÓN* completa y el título *OBSERVACIÓN*. Tu libro de vales no cambia. NOV y TRANSFERENCIAS conservan su propio formato.
-3. **Corregir:** *Historial* → clic en el folio → **Corregir**. Cambia lo necesario (partidas, personas, fotos…); el **motivo se llena solo** con lo que cambió y puedes agregar el porqué. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
+3. **Corregir:** *Historial* → clic en el folio → **Corregir**: el vale (o la entrada) se abre **en la revisión**, como en su último paso. Cada sección tiene **Editar**, que abre su paso con **Listo**; lo que cambias queda en ámbar (la cantidad anterior, tachada). A la derecha, **Cambios · N** dice qué cambió y qué pasa en el inventario («Regresa 1 PZA a #1 Cons.»), y el **motivo se llena solo** (puedes agregar el porqué); pulsa **Guardar**. Todo queda en la **bitácora** del vale. Los folios **no se cancelan**: todos se usan.
    - En vales antiguos o importados también puedes completar o modificar **Puesto de quien entrega**, además de los
      demás puestos. Se respeta el papel de cada persona en los formatos con firmas invertidas. Un cambio de puesto
      conserva los materiales y queda registrado; si lo dejas vacío, la impresión respeta ese vacío.
@@ -203,29 +203,33 @@ vales de hoy y *Total* lo que hay. Al día siguiente lo de hoy pasa a la cantida
 inventario exportado y el del reporte diario usan la fecha del archivo.
 
 ### Entradas, conteos y movimientos
-- **Entrada de material** (*Vales de entrada → Nueva entrada*): elige **Captura manual** o **Desde foto o PDF**.
-  Arriba quedan siempre a la vista el folio, los pendientes y los botones **Registrar entrada** y **Descartar**.
-  Escribe el folio del vale, de dónde viene, la **fecha del vale** (la del papel) y quién lo entrega; el departamento
-  siempre es ALMACEN. **Recibido** es el día en que llegó el material (por omisión, hoy): ese día suma al inventario y
-  cuenta en el reporte diario. No puede ser futura; si es anterior a la del vale o hubo un conteo después en esas
-  partidas, te avisa (sin bloquear). Se cambia después con *Corregir* (queda en la bitácora). Por partida:
-  código → `Enter` → clave (★ = el contenedor donde hay más) → **NP** → cantidad. Si la clave trae el NP (`… NP: 123`),
-  se pasa solo a su campo. Arriba, los botones *⚠ pendientes*, *por revisar* y *con clave nueva* muestran solo esas
-  partidas. Abajo de cada partida: **Entra a** (cambia
-  el contenedor; muestra *hay → queda*), **Solicita** (quien pidió el material; va en LOTE) y la O.C. Si escribes una
-  clave que no existe, se da de alta como **variante nueva** con esa dimensión (te avisa si se parece a una que ya
-  existe). *Sin existencia* (en *Entra a*) es para diésel y gases.
-- **Capturar desde la foto con Copilot:** en *Desde foto o PDF* (o con el botón **Copilot** de la barra; en el conteo,
-  *✨ Capturar desde la foto o PDF*): **Copiar instrucciones**, pégalas en Copilot (Microsoft 365, cuenta de trabajo)
-  con la foto o el PDF, copia su respuesta y pulsa **Pegar** en el paso 3 (o `Ctrl+V` en el cuadro): se carga sola. Si viene cortada o con errores de
-  formato, se arregla sola y te dice qué corrigió. Lo dudoso queda en amarillo (*revisar* → *✓ ya la revisé*). La
-  herramienta no se conecta a nada: solo lee el texto que pegas.
-- **Material que regresa:** *↩ Copiar partidas de un vale de salida* (debajo de las partidas) → folio → *Copiar
-  partidas*; cada partida vuelve al renglón del que salió y ajustas las cantidades.
-- **Crear otra partida en una entrada:** pulsa **Crear material nuevo**, conserva o escribe la dimensión y captura
-  el NP que corresponde, o déjalo vacío. La sugerencia existente no se vuelve a seleccionar al salir del campo.
-  **Elegir existente** regresa al selector. Dimensión igual con otro NP o sin NP se mantiene separada; si todos los
-  datos coinciden se reutiliza esa variante, evitando duplicarla.
+- **Entrada de material** (*Vales de entrada → Nueva entrada*). Va en **4 pasos**; arriba ves en cuál vas y con
+  **Enter** continúas:
+  1. **De dónde viene:** elige el origen (los más usados salen como botones, o *Otro origen…*), escribe el folio del vale
+     de la base, la **fecha del vale** (la del papel) y quién lo entrega (su puesto se llena con el último). **Recibido**
+     es el día en que llegó el material (por omisión, hoy): ese día suma al inventario y cuenta en el reporte diario. No
+     puede ser futura; si es anterior a la del vale o hubo un conteo después en esas partidas, te avisa (sin bloquear). Lo
+     que falta se marca al pulsar *Continuar*.
+  2. **Material:** busca el código o la descripción y, si quieres, la dimensión o el NP, como en el vale de salida. Elegir
+     una fila es **esa partida del inventario**; **Usar «…» en <código>** da de alta una **variante nueva** con lo que
+     escribiste (si se parece a una que ya existe, la tarjeta pregunta «¿Es la misma que…?» con **Usar esa**); un código
+     sin partidas (diésel, gases) entra *sin existencia*. En cada tarjeta: la cantidad, el tipo **Consumible |
+     Inventariable** (ya viene puesto: el de su existencia, consumible por regla o el de *Ajustes*), **Solicita** (quien
+     pidió el material; va en LOTE) y la **O.C.**, en ámbar si faltan. **Editar** cambia el código, la dimensión, el NP o
+     la U.M. Los filtros de arriba muestran solo lo *Por revisar*, *Sin O.C.* o *Sin solicitante*. Si la clave trae el NP
+     (`… NP: 123`), se pasa solo a su campo.
+  3. **Acomodo:** cada contenedor es una pestaña (teclas **1…9**); marca las partidas que entran ahí. Las que ya viven en
+     un solo contenedor llegan acomodadas (★). Arriba se ve cuántas faltan.
+  4. **Revisar y registrar:** de dónde viene, las partidas y *Dónde quedó* cada una (*hay → queda*). Lo que falta te
+     lleva a su paso con *Ir a…*. **Registrar** asigna el folio `E-0001`.
+- **Llenar con Copilot:** en el paso 1, *Llenar con Copilot* (en el conteo, *✨ Capturar desde la foto o PDF*): **Copiar
+  instrucciones**, pégalas en Copilot (Microsoft 365, cuenta de trabajo) con la foto o el PDF, copia su respuesta y pulsa
+  **Pegar** (o `Ctrl+V` en la ventana). Ves en verde lo que leyó; **Ver las partidas →** lo usa. Si viene cortada o con
+  errores de formato, se arregla sola y te dice qué corrigió. Lo dudoso queda *Por revisar* con lo que leyó (**Está
+  bien** o *Editar*). La herramienta no se conecta a nada: solo lee el texto que pegas.
+- **Material que regresa:** regístralo como una entrada normal.
+- **Partidas nuevas en las entradas** (*Ajustes*): entran como *Consumible* (de fábrica) o *Inventariable*. Solo cambia lo
+  que no tiene existencia ni es consumible por regla; es el mismo en los dos inventarios.
 - **Conteo físico:** elige todo o algunos contenedores, imprime la hoja de conteo (sin cantidades), *Empezar a
   capturar*, anota lo contado y usa **Añadir partida**, **Corregir dimensión / NP** o **Quitar partida** cuando haga
   falta. Las correcciones permanecen en el borrador y puedes **Deshacer corrección** antes de aplicar. Pulsa
@@ -235,15 +239,15 @@ inventario exportado y el del reporte diario usan la fecha del archivo.
 - **Corregir dimensión o NP:** *Inventario* → botón *Editar* de la partida. Sugiere la dimensión como la escribe AX (Tamaño +
   Color: juntos son la dimensión; AX no trae NP) y cómo está en otras partidas; puedes aplicarlo solo a esa partida o a todas las de su variante. Las
   cantidades no cambian y el aviso trae *Deshacer*.
-- **Corregir la descripción de un código:** el **lápiz ✎** junto a la descripción (en *Inventario*, en las partidas de los vales de
-  salida y de entrada —también al corregir un vale del historial— y en lo encontrado durante un conteo) abre una ventana con la
+- **Corregir la descripción de un código:** el **lápiz ✎** junto a la descripción (en *Inventario*, al **Editar** una partida de un vale de
+  salida o de entrada —también al corregir uno del historial— y en lo encontrado durante un conteo) abre una ventana con la
   descripción del catálogo; en el inventario también está en el menú del clic derecho. Escribe la nueva (se guarda en mayúsculas;
   `Enter` guarda y `Esc` cancela) y, si quieres, el motivo. Es la descripción **del código**: la toman el inventario, los vales y
   entradas nuevos, las etiquetas nuevas y el Excel del inventario (hoja oculta `ARTICULOS_MX`). Las partidas de los borradores
   abiertos que seguían la anterior pasan a la nueva. **Los vales ya emitidos no cambian**: al corregir uno del historial, sus partidas
   de ese código toman la nueva descripción y queda en el motivo y la bitácora (*descripción A → B*) cuando guardas la corrección.
   Cada cambio queda en la bitácora con quién, cuándo y el texto anterior (la ventana lista los últimos).
-- **Atajo:** en vales de salida y de entrada, **Alt + N** agrega una partida (debajo de la que estás escribiendo).
+- **Atajo:** en vales de salida y de entrada, **Alt + N** lleva al buscador para agregar otra partida.
 - **Historial de entradas:** *Historial de vales → Vales de entrada*, con las columnas *Fecha del vale* y *Recibido*; los
   filtros *Recibido desde / hasta* van por la de recibido. Se exporta en *Exportar y enviar → Vales de entrada* (FECHA = la
   del vale; al final, FECHA RECIBIDO).

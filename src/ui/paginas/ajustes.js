@@ -55,6 +55,18 @@ function NpEnLote() {
   <//>`;
 }
 
+/** El tipo con que empiezan las partidas nuevas de una entrada (Ronda 39, §10). */
+function TipoPartidaEntrada() {
+  const sesion = useSesion();
+  const guardado = sesion.estado.config?.tipo_partida_entrada === "INV" ? "INV" : "CONS";
+  const cambiar = (valor) =>
+    sesion.almacen.modificar((e) => fijarAjuste(e, "tipo_partida_entrada", valor, sesion.usuario)).catch((e) => sesion.avisar("error", e.message));
+  return html`<${Tarjeta} titulo="Partidas nuevas en las entradas">
+    <p class="nota">Lo que no tiene existencia ni es consumible por regla. Es el mismo en DLTA y GSM.</p>
+    <${Segmentos} etiqueta="Entran como" valor=${guardado} opciones=${{ CONS: "Consumible", INV: "Inventariable" }} alCambiar=${cambiar} />
+  <//>`;
+}
+
 function Etapa() {
   const sesion = useSesion();
   const actual = sesion.estado.config?.etapa_perforacion ?? "";
@@ -82,6 +94,7 @@ export function PaginaAjustes() {
   return html`
     <${Personalizacion} />
     <${NpEnLote} />
+    <${TipoPartidaEntrada} />
     <${ValeImpreso} />
     <${TarjetaCarpetas} />
     <${Etapa} />

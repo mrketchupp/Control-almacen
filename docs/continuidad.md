@@ -5,7 +5,9 @@ Los cambios funcionales solicitados están terminados y verificados. No quedan i
 - Primera carga: tres pasos, archivos identificados y revisión de diferencias y correcciones antes de guardar.
 - Navegación: menú completo o de íconos (Ctrl + B, preferencia local); por debajo de 1280 px siempre íconos y, al expandir, encima del contenido; sin barra inferior (Ronda 34, etapa 6).
 - Transferencias: observaciones protegidas con lápiz para editarlas; etapa de perforación independiente.
-- Entradas: «Crear material nuevo» conserva la dimensión y permite otro NP o ninguno; evita la selección automática.
+- Entradas (Ronda 39): 4 pasos — de dónde viene, material, acomodo por contenedor, revisar y registrar. Una variante
+  nueva conserva la dimensión escrita y permite otro NP o ninguno; si se parece a una existente, «¿Es la misma que…?».
+  Corregir una salida o una entrada abre en la revisión.
 - Libro diario: nombre del inventario con espacios y extensión original, tanto al descargar como en «Guardar como».
 - Conteo: altas, correcciones de dimensión / NP y bajas en borrador, con revisión antes de confirmar. Las bajas
   conservan los identificadores y vales. Corregir sólo la clave mantiene cantidades y corte.

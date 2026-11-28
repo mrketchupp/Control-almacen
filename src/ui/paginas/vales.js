@@ -1,40 +1,26 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
-import { PUESTOS_AUTORIZAN, conEtapa, conUsoEn, etiquetasFirmasExtra, sinEtapa, tieneDatosFijos, tipoDeArea } from "../../nucleo/areas.js";
-import { aNumero, dec } from "../../nucleo/decimal.js";
+import { tipoDeArea } from "../../nucleo/areas.js";
 import { Indices, npMostrado } from "../../nucleo/estado.js";
-import { calcularSaldos } from "../../nucleo/existencias.js";
 import { ahoraIso } from "../../nucleo/fechas.js";
-import { buscarPersonas, personasParaFirma } from "../../servicios/consultas.js";
 import {
   ErrorVale,
-  aplicarPlantilla,
-  areaDeVale,
   borrador as buscarBorrador,
-  conArticulo,
   conEntregaEnTurno,
-  conExistencia,
   descartarBorrador,
-  disponibles,
   emitirBorrador,
   fechaDelBorrador,
-  firmasExtraDe,
-  lineaEnBlanco,
-  lineaVacia,
   lineasCapturadas,
   loteDeRenglon,
   nuevoBorrador,
-  observacionesDelVale,
-  opcionesDeClave,
   pideEtapa,
   requiereAutoriza,
   siguienteFolio,
   validarVale,
 } from "../../servicios/vales.js";
-import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, confirmar, num, useAtajo, useSesion } from "../componentes.js";
+import { Aviso, Boton, Combo, Pastilla, Tarjeta, confirmar, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { irArriba } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
-import { BotonDescripcion } from "./descripcion.js";
 import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
 import { PasosVale, ResumenParaQuien, enterAlBajar, enterParaAvanzar } from "./pasosVale.js";
 import { PasoParaQuien } from "./paraQuien.js";
@@ -83,9 +69,6 @@ function buscarArticulos(items, consulta, limite = 10) {
     .slice(0, limite);
 }
 
-/** Orden de los bloques del panel de datos del vale (el de fábrica de la antigua "Mi pantalla de vales"). */
-const ORDEN_DATOS = ["area", "fecha", "origen_destino", "recibio", "firmas_extra", "autorizo", "etapa", "observaciones", "automaticos"];
-
 export function listas(estado) {
   const unicos = (valores) => [...new Set(valores.filter(Boolean).map((v) => String(v).trim()))].sort((a, b) => a.localeCompare(b, "es"));
   return {
@@ -94,50 +77,6 @@ export function listas(estado) {
     lugares: unicos([...estado.plantillas_area.flatMap((p) => [p.destino, p.origen]), ...estado.vales.slice(-400).flatMap((v) => [v.destino, v.origen])]),
     puestos: unicos(estado.personas.map((p) => p.puesto)),
   };
-}
-
-export function Campo({ etiqueta, error, children, ayuda, clase = "" }) {
-  return html`<label class=${`campo ${error ? "con-error" : ""} ${clase}`}>
-    <span>${etiqueta}</span>
-    ${children}
-    ${ayuda ? html`<small class="ayuda">${ayuda}</small>` : null}
-  </label>`;
-}
-
-// ---------------------------------------------------------------- quién recibe
-
-/**
- * Busca a una persona por nombre o puesto. Se muestra su puesto; quien más ha firmado así para
- * esa área (y los puestos preferidos, p. ej. RIG MANAGER e ITP para autorizar) sale primero.
- * @param campo  firma del vale que se llena: recibio_nombre, autorizo_nombre, firma_extra_…
- */
-function SelectorPersona({ id, nombre, alElegir, alEscribir, depto, campo = "recibio_nombre", puestos = [], placeholder = "Nombre o puesto…", ariaLabel = "Persona", error }) {
-  const sesion = useSesion();
-  const personas = useMemo(() => personasParaFirma(sesion.estado, campo), [sesion.estado.personas, sesion.estado.vales, campo]);
-  const [consulta, setConsulta] = useState(null); // null = muestra el nombre elegido
-  const texto = consulta ?? nombre ?? "";
-  const opciones = useMemo(() => buscarPersonas(personas, consulta ?? "", { depto, puestos, limite: 40 }), [personas, consulta, depto, puestos.join()]);
-  const escribir = (valor) => {
-    setConsulta(valor);
-    alEscribir?.(valor);
-  };
-  return html`<${Combo}
-    id=${id}
-    clase=${error ? "con-error" : ""}
-    valor=${texto}
-    alEscribir=${escribir}
-    opciones=${opciones}
-    clave=${(p) => p.id}
-    render=${(p) => html`<span class="opcion-principal">${p.nombre}</span>
-      ${p.puesto ? html`<${Pastilla} tono="info">${p.puesto}<//>` : html`<${Pastilla} titulo="Captúralo en Áreas y personas">sin puesto<//>`}`}
-    alElegir=${(p) => {
-      setConsulta(null);
-      alElegir(p);
-    }}
-    alSalir=${() => setConsulta(null)}
-    placeholder=${placeholder}
-    ariaLabel=${ariaLabel}
-  />`;
 }
 
 /** Fotos del vale en los espacios de su formato (NOV: 3). Se guardan reducidas en el equipo. */
@@ -223,111 +162,14 @@ export function CeldaCodigo({ linea, articulos, alElegir, alNuevo, error }) {
   />`;
 }
 
-function CeldaClave({ linea, opciones, alElegir, alOtra, alEscribir, error, hay, pedido }) {
-  const elegida = opciones.find((o) => o.id === linea.existencia_id) ?? null;
-  const filtradas = useMemo(() => {
-    const q = normal(linea.clave);
-    if (!q || (elegida && normal(elegida.clave) === q)) return opciones;
-    const ps = palabras(q);
-    return opciones.filter((o) => ps.every((p) => normal(`${o.clave} ${o.np ?? ""} ${o.lugar} ${o.hoja} ${o.fx ? "FX" : ""}`).includes(p)));
-  }, [opciones, linea.clave, elegida]);
-
-  if (!Number.isInteger(linea.codigo)) {
-    return html`<input class="entrada-clave" disabled placeholder="Primero el código" aria-label="Clave almacén" />`;
-  }
-  const pastillas = elegida
-    ? html`${elegida.fx ? html`<${Pastilla} tono="fx" titulo="Material de FX: se descuenta en AX de su propio almacén">FX<//>` : null}
-        <${Pastilla} tono="lugar" titulo=${elegida.hoja}>${elegida.lugar}<//>
-        <${Pastilla} tono=${hay !== null && pedido !== null && pedido.gt(hay) ? "alerta" : hay !== null && hay.lte(0) ? "alerta" : "ok"} titulo="Existencia en ese contenedor antes de este vale">
-          hay ${num(aNumero(hay ?? elegida.total))} ${elegida.um}
-        <//>`
-    : linea.no_inventariado
-      ? html`<${Pastilla} titulo="Diésel, gases, servicios o material sin existencia: queda en el historial pero no descuenta">No inventariado · no descuenta<//>`
-      : html`<${Pastilla} tono="error">Elige una clave de la lista<//>`;
-
-  if (!opciones.length) {
-    return html`<div class="celda-clave">
-      <input
-        id=${`clv-${linea.uid}`}
-        class=${`entrada-clave ${error ? "con-error" : ""}`}
-        value=${linea.clave}
-        placeholder="S/D"
-        onInput=${(e) => alEscribir(e.currentTarget.value)}
-        onKeyDown=${(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            document.getElementById(`cant-${linea.uid}`)?.focus();
-          }
-        }}
-        aria-label="Clave almacén"
-      />
-      <div class="pastillas">${pastillas}</div>
-    </div>`;
-  }
-  return html`<div class="celda-clave">
-    <${Combo}
-      id=${`clv-${linea.uid}`}
-      clase=${error ? "con-error" : ""}
-      valor=${linea.clave}
-      alEscribir=${alEscribir}
-      opciones=${filtradas}
-      clave=${(o) => o.id}
-      render=${(o) => html`<span class="opcion-principal">${o.clave}</span>
-        ${o.np ? html`<${Pastilla} titulo="Número de parte: va en la columna LOTE">NP ${o.np}<//>` : null}
-        ${o.fx ? html`<${Pastilla} tono="fx" titulo="Material de FX: se descuenta en AX de su propio almacén">FX<//>` : null}
-        <${Pastilla} tono="lugar" titulo=${o.hoja}>${o.lugar}<//>
-        <${Pastilla} tono=${o.total > 0 ? "ok" : "alerta"}>hay ${num(o.total)} ${o.um}<//>`}
-      alElegir=${(o) => alElegir(o, true)}
-      extra=${{ etiqueta: "Otra clave: no sale del inventario (no descuenta)", alElegir: alOtra }}
-      alSalir=${() => {
-        const exactas = opciones.filter((o) => normal(o.clave) === normal(linea.clave));
-        if (exactas.length === 1 && linea.existencia_id !== exactas[0].id) alElegir(exactas[0], false);
-      }}
-      placeholder="Clave / dimensión"
-      ariaLabel="Clave almacén"
-    />
-    <div class="pastillas">${pastillas}</div>
-  </div>`;
-}
-
 /**
- * Editor de un vale (borrador nuevo o corrección de uno emitido).
- * @param datos     vale en edición
- * @param alCambiar recibe los datos actualizados
- * @param entrego   {nombre, puesto} fijo (corrección); si no, el almacenista en turno
+ * Las fotos del vale en los espacios de su formato (NOV: 3), para el paso 3 del vale y la corrección. Sin espacios en
+ * el formato, nada. (Ronda 39: el editor completo de antes, `EditorVale`, se quitó; la corrección usa los pasos.)
  */
-/** uid de la partida donde está el foco (dentro de `raiz`), o null. */
-export function partidaConFoco(raiz, lineas) {
-  const fila = document.activeElement?.closest?.("[data-partida]");
-  if (!fila || !raiz.current?.contains(fila)) return null;
-  return lineas.find((l) => String(l.uid) === fila.dataset.partida)?.uid ?? null;
-}
-
-/**
- * Editor del vale: todo junto, para corregir desde el historial. Ronda 34: con `seccion: "fotos"` dibuja solo las fotos
- * del formato (paso 3 del vale en pasos; el 1 es `PasoParaQuien` y el 2, `PasoMaterial`).
- */
-export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = null, entrego = null, capacidad = null, pie = null, seccion = null }) {
+export function FotosDelFormato({ datos, alCambiar }) {
   const sesion = useSesion();
-  const estado = sesion.estado;
-  const indices = useMemo(() => new Indices(estado), [estado]);
-  const saldos = useMemo(() => calcularSaldos(estado), [estado.existencias, estado.vales, estado.conteos]);
-  const articulos = useMemo(() => indiceArticulos(estado, indices), [estado.articulos, estado.existencias]);
-  const opcionesListas = useMemo(() => listas(estado), [estado.personas, estado.plantillas_area]);
-  const area = estado.plantillas_area.find((p) => p.id === datos.plantilla_area_id) ?? null;
-  const fijo = tieneDatosFijos(area);
-  const tipo = area ? tipoDeArea(area) : datos.naturaleza === "TRANSFERENCIA" ? "TRANSFERENCIA" : null;
-  // En los importados la plantilla puede faltar: sólo se recuperan las etiquetas, nunca sus personas.
-  const extras = firmasExtraDe(estado, datos) ?? (excluirValeId !== null
-    ? etiquetasFirmasExtra(areaDeVale(estado, datos)) ?? (["firma_extra_izq_nombre", "firma_extra_izq_puesto", "firma_extra_der_nombre", "firma_extra_der_puesto"].some((campo) => normal(datos[campo]))
-      ? { izq: "Firma adicional izquierda", der: "Firma adicional derecha" } : null)
-    : null);
-  const [editarObservaciones, setEditarObservaciones] = useState(false);
-  useEffect(() => setEditarObservaciones(false), [datos.id, datos.plantilla_area_id, excluirValeId]);
   const [espacios, setEspacios] = useState([]);
-  const conFotos = seccion === null || seccion === "fotos";
   useEffect(() => {
-    if (!conFotos) return undefined;
     let vivo = true;
     sesion
       .espaciosFotos(datos)
@@ -336,376 +178,8 @@ export function EditorVale({ datos, alCambiar, errores = [], excluirValeId = nul
     return () => {
       vivo = false;
     };
-  }, [datos.plantilla_area_id, datos.depto_destino, conFotos]);
-  const errorEn = (campo, renglon = null) => errores.find((e) => e.campo === campo && e.renglon === renglon);
-  const cambiar = (cambios) => alCambiar({ ...datos, ...cambios });
-
-  // Foco: al elegir el código pasa a la clave; al elegir la clave, a la cantidad.
-  const enfocar = useRef(null);
-  useLayoutEffect(() => {
-    if (!enfocar.current) return;
-    const entrada = document.getElementById(enfocar.current);
-    if (entrada) {
-      entrada.focus();
-      entrada.select?.();
-      enfocar.current = null;
-    }
-  });
-
-  const cambiarLinea = (uid, cambio, siguiente = null) => {
-    if (siguiente) enfocar.current = siguiente;
-    cambiar({ lineas: datos.lineas.map((l) => (l.uid === uid ? (typeof cambio === "function" ? cambio(l) : { ...l, ...cambio }) : l)) });
-  };
-  // Tras corregir la descripción de un código en el catálogo, sus partidas de este vale la toman también.
-  const conDescripcion = (codigo, descripcion) => cambiar({ lineas: datos.lineas.map((l) => (l.codigo === codigo ? { ...l, descripcion } : l)) });
-  const agregarLinea = (tras = null) => {
-    const nueva = lineaVacia(area?.lote_defecto ?? "");
-    enfocar.current = `cod-${nueva.uid}`;
-    const lineas = [...datos.lineas];
-    const i = tras ? lineas.findIndex((l) => l.uid === tras) : -1;
-    lineas.splice(i >= 0 ? i + 1 : lineas.length, 0, nueva);
-    cambiar({ lineas });
-  };
-  const siguienteFila = (uid) => {
-    const i = datos.lineas.findIndex((l) => l.uid === uid);
-    const siguiente = datos.lineas[i + 1];
-    if (siguiente) {
-      document.getElementById(`cod-${siguiente.uid}`)?.focus();
-    } else agregarLinea(uid);
-  };
-  const quitar = (uid) => cambiar({ lineas: datos.lineas.filter((l) => l.uid !== uid) });
-  // Alt+N: partida nueva debajo de la que tiene el foco (o al final).
-  const raiz = useRef(null);
-  useAtajo({ alt: true, codigo: "KeyN" }, () => agregarLinea(partidaConFoco(raiz, datos.lineas)), raiz);
-
-  // Existencia disponible (antes de este vale) y lo que pide este vale por renglón del inventario.
-  const ids = [...new Set(datos.lineas.map((l) => l.existencia_id).filter((x) => x !== null && x !== undefined))];
-  const hay = useMemo(() => disponibles(estado, ids, excluirValeId), [estado, ids.join(","), excluirValeId]);
-  const pedidos = new Map();
-  for (const l of datos.lineas) {
-    if (l.existencia_id === null || l.existencia_id === undefined) continue;
-    pedidos.set(l.existencia_id, (pedidos.get(l.existencia_id) ?? dec(0)).plus(dec(l.cantidad) ?? 0));
-  }
-  const opcionesPorCodigo = useMemo(() => new Map(), [estado]);
-  const opcionesDe = (codigo) => {
-    if (!opcionesPorCodigo.has(codigo)) opcionesPorCodigo.set(codigo, opcionesDeClave(estado, codigo, { indices, saldos }));
-    return opcionesPorCodigo.get(codigo);
-  };
-
-  const autoriza = requiereAutoriza(estado, datos) || (excluirValeId !== null && Boolean(normal(datos.autorizo_nombre) || normal(datos.autorizo_puesto)));
-  const areas = estado.plantillas_area.filter((p) => p.activo !== false || p.id === datos.plantilla_area_id);
-  const enTurno = sesion.usuario ? conEntregaEnTurno(estado, datos, sesion.usuario) : null;
-  const quienEntrega = excluirValeId !== null
-    ? { nombre: datos.entrego_nombre || entrego?.nombre || "—", puesto: datos.entrego_puesto ?? "" }
-    : entrego ?? (enTurno ? { nombre: enTurno.entrego_nombre, puesto: enTurno.entrego_puesto } : null);
-  const observaciones = observacionesDelVale(estado, datos) ?? "";
-  const capturadas = lineasCapturadas(datos.lineas);
-  let numero = 0;
-
-  // Bloques del panel de datos, en su orden fijo (ORDEN_DATOS). "Mi pantalla de vales" se quitó en la Ronda 34.
-  const persona = (id, etiqueta, campo, { ayuda = null, error = null, puestos = [] } = {}) => html`
-    <${Campo} etiqueta=${etiqueta} error=${error} ayuda=${ayuda}>
-      <${SelectorPersona}
-        id=${id}
-        ariaLabel=${etiqueta}
-        campo=${`${campo}_nombre`}
-        puestos=${puestos}
-        nombre=${datos[`${campo}_nombre`]}
-        depto=${datos.depto_destino}
-        error=${error}
-        alEscribir=${(valor) => cambiar({ [`${campo}_nombre`]: valor })}
-        alElegir=${(p) => cambiar({ [`${campo}_nombre`]: p.nombre, [`${campo}_puesto`]: p.puesto ?? datos[`${campo}_puesto`] ?? "" })}
-      />
-    <//>
-  `;
-  const puestoDe = (etiqueta, campo, sugerencias = opcionesListas.puestos) => html`
-    <${Campo} etiqueta=${etiqueta}>
-      <${CampoSugerido} valor=${datos[`${campo}_puesto`] ?? ""} alCambiar=${(valor) => cambiar({ [`${campo}_puesto`]: valor })} sugerencias=${sugerencias} ariaLabel=${etiqueta} />
-    <//>
-  `;
-  const bloques = {
-    area: html`
-      <${Campo} etiqueta="Área que recibe" error=${errorEn("depto_destino")}>
-        <${Lista}
-          id="area-vale"
-          valor=${datos.plantilla_area_id ?? ""}
-          alCambiar=${(valor) => {
-            const copia = structuredClone(datos);
-            aplicarPlantilla(estado, copia, valor ? Number(valor) : null);
-            alCambiar(copia);
-          }}
-          ariaLabel="Área que recibe"
-          placeholder="— Elige el área —"
-          opciones=${areas.map((a) => ({
-            valor: a.id,
-            etiqueta: a.nombre,
-            detalle: tipoDeArea(a) === "TRANSFERENCIA" ? "transferencia" : tipoDeArea(a) === "EXTERNO" ? "externa" : null,
-          }))}
-        />
-      <//>
-    `,
-    fecha: html`
-      <${Campo} etiqueta="Fecha" error=${errorEn("fecha")}>
-        <input type="date" value=${datos.fecha} onChange=${(e) => cambiar({ fecha: e.currentTarget.value })} />
-      <//>
-    `,
-    origen_destino:
-      !fijo && (area || datos.origen || datos.destino)
-        ? html`
-            <div class="rejilla-campos">
-              <${Campo} etiqueta="Origen"><${CampoSugerido} valor=${datos.origen} alCambiar=${(valor) => cambiar({ origen: valor })} sugerencias=${opcionesListas.lugares} ariaLabel="Origen" /><//>
-              <${Campo} etiqueta="Depto. origen"><${CampoSugerido} valor=${datos.depto_origen} alCambiar=${(valor) => cambiar({ depto_origen: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. origen" /><//>
-              <${Campo} etiqueta="Destino"><${CampoSugerido} valor=${datos.destino}
-                alCambiar=${(valor) => cambiar(tipo === "TRANSFERENCIA" ? { destino: valor, observaciones: conUsoEn(datos.observaciones, valor, { agregar: false }) } : { destino: valor })}
-                sugerencias=${opcionesListas.lugares} ariaLabel="Destino" /><//>
-              <${Campo} etiqueta="Depto. destino" error=${errorEn("depto_destino")}>
-                <${CampoSugerido} valor=${datos.depto_destino} alCambiar=${(valor) => cambiar({ depto_destino: valor })} sugerencias=${opcionesListas.deptos} ariaLabel="Depto. destino" />
-              <//>
-            </div>
-            ${tipo === "TRANSFERENCIA" ? html`<p class="nota">Transferencia: indica origen, destino y quién autoriza.</p>` : null}
-          `
-        : null,
-    recibio: html`
-      ${persona("recibio", "Recibió", "recibio", {
-        error: errorEn("recibio_nombre"),
-        ayuda: extras ? "Firma a la izquierda, arriba." : "Busca por nombre o por puesto (p. ej. mecánico).",
-      })}
-      ${puestoDe("Puesto de quien recibe", "recibio")}
-    `,
-    firmas_extra: extras
-      ? html`
-          ${persona("firma-izq", extras.izq, "firma_extra_izq", { ayuda: "Firma a la izquierda, abajo." })}
-          ${puestoDe(`Puesto (${extras.izq.toLowerCase()})`, "firma_extra_izq")}
-          ${persona("firma-der", extras.der, "firma_extra_der", { ayuda: "Firma a la derecha, abajo." })}
-          ${puestoDe(`Puesto (${extras.der.toLowerCase()})`, "firma_extra_der")}
-        `
-      : null,
-    autorizo: autoriza
-      ? html`
-          ${persona("autorizo", "Autorizó (obligatorio)", "autorizo", {
-            error: errorEn("autorizo_nombre"),
-            ayuda: "Primero se sugieren RIG MANAGER e ITP.",
-            puestos: PUESTOS_AUTORIZAN,
-          })}
-          ${puestoDe("Puesto de quien autoriza", "autorizo", [...new Set([...PUESTOS_AUTORIZAN, ...opcionesListas.puestos])])}
-        `
-      : null,
-    etapa: pideEtapa(estado, datos)
-      ? html`
-          <${Campo} etiqueta="Etapa de perforación" error=${errorEn("etapa_perforacion")} ayuda="Es lo único que cambia en las observaciones; se recuerda para los siguientes vales.">
-            <input value=${datos.etapa_perforacion ?? ""} placeholder='Ej. 12 1/4"' onInput=${(e) => cambiar({ etapa_perforacion: e.currentTarget.value })} />
-          <//>
-        `
-      : null,
-    observaciones: tipo === "TRANSFERENCIA"
-      ? html`<div class="campo observaciones-transferencia">
-          <div class="acciones-linea">
-            <span>Observaciones</span>
-            <${Boton} tipo="texto" tamano="chico" aria-label=${editarObservaciones ? "Terminar edición de observaciones" : "Editar observaciones de esta transferencia"}
-              aria-expanded=${editarObservaciones}
-              onClick=${() => setEditarObservaciones((antes) => !antes)}>
-              <${Icono} nombre=${editarObservaciones ? "candado" : "lapiz"} tam=${15} /> ${editarObservaciones ? "Terminar edición" : "Editar"}
-            <//>
-          </div>
-          ${editarObservaciones ? html`<textarea rows="4" aria-label="Observaciones de la transferencia"
-            value=${pideEtapa(estado, datos) ? sinEtapa(observaciones) : observaciones}
-            onInput=${(e) => cambiar({ observaciones: pideEtapa(estado, datos) ? conEtapa(e.currentTarget.value, datos.etapa_perforacion ?? "") : e.currentTarget.value })}></textarea>`
-            : html`<p class="observaciones-fijas">${observaciones || "—"}</p>`}
-        </div>`
-      : !(area && fijo)
-      ? html`
-          <${Campo} etiqueta="Observaciones">
-            <textarea rows="4" value=${datos.observaciones} onInput=${(e) => cambiar({ observaciones: e.currentTarget.value })}></textarea>
-          <//>
-        `
-      : null,
-    automaticos: html`
-      <div class="datos-automaticos">
-        <span class="subtitulo-panel">${excluirValeId !== null ? "Datos de quien entrega" : "Se llenan solos"}</span>
-        <dl class=${`datos-fijos ${!quienEntrega ? "datos-fijos-error" : ""}`}>
-          <dt>Entrega</dt>
-          <dd>
-            ${quienEntrega
-              ? html`${quienEntrega.nombre}
-                  <small>${[quienEntrega.puesto, entrego ? null : "en turno", extras ? "firma a la derecha, arriba" : null].filter(Boolean).join(" · ")}</small>`
-              : html`<span class="alerta">Elige quién está en turno (arriba a la derecha)</span>`}
-          </dd>
-          ${area && fijo
-            ? html`<dt>Sale de</dt><dd>${area.origen || "—"} · ${area.depto_origen || "—"}</dd>
-                <dt>Llega a</dt><dd>${area.destino || "—"} · ${area.depto_destino || "—"}</dd>`
-            : null}
-        </dl>
-        ${excluirValeId !== null ? puestoDe("Puesto de quien entrega", "entrego") : null}
-        ${area && fijo
-          ? html`<div class="campo">
-              <span>Observaciones (así salen en el vale)</span>
-              <p class="observaciones-fijas">${observaciones || "—"}</p>
-            </div>`
-          : null}
-      </div>
-    `,
-  };
-
-  const panelDatos = html`<aside class="vale-datos" aria-label="Datos del vale">
-    ${ORDEN_DATOS.map((id) => (bloques[id] ? html`<div class="bloque-vale" key=${id} data-bloque=${id}>${bloques[id]}</div>` : null))}
-  </aside>`;
-  const panelFotos = espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => cambiar({ fotos })} />` : null;
-  if (seccion === "fotos") return panelFotos;
-  const panelPartidas = html`<section class="vale-partidas" aria-label="Partidas del vale" data-sin-avanzar>
-        <header class="partidas-cabeza">
-          <h2>Partidas</h2>
-          <span class=${`contador-partidas ${capacidad && capturadas.length > capacidad ? "excedido" : ""}`}>
-            ${capturadas.length}${capacidad ? ` de ${capacidad}` : ""}
-          </span>
-          <span class="nota">Como aparecerán en el vale. Lo de color gris es información del inventario.</span>
-        </header>
-
-        <div class="tabla-contenedor tabla-partidas">
-          <table class="tabla">
-            <colgroup>
-              <col class="c-num" /><col class="c-oc" /><col class="c-cant" /><col class="c-cod" /><col />
-              <col class="c-clave" /><col class="c-um" /><col class="c-lote" /><col class="c-quitar" />
-            </colgroup>
-            <thead class="cabecera-vale">
-              <tr>
-                <th class="numero">#</th>
-                <th>O.C.</th>
-                <th class="numero">Cantidad</th>
-                <th>Código</th>
-                <th class="col-descripcion">Descripción del material</th>
-                <th>Clave almacén</th>
-                <th title="Presentación (unidad de medida)"><span class="si-hay-espacio">Presentación</span><span class="si-no-hay-espacio">U.M.</span></th>
-                <th>Lote</th>
-                <th><span class="solo-lector">Quitar</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${datos.lineas.map((l) => {
-                const blanco = lineaEnBlanco(l);
-                if (!blanco) numero += 1;
-                const n = blanco ? null : numero;
-                const opciones = Number.isInteger(l.codigo) ? opcionesDe(l.codigo) : [];
-                const conExist = l.existencia_id !== null && l.existencia_id !== undefined;
-                const disponible = conExist ? (hay.get(l.existencia_id) ?? null) : null;
-                const pedido = conExist ? (pedidos.get(l.existencia_id) ?? null) : null;
-                const excede = conExist && disponible !== null && pedido?.gt(disponible);
-                const conocido = Number.isInteger(l.codigo) && Boolean(estado.articulos[l.codigo]);
-                return html`<tr key=${l.uid} data-partida=${l.uid} class=${n && errores.some((e) => e.renglon === n) ? "fila-error" : ""}>
-                    <td class="numero">${n ?? ""}</td>
-                    <td><input class="entrada-oc" placeholder="S/OC" value=${l.oc} onInput=${(e) => cambiarLinea(l.uid, { oc: e.currentTarget.value })} aria-label="O.C." /></td>
-                    <td>
-                      <input
-                        id=${`cant-${l.uid}`}
-                        class=${`entrada-cantidad ${n && errorEn("cantidad", n) ? "con-error" : ""}`}
-                        inputmode="decimal"
-                        value=${l.cantidad}
-                        onInput=${(e) => cambiarLinea(l.uid, { cantidad: e.currentTarget.value.replace(",", ".") })}
-                        onKeyDown=${(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            siguienteFila(l.uid);
-                          }
-                        }}
-                        aria-label="Cantidad"
-                      />
-                    </td>
-                    <td>
-                      <${CeldaCodigo}
-                        linea=${l}
-                        articulos=${articulos}
-                        error=${n && errorEn("codigo", n)}
-                        alElegir=${(codigo, mover) => {
-                          if (codigo === l.codigo) {
-                            if (mover) enfocar.current = conocido && opciones.length === 1 ? `cant-${l.uid}` : `clv-${l.uid}`;
-                            return;
-                          }
-                          const nueva = conArticulo(estado, l, codigo, { indices });
-                          const destino = nueva.existencia_id !== null ? `cant-${l.uid}` : `clv-${l.uid}`;
-                          cambiarLinea(l.uid, nueva, mover ? destino : null);
-                        }}
-                        alNuevo=${(codigo) => cambiarLinea(l.uid, { ...conArticulo(estado, l, codigo, { indices }), descripcion: "" }, `desc-${l.uid}`)}
-                      />
-                    </td>
-                    <td class="col-descripcion">
-                      ${Number.isInteger(l.codigo) && !conocido
-                        ? html`<input
-                            id=${`desc-${l.uid}`}
-                            class=${n && errorEn("descripcion", n) ? "con-error" : ""}
-                            value=${l.descripcion}
-                            placeholder="Descripción (código nuevo, queda por confirmar)"
-                            onInput=${(e) => cambiarLinea(l.uid, { descripcion: e.currentTarget.value })}
-                          />`
-                        : html`<div class="descripcion-codigo">
-                            <span class="descripcion">${l.descripcion || html`<span class="nota">—</span>`}</span>
-                            ${conocido ? html`<${BotonDescripcion} codigo=${l.codigo} alCambiar=${(descripcion) => conDescripcion(l.codigo, descripcion)} />` : null}
-                          </div>`}
-                    </td>
-                    <td>
-                      <${CeldaClave}
-                        linea=${l}
-                        opciones=${opciones}
-                        hay=${disponible}
-                        pedido=${pedido}
-                        error=${n && (errorEn("existencia_id", n) || errorEn("clave", n))}
-                        alElegir=${(o, mover) => cambiarLinea(l.uid, (actual) => conExistencia(estado, actual, o.id, indices), mover ? `cant-${l.uid}` : null)}
-                        alOtra=${() => cambiarLinea(l.uid, { existencia_id: null, variante_id: null, no_inventariado: true }, `cant-${l.uid}`)}
-                        alEscribir=${(valor) =>
-                          cambiarLinea(l.uid, (actual) => {
-                            const elegida = opciones.find((o) => o.id === actual.existencia_id);
-                            const sigue = elegida && normal(elegida.clave) === normal(valor);
-                            return {
-                              ...actual,
-                              clave: valor,
-                              existencia_id: sigue ? actual.existencia_id : null,
-                              variante_id: sigue ? actual.variante_id : null,
-                              no_inventariado: opciones.length === 0 ? true : sigue ? false : actual.no_inventariado && !elegida,
-                            };
-                          })}
-                      />
-                    </td>
-                    <td><input class=${`entrada-um ${n && errorEn("um", n) ? "con-error" : ""}`} value=${l.um} onInput=${(e) => cambiarLinea(l.uid, { um: e.currentTarget.value })} aria-label="Presentación (UM)" /></td>
-                    <td><input class="entrada-lote" value=${l.lote} onInput=${(e) => cambiarLinea(l.uid, { lote: e.currentTarget.value })} aria-label="Lote" /></td>
-                    <td>
-                      <button type="button" class="boton-quitar" title="Quitar esta partida del vale" onClick=${() => quitar(l.uid)}>
-                        <span aria-hidden="true">✕</span> Quitar
-                      </button>
-                    </td>
-                  </tr>
-                  ${excede
-                    ? html`<tr class="fila-aviso" key=${`${l.uid}-aviso`}>
-                        <td></td>
-                        <td colspan="8">
-                          <span class="alerta">En ese contenedor hay ${num(aNumero(disponible))} y el vale pide ${num(aNumero(pedido))}.</span>
-                          Justificación para continuar:
-                          <input
-                            class=${`entrada-justificacion ${n && errorEn("justificacion", n) ? "con-error" : ""}`}
-                            value=${l.justificacion}
-                            onInput=${(e) => cambiarLinea(l.uid, { justificacion: e.currentTarget.value })}
-                            placeholder="Ej. material recibido sin vale de entrada"
-                          />
-                        </td>
-                      </tr>`
-                    : null}`;
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div class="acciones-linea">
-          <${Boton} onClick=${() => agregarLinea()} title="Agregar partida (Alt + N)">＋ Agregar partida <${Teclas} teclas=${["Alt", "N"]} /><//>
-          <span class="nota">Código → Enter → clave → Enter → cantidad → Enter pasa a la siguiente partida. Alt + N agrega una partida desde cualquier campo.</span>
-        </div>
-      </section>`;
-
-  return html`
-    <div ref=${raiz} class="editor-vale">
-      ${panelDatos}
-      <div class="vale-principal">
-        ${panelPartidas}
-        ${panelFotos}
-        ${pie ? html`<div class="vale-pie">${pie}</div>` : null}
-      </div>
-    </div>
-  `;
+  }, [datos.plantilla_area_id, datos.depto_destino]);
+  return espacios.length ? html`<${FotosVale} fotos=${datos.fotos ?? []} espacios=${espacios} alCambiar=${(fotos) => alCambiar({ ...datos, fotos })} />` : null;
 }
 
 export function ListaErrores({ errores }) {
@@ -763,7 +237,6 @@ function EmitidoOk({ vales, alNuevo, alCopiar }) {
     </div>
   <//>`;
 }
-
 
 export function PaginaValesSalida() {
   const sesion = useSesion();

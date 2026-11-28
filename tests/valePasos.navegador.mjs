@@ -197,6 +197,10 @@ test("vale de salida en 3 pasos", async (t) => {
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
     assert.equal(await pasoActual(), "2 · Material");
+    // Alt + N, desde cualquier campo: otra partida = al buscador.
+    await page.getByLabel("Unidad de la partida 2").focus();
+    await page.keyboard.press("Alt+KeyN");
+    await page.waitForFunction(() => document.activeElement?.id === "buscar-material");
     // Quitar con Deshacer.
     await buscador.fill("foco led");
     await page.getByRole("option").first().dblclick();

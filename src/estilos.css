@@ -632,10 +632,6 @@ body:has(.marco) {
   }
 }
 
-.marco .barra-entrada {
-  top: calc(var(--alto-cabecera, 57px) + 8px);
-}
-
 @media (max-width: 1100px) {
   .contenido {
     padding: 18px 18px 52px;
@@ -1235,7 +1231,6 @@ select {
 }
 
 :root[data-avisos="abajo"] .avisos,
-body:has(.barra-entrada) .avisos,
 body.con-ventana .avisos {
   top: auto;
   bottom: 16px;
@@ -1244,14 +1239,12 @@ body.con-ventana .avisos {
 
 /* Abajo, el espacio va arriba de cada aviso (el de más abajo queda pegado a su orilla) y al irse baja. */
 :root[data-avisos="abajo"] .toast-hueco-dentro > .toast,
-body:has(.barra-entrada) .toast-hueco-dentro > .toast,
 body.con-ventana .toast-hueco-dentro > .toast {
   margin-top: 10px;
   margin-bottom: 0;
 }
 
 :root[data-avisos="abajo"] .toast-hueco.saliendo .toast,
-body:has(.barra-entrada) .toast-hueco.saliendo .toast,
 body.con-ventana .toast-hueco.saliendo .toast {
   animation-name: toast-sale-abajo;
 }
@@ -1385,7 +1378,6 @@ body.con-ventana .toast-hueco.saliendo .toast {
     transform: scaleX(0);
   }
 }
-
 
 .ocupado {
   position: fixed;
@@ -1822,50 +1814,13 @@ select.con-error {
   font-weight: 600;
 }
 
-.editor-lineas input,
-.editor-lineas select {
-  width: 100%;
-  padding: 5px 7px;
-  font-size: 0.9rem;
-}
-
-.editor-lineas td {
-  vertical-align: middle;
-}
-
-.editor-lineas td.articulo {
-  min-width: 220px;
-}
-
 .entrada-cantidad {
   width: 80px !important;
   text-align: right;
 }
 
-.entrada-um,
-.entrada-oc {
+.entrada-um {
   width: 72px !important;
-}
-
-.entrada-lote {
-  width: 96px !important;
-}
-
-.entrada-clave {
-  min-width: 110px;
-}
-
-.entrada-descripcion {
-  margin-top: 4px;
-}
-
-.entrada-justificacion {
-  width: min(460px, 100%) !important;
-  margin-left: 6px;
-}
-
-.editor-lineas select {
-  min-width: 190px;
 }
 
 .fila-error td {
@@ -2132,15 +2087,6 @@ select.con-error {
   margin-bottom: 10px;
 }
 
-.editor-vale {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.vale-datos,
-.vale-partidas,
 .vale-fotos,
 .vale-pie {
   background: var(--superficie);
@@ -2148,18 +2094,6 @@ select.con-error {
   border-radius: var(--radio);
   box-shadow: var(--sombra);
   padding: 14px 16px;
-}
-
-.vale-datos {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.vale-datos .campo input,
-.vale-datos .campo select,
-.vale-datos .campo textarea {
-  width: 100%;
 }
 
 .ayuda {
@@ -2172,45 +2106,6 @@ select.con-error {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-}
-
-.datos-fijos {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 3px 10px;
-  margin: 0;
-  padding: 8px 12px;
-  border: 1px dashed var(--borde);
-  border-radius: 6px;
-  background: var(--superficie-2);
-  font-size: 0.88rem;
-}
-
-.datos-fijos dt {
-  color: var(--texto-suave);
-  font-weight: 600;
-}
-
-.datos-fijos dd {
-  margin: 0;
-  font-weight: 600;
-}
-
-.datos-fijos-error {
-  border-color: var(--alerta);
-  background: var(--alerta-suave);
-}
-
-.observaciones-fijas {
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px dashed var(--borde);
-  border-radius: 6px;
-  background: var(--superficie-2);
-  color: var(--texto);
-  font-size: 0.8rem;
-  font-weight: 400;
-  white-space: pre-wrap;
 }
 
 .partidas-cabeza {
@@ -2250,15 +2145,6 @@ select.con-error {
   table-layout: fixed;
 }
 
-.tabla-partidas .c-num { width: 30px; }
-.tabla-partidas .c-oc { width: 62px; }
-.tabla-partidas .c-cant { width: 74px; }
-.tabla-partidas .c-cod { width: 82px; }
-.tabla-partidas .c-clave { width: 164px; }
-.tabla-partidas .c-um { width: 62px; }
-.tabla-partidas .c-lote { width: 64px; }
-.tabla-partidas .c-quitar { width: 78px; }
-
 .tabla-partidas th {
   position: static;
   padding: 7px 6px;
@@ -2270,12 +2156,6 @@ select.con-error {
 .tabla-partidas .cabecera-vale th {
   font-size: 0.72rem;
   letter-spacing: 0;
-}
-
-.datos-fijos dd small {
-  display: block;
-  font-weight: 400;
-  color: var(--texto-suave);
 }
 
 .tabla-partidas td {
@@ -2445,10 +2325,6 @@ select.con-error {
   white-space: nowrap;
 }
 
-.vale-partidas .pie-editor {
-  margin-top: 12px;
-}
-
 .tarjeta-inicio-vales {
   max-width: 720px;
 }
@@ -2597,8 +2473,6 @@ select.con-error {
 
 .tabla-partidas .entrada-cantidad,
 .tabla-partidas .entrada-um,
-.tabla-partidas .entrada-oc,
-.tabla-partidas .entrada-lote,
 .tabla-partidas .combo-codigo {
   width: 100% !important;
 }
@@ -2801,15 +2675,6 @@ select.con-error {
   resize: vertical;
 }
 
-/* ---------------------------------------------------------------- columna principal del vale */
-
-.vale-principal {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
-
 .vale-pie .pie-editor {
   margin-top: 0;
   padding-top: 0;
@@ -2826,28 +2691,6 @@ select.con-error {
   gap: 10px;
 }
 
-.datos-automaticos {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--borde);
-}
-
-.subtitulo-panel {
-  color: var(--texto-suave);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* "Presentación" cuando cabe; si no, "U.M." (quien usa el formato sabe que es lo mismo). */
-.vale-partidas {
-  container-type: inline-size;
-}
-
 .si-hay-espacio {
   display: none;
 }
@@ -2861,35 +2704,6 @@ select.con-error {
     display: none;
   }
 
-  .tabla-partidas .c-um {
-    width: 112px;
-  }
-}
-
-/* ---------------------------------------------------------------- preferencias de cada almacenista */
-
-.bloque-vale {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-@media (max-width: 1250px) {
-  .editor-vale {
-    grid-template-columns: 260px minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 1100px) {
-  .editor-vale {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* ---------------------------------------------------------------- fase 3: entradas, conteos y reacomodos */
-
-.tabla-partidas .c-destino {
-  width: 250px;
 }
 
 .casilla {
@@ -3080,48 +2894,6 @@ select.con-error {
 
 .privacidad-ia {
   margin: 6px 0 0;
-}
-
-.captura-asistida {
-  padding: 18px;
-  border: 1px solid var(--borde);
-  border-radius: calc(var(--radio) + 4px);
-  background: linear-gradient(180deg, var(--primario-suave), var(--superficie) 140px);
-}
-
-.captura-asistida > header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.captura-asistida > header > div {
-  flex: 1;
-}
-
-.captura-asistida h2 {
-  margin: 0;
-}
-
-.captura-asistida header p {
-  margin: 2px 0 0;
-}
-
-.reporte-ia-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 4px 8px 4px 12px;
-  border: 1px solid var(--borde);
-  border-left: 4px solid var(--ok);
-  border-radius: var(--radio);
-  background: var(--superficie);
-}
-
-.reporte-ia-banner .reporte-ia {
-  flex: 1;
 }
 
 @media (max-width: 900px) {
@@ -3839,19 +3611,6 @@ body.con-ventana {
   margin-top: 0;
 }
 
-/* ---------------------------------------------------------------- vales de entrada (ronda 6) */
-
-.elegir-modo {
-  max-width: 760px;
-  margin: 24px auto 12px;
-  text-align: center;
-}
-
-.elegir-modo h2 {
-  margin: 0 0 4px;
-  font-size: 1.35rem;
-}
-
 .modos {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3859,200 +3618,14 @@ body.con-ventana {
   margin: 20px 0;
 }
 
-.modo-tarjeta {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 28px 22px;
-  font: inherit;
-  color: var(--texto);
-  text-align: center;
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-radius: 14px;
-  box-shadow: var(--sombra);
-  cursor: pointer;
-  transition: transform var(--dur-corta) ease, box-shadow var(--dur-corta) ease, border-color var(--dur-corta) ease, background var(--dur-corta) ease;
-}
-
-.modo-tarjeta strong {
-  font-size: 1.15rem;
-}
-
-.modo-tarjeta small {
-  color: var(--texto-suave);
-}
-
-.modo-tarjeta:hover,
-.modo-tarjeta:focus-visible {
-  border-color: var(--primario);
-  background: var(--primario-suave);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.12);
-}
-
-.modo-destacado {
-  border-color: var(--primario);
-}
-
-.modo-icono {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: var(--primario-suave);
-  color: var(--primario);
-}
-
-.captura-asistida .modo-icono {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background: var(--superficie);
-}
-
-.modo-devolucion {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border: 1px dashed var(--borde);
-  border-radius: var(--radio);
-  color: var(--texto-suave);
-  font-size: 0.9rem;
-}
-
-.modo-devolucion input {
-  width: 130px;
-}
-
 .acciones-linea.centrado {
   justify-content: center;
-}
-
-.barra-entrada {
-  position: sticky;
-  top: 57px;
-  z-index: 15;
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio);
-  box-shadow: 0 4px 14px rgba(16, 24, 40, 0.08);
-}
-
-.barra-entrada-fila {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.barra-entrada-estado {
-  flex: 1;
-  min-width: 0;
-}
-
-.barra-entrada-acciones {
-  flex: none;
-}
-
-.barra-entrada-estado,
-.barra-entrada-acciones {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.barra-entrada-acciones .boton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.chip-estado {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 10px;
-  border: 1px solid var(--borde);
-  border-radius: 999px;
-  background: var(--neutro-suave);
-  font: inherit;
-  font-size: 0.82rem;
-  color: var(--texto);
 }
 
 .chip-alerta {
   background: var(--alerta-suave);
   border-color: transparent;
   color: var(--alerta);
-}
-
-.chip-error {
-  background: var(--error-suave);
-  border-color: transparent;
-  color: var(--error);
-  cursor: pointer;
-}
-
-.chip-ok {
-  background: var(--ok-suave);
-  border-color: transparent;
-  color: var(--ok);
-}
-
-.barra-errores {
-  margin: 10px 0 2px;
-  padding: 8px 12px 8px 28px;
-  border-radius: 6px;
-  background: var(--error-suave);
-  max-height: 40vh;
-  overflow: auto;
-  animation: aparecer var(--dur-corta) ease-out;
-}
-
-.barra-errores .enlace-boton {
-  color: var(--error);
-  text-align: left;
-}
-
-.entrada-encabezado {
-  padding: 14px 16px;
-  margin-bottom: 14px;
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio);
-}
-
-.encabezado-campos {
-  display: grid;
-  grid-template-columns: minmax(130px, 0.8fr) minmax(200px, 1.4fr) minmax(150px, 0.8fr) minmax(200px, 1.4fr);
-  gap: 10px 14px;
-}
-
-.encabezado-campos .campo {
-  margin: 0;
-  min-width: 0;
-}
-
-.encabezado-campos input {
-  width: 100%;
-}
-
-.entrada-encabezado .aviso-folio {
-  margin-top: 10px;
-}
-
-/* Ronda 22 — fecha de recibido: «Fecha del vale» y «Recibido» lado a lado; la nota y los avisos debajo. */
-.encabezado-campos {
-  grid-template-columns: minmax(120px, 0.8fr) minmax(190px, 1.3fr) minmax(140px, 0.75fr) minmax(140px, 0.75fr) minmax(190px, 1.3fr);
 }
 
 .recibido-nota {
@@ -4068,11 +3641,6 @@ body.con-ventana {
   margin: 4px 0 0;
 }
 
-.recibido-error {
-  color: var(--error);
-  font-weight: 600;
-}
-
 .recibido-aviso {
   padding: 6px 10px;
   border-left: 3px solid var(--alerta);
@@ -4084,111 +3652,6 @@ body.con-ventana {
 /* Historial y reporte: recibido otro día que el del vale. */
 .recibido-distinto {
   font-weight: 600;
-}
-
-.encabezado-pie {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--borde);
-  font-size: 0.85rem;
-  color: var(--texto-suave);
-}
-
-.campo-observaciones {
-  flex: 1 1 320px;
-  margin: 0;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-}
-
-.campo-observaciones input {
-  flex: 1;
-}
-
-.entrada-partidas {
-  padding: 14px 16px;
-  background: var(--superficie);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio);
-}
-
-.entrada-partidas .partidas-cabeza {
-  margin-bottom: 8px;
-}
-
-/* Columnas de la primera línea de cada partida: # · código · descripción · clave · cantidad · UM · quitar */
-.partidas-titulos,
-.partida-linea1 {
-  display: grid;
-  grid-template-columns: 34px minmax(100px, 0.8fr) minmax(150px, 1.8fr) minmax(140px, 1.3fr) minmax(100px, 0.9fr) 86px 70px 34px;
-  gap: 8px;
-  align-items: center;
-}
-
-.partidas-titulos {
-  padding: 0 10px 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--texto-suave);
-}
-
-.lista-partidas {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 0 10px;
-  padding: 0;
-  list-style: none;
-}
-
-.partida-entrada {
-  padding: 8px 10px;
-  border: 1px solid var(--borde);
-  border-left: 4px solid var(--primario-suave);
-  border-radius: var(--radio);
-  background: var(--superficie);
-  transition: border-color var(--dur-corta) ease, box-shadow var(--dur-corta) ease;
-  animation: aparecer var(--dur-media) ease-out;
-}
-
-.partida-entrada:focus-within {
-  border-left-color: var(--primario);
-  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.08);
-}
-
-.partida-entrada.dudosa {
-  border-left-color: var(--alerta);
-  background: color-mix(in srgb, var(--alerta-suave) 45%, var(--superficie));
-}
-
-.partida-entrada.con-error {
-  border-left-color: var(--error);
-}
-
-.partida-vacia {
-  border-style: dashed;
-  border-left-width: 1px;
-  background: var(--superficie-2);
-}
-
-.partida-num {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--neutro-suave);
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: var(--texto-suave);
 }
 
 .pf {
@@ -4208,90 +3671,6 @@ body.con-ventana {
   overflow: hidden;
   font-size: 0.9rem;
   line-height: 1.25;
-}
-
-.pf-cant input {
-  text-align: right;
-}
-
-.mini {
-  display: none;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--texto-suave);
-}
-
-.partida-linea2 {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 18px;
-  margin: 6px 0 0 42px;
-  padding-top: 6px;
-  border-top: 1px solid var(--borde);
-}
-
-.mini-linea {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--texto-suave);
-}
-
-.pf-entra,
-.pf-solicita,
-.pf-oc,
-.pf-revisar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pf-solicita .combo,
-.pf-solicita input {
-  width: 210px;
-}
-
-.pf-oc input {
-  width: 110px;
-}
-
-.lista-entra .lista-boton {
-  min-width: 150px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--primario-suave);
-  border-color: transparent;
-  color: var(--primario);
-  font-size: 0.85rem;
-}
-
-.lista-entra.sin-elegir .lista-boton {
-  background: var(--superficie-2);
-  border: 1px dashed var(--borde);
-  color: var(--texto-suave);
-}
-
-.lista-entra.con-error .lista-boton {
-  border: 1px solid var(--error);
-  background: var(--error-suave);
-  color: var(--error);
-}
-
-.lista-entra .lista-boton:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.lista-entra .resultados {
-  min-width: 340px;
-}
-
-.entra-valor {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
 }
 
 .indicador {
@@ -4358,113 +3737,14 @@ body.con-ventana {
   color: var(--texto-suave);
 }
 
-/* En las tarjetas de entrada el botón es solo la ✕ (en los vales de salida dice "✕ Quitar"). */
-.partida-entrada .boton-quitar {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--texto-suave);
-  cursor: pointer;
-}
-
-.partida-entrada .boton-quitar:hover {
-  background: var(--error-suave);
-  color: var(--error);
-}
-
 .ventana.ventana-copilot {
   width: min(820px, 100%);
 }
 
 @media (max-width: 1100px) {
-  .encabezado-campos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .partidas-titulos {
-    display: none;
-  }
-
-  .partida-linea1 {
-    grid-template-columns: 34px repeat(3, minmax(0, 1fr)) 30px;
-    grid-template-areas:
-      "num cod  cla  cla  quitar"
-      ".   desc desc desc ."
-      ".   np   cant um   .";
-    align-items: end;
-  }
-
-  .partida-linea1 .partida-num {
-    grid-area: num;
-    align-self: center;
-  }
-
-  .partida-linea1 .pf-codigo {
-    grid-area: cod;
-  }
-
-  .partida-linea1 .pf-desc {
-    grid-area: desc;
-  }
-
-  .partida-linea1 .pf-clave {
-    grid-area: cla;
-  }
-
-  .partida-linea1 .pf-np {
-    grid-area: np;
-  }
-
-  .partida-linea1 .pf-cant {
-    grid-area: cant;
-  }
-
-  .partida-linea1 .pf-um {
-    grid-area: um;
-  }
-
-  .partida-linea1 .pf-quitar {
-    grid-area: quitar;
-    align-self: center;
-  }
-
-  .mini {
-    display: block;
-  }
-
-  .partida-linea2 {
-    margin-left: 0;
-  }
 
   .modos {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 1250px) {
-  .barra-entrada-estado .nota {
-    display: none;
-  }
-}
-
-@media (max-width: 900px) {
-  .barra-entrada-fila {
-    flex-wrap: wrap;
-  }
-}
-
-@media (max-width: 640px) {
-  .encabezado-campos {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .barra-entrada {
-    top: 0;
   }
 }
 
@@ -4520,7 +3800,6 @@ body.con-ventana {
 }
 
 :root[data-avisos="abajo"] .toast,
-body:has(.barra-entrada) .toast,
 body.con-ventana .toast {
   animation-name: toast-abajo;
 }
@@ -4623,91 +3902,12 @@ body.con-ventana .toast {
   box-shadow: var(--sombra);
 }
 
-/* ---------------------------------------------------------------- entradas: atención, NP y transiciones (ronda 8) */
-
-.chip-filtro {
-  cursor: pointer;
-  transition: background var(--dur-corta) ease, box-shadow var(--dur-corta) ease;
-}
-
-.chip-filtro:hover {
-  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent);
-}
-
-.chip-filtro.activo {
-  box-shadow: 0 0 0 2px currentColor;
-  font-weight: 600;
-}
-
-.chip-info {
-  background: var(--primario-suave);
-  border-color: transparent;
-  color: var(--primario);
-}
-
-.filtro-partidas {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 10px;
-  padding: 8px 12px;
-  border-radius: var(--radio);
-  background: var(--primario-suave);
-  animation: aparecer var(--dur-media) ease-out;
-}
-
-.partida-errores {
-  margin: 6px 0 0 42px;
-  padding: 0 0 0 16px;
-  color: var(--error);
-  font-size: 0.85rem;
-}
-
-.partida-entrada.resuelta {
-  border-left-color: var(--ok);
-}
-
-.partida-resuelta {
-  display: inline-block;
-  margin: 6px 0 0 42px;
-  color: var(--ok);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.pf-np input:disabled {
-  background: var(--superficie-2);
-}
-
-/* Al llegar lo de Copilot: las partidas entran una tras otra y lo nuevo destella un momento. */
-.editor-entrada.entrando .partida-entrada {
-  animation: subir 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
-  animation-delay: calc(var(--i, 0) * 45ms);
-}
-
-.partida-entrada.reciente {
-  animation: destello 2.4s ease-out;
-}
-
-.editor-entrada.entrando .partida-entrada.reciente {
-  animation: subir 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) backwards, destello 2.4s ease-out;
-  animation-delay: calc(var(--i, 0) * 45ms), calc(var(--i, 0) * 45ms);
-}
-
 @keyframes destello {
   0%,
   30% {
     background: var(--primario-suave);
     border-color: var(--primario);
   }
-}
-
-/* La guía de 3 pasos: "Listo" y luego se va suave hacia arriba. */
-.captura-asistida.saliendo {
-  animation: irse 0.4s ease-in 0.65s forwards;
-  pointer-events: none;
 }
 
 @keyframes irse {
@@ -7564,7 +6764,6 @@ button.mosaico:hover .mosaico-abrir {
   }
 
   :root[data-avisos="abajo"] .marco .avisos,
-  body:has(.barra-entrada) .marco .avisos,
   body.con-ventana .marco .avisos {
     top: auto;
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
@@ -7933,20 +7132,6 @@ button.mosaico:hover .mosaico-abrir {
   }
 }
 
-/* Captura explícita de otra variante en una entrada. */
-.partida-modo-material {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px 12px;
-  padding: 0 0 7px;
-}
-
-.partida-modo-material .nota {
-  margin: 0;
-  min-width: 0;
-}
 /* Correcciones que aún forman parte del borrador del conteo. */
 .conteo-clave-nueva { color: var(--primario); font-weight: 600; margin-top: 3px; }
 .conteo-por-quitar > td { background: var(--error-suave, var(--fondo-suave)); }
@@ -11499,22 +10684,6 @@ kbd.tecla {
   font-size: 0.85rem;
 }
 
-/* El paso 2 de antes (hasta la etapa 3): la barra ya no es fija dentro del paso. */
-.paso-material-anterior {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-
-.paso-material-anterior .barra-entrada {
-  margin: 0;
-}
-
-.paso-material-anterior .reporte-ia-banner {
-  margin: 0;
-}
-
 /* ---------- ventana «Llenar con Copilot» (§4.1) */
 
 .ventana.ventana-copilot-entrada {
@@ -12143,6 +11312,24 @@ kbd.tecla {
   gap: 10px 14px;
   padding: 6px 14px 12px 50px;
   border-top: 1px solid var(--neutro-suave);
+}
+
+/* «¿Es la misma que…?» de una variante nueva: aviso, no bloquea. */
+.parecida-entrada {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 14px 12px 50px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--primario-suave);
+  color: var(--texto);
+  font-size: 0.8125rem;
+}
+
+.parecida-entrada > span {
+  flex: 1 1 200px;
 }
 
 .campo-linea {
@@ -12897,6 +12084,10 @@ kbd.tecla {
   .tarjeta-entrada-dos {
     grid-template-columns: minmax(0, 1fr);
     padding-left: 14px;
+  }
+
+  .parecida-entrada {
+    margin-left: 14px;
   }
 
   .campos-editar {

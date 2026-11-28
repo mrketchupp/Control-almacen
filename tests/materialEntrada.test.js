@@ -5,12 +5,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Indices } from "../src/nucleo/estado.js";
-import { ErrorAcomodo, acomodar, acomodoAutomatico, acomodoDe, avanceAcomodo, conTipo, contenedoresDe, desacomodar } from "../src/servicios/acomodoEntrada.js";
+import { ErrorAcomodo, acomodar, acomodoAutomatico, acomodoDe, avanceAcomodo, conTipo, contenedoresDe, desacomodar, varianteDeLinea } from "../src/servicios/acomodoEntrada.js";
 import * as en from "../src/servicios/entradas.js";
 import {
   camposDeLinea,
   conCamposEditados,
+  conVarianteParecida,
   filtrosDeMaterial,
+  parecidaDe,
   partidaDesdeResultado,
   porRevisar,
   tipoDeLinea,
@@ -145,6 +147,25 @@ test("editar una partida (§5.2): la variante que se escribe igual, una nueva o 
   assert.equal(igual.dudoso, false);
   const sin = conCamposEditados(estado, linea, { ...camposDeLinea(linea, indices), sinExistencia: true }, { indices });
   assert.equal(acomodoDe(estado, sin, { indices }).estado, "sin_existencia");
+});
+
+test("variante nueva parecida a una del inventario (RF-33): «¿Es la misma que…?» y «Usar esa»", () => {
+  const { estado, indices } = preparar();
+  const escrita = partidaDesdeResultado(estado, { tipo: "clave", codigo: 701, descripcion: "BALEROS", clave: "6205-2ZZ" }, { indices });
+  const nueva = { ...escrita, cantidad: "3", lote: "J. PEREZ", oc: "OC-9" };
+  const p = parecidaDe(estado, nueva, { indices });
+  assert.equal(p.variante.dimension, "6205-2Z");
+  assert.equal(p.igual, false);
+  assert.ok(p.lugares.length > 0);
+  // «Usar esa»: la variante del inventario, con lo capturado y el tipo de su hoja; ya no se parece a nada.
+  const usada = conVarianteParecida(estado, nueva, p.variante.id, { indices });
+  assert.equal(varianteDeLinea(usada, indices).id, p.variante.id);
+  assert.ok(!usada.alta);
+  assert.deepEqual([usada.cantidad, usada.lote, usada.oc, usada.clase], ["3", "J. PEREZ", "OC-9", "INV"]);
+  assert.equal(parecidaDe(estado, usada, { indices }), null);
+  // Lo que no se parece, nada.
+  const otra = partidaDesdeResultado(estado, { tipo: "clave", codigo: 701, descripcion: "BALEROS", clave: "XQ-77" }, { indices });
+  assert.equal(parecidaDe(estado, otra, { indices }), null);
 });
 
 test("Copilot: solo se acomoda lo que vive en un solo contenedor; lo dudoso dice qué leyó", () => {

@@ -16,7 +16,9 @@ import {
   TIPOS,
   camposDeLinea,
   conCamposEditados,
+  conVarianteParecida,
   filtrosDeMaterial,
+  parecidaDe,
   partidaDesdeResultado,
   porRevisar,
   sinOc,
@@ -25,7 +27,7 @@ import {
   tipoPorDefecto,
   varianteEscrita,
 } from "../../servicios/materialEntrada.js";
-import { AyudaAtajos, Boton, CampoSugerido, Pastilla, Tecla, num, useSesion } from "../componentes.js";
+import { AyudaAtajos, Boton, CampoSugerido, Pastilla, Tecla, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { Icono } from "../iconos.js";
 import { ResumenDeDondeViene } from "./deDondeViene.js";
@@ -167,7 +169,24 @@ function PartidaEntrada({ l, n, estado, indices, editando, nueva, solicitantes, 
         />
       </label>
     </div>
+    <${Parecida} l=${l} n=${n} estado=${estado} indices=${indices} alReemplazar=${alReemplazar} />
   </li>`;
+}
+
+/** Para no dar de alta un duplicado: «¿Es la misma que «6309-2Z» (#1 Cons.)?» con *Usar esa* (como en el editor anterior). */
+function Parecida({ l, n, estado, indices, alReemplazar }) {
+  const p = useMemo(() => parecidaDe(estado, l, { indices }), [estado.variantes, estado.existencias, estado.ubicaciones, l.alta, l.codigo, l.dimension, l.np, l.um]);
+  if (!p) return null;
+  const clave = [texto(p.variante.dimension) || "S/D", texto(p.variante.np) ? `NP ${texto(p.variante.np)}` : null].filter(Boolean).join(" · ");
+  return html`<div class="parecida-entrada" role="note">
+    <span>${p.igual ? "Esa clave ya existe:" : "¿Es la misma que"} <strong>${clave}</strong> (${p.lugares.join(", ")})${p.igual ? "" : "?"}</span>
+    <button
+      type="button"
+      class="boton boton-secundario boton-chico"
+      aria-label=${`Usar ${clave} en la partida ${n}`}
+      onClick=${() => alReemplazar((x) => conVarianteParecida(estado, x, p.variante.id, { indices }))}
+    >Usar esa</button>
+  </div>`;
 }
 
 /**
@@ -380,6 +399,17 @@ export function PasoMaterialEntrada({ datos, alCambiar, alEditarOrigen, alCopilo
     setEditando(null);
     requestAnimationFrame(() => document.querySelector(`[data-partida="${uid}"] .boton-editar`)?.focus() ?? enfocar("buscar-material"));
   };
+  // Alt + N: otra partida = al buscador (abre *Agregar partidas* si estaba plegado). Mientras se edita una, nada: se
+  // termina con «Listo» o «Cancelar · Esc» (no se pierde lo escrito).
+  useAtajo(
+    { alt: true, codigo: "KeyN" },
+    () => {
+      if (editando) return;
+      setAgregarAbierto(true);
+      enfocar("buscar-material", true);
+    },
+    raiz,
+  );
 
   const izquierda = lineaEditada
     ? html`<${EditarPartidaEntrada}

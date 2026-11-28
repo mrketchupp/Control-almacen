@@ -85,8 +85,8 @@ export function PaginaAyuda() {
         <dd>No. Se leen y se guardan copias como plantillas; las exportaciones son archivos nuevos.</dd>
         <dt>¿A qué contenedor entra el material de un vale de entrada?</dt>
         <dd>
-          Si ya está en un contenedor, se sugiere ese (si está en varios, el que tiene más, con ★). Si es una dimensión nueva, eliges el
-          contenedor y se agrega una partida al final de esa hoja. Antes de registrar ves cuánto había, cuánto entra y cuánto queda.
+          Lo eliges en el paso 3 (<em>Acomodo</em>), contenedor por contenedor. Si su variante vive en un solo contenedor de su tipo, ya
+          llega acomodada (★); si es nueva, entra al final de la hoja de ese contenedor. Antes de registrar ves cuánto había y cuánto queda.
         </dd>
         <dt>¿Qué fecha cuenta en una entrada: la del vale o la de recibido?</dt>
         <dd>
@@ -198,7 +198,7 @@ export function PaginaAyuda() {
           motivo escrito. El folio no cambia y queda en la bitácora.
         </dd>
         <dt>Descarté un borrador por error</dt>
-        <dd>En el aviso que aparece abajo a la derecha pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>
+        <dd>En el aviso que aparece pulsa <em>↶ Deshacer</em> (dura unos segundos) y vuelve tal como estaba.</dd>
         <dt>¿Cómo paso material de un contenedor a otro?</dt>
         <dd>En <a href="#inventario">Inventario</a>, botón <em>Mover</em> de la partida. El total no cambia y queda en el historial de movimientos.</dd>
         <dt>¿Cómo corrijo la dimensión o el NP de una partida?</dt>
@@ -207,7 +207,10 @@ export function PaginaAyuda() {
           aplicarlo a esa partida o a todas las de su variante; las cantidades y los vales anteriores no cambian.
         </dd>
         <dt>¿Hay atajos de teclado?</dt>
-        <dd><strong>Alt + N</strong> agrega una partida en los vales de salida y de entrada, debajo de la que estás escribiendo.</dd>
+        <dd>
+          <strong>Alt + N</strong> lleva al buscador para agregar otra partida (vales de salida y de entrada). En el acomodo de una
+          entrada, <strong>1…9</strong> eligen el contenedor. <strong>Enter</strong> continúa al siguiente paso.
+        </dd>
       </dl>
     <//>
     <${ComoAplicacion} />

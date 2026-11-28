@@ -319,7 +319,7 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
-**Ronda 39 — vale de entrada en 4 pasos y corrección en la revisión** (rama `desarrollo`; especificación
+**Ronda 39 — vale de entrada en 4 pasos y corrección en la revisión** (en la rama `desarrollo`, fusionada en `main`; especificación
 `docs/14-rediseno-entradas-y-correccion.md`, maquetas `docs/diseno/ronda-39/`). Por etapas, con revisión del usuario en
 cada una (capturas en `capturas/ronda-39/etapa-N/`):
 - ☑ Etapa 1: la cabecera y el menú lateral nunca se desplazan; solo el área de trabajo (en todas las secciones). Con
@@ -333,7 +333,13 @@ cada una (capturas en `capturas/ronda-39/etapa-N/`):
 - ☑ Etapa 5: paso 4 · Revisar y registrar (lo que impide registrar lleva a su paso y partida).
 - ☑ Etapa 6: corrección de salidas y entradas desde la revisión (secciones con «Editar» → el paso con *Listo*; lo que
   cambió en ámbar; *Cambios · N* con lo que mueve en el inventario, el motivo, *Guardar* y *Cancelar*).
-- ☐ Etapa 7: tipo por defecto en *Ajustes*, limpieza y documentación.
+- ☑ Etapa 7: *Ajustes → Partidas nuevas en las entradas* (Consumible de fábrica o Inventariable; el mismo en los dos
+  inventarios). Limpieza: se quitaron el editor viejo de vales (`EditorVale`; las fotos quedan en `FotosDelFormato`) y el
+  de entradas (`EditorEntrada`, *Captura manual / Desde foto o PDF*, *Copiar partidas de un vale de salida*) y sus
+  estilos. Se recuperaron dos cosas que solo tenía el editor viejo: «¿Es la misma que…?» con **Usar esa** en la tarjeta
+  de una variante nueva, y **Alt + N** (ahora lleva al buscador del paso 2, en salida y entrada). Documentación en
+  `CLAUDE.md`, `docs/05` y `docs/10`, y la *Ayuda* de la herramienta.
+- ☐ Del usuario: registrar una entrada real en los 4 pasos y corregir una salida y una entrada desde el historial.
 
 **Ronda 38 — el reporte diario no se guardaba en sus carpetas (fallo reportado con grabación y registro).** Tras el
 apagón, Edge «perdió» la carpeta base (INVENTARIO DIARIO) y los libros de vales fijados: nada de lo que se les pregunta

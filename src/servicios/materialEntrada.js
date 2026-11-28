@@ -9,6 +9,7 @@ import { claveEstricta, unidad } from "../nucleo/normalizar.js";
 import { acomodoAutomatico, acomodoDe, claseDeLinea, desacomodar, dondeHay, varianteDeLinea } from "./acomodoEntrada.js";
 import { claveEscrita } from "./buscarMaterial.js";
 import { conRenglonExistente, conVarianteNueva, destinosDeCodigo, entradaSinExistencia, lineaEntradaVacia, lineasEntradaCapturadas } from "./entradas.js";
+import { variantesParecidas } from "./inventario.js";
 import { claveDeRenglon, loteDeRenglon } from "./vales.js";
 
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
@@ -164,6 +165,24 @@ export function conCamposEditados(estado, linea, campos, { indices = new Indices
     return { ...linea, ...conserva, descripcion: nueva.descripcion || linea.descripcion };
   }
   return conTipoYAcomodo(estado, desacomodar(nueva, indices), { indices, conservarTipo: true });
+}
+
+/**
+ * Para no dar de alta un duplicado (RF-33): la variante del inventario, con partidas, que más se parece a la variante
+ * nueva de una partida (`igual` = la misma al normalizar: «Esa clave ya existe»; si no, «¿Es la misma que…?»).
+ * null si la partida no es una variante nueva o nada se parece.
+ */
+export function parecidaDe(estado, linea, { indices = new Indices(estado) } = {}) {
+  if (!linea.alta || !Number.isInteger(linea.codigo) || !texto(linea.dimension)) return null;
+  const parecidas = variantesParecidas(estado, linea.codigo, { dimension: linea.dimension, np: linea.np, um: linea.um }, { indices });
+  return parecidas.find((p) => p.lugares.length) ?? null;
+}
+
+/** La partida con la variante parecida en lugar de la nueva: conserva cantidad, solicita y O.C.; el tipo, el de su hoja. */
+export function conVarianteParecida(estado, linea, varianteId, { indices = new Indices(estado) } = {}) {
+  const v = indices.variante(varianteId);
+  if (!v || v.codigo !== linea.codigo) return linea;
+  return conCamposEditados(estado, linea, { codigo: String(v.codigo), dimension: v.dimension ?? "", np: v.np ?? "", um: v.um ?? "", descripcion: linea.descripcion }, { indices });
 }
 
 // ---------------------------------------------------------------- lo de Copilot

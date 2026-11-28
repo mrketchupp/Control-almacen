@@ -8,7 +8,15 @@ import { useMemo, useState } from "preact/hooks";
 import { Indices, npMostrado } from "../../nucleo/estado.js";
 import { hoyIso } from "../../nucleo/fechas.js";
 import { efectosEnInventario, encabezadoCambiado, partidasCambiadas } from "../../servicios/correccion.js";
-import { ErrorEntrada, corregirEntrada, datosParaCorregirEntrada, folioEntrada, lineasEntradaCapturadas, resumenCambiosEntrada, validarEntrada } from "../../servicios/entradas.js";
+import {
+  ErrorEntrada,
+  corregirEntrada,
+  datosParaCorregirEntrada,
+  folioEntrada,
+  lineasEntradaCapturadas,
+  resumenCambiosEntrada,
+  validarEntrada,
+} from "../../servicios/entradas.js";
 import { camposDeLinea } from "../../servicios/materialEntrada.js";
 import { faltaDeDondeViene } from "../../servicios/pasosEntrada.js";
 import { esTransferencia } from "../../servicios/pasosVale.js";
@@ -36,7 +44,7 @@ import { PasoMaterialEntrada } from "./materialEntrada.js";
 import { PasoParaQuien } from "./paraQuien.js";
 import { ResumenMaterial, ResumenParaQuien } from "./pasosVale.js";
 import { DondeQuedo, ResumenOrigenEntrada } from "./registrarEntrada.js";
-import { EditorVale, ListaErrores } from "./vales.js";
+import { FotosDelFormato, ListaErrores } from "./vales.js";
 
 const texto = (v) => (v === null || v === undefined ? "" : String(v).trim());
 const hay = (v) => v !== null && v !== undefined;
@@ -185,7 +193,7 @@ export function CorreccionSalida({ vale, alTerminar, quitar = null }) {
         ${historial ? html`<p class="nota-correccion">Este vale es anterior al conteo: la corrección solo cambia el historial y el DIARIO.</p>` : null}
         <${ResumenParaQuien} datos=${resumen} alEditar=${() => setSeccion("quien")} cambiados=${encabezadoCambiado(original, datos)} />
         <${ResumenMaterial} partidas=${partidas} alEditar=${() => setSeccion("material")} cambios=${partidasCambiadas(lineasCapturadas(original.lineas), lineas)} />
-        <${EditorVale} seccion="fotos" datos=${datos} alCambiar=${setDatos} />
+        <${FotosDelFormato} datos=${datos} alCambiar=${setDatos} />
       </div>
       <${TarjetaCambios}
         cambios=${cambios}

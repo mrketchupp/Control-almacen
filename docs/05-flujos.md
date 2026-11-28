@@ -59,90 +59,96 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[Llega material + vale de la base] --> B[Nuevo vale de entrada<br/>folio base, fecha del vale, recibido, O.C.]
-    B --> C{¿Vale de la base en Excel?}
-    C -->|"Sí"| D[Importar renglones del archivo]
-    C -->|"No"| E[Capturar renglones]
-    D & E --> F[Por renglón: identificar variante]
-    F --> G{¿La variante existe?}
-    G -->|"Sí"| H[Sugerir contenedor donde ya está]
-    G -->|"No"| I[Alta de variante<br/>con aviso de posibles duplicados]
-    I --> J[Elegir contenedor<br/>clase según catálogo]
-    H & J --> K[Vista previa:<br/>había · entra · queda · hoja destino]
-    K --> L{¿Todo resuelto?}
-    L -->|"No"| F
-    L -->|"Sí"| M[CONFIRMAR<br/>folio interno E-0001]
-    M --> N[Suma a INGRESO de cada ubicación el día de recibido<br/>y queda en historial de entradas]
+    A[Llega material + vale de la base] --> B[1 · De dónde viene<br/>viene de, folio de la base, fechas, entregó]
+    B -->|"Llenar con Copilot"| C[Foto o PDF → respuesta pegada<br/>llena el paso 1 y las partidas]
+    C --> D
+    B --> D[2 · Material — qué entra<br/>cantidad, tipo, solicita, O.C.]
+    D --> E[3 · Acomodo — dónde entra<br/>contenedor por contenedor]
+    E --> F[4 · Revisar y registrar<br/>hay → queda por contenedor]
+    F --> G{¿Algo bloquea?}
+    G -->|"Sí: Ir a…"| D
+    G -->|"No"| H[REGISTRAR<br/>folio interno E-0001]
+    H --> I[Suma a INGRESO de cada partida el día de recibido<br/>y queda en historial de entradas]
 ```
 
+**En 4 pasos (Ronda 39, `docs/14-rediseno-entradas-y-correccion.md`),** como el vale de salida: arriba el indicador
+*De dónde viene · Material · Acomodo · Revisar y registrar* y la franja de borradores con *Descartar borrador* y «Se
+registrará como E-000N · Se guarda solo». Solo se desplaza el área de trabajo; la cabecera y el menú quedan fijos.
+
+1. **De dónde viene:** *Viene de* con los orígenes más usados como botones (u *Otro origen…*), el folio de la base, la
+   **fecha del vale**, **Recibido** (hoy por omisión) y quién entregó con su puesto (se llena con el último que tuvo).
+   Recibe = quien está en turno; el departamento siempre es ALMACEN y no hay "motivo" que elegir. Las observaciones van
+   en el pie. Lo que falta se marca al pulsar *Continuar* (o Enter) y el cursor va al primero.
+2. **Material — qué entra:** a la izquierda *De dónde viene* (con *Editar*) y *Agregar partidas* (el buscador de dos
+   campos del vale de salida); a la derecha la lista, una tarjeta por partida: cantidad y U.M., qué es (dimensión · NP,
+   código · descripción), el tipo **Consumible | Inventariable**, *Editar*, × y abajo **Solicita** (va en la columna
+   LOTE) y **O.C.**, en ámbar si faltan (no bloquean). Filtros *Todas · Por revisar · Sin O.C. · Sin solicitante*.
+   - Una fila del buscador es **esa partida del inventario** (queda acomodada ahí); un código sin partidas (diésel,
+     gases) entra *sin existencia* (no suma) con la U.M. de sus vales; «Usar «…» en <código>» o un código que no está en
+     el catálogo son **variante nueva** o **código nuevo** (la U.M. se escribe en la tarjeta).
+   - **Tipo inicial:** el de la hoja donde ya vive su variante («según su existencia»); en el Inventario B y FX, los
+     códigos de 3 dígitos son consumibles y no se cambia («consumible por regla»); si no, el de *Ajustes → Partidas nuevas
+     en las entradas* (de fábrica, Consumible).
+   - **Editar** cambia el panel de la izquierda por *Editando la partida N*: código, dimensión, NP, U.M. y descripción, y
+     las claves con existencia del código (*Usar esta*). Cantidad, tipo, solicita y O.C. se cambian en la tarjeta.
+3. **Acomodo — dónde entra:** los contenedores como pestañas (con lo que falta de cada uno; teclas 1…9 y ↑ ↓ entre
+   casillas). Se marca la casilla y la partida entra a la hoja de su tipo de ese contenedor (al final, si la variante no
+   está ahí). **★** = ya vive ahí y se acomodó sola. Lo *sin existencia* va aparte y el avance dice cuántas faltan.
+4. **Revisar y registrar:** *De dónde viene*, las partidas y **Dónde quedó** por contenedor (*hay → queda*, o *partida
+   nueva → queda*). *Antes de registrar* dice lo que se revisó, lo que solo informa y lo que bloquea, cada uno con *Ir
+   a…* a su paso y su partida. *Registrar* (o Enter) solo sin bloqueos.
+
 **Así se evita meter material al contenedor equivocado:**
-1. Si la variante ya vive en un contenedor, se propone ese.
-2. Si vive en varios, se propone el que tiene más existencia (★ sugerido); "Entra a" permite elegir otro (si la
-   variante no está ahí, se crea su renglón al final de esa hoja).
-3. Una dimensión nueva (variante nueva) va al contenedor donde ya vive el código (se cambia en "Entra a") y avisa si
-   se parece a una que ya existe ("¿Es la misma que…?").
-4. Cada partida muestra a qué hoja entra y cuánto *hay → queda* (o *renglón nuevo → queda*).
-5. No se registra con renglones sin destino ni con un folio de la base ya registrado (salvo que se marque que es otro vale).
-6. Nada se aplica hasta confirmar, y una entrada confirmada se puede **corregir** con motivo (como los vales de salida,
-   sin cancelar folios; el motivo se llena solo con los cambios).
+1. El contenedor se elige a propósito en el paso 3; nada se acomoda escondido en la tarjeta.
+2. Solo se acomoda sola (★) la variante que vive en **un solo** contenedor de su tipo; si vive en varios, se elige.
+   Lo de FX nunca se acomoda solo.
+3. Una variante nueva que se parece a una que ya existe lo dice en su tarjeta («¿Es la misma que 6205-2Z (#1 Inv.)?»
+   o «Esa clave ya existe») con **Usar esa**.
+4. Cambiar el tipo o el material de una partida ya acomodada la regresa a «Faltan» si su contenedor no tiene esa hoja.
+5. No se registra con partidas sin acomodar ni con un folio de la base ya registrado (salvo que se marque que es otro
+   vale).
+6. Nada se aplica hasta *Registrar*, y una entrada registrada se **corrige** con motivo (§3).
 
 **Dos fechas (Ronda 22):** *Fecha del vale* (cuando la base lo envió; la llena Copilot) y **Recibido** (cuando llegó; por
 omisión, hoy). La de **recibido** decide en qué día suma al inventario, en qué *reporte diario* cuenta, las entradas de
 hoy del inicio y los filtros *Recibido desde / hasta* del historial (que muestra las dos columnas). No puede ser futura
 ni posterior al día en que se registra (al corregir, el día en que se registró): no se registra lo que aún no llega.
 Avisa sin bloquear si es anterior a la del vale o si hubo un **conteo físico después** en las partidas de destino («si ya
-se contó, la entrada lo sumaría dos veces»). Se cambia con *Corregir* (queda en la bitácora: «Recibido: … → …»). La
+se contó, la entrada lo sumaría dos veces»). Se cambia al corregir (queda en la bitácora: «Recibido: … → …»). La
 conciliación con AX sigue con la fecha del vale.
 
 En la herramienta el vale de la base se **captura** (llega en papel, P-04), a mano o desde su foto/PDF con Copilot;
-leerlo directo de un Excel queda como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran con *Sin existencia* (no suman).
+leerlo directo de un Excel queda como mejora futura (RF-35). Diésel, gases y lo que no lleva existencia se registran
+*sin existencia* (no suman).
 
-El vale de entrada solo pide **de dónde viene** (la base o un equipo); el departamento siempre es ALMACEN y no hay
-"motivo" que elegir (comentario del usuario). Al crear una entrada se elige cómo capturarla: **Captura manual** o
-**Desde foto o PDF** (captura asistida con Copilot, ver abajo).
-
-**Pantalla (ronda 6):** una barra fija arriba con el folio interno, el número de partidas, las que están *por revisar*,
-los *datos pendientes* (al pulsarlos se ve la lista y cada uno lleva a su campo) y los botones **Copilot**,
-**Descartar** y **Registrar entrada**, siempre a la vista. Debajo, los datos del vale en un renglón (folio, viene de,
-fecha del vale, recibido, entregó; lo automático en una línea). Cada partida es una tarjeta de dos líneas: lo del vale (código,
-descripción, clave / dimensión, cantidad, U.M.) y abajo **Entra a** (el contenedor, con *hay → queda*), **Solicita**
-(va en la columna LOTE) y la O.C. Si la clave escrita no existe en el inventario, la partida es una **variante nueva**
-con esa misma dimensión (no se escribe dos veces) y va al contenedor donde ya vive el código (se cambia en *Entra a*);
-si se parece a una que ya existe, se ofrece usar esa.
-
-**NP (ronda 8):** cada partida tiene su campo **NP** (el número de parte del inventario). Al elegir un renglón trae su
-NP; otro NP es otra variante (misma dimensión) en el mismo contenedor. Si la clave escrita o leída por Copilot trae el
-NP (`6309-2Z NP: SKF123`, `N/P`, `P/N`, `No. de parte`…), al salir del campo se separa: la dimensión queda en la clave y
-el NP pasa a su campo (`separarNp`; no confunde la rosca `NPT`).
-
-**Lo que requiere atención (ronda 8):** en la barra, *⚠ pendientes*, *por revisar* (Copilot no estaba seguro) y *con
-clave nueva* son botones: muestran solo esas partidas, con sus mensajes en cada tarjeta, y marcan *✓ resuelta* las que
-se van arreglando. Al pulsar *Registrar* con pendientes se filtran solas.
+**NP (ronda 8):** otro NP es otra variante (misma dimensión). Si la clave escrita o leída por Copilot trae el NP
+(`6309-2Z NP: SKF123`, `N/P`, `P/N`, `No. de parte`…), se separa: la dimensión queda en la clave y el NP en su campo
+(`separarNp`; no confunde la rosca `NPT`).
 
 **Quién solicita:** en los vales de la base, la columna LOTE trae el nombre y apellido de quien pidió el material. En
 la entrada, LOTE = *Solicita* de cada partida (no el NP del inventario); también lo lee Copilot (`"lote"`).
 
-**Material que regresa** (P-08): *↩ Copiar partidas de un vale de salida* → folio. Cada partida regresa al renglón del
-inventario del que salió; se ajusta la cantidad a lo que regresó. Si la base aún no capturó el vale en AX, también se
-puede corregir el vale de salida original.
+**Material que regresa** (P-08): se registra como una entrada normal (desde la Ronda 39 ya no hay *Copiar partidas de un
+vale de salida*). Si la base aún no capturó el vale en AX, también se puede corregir el vale de salida original.
 
-**Captura asistida (Copilot):** tres pasos — copiar las instrucciones, pegarlas en Copilot con la foto o el PDF y pegar
-aquí la respuesta con el botón **Pegar** (o `Ctrl+V` en el cuadro; se carga sola). Se ve *✓ Listo* y la guía da paso
-suave a las partidas, que entran una tras otra y destellan un momento. Se llena el borrador (entrada) o la captura (conteo: por contenedor + ITEM
-de la hoja impresa, confirmando con el código); lo dudoso, lo que no se leyó (código o clave) y lo no reconocido se
-reporta y se marca en amarillo. Si la respuesta viene **cortada o mal formada** (llaves o corchetes sin cerrar, comas
-de más o de menos, comillas tipográficas, claves sin comillas, `True`/`None`, comentarios, varias hojas en bloques
-separados), se arregla sola (`servicios/jsonTolerante.js`) y se avisa qué se corrigió. Acepta también nombres
-parecidos (`renglones`, `clave`, `solicita`, `unidad`…). La herramienta no se conecta a ningún servicio
-(`src/servicios/capturaIA.js`).
+**Llenar con Copilot:** la franja del paso 1 abre una ventana con tres pasos — copiar las instrucciones, pegarlas en
+Copilot con la foto o el PDF y pegar aquí la respuesta con **Pegar** (o `Ctrl + V` en la ventana). Lo leído se ve en
+verde sin guardar; **Ver las partidas →** lo aplica y pasa al paso 2 si el 1 quedó completo (si no, se queda en el 1 con
+lo que falta marcado). En el paso 2, «Copilot leyó N partidas» con *Pegar otra respuesta*; lo dudoso queda *Por
+revisar* con lo que leyó («Copilot leyó «704 6" NP FLEXITALIC» y no está seguro») y **Está bien**. En los conteos, la
+captura sigue igual (por contenedor + ITEM de la hoja impresa, confirmando con el código). Si la respuesta viene
+**cortada o mal formada** (llaves o corchetes sin cerrar, comas de más o de menos, comillas tipográficas, claves sin
+comillas, `True`/`None`, comentarios, varias hojas en bloques separados), se arregla sola (`servicios/jsonTolerante.js`)
+y se avisa qué se corrigió. Acepta también nombres parecidos (`renglones`, `clave`, `solicita`, `unidad`…). La
+herramienta no se conecta a ningún servicio (`src/servicios/capturaIA.js`).
 
 ## 3. Corrección y devolución
 
 | Caso | Qué hace la herramienta |
 |---|---|
-| **Error de captura** en un vale emitido | *Historial → folio → Corregir*. El **motivo se llena solo** con lo que cambió (partidas agregadas, quitadas o modificadas, personas, etapa, fotos) y se puede completar con el porqué. El folio no cambia. La bitácora guarda el motivo, la lista de cambios y antes → después; la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias). |
+| **Error de captura** en un vale emitido | *Historial → folio → Corregir* abre el vale **en la revisión** (Ronda 39, `docs/14` §8) con la franja «Corrigiendo …»: en salidas *Para quién*, las partidas y las fotos; en entradas *De dónde viene*, las partidas y *Dónde quedó*. Cada sección tiene *Editar*, que abre su paso del flujo nuevo con **Listo** (en salidas también *¿Quién entregó?* y *Origen y destino* si el área no los fija). Lo que cambió queda en ámbar (la cantidad anterior, tachada). La tarjeta **Cambios · N** dice qué cambió, su efecto *En el inventario* («Regresa 1 PZA a #1 Cons. (queda 20)», «Suma…», «Partida nueva en…») y el **motivo, que se llena solo** (se puede completar con el porqué); sin cambios, *Guardar* no se puede pulsar. Mientras se corrige no se ven *Imprimir* ni la bitácora. El folio no cambia. La bitácora guarda el motivo, la lista de cambios y antes → después; la existencia se recalcula sola. En un vale anterior al conteo solo cambia el historial (no mueve existencias; sus partidas sin ligar se ven en gris). |
 | **Vale que no debió emitirse** | No se cancela (todos los folios se usan): se corrige para que refleje lo que realmente salió. |
-| **Devolución de material** | Vale de entrada con *Copiar partidas de un vale de salida*: referencia el folio y regresa cada partida a su renglón. Si la base aún no lo captura en AX, también se puede corregir el vale original (P-08). |
+| **Devolución de material** | Se registra como una entrada normal (desde la Ronda 39 no hay *Copiar partidas de un vale de salida*). Si la base aún no lo captura en AX, también se puede corregir el vale original (P-08). |
 | **Vale ya subido al SharePoint y luego corregido** | Vuelve a aparecer en *Subir al SharePoint* (Inicio y *Exportar y enviar*) con el cambio "Corregido", para avisar a la base. |
 
 ## 4. Conteo físico

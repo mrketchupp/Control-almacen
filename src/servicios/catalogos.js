@@ -172,12 +172,15 @@ export function guardarPersona(estado, datos, usuario = null, { actualizarVales 
 export const AJUSTES = {
   etapa_perforacion: { tipo: "texto", defecto: "" },
   np_en_lote: { tipo: "booleano", defecto: false }, // Ronda 34: el NP de la partida se copia al LOTE del vale de salida
+  // Ronda 39 (docs/14 §10): el tipo con que empieza una partida de entrada sin existencia ni regla de 3 dígitos.
+  tipo_partida_entrada: { tipo: "opcion", opciones: ["CONS", "INV"], defecto: "CONS" },
 };
 
 export function fijarAjuste(estado, clave, valor, usuario = null) {
   const def = AJUSTES[clave];
   if (!def) throw new ErrorCatalogo(`Ajuste desconocido: ${clave}`);
-  const nuevo = def.tipo === "booleano" ? Boolean(valor) : texto(valor);
+  if (def.tipo === "opcion" && !def.opciones.includes(valor)) throw new ErrorCatalogo(`Valor no válido para ${clave}: ${valor}`);
+  const nuevo = def.tipo === "booleano" ? Boolean(valor) : def.tipo === "opcion" ? valor : texto(valor);
   const antes = estado.config[clave] ?? def.defecto;
   if (antes === nuevo) return;
   estado.config[clave] = nuevo;

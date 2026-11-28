@@ -32,7 +32,7 @@ import {
 } from "../../servicios/buscarMaterial.js";
 import { deVale, folioDeVale } from "../../servicios/copiarVale.js";
 import { disponibles, plantillaArea } from "../../servicios/vales.js";
-import { AyudaAtajos, Pastilla, Tecla, num, useSesion } from "../componentes.js";
+import { AyudaAtajos, Pastilla, Tecla, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { desplazamiento } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
@@ -637,6 +637,17 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
     setElegida(null);
     enfocar("buscar-material");
   };
+  // Alt + N: otra partida = al buscador (termina la edición y, en ventana angosta, cierra la lista).
+  useAtajo(
+    { alt: true, codigo: "KeyN" },
+    () => {
+      setListaAbierta(false);
+      setEditando(false);
+      setElegida(null);
+      enfocar("buscar-material", true);
+    },
+    raiz,
+  );
   const traer = (valeId) =>
     sesion.tarea("Trayendo partidas…", async () => {
       const vale = estado.vales.find((v) => v.id === valeId);
