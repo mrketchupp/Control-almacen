@@ -331,6 +331,20 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   se reusan en la corrección). Las clases de la tarjeta llevan `-entrada` (`.cantidad-entrada`…): las de salida
   (`.partida-cantidad`) traen `grid-area`. Pruebas `materialEntrada.test.js` (3 y 7 contenedores) y Chromium
   `entradaPasos.navegador.mjs` (los 4 pasos), `entradasMaterialNuevo` y `descripcionCodigo` (editar la partida).
+  Etapa 6 (§8, corrección en la revisión): `ui/paginas/correccion.js` (`CorreccionSalida({ vale, quitar })`,
+  `CorreccionEntrada`, `FranjaCorreccion`, `TarjetaCambios`): abre en la revisión (salida: `ResumenParaQuien` +
+  `ResumenMaterial` + las fotos con `EditorVale({ seccion: "fotos" })`; entrada: `ResumenOrigenEntrada` +
+  `ResumenMaterial` + `DondeQuedo`), lo que cambió en ámbar (`cambiados` / `cambios` / `cambiadas`: la cantidad anterior
+  tachada), *Cambios · N* con las frases de `resumenCambios` / `resumenCambiosEntrada`, *En el inventario* y el motivo que
+  se llena solo; *Guardar* sin cambios no se puede. «Editar» abre el paso en modo corrección con *Listo*: `PasoParaQuien({
+  correccion })` (además *¿Quién entregó?*, *Origen y destino* si el área no los fija, y autoriza / firmas extra que el
+  vale migrado traiga aunque su área no las pida), `PasoMaterial({ excluirValeId, historial })` (en gris *Sin ligar al
+  inventario · anterior al conteo*), `PasoDeDondeViene({ correccion: { excluirValeId, maxRecibido } })`,
+  `PasoMaterialEntrada` sin Copilot y `PasoAcomodo({ excluirValeId })`. `servicios/correccion.js`: `encabezadoCambiado`,
+  `partidasCambiadas`, `efectosEnInventario` («Regresa 1 PZA a #1 Cons. (queda 20)», «Suma» / «Resta», «Partida nueva en
+  …»; nada en un vale anterior al conteo). Mientras se corrige no se ven *Imprimir* ni la bitácora. Las páginas `vale.js`
+  y `entrada.js` ya no usan `EditorVale` completo ni `EditorEntrada`. Pruebas `correccion.test.js` y Chromium
+  `correccion.navegador.mjs`; `puestosHistorial`, `descripcionCodigo` y `menuContextual` siguen el flujo nuevo.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

@@ -41,7 +41,7 @@ const CON_CAMPO = new Set(["origen", "folio_externo", "fecha", "fecha_recibido",
  * de `validarEntrada` (los de la fecha de recibido van debajo de ella). `alCopilot`: abre *Llenar con Copilot*.
  * `pie`: el botón para continuar (lo pone la página).
  */
-export function PasoDeDondeViene({ datos, alCambiar, faltan = [], marcar = false, avisos = [], alCopilot, pie }) {
+export function PasoDeDondeViene({ datos, alCambiar, faltan = [], marcar = false, avisos = [], alCopilot = null, pie, correccion = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const origenes = useMemo(() => origenesFrecuentes(estado), [estado.vales]);
@@ -63,7 +63,10 @@ export function PasoDeDondeViene({ datos, alCambiar, faltan = [], marcar = false
   const sueltos = marcar ? faltan.filter((f) => !CON_CAMPO.has(f.campo)) : [];
   const cambiar = (cambios) => alCambiar({ ...datos, ...cambios });
   const frecuente = esOrigenFrecuente(origenes, datos.origen);
-  const repetida = entradaConFolioBase(estado, datos.folio_externo, null);
+  // En una corrección (`correccion`: { excluirValeId, maxRecibido }) la entrada misma no cuenta como folio repetido y
+  // quien recibe es el que la registró.
+  const repetida = entradaConFolioBase(estado, datos.folio_externo, correccion?.excluirValeId ?? null);
+  const quienRecibe = correccion ? datos.recibio_nombre : sesion.usuario;
   const avisosRecibido = avisos.filter((a) => a.campo === "fecha_recibido");
   // El puesto se llena con el último de esa persona (como en salida), salvo que ya se haya escrito otro a mano.
   const cambiarEntrego = (nombre) => {
@@ -78,14 +81,16 @@ export function PasoDeDondeViene({ datos, alCambiar, faltan = [], marcar = false
   };
 
   return html`<div class="paso-de-donde">
-    <section class="franja-copilot" aria-label="Llenar con Copilot">
-      <span class="franja-copilot-icono" aria-hidden="true"><${Icono} nombre="chispa" tam=${22} /></span>
-      <span class="franja-copilot-texto">
-        <strong>¿Tienes foto o PDF del vale?</strong>
-        <span>Copilot llena este paso y las partidas. Después solo revisas lo que no tenga claro.</span>
-      </span>
-      <${Boton} tipo="primario" tamano="grande" onClick=${alCopilot}><${Icono} nombre="chispa" tam=${18} /> Llenar con Copilot<//>
-    </section>
+    ${alCopilot
+      ? html`<section class="franja-copilot" aria-label="Llenar con Copilot">
+          <span class="franja-copilot-icono" aria-hidden="true"><${Icono} nombre="chispa" tam=${22} /></span>
+          <span class="franja-copilot-texto">
+            <strong>¿Tienes foto o PDF del vale?</strong>
+            <span>Copilot llena este paso y las partidas. Después solo revisas lo que no tenga claro.</span>
+          </span>
+          <${Boton} tipo="primario" tamano="grande" onClick=${alCopilot}><${Icono} nombre="chispa" tam=${18} /> Llenar con Copilot<//>
+        </section>`
+      : null}
 
     <div class="paso-quien-mitades">
       <section class="tarjeta-paso" aria-labelledby="t-vale-base">
@@ -151,7 +156,7 @@ export function PasoDeDondeViene({ datos, alCambiar, faltan = [], marcar = false
               id="recibido-entrada"
               type="date"
               value=${datos.fecha_recibido ?? ""}
-              max=${hoyIso()}
+              max=${correccion?.maxRecibido ?? hoyIso()}
               onChange=${(e) => cambiar({ fecha_recibido: e.currentTarget.value })}
               aria-describedby="recibido-nota"
             />
@@ -159,8 +164,8 @@ export function PasoDeDondeViene({ datos, alCambiar, faltan = [], marcar = false
           </label>
           <div class=${`campo campo-grande ${faltaEn("recibio_nombre") ? "con-falta" : ""}`}>
             <span>Recibe</span>
-            ${sesion.usuario
-              ? html`<span class="valor-fijo"><strong>${sesion.usuario}</strong><span class="nota">en turno</span></span>`
+            ${quienRecibe
+              ? html`<span class="valor-fijo"><strong>${quienRecibe}</strong>${correccion ? null : html`<span class="nota">en turno</span>`}</span>`
               : html`<span class="valor-fijo valor-falta">Elige quién está en turno (arriba a la derecha)</span>`}
           </div>
         </div>

@@ -45,8 +45,8 @@ export function BotonEditar({ etiqueta, onClick }) {
   </button>`;
 }
 
-function DatoResumen({ etiqueta, children, falta = false, pendiente = null, alIr = null }) {
-  return html`<div class=${`dato-resumen ${falta || pendiente ? "dato-falta" : ""}`}>
+function DatoResumen({ etiqueta, children, falta = false, pendiente = null, alIr = null, cambiado = false }) {
+  return html`<div class=${`dato-resumen ${falta || pendiente ? "dato-falta" : ""} ${cambiado ? "dato-cambiado" : ""}`}>
     <dt>${etiqueta}</dt>
     <dd>${children}${pendiente && pendiente.paso && alIr
       ? html` <button type="button" class="enlace-boton corregir-dato" aria-label=${`Corregir: ${pendiente.corto}`} onClick=${() => alIr(pendiente)}>Corregir</button>`
@@ -70,7 +70,7 @@ const FILA_DEL_CAMPO = { depto_destino: "area", recibio_nombre: "recibe", fecha:
  * autoriza, etapa, fecha, entrega, folio }; lo que falta se ve como «—». `autoriza` / `etapa` (null = no aplica) se
  * ven en el paso 3. `pendientes` (paso 3): lo que falta de este paso se marca en su fila con «Corregir» (`alIr`).
  */
-export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pendientes = [], alIr = null }) {
+export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pendientes = [], alIr = null, cambiados = null }) {
   const o = (v) => (v ? String(v) : "—");
   const enFila = new Map();
   const sueltos = [];
@@ -79,8 +79,9 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pend
     if (fila && !enFila.has(fila)) enFila.set(fila, p);
     else if (!fila) sueltos.push(p);
   }
+  // `cambiados` (corrección, §8): las filas que cambiaron se marcan en ámbar.
   const fila = (clave, etiqueta, valor, falta = false) =>
-    html`<${DatoResumen} etiqueta=${etiqueta} falta=${falta} pendiente=${enFila.get(clave) ?? null} alIr=${alIr}>${valor}<//>`;
+    html`<${DatoResumen} etiqueta=${etiqueta} falta=${falta} pendiente=${enFila.get(clave) ?? null} alIr=${alIr} cambiado=${Boolean(cambiados?.has(clave))}>${valor}<//>`;
   const conPendiente = enFila.size > 0 || sueltos.length > 0;
   return html`<section class=${`resumen-vale ${conPendiente ? "con-pendiente" : ""}`} aria-label=${titulo}>
     <header class="resumen-cabeza">
@@ -90,12 +91,12 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pend
     <dl class="resumen-datos">
       ${datos.transferencia ? fila("area", "Destino", o(datos.destino), !datos.destino) : fila("area", "Área", o(datos.area), !datos.area)}
       ${fila("recibe", "Recibe", o(datos.recibe), !datos.recibe)}
-      <${DatoResumen} etiqueta="Puesto">${o(datos.puesto)}<//>
+      <${DatoResumen} etiqueta="Puesto" cambiado=${Boolean(cambiados?.has("puesto"))}>${o(datos.puesto)}<//>
       ${datos.autoriza !== null && datos.autoriza !== undefined ? fila("autoriza", "Autoriza", o(datos.autoriza), !datos.autoriza) : null}
       ${datos.etapa !== null && datos.etapa !== undefined ? fila("etapa", "Etapa", o(datos.etapa), !datos.etapa) : null}
       ${fila("fecha", "Fecha", fechaCorta(datos.fecha))}
       ${fila("entrega", "Entrega", datos.entrega || "Elige quién está en turno", !datos.entrega)}
-      <${DatoResumen} etiqueta="Folio">${datos.folio} <small>al emitir</small><//>
+      <${DatoResumen} etiqueta="Folio">${datos.folio}${datos.emitido ? null : html` <small>al emitir</small>`}<//>
     </dl>
     ${sueltos.length ? html`<ul class="pendientes-tarjeta">${sueltos.map((p, i) => html`<${LineaPendiente} key=${i} p=${p} alIr=${alIr} />`)}</ul>` : null}
     <p class="resumen-linea" aria-hidden="true">
@@ -111,14 +112,14 @@ export function ResumenParaQuien({ datos, alEditar, titulo = "Para quién", pend
  * lo que falta de cada partida va en su fila con «Ir a la partida» / «Corregir» (`alIr`); la justificación de lo que
  * sale de más se escribe en el paso 2 y aquí solo se lee.
  */
-export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = null }) {
+export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = null, cambios = null, titulo = "Material" }) {
   const porPartida = new Map();
   for (const p of pendientes) if (p.donde === "partida" && p.uid) porPartida.set(p.uid, [...(porPartida.get(p.uid) ?? []), p]);
   const generales = pendientes.filter((p) => p.donde === "material");
   const porResolver = pendientes.filter((p) => p.pendiente && (p.donde === "partida" || p.donde === "material")).length;
-  return html`<section class=${`resumen-vale ${porResolver ? "con-pendiente" : ""}`} aria-label="Material">
+  return html`<section class=${`resumen-vale ${porResolver ? "con-pendiente" : ""}`} aria-label=${titulo}>
     <header class="resumen-cabeza">
-      <h2>Material · ${partidas.length} ${partidas.length === 1 ? "partida" : "partidas"}</h2>
+      <h2>${titulo} · ${partidas.length} ${partidas.length === 1 ? "partida" : "partidas"}</h2>
       ${porResolver ? html`<span class="pastilla pastilla-alerta">${porResolver} por resolver</span>` : null}
       <${BotonEditar} etiqueta="Editar material" onClick=${alEditar} />
     </header>
@@ -128,14 +129,21 @@ export function ResumenMaterial({ partidas, alEditar, pendientes = [], alIr = nu
           ${partidas.map((p, i) => {
             const suyos = porPartida.get(p.uid) ?? [];
             const titulo = [p.codigo, p.descripcion, p.clave, p.np ? `NP ${p.np}` : null, p.lote ? `Lote ${p.lote}` : null, p.oc ? `O.C. ${p.oc}` : null].filter(Boolean).join(" · ");
-            return html`<li key=${p.uid ?? i} class=${suyos.some((x) => x.pendiente) ? "con-pendiente" : ""}>
-              <span class=${`resumen-cantidad ${p.cantidad ? "" : "falta"}`}>${p.cantidad || "sin cantidad"} ${p.cantidad ? p.um : ""}</span>
+            // `cambios` (corrección, §8): uid → { antes } — la partida que cambió en ámbar, con la cantidad anterior tachada.
+            const cambio = cambios?.get(p.uid) ?? null;
+            return html`<li key=${p.uid ?? i} class=${`${suyos.some((x) => x.pendiente) ? "con-pendiente" : ""} ${cambio ? "partida-cambiada" : ""} ${p.sinLigar ? "partida-sin-ligar" : ""}`}>
+              <span class=${`resumen-cantidad ${p.cantidad ? "" : "falta"}`}>${p.cantidad || "sin cantidad"} ${p.cantidad ? p.um : ""}${cambio?.antes
+                ? html`<del class="cantidad-antes">${cambio.antes}</del>`
+                : cambio?.nueva
+                  ? html`<small class="cantidad-antes nueva">nueva</small>`
+                  : null}</span>
               <span class="resumen-descripcion" title=${titulo}><span class="resumen-codigo">${p.codigo ?? "—"}</span> · ${p.descripcion || "—"}</span>
               <span class="resumen-clave">
                 <span class="resumen-dimension">${p.clave || "—"}</span>
                 ${p.np ? html`<span class="resumen-dato">NP: ${p.np}</span>` : null}
                 ${p.lote ? html`<span class="resumen-dato">Lote: ${p.lote}</span>` : null}
                 ${p.oc ? html`<span class="resumen-dato">O.C.: ${p.oc}</span>` : null}
+                ${p.sinLigar ? html`<span class="resumen-dato">sin ligar al inventario · anterior al conteo</span>` : null}
               </span>
               ${suyos.map((x) =>
                 x.tipo === "justificacion" && !x.pendiente

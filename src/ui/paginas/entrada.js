@@ -2,97 +2,23 @@ import { useMemo, useState } from "preact/hooks";
 import { aNumero } from "../../nucleo/decimal.js";
 import { Indices } from "../../nucleo/estado.js";
 import { fechaDelDia, fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
-import {
-  ErrorEntrada,
-  corregirEntrada,
-  datosParaCorregirEntrada,
-  folioEntrada,
-  resumenCambiosEntrada,
-  validarEntrada,
-} from "../../servicios/entradas.js";
+import { folioEntrada } from "../../servicios/entradas.js";
 import { lugarCorto } from "../../servicios/inventario.js";
 import { impresionesPorVale, marcaDe } from "../../servicios/etiquetas.js";
 import { bitacoraDeVale } from "../../servicios/vales.js";
 import { Aviso, Boton, Dato, Insignia, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { useMenuContextual } from "../menuContextual.js";
-import { EditorEntrada } from "./entradas.js";
+import { CorreccionEntrada } from "./correccion.js";
 import { EstadoEtiquetas, EtiquetasDeEntrada } from "./etiquetas.js";
 import { useSalidaDesdeVale } from "./copiarVale.js";
 import { Icono } from "../iconos.js";
-import { ListaErrores } from "./vales.js";
 
 const ACCIONES = { EMITIR: "Registrada", CORREGIR: "Corregida", ETIQUETAS: "Etiquetas impresas" };
 
 export function entradaDeRuta() {
   const m = /^#entrada\/(\d+)/.exec(location.hash);
   return m ? Number(m[1]) : null;
-}
-
-function CorreccionEntrada({ vale, alTerminar }) {
-  const sesion = useSesion();
-  const [datos, setDatos] = useState(() => datosParaCorregirEntrada(sesion.estado, vale.id));
-  const [motivoPropio, setMotivoPropio] = useState(null);
-  const [errores, setErrores] = useState([]);
-  const cambios = useMemo(() => resumenCambiosEntrada(sesion.estado, vale, datos), [datos, vale]);
-  const vivo = useMemo(() => validarEntrada(sesion.estado, datos, { excluirValeId: vale.id }), [datos, vale]);
-  const { avisos } = vivo;
-  // La fecha de recibido se revisa mientras se escribe (no puede ser futura ni posterior al registro); vacía, al guardar.
-  const intentoRecibido = errores.some((e) => e.campo === "fecha_recibido");
-  const delRecibido = vivo.errores.filter((e) => e.campo === "fecha_recibido" && (datos.fecha_recibido || intentoRecibido));
-  const mostrados = [...errores.filter((e) => e.campo !== "fecha_recibido"), ...delRecibido];
-  const motivo = motivoPropio ?? cambios.join("\n");
-  const guardar = () =>
-    sesion.tarea("Guardando corrección…", async () => {
-      const faltan = [...validarEntrada(sesion.estado, datos, { excluirValeId: vale.id }).errores];
-      if (!cambios.length) faltan.push({ renglon: null, campo: "vale", mensaje: "No has cambiado nada de la entrada." });
-      else if (!motivo.trim()) faltan.push({ renglon: null, campo: "motivo", mensaje: "Escribe el motivo de la corrección." });
-      setErrores(faltan);
-      if (faltan.length) return;
-      try {
-        await sesion.almacen.modificar((e) => corregirEntrada(e, vale.id, datos, motivo, sesion.usuario));
-        sesion.avisar("exito", `Entrada ${folioEntrada(vale.folio)} corregida. Queda en la bitácora.`);
-        alTerminar();
-      } catch (error) {
-        if (error instanceof ErrorEntrada) setErrores(error.errores.length ? error.errores : [{ renglon: null, campo: "vale", mensaje: error.message }]);
-        else throw error;
-      }
-    });
-  return html`<${Tarjeta} titulo=${`Corregir entrada ${folioEntrada(vale.folio)}`} clase="tarjeta-correccion">
-    <${EditorEntrada}
-      datos=${datos}
-      alCambiar=${setDatos}
-      errores=${mostrados}
-      avisos=${avisos}
-      excluirValeId=${vale.id}
-      pie=${html`${avisos.filter((a) => a.campo === "cantidad").length
-          ? html`<${Aviso} tipo="advertencia" titulo="Revisa la existencia">
-              <ul>${avisos.filter((a) => a.campo === "cantidad").map((a) => html`<li>${a.mensaje}</li>`)}</ul>
-            <//>`
-          : null}
-        <div class="campo motivo">
-          <span>
-            Motivo de la corrección (queda en la bitácora)
-            ${motivoPropio !== null
-              ? html` · <button type="button" class="enlace-boton" onClick=${() => setMotivoPropio(null)}>↺ Volver a llenarlo con los cambios</button>`
-              : html` · <small class="ayuda">se llena solo con los cambios; puedes agregar el porqué</small>`}
-          </span>
-          <textarea
-            rows=${Math.min(8, Math.max(3, motivo.split("\n").length + 1))}
-            value=${motivo}
-            onInput=${(e) => setMotivoPropio(e.currentTarget.value)}
-            placeholder="Cambia algo de la entrada y aquí aparece qué cambió."
-            aria-label="Motivo de la corrección"
-          ></textarea>
-        </div>
-        <${ListaErrores} errores=${errores} />
-        <div class="acciones-linea pie-editor">
-          <${Boton} onClick=${alTerminar}>Cancelar<//>
-          <span class="espaciador"></span>
-          <${Boton} tipo="primario" onClick=${guardar}>Guardar corrección<//>
-        </div>`}
-    />
-  <//>`;
 }
 
 export function PaginaEntrada() {
@@ -179,7 +105,7 @@ export function PaginaEntrada() {
             />
           <//>
         `}
-    <${Tarjeta} titulo="Bitácora">
+    ${corrigiendo ? null : html`<${Tarjeta} titulo="Bitácora">
       ${bitacora.length
         ? html`<ul class="bitacora">
             ${bitacora.map(
@@ -190,6 +116,6 @@ export function PaginaEntrada() {
             )}
           </ul>`
         : html`<p class="nota">Sin movimientos.</p>`}
-    <//>
+    <//>`}
   `;
 }

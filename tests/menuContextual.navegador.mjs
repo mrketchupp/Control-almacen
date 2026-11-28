@@ -298,7 +298,7 @@ test("menús contextuales por elemento y estado en Chromium", async (t) => {
     assert.ok((await page.evaluate(() => window.__prints[0])).includes("OBSERVACIÓN"));
     await abrir(page, fila);
     await page.getByRole("menuitem", { name: "Corregir vale…" }).click();
-    await page.getByRole("heading", { name: "Corregir vale 3", exact: true }).waitFor();
+    await page.getByText("Corrigiendo el vale 3", { exact: true }).waitFor();
     assert.ok(page.url().includes("/corregir"));
     await page.goto(origen + "/#historial/entradas");
     fila = page.locator(".tabla tbody tr").first();

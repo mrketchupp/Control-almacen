@@ -38,11 +38,12 @@ const CAMPOS_PASO_1 = new Set([...Object.keys(CORTOS), "devolucion_folio"]);
 
 /**
  * Lo que falta para pasar de *De dónde viene* a *Material*: lo que `validarEntrada` pide del encabezado (folio, de
- * dónde viene, las dos fechas, quién recibe). `usuario`: el almacenista en turno, que es quien recibe.
+ * dónde viene, las dos fechas, quién recibe). `usuario`: el almacenista en turno, que es quien recibe;
+ * `excluirValeId`: en una corrección, la entrada misma (su folio no cuenta como repetido).
  * @returns [{ campo, mensaje }] con el texto corto ("Falta el folio del vale") o el de la regla que no se cumple.
  */
-export function faltaDeDondeViene(estado, datos, { usuario = null } = {}) {
-  const { errores } = validarEntrada(estado, { ...datos, recibio_nombre: usuario || datos.recibio_nombre });
+export function faltaDeDondeViene(estado, datos, { usuario = null, excluirValeId = null } = {}) {
+  const { errores } = validarEntrada(estado, { ...datos, recibio_nombre: usuario || datos.recibio_nombre }, { excluirValeId });
   return errores
     .filter((e) => e.renglon === null && CAMPOS_PASO_1.has(e.campo))
     .map((e) => ({ campo: e.campo, mensaje: textoCorto(e) }));

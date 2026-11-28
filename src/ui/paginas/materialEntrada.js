@@ -276,7 +276,7 @@ function EditarPartidaEntrada({ linea, n, estado, indices, saldos, alListo, alCa
  * Paso 2. `alEditarOrigen`: «Editar» de *De dónde viene*; `alCopilot`: abre *Llenar con Copilot*; `alRegresar` /
  * `avanzar`: los botones del pie; `falta`: lo que falta para continuar (se dice al pulsar *Continuar*).
  */
-export function PasoMaterialEntrada({ datos, alCambiar, alEditarOrigen, alCopilot, alRegresar, avanzar, falta = null }) {
+export function PasoMaterialEntrada({ datos, alCambiar, alEditarOrigen, alCopilot = null, alRegresar, avanzar, falta = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -401,7 +401,9 @@ export function PasoMaterialEntrada({ datos, alCambiar, alEditarOrigen, alCopilo
         <button type="button" class="boton-plegar-agregar" aria-expanded=${agregarAbierto} onClick=${() => setAgregarAbierto(!agregarAbierto)}>
           <span>Agregar partidas</span><span aria-hidden="true">${agregarAbierto ? "▾" : "▸"}</span>
         </button>
-        ${deCopilot
+        ${!alCopilot
+          ? null
+          : deCopilot
           ? html`<div class="copilot-estado" role="status">
               <strong><${Icono} nombre="chispa" tam=${16} /> Copilot leyó ${partidasDe(deCopilot)}</strong>
               <span>Solo las marcadas en ámbar necesitan tu atención.</span>

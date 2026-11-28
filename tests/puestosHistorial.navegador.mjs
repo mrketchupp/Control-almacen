@@ -62,20 +62,25 @@ test("el historial permite completar, modificar y borrar el puesto de entrega en
       q.onerror = () => reject(q.error);
     }));
     await page.goto(`${origen}/#vale/${id}`);
-    for (const puesto of ["RESPONSABLE SINTETICO", "ENCARGADO SINTETICO", ""]) {
+    // Ronda 39: la corrección abre en la revisión; quién entregó (y las demás firmas) se cambian en *Para quién*.
+    const editarParaQuien = async () => {
       await page.getByRole("button", { name: "Corregir", exact: true }).click();
-      const campo = page.getByRole("combobox", { name: "Puesto de quien entrega", exact: true });
+      await page.getByRole("button", { name: "Editar para quién", exact: true }).click();
+    };
+    for (const puesto of ["RESPONSABLE SINTETICO", "ENCARGADO SINTETICO", ""]) {
+      await editarParaQuien();
+      const campo = page.getByRole("combobox", { name: "Puesto (quién entregó)", exact: true });
       await campo.fill(puesto);
       if (nov && puesto === "RESPONSABLE SINTETICO") {
-        await page.getByRole("combobox", { name: "Puesto de quien autoriza", exact: true }).fill("SUPERVISOR SINTETICO");
-        const firmas = page.locator('[data-bloque="firmas_extra"]');
-        const puestos = firmas.getByRole("combobox", { name: /^Puesto \(/ });
-        assert.equal(await puestos.count(), 2);
-        await puestos.nth(0).fill("TECNICO SINTETICO");
-        await puestos.nth(1).fill("SEGURIDAD SINTETICA");
+        await page.getByRole("combobox", { name: "Puesto (quién autoriza)", exact: true }).fill("SUPERVISOR SINTETICO");
+        const izq = page.locator("#firma-izq-puesto"), der = page.locator("#firma-der-puesto");
+        await izq.fill("TECNICO SINTETICO");
+        await der.fill("SEGURIDAD SINTETICA");
       }
-      if (puesto) assert.match(await page.locator(".datos-automaticos dd").first().innerText(), new RegExp(puesto));
-      await page.getByRole("button", { name: "Guardar corrección", exact: true }).click();
+      assert.equal(await campo.inputValue(), puesto);
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Listo", exact: true }).click();
+      await page.getByRole("button", { name: "Guardar", exact: true }).click();
       await page.getByRole("button", { name: "Corregir", exact: true }).waitFor();
       const guardado = await leer(), actual = guardado.vales.find((v) => v.id === id);
       assert.equal(conFirmasPorPapel(guardado, actual).entrego_puesto, puesto || null);
@@ -85,8 +90,9 @@ test("el historial permite completar, modificar y borrar el puesto de entrega en
       assert.equal(JSON.stringify(guardado.personas), personas);
       assert.equal(JSON.stringify(guardado.config), config);
       await page.reload();
-      await page.getByRole("button", { name: "Corregir", exact: true }).click();
+      await editarParaQuien();
       assert.equal(await campo.inputValue(), puesto);
+      await page.getByRole("button", { name: "Listo", exact: true }).click();
       await page.getByRole("button", { name: "Cancelar", exact: true }).click();
     }
     assert.deepEqual(errores, []); assert.deepEqual(externas, []);

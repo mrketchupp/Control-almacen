@@ -68,14 +68,15 @@ function FilaAcomodo({ l, estado, indices, previa, marcada, deshabilitada, alMar
 }
 
 /** Paso 3. `alRegresar` / `avanzar`: los botones del pie (el de avanzar, deshabilitado mientras falte alguna). */
-export function PasoAcomodo({ datos, alCambiar, alRegresar, avanzar }) {
+export function PasoAcomodo({ datos, alCambiar, alRegresar, avanzar, excluirValeId = null }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
   const contenedores = useMemo(() => contenedoresDe(estado), [estado.ubicaciones]);
   const partidas = lineasEntradaCapturadas(datos.lineas);
   const avance = avanceAcomodo(estado, partidas, { indices });
-  const previa = useMemo(() => new Map(vistaPreviaEntrada(estado, datos).map((p) => [p.uid, p])), [estado, datos]);
+  // En una corrección, «hay» no cuenta lo que la entrada misma ya sumaba.
+  const previa = useMemo(() => new Map(vistaPreviaEntrada(estado, datos, { excluirValeId }).map((p) => [p.uid, p])), [estado, datos, excluirValeId]);
   const [elegido, setElegido] = useState(null);
   const [anuncio, setAnuncio] = useState("");
   const [error, setError] = useState(null);

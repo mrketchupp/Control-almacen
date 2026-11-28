@@ -289,7 +289,7 @@ export function escEnCampo(e, b, cual) {
 // ---------------------------------------------------------------- partidas
 
 /** Una partida de la lista (§4.3): dimensión · NP / código · descripción / contenedor · hay; lote y O.C. si tienen. */
-function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, editando, elegida, alElegir, alCambiar, alQuitar, alTab, alEnter }) {
+function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, editando, elegida, alElegir, alCambiar, alQuitar, alTab, alEnter, historial = false }) {
   const e = estadoPartida(estado, l, { indices, codigosConPartidas: conPartidas });
   const existencia = l.existencia_id !== null && l.existencia_id !== undefined ? indices.existencia(l.existencia_id) : null;
   const ubicacion = existencia ? indices.ubicacion(existencia.ubicacion_id) : null;
@@ -318,7 +318,8 @@ function PartidaVale({ l, n, estado, indices, conPartidas, np, hay, pedido, edit
         ${e.noDescuenta ? html`<${Pastilla} tono="alerta">No descuenta<//>` : null}
         ${e.noInventariado && !nuevo ? html`<${Pastilla}>No inventariado<//>` : null}
         ${nuevo ? html`<${Pastilla} tono="alerta">Código nuevo<//>` : null}
-        ${e.sinClave ? html`<${Pastilla} tono="alerta">Falta la clave<//>` : null}
+        ${e.sinClave && historial ? html`<${Pastilla}>Sin ligar al inventario · anterior al conteo<//>` : null}
+        ${e.sinClave && !historial ? html`<${Pastilla} tono="alerta">Falta la clave<//>` : null}
         ${existencia?.activo === false ? html`<${Pastilla} tono="alerta">Ya no está en el inventario<//>` : null}
         ${existencia && existencia.dueno === DUENO_FX ? html`<${Pastilla} tono="fx">FX<//>` : null}
       </div>
@@ -484,7 +485,7 @@ function EditarPartida({ linea, n, items, estado, indices, np, ultimas, nombreAr
  * Paso 2. `datos` / `alCambiar(nuevo)`: el borrador. `resumen` y `alEditar`: el resumen de *Para quién*. `capacidad`:
  * partidas del formato impreso del área. `alRegresar` / `avanzar`: los botones de abajo (los pone la página).
  */
-export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, alRegresar, avanzar, inicio = null, alUsarInicio = null }) {
+export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, alRegresar, avanzar, inicio = null, alUsarInicio = null, excluirValeId = null, historial = false }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const indices = useMemo(() => new Indices(estado), [estado]);
@@ -505,7 +506,8 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
   const partidas = partidasDelVale(datos.lineas);
   const cuenta = contarPartidas(estado, partidas, { indices, codigosConPartidas: conPartidas });
   const ids = [...new Set(partidas.map((l) => l.existencia_id).filter((x) => x !== null && x !== undefined))];
-  const hay = useMemo(() => disponibles(estado, ids), [estado, ids.join(",")]);
+  // En una corrección (Ronda 39), «hay» no cuenta lo que el vale mismo ya sacó.
+  const hay = useMemo(() => disponibles(estado, ids, excluirValeId), [estado, ids.join(","), excluirValeId]);
   const pedidos = new Map();
   for (const l of partidas) {
     if (l.existencia_id === null || l.existencia_id === undefined) continue;
@@ -779,6 +781,7 @@ export function PasoMaterial({ datos, alCambiar, resumen, alEditar, capacidad, a
                   alQuitar=${() => quitar(l.uid)}
                   alTab=${tab}
                   alEnter=${() => enfocar(lineaElegida ? "editar-material" : "buscar-material", !lineaElegida)}
+                  historial=${historial}
                 />`,
               )}
             </ol>`

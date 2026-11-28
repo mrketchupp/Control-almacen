@@ -116,17 +116,22 @@ test("corregir la descripción de un código desde el inventario, la corrección
     const { codigo, descripcion } = vale.lineas[indice];
     const { page, leer, errores, externas, cerrar } = await abrir(estado);
     await page.goto(`${origen}/#vale/${vale.id}`);
+    // Ronda 39: la corrección abre en la revisión; el lápiz está al editar la partida dentro de *Material*.
     await page.getByRole("button", { name: "Corregir", exact: true }).click();
+    await page.getByRole("button", { name: "Editar material", exact: true }).click();
+    await page.getByRole("button", { name: "Editar las partidas", exact: true }).click();
+    await page.getByRole("button", { name: new RegExp(`^Editar la partida ${indice + 1}:`) }).click();
     await lapiz(page, codigo).first().click();
     await campo(page, codigo).fill("descripción corregida de prueba");
     await ventana(page, codigo).getByRole("button", { name: "Guardar descripción", exact: true }).click();
     await ventana(page, codigo).waitFor({ state: "hidden" });
-    await page.locator("td.col-descripcion .descripcion", { hasText: NUEVA }).first().waitFor();
+    await page.getByRole("button", { name: "Listo", exact: true }).click();
+    await page.locator(".resumen-descripcion", { hasText: NUEVA }).first().waitFor();
     const motivo = page.getByRole("textbox", { name: "Motivo de la corrección", exact: true });
     assert.match(await motivo.inputValue(), new RegExp(`descripción .* → ${NUEVA}`), "el motivo se llena con el cambio de descripción");
     // Hasta guardar la corrección, el vale conserva su texto.
     assert.equal((await leer()).vales.find((x) => x.id === vale.id).lineas[indice].descripcion, descripcion);
-    await page.getByRole("button", { name: "Guardar corrección", exact: true }).click();
+    await page.getByRole("button", { name: "Guardar", exact: true }).click();
     await page.getByRole("button", { name: "Corregir", exact: true }).waitFor();
     const guardado = await leer();
     assert.equal(guardado.vales.find((x) => x.id === vale.id).lineas[indice].descripcion, NUEVA);

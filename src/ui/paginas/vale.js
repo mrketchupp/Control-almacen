@@ -3,24 +3,20 @@ import { aNumero } from "../../nucleo/decimal.js";
 import { Indices } from "../../nucleo/estado.js";
 import { fmtFecha, fmtFechaHora } from "../../nucleo/fechas.js";
 import {
-  ErrorVale,
   bitacoraDeVale,
   conFirmasPorPapel,
-  corregirVale,
-  datosParaCorregir,
   esHistorial,
   firmasExtraDe,
   partidasDuplicadas,
   plantillaArea,
-  resumenCambios,
-  validarVale,
 } from "../../servicios/vales.js";
 import { estadoAxDeVales } from "../../servicios/seguimiento.js";
 import { Aviso, Boton, Dato, Insignia, Pastilla, Tabla, Tarjeta, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { useMenuContextual } from "../menuContextual.js";
 import { PastillaAx } from "./base.js";
-import { EditorVale, ListaErrores, VistaPrevia } from "./vales.js";
+import { VistaPrevia } from "./vales.js";
+import { CorreccionSalida } from "./correccion.js";
 import { useSalidaDesdeVale } from "./copiarVale.js";
 import { Icono } from "../iconos.js";
 
@@ -29,74 +25,6 @@ const ACCIONES = { EMITIR: "Emitido", CORREGIR: "Corregido", CANCELAR: "Cancelad
 export function valeDeRuta() {
   const m = /^#vale\/(\d+)/.exec(location.hash);
   return m ? Number(m[1]) : null;
-}
-
-/**
- * Corregir el vale. Con `quitar` (ids de partidas) empieza ya sin ellas: así se quitan las duplicadas
- * y el motivo dice por qué.
- */
-function Correccion({ vale, alTerminar, quitar = null }) {
-  const sesion = useSesion();
-  const [datos, setDatos] = useState(() => {
-    const base = datosParaCorregir(sesion.estado, vale.id);
-    return quitar ? { ...base, lineas: base.lineas.filter((l) => !quitar.has(l.id)) } : base;
-  });
-  // El motivo se llena solo con lo que cambió; si lo editas, se respeta tu texto.
-  const [motivoPropio, setMotivoPropio] = useState(null);
-  const [errores, setErrores] = useState([]);
-  const historial = esHistorial(sesion.estado, vale);
-  const cambios = useMemo(() => resumenCambios(sesion.estado, vale, datos), [datos, vale]);
-  const automatico = [quitar ? "Partidas duplicadas: el formulario de Excel guardó el vale dos veces." : "", ...cambios].filter(Boolean).join("\n");
-  const motivo = motivoPropio ?? automatico;
-  const guardar = () =>
-    sesion.tarea("Guardando corrección…", async () => {
-      const faltan = [...validarVale(sesion.estado, datos, { excluirValeId: vale.id, historial }).errores];
-      if (!cambios.length) faltan.push({ renglon: null, campo: "vale", mensaje: "No has cambiado nada del vale." });
-      else if (!motivo.trim()) faltan.push({ renglon: null, campo: "motivo", mensaje: "Escribe el motivo de la corrección." });
-      setErrores(faltan);
-      if (faltan.length) return;
-      try {
-        await sesion.almacen.modificar((e) => corregirVale(e, vale.id, datos, motivo, sesion.usuario));
-        sesion.avisar("exito", `Vale ${vale.folio} corregido. Queda en la bitácora.`);
-        alTerminar();
-      } catch (error) {
-        if (error instanceof ErrorVale) setErrores(error.errores.length ? error.errores : [{ renglon: null, campo: "vale", mensaje: error.message }]);
-        else throw error;
-      }
-    });
-  return html`<${Tarjeta} titulo=${`Corregir vale ${vale.folio}`} clase="tarjeta-correccion">
-    ${historial
-      ? html`<${Aviso} tipo="info">Este vale es anterior al conteo físico: la corrección solo cambia el historial y el DIARIO; no mueve existencias.<//>`
-      : null}
-    <${EditorVale}
-      datos=${datos}
-      alCambiar=${setDatos}
-      errores=${errores}
-      excluirValeId=${vale.id}
-      entrego=${{ nombre: conFirmasPorPapel(sesion.estado, vale).entrego_nombre || "—", puesto: conFirmasPorPapel(sesion.estado, vale).entrego_puesto || "" }}
-      pie=${html`<div class="campo motivo">
-          <span>
-            Motivo de la corrección (queda en la bitácora)
-            ${motivoPropio !== null
-              ? html` · <button type="button" class="enlace-boton" onClick=${() => setMotivoPropio(null)}>↺ Volver a llenarlo con los cambios</button>`
-              : html` · <small class="ayuda">se llena solo con los cambios; puedes agregar el porqué</small>`}
-          </span>
-          <textarea
-            rows=${Math.min(8, Math.max(3, motivo.split("\n").length + 1))}
-            value=${motivo}
-            onInput=${(e) => setMotivoPropio(e.currentTarget.value)}
-            placeholder="Cambia algo del vale y aquí aparece qué cambió."
-            aria-label="Motivo de la corrección"
-          ></textarea>
-        </div>
-        <${ListaErrores} errores=${errores} />
-        <div class="acciones-linea pie-editor">
-          <${Boton} onClick=${alTerminar}>Cancelar<//>
-          <span class="espaciador"></span>
-          <${Boton} tipo="primario" onClick=${guardar}>Guardar corrección<//>
-        </div>`}
-    />
-  <//>`;
 }
 
 function FotosDelVale({ fotos }) {
@@ -159,7 +87,7 @@ export function PaginaVale() {
         ${esHistorial(estado, vale) ? html`<${Insignia}>Anterior al conteo<//>` : null}
       </div>
       <div class="acciones-linea">
-        <${Boton} tipo="primario" onClick=${() => setPrevia(true)}>🖨 Imprimir<//>
+        ${corrigiendo ? null : html`<${Boton} tipo="primario" onClick=${() => setPrevia(true)}>🖨 Imprimir<//>`}
         ${!cancelado && !corrigiendo ? html`<${Boton} onClick=${() => setCorrigiendo(true)}>Corregir<//>` : null}
         ${!cancelado && !corrigiendo
           ? html`<${Boton} onClick=${() => aSalida(vale.id)} disabled=${Boolean(sesion.ocupado)} title="Un borrador nuevo con estas partidas, la misma área y quién recibe">
@@ -178,7 +106,7 @@ export function PaginaVale() {
         <//>`
       : null}
     ${corrigiendo
-      ? html`<${Correccion} vale=${vale} quitar=${corrigiendo === "duplicadas" ? new Set(duplicadas.keys()) : null} alTerminar=${() => setCorrigiendo(false)} />`
+      ? html`<${CorreccionSalida} vale=${vale} quitar=${corrigiendo === "duplicadas" ? new Set(duplicadas.keys()) : null} alTerminar=${() => setCorrigiendo(false)} />`
       : html`
           <div class="datos datos-texto">
             <${Dato} etiqueta="Fecha" valor=${fmtFecha(vale.fecha)} />
@@ -221,7 +149,7 @@ export function PaginaVale() {
           <//>
         `}
 
-    <${Tarjeta} titulo="Bitácora">
+    ${corrigiendo ? null : html`<${Tarjeta} titulo="Bitácora">
       ${bitacora.length
         ? html`<ul class="bitacora">
             ${bitacora.map(
@@ -233,7 +161,7 @@ export function PaginaVale() {
             )}
           </ul>`
         : html`<p class="nota">${vale.migrado ? "Vale migrado del Excel en la primera carga; sin cambios desde entonces." : "Sin movimientos."}</p>`}
-    <//>
+    <//>`}
 
     ${previa ? html`<${VistaPrevia} vales=${[vale]} alCerrar=${() => setPrevia(false)} />` : null}
   `;

@@ -3,7 +3,7 @@
 // Ronda 35: «Consumo interno» / «Transferencia» (RIG y pozo son lo mismo) y el destino va en las observaciones.
 
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { PUESTOS_AUTORIZAN, conEtapa, sinEtapa } from "../../nucleo/areas.js";
+import { PUESTOS_AUTORIZAN, conEtapa, conUsoEn, etiquetasFirmasExtra, sinEtapa, tieneDatosFijos } from "../../nucleo/areas.js";
 import { hoyIso } from "../../nucleo/fechas.js";
 import { buscarPersonas, personasParaFirma } from "../../servicios/consultas.js";
 import {
@@ -17,7 +17,7 @@ import {
   esTransferencia,
   textoObservaciones,
 } from "../../servicios/pasosVale.js";
-import { conFechaElegida, fechaDelBorrador, firmasExtraDe, observacionesDelVale, pideEtapa, plantillaArea, requiereAutoriza } from "../../servicios/vales.js";
+import { areaDeVale, conFechaElegida, fechaDelBorrador, firmasExtraDe, observacionesDelVale, pideEtapa, plantillaArea, requiereAutoriza } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, useSesion } from "../componentes.js";
 import { html } from "../html.js";
 import { fechaCorta } from "./pasosVale.js";
@@ -196,9 +196,10 @@ function BotonFecha({ fecha, alCambiar }) {
 
 /**
  * Paso 1. `datos`: el borrador; `alCambiar(nuevo)`; `faltan`: [{ campo, mensaje }] de `faltaParaQuien`; `pie`: el botón
- * para continuar (lo pone la página).
+ * para continuar (lo pone la página). `correccion` (Ronda 39, §8): al corregir un vale emitido también se cambia quién
+ * entregó y, si el área no fija origen y destino (o el vale migrado no tiene área), esos cuatro datos.
  */
-export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
+export function PasoParaQuien({ datos, alCambiar, faltan = [], pie, correccion = false }) {
   const sesion = useSesion();
   const estado = sesion.estado;
   const transferencia = esTransferencia(estado, datos);
@@ -207,8 +208,18 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
   const areas = areasConsumo(estado, datos.plantilla_area_id);
   const destinos = destinosTransferencia(estado, datos.origen || undefined);
   const lugares = useMemo(() => listas(estado).lugares, [estado.plantillas_area, estado.vales]);
-  const extras = firmasExtraDe(estado, datos);
-  const autoriza = requiereAutoriza(estado, datos);
+  const deptos = useMemo(() => listas(estado).deptos, [estado.plantillas_area, estado.vales]);
+  // Al corregir un vale migrado, también lo que trae aunque su área no lo pida (como el editor de antes).
+  const conDato = (...campos) => campos.some((c) => texto(datos[c]));
+  const extras =
+    firmasExtraDe(estado, datos) ??
+    (correccion
+      ? (etiquetasFirmasExtra(areaDeVale(estado, datos)) ??
+        (conDato("firma_extra_izq_nombre", "firma_extra_izq_puesto", "firma_extra_der_nombre", "firma_extra_der_puesto")
+          ? { izq: "Firma adicional izquierda", der: "Firma adicional derecha" }
+          : null))
+      : null);
+  const autoriza = requiereAutoriza(estado, datos) || (correccion && conDato("autorizo_nombre", "autorizo_puesto"));
   const etapa = pideEtapa(estado, datos);
   const [editarEtapa, setEditarEtapa] = useState(false);
   const [editarObservaciones, setEditarObservaciones] = useState(false);
@@ -314,8 +325,23 @@ export function PasoParaQuien({ datos, alCambiar, faltan = [], pie }) {
           ? html`${personaDe({ id: "firma-izq", titulo: extras.izq, campo: "firma_extra_izq", limite: 4 })}
               ${personaDe({ id: "firma-der", titulo: extras.der, campo: "firma_extra_der", limite: 4 })}`
           : null}
+        ${correccion ? personaDe({ id: "quien-entrega", titulo: "¿Quién entregó?", campo: "entrego", limite: 4 }) : null}
       </div>
     </div>
+
+    ${correccion && !tieneDatosFijos(area)
+      ? html`<section class="tarjeta-paso origen-destino-correccion" aria-labelledby="t-origen-destino">
+          <h2 id="t-origen-destino">Origen y destino</h2>
+          <div class="campos-dos">
+            <label class="campo"><span>Origen</span><${CampoSugerido} id="corr-origen" valor=${datos.origen ?? ""} alCambiar=${(v) => cambiar({ origen: v })} sugerencias=${lugares} ariaLabel="Origen" /></label>
+            <label class="campo"><span>Depto. origen</span><${CampoSugerido} id="corr-depto-origen" valor=${datos.depto_origen ?? ""} alCambiar=${(v) => cambiar({ depto_origen: v })} sugerencias=${deptos} ariaLabel="Depto. origen" /></label>
+            <label class="campo"><span>Destino</span><${CampoSugerido} id="corr-destino" valor=${datos.destino ?? ""}
+              alCambiar=${(v) => cambiar(transferencia ? { destino: v, observaciones: conUsoEn(datos.observaciones, v, { agregar: false }) } : { destino: v })}
+              sugerencias=${lugares} ariaLabel="Destino" /></label>
+            <label class="campo"><span>Depto. destino</span><${CampoSugerido} id="corr-depto-destino" valor=${datos.depto_destino ?? ""} alCambiar=${(v) => cambiar({ depto_destino: v })} sugerencias=${deptos} ariaLabel="Depto. destino" /></label>
+          </div>
+        </section>`
+      : null}
 
     ${etapa && (editarEtapa || !texto(datos.etapa_perforacion))
       ? html`<div class="tarjeta-paso editor-etapa">

@@ -331,7 +331,8 @@ cada una (capturas en `capturas/ronda-39/etapa-N/`):
   en el buscador ya dice su contenedor; lo que llega de Copilot solo se acomoda si vive en un solo contenedor.
 - ☑ Etapa 4: paso 3 · Acomodo por contenedor (★ lo que vive en un solo contenedor; teclas 1…9).
 - ☑ Etapa 5: paso 4 · Revisar y registrar (lo que impide registrar lleva a su paso y partida).
-- ☐ Etapa 6: corrección de salidas y entradas desde la revisión.
+- ☑ Etapa 6: corrección de salidas y entradas desde la revisión (secciones con «Editar» → el paso con *Listo*; lo que
+  cambió en ámbar; *Cambios · N* con lo que mueve en el inventario, el motivo, *Guardar* y *Cancelar*).
 - ☐ Etapa 7: tipo por defecto en *Ajustes*, limpieza y documentación.
 
 **Ronda 38 — el reporte diario no se guardaba en sus carpetas (fallo reportado con grabación y registro).** Tras el
