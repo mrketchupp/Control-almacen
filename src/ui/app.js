@@ -7,6 +7,7 @@ import { html } from "./html.js";
 import { MenusContextuales } from "./menuContextual.js";
 import { Icono } from "./iconos.js";
 import { AvisoNoGuardado } from "./avisoGuardado.js";
+import { irArriba } from "./desplazamiento.js";
 import { SeccionSegura } from "./seccionSegura.js";
 import { SelectorInventario } from "./inventario.js";
 import { PaginaAyuda } from "./paginas/ayuda.js";
@@ -416,7 +417,7 @@ function Marco() {
     const alCambiar = () => {
       const nueva = location.hash;
       capturarHistorialAntesDeNavegar();
-      if (!esDeMas(nueva) && nueva !== fondo.current) window.scrollTo(0, 0);
+      if (!esDeMas(nueva) && nueva !== fondo.current) irArriba();
       setRuta(nueva);
     };
     window.addEventListener("hashchange", alCambiar);

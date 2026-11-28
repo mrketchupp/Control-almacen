@@ -95,9 +95,10 @@ test("vale de salida en 3 pasos", async (t) => {
     for (const ancho of anchos) {
       await page.setViewportSize({ width: ancho, height: 900 });
       await page.waitForTimeout(250);
-      // La ventana crece hasta lo que mide la página: lo fijo abajo (el pie del paso) queda donde se ve, no encima.
+      // La ventana crece hasta lo que mide el área de trabajo (Ronda 39: la página nunca se desplaza; la cabecera y el
+      // menú quedan fijos): lo fijo abajo (el pie del paso) queda donde se ve, no encima.
       if (guardar) for (let i = 0; i < 3; i++) {
-        const alto = await page.evaluate(() => document.documentElement.scrollHeight);
+        const alto = await page.evaluate(() => { const a = document.querySelector(".cuerpo > main.contenido"); return innerHeight + (a ? a.scrollHeight - a.clientHeight : 0); });
         if (alto <= page.viewportSize().height) break;
         await page.setViewportSize({ width: ancho, height: alto });
         await page.waitForTimeout(150);
@@ -107,7 +108,8 @@ test("vale de salida en 3 pasos", async (t) => {
         const ancho = document.documentElement.clientWidth;
         const fuera = [...document.querySelectorAll("body *")].filter((el) => el.getBoundingClientRect().right > ancho + 0.5 && el.getClientRects().length)
           .map((el) => `${el.tagName.toLowerCase()}.${[...el.classList].join(".")} ${Math.round(el.getBoundingClientRect().right)}`);
-        return { px: document.documentElement.scrollWidth - ancho, fuera: fuera.slice(0, 8) };
+        const area = document.querySelector(".cuerpo > main.contenido");
+        return { px: Math.max(document.documentElement.scrollWidth - ancho, area ? area.scrollWidth - area.clientWidth : 0), fuera: fuera.slice(0, 8) };
       });
       assert.ok(desborde.px <= 0, `${nombre} a ${ancho} px: la página se sale ${desborde.px} px a lo ancho (${desborde.fuera.join(", ")})`);
       if (guardar) await page.screenshot({ path: join(capturas, `${nombre}-${ancho}.png`) });
@@ -216,7 +218,7 @@ test("vale de salida en 3 pasos", async (t) => {
     });
     await page.keyboard.press("Escape");
     // La página no se desplaza: solo los resultados y la lista tienen scroll.
-    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1), "el paso 2 no debe desplazar la página");
+    assert.ok(await page.evaluate(() => { const a = document.querySelector(".cuerpo > main.contenido"); return document.documentElement.scrollHeight <= innerHeight + 1 && a.scrollHeight <= a.clientHeight + 1; }), "el paso 2 no debe desplazar la página ni el área de trabajo");
     await buscador.fill("");
     await revisar.click();
     assert.equal(await pasoActual(), "3 · Revisar y emitir");

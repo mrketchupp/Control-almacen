@@ -1,5 +1,6 @@
 // Sólo navegación local: nunca se agrega a los datos del inventario ni a sus respaldos.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { areaDeTrabajo, desplazamiento, desplazarA, irArriba } from "./desplazamiento.js";
 
 const memorias = new WeakMap();
 const capturas = new Set();
@@ -57,7 +58,7 @@ export function useMemoriaHistorial(sesion, vista, iniciales) {
     recordada.mostrar = 200;
     setMostrar(200);
     if (raiz.current) for (const tabla of raiz.current.querySelectorAll(".tabla-contenedor")) { tabla.scrollLeft = 0; tabla.scrollTop = 0; }
-    window.scrollTo(0, 0);
+    irArriba();
     guardar(sesion);
     setFiltros(nuevos);
   };
@@ -67,19 +68,23 @@ export function useMemoriaHistorial(sesion, vista, iniciales) {
     const elemento = raiz.current;
     const capturar = () => {
       if (restaurando) return;
-      recordada.y = posicion(window.scrollY);
-      recordada.x = posicion(window.scrollX);
+      // Ronda 39: lo que se desplaza es el área de trabajo, no la página.
+      const { x, y } = desplazamiento();
+      recordada.y = posicion(y);
+      recordada.x = posicion(x);
       recordada.tablaX = posicion(elemento?.querySelector(".tabla-contenedor")?.scrollLeft);
       recordada.tablaY = posicion(elemento?.querySelector(".tabla-contenedor")?.scrollTop);
       guardar(sesion);
     };
     const alDesplazar = () => { if (/^#historial(?:\/|$)/.test(location.hash)) capturar(); };
     capturas.add(capturar);
+    const area = areaDeTrabajo();
     window.addEventListener("scroll", alDesplazar, { passive: true });
+    area?.addEventListener("scroll", alDesplazar, { passive: true });
     elemento?.addEventListener("scroll", alDesplazar, { passive: true, capture: true });
     primerFrame = requestAnimationFrame(() => {
       segundoFrame = requestAnimationFrame(() => {
-        window.scrollTo(recordada.x, recordada.y);
+        desplazarA(recordada.x, recordada.y);
         const tabla = elemento?.querySelector(".tabla-contenedor");
         if (tabla) { tabla.scrollLeft = recordada.tablaX; tabla.scrollTop = recordada.tablaY; }
         restaurando = false;
@@ -92,6 +97,7 @@ export function useMemoriaHistorial(sesion, vista, iniciales) {
       cancelAnimationFrame(segundoFrame);
       capturas.delete(capturar);
       window.removeEventListener("scroll", alDesplazar);
+      area?.removeEventListener("scroll", alDesplazar);
       elemento?.removeEventListener("scroll", alDesplazar, true);
     };
   }, [sesion, vista]);

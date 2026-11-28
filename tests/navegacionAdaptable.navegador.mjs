@@ -60,7 +60,7 @@ test("navegación adaptable y preferencia de menú compacto en Chromium", async 
     return { page, terminar };
   }
   async function sinDesbordamiento(page) {
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, "La página se sale del ancho de la ventana");
+    assert.equal(await page.evaluate(() => (() => { const a = document.querySelector(".cuerpo > main.contenido"); return Math.max(document.documentElement.scrollWidth - innerWidth, a ? a.scrollWidth - a.clientWidth : 0); })() <= 1), true, "La página se sale del ancho de la ventana");
   }
   const ancho = async (loc) => Math.round((await loc.boundingBox()).width);
 
@@ -81,16 +81,19 @@ test("navegación adaptable y preferencia de menú compacto en Chromium", async 
     assert.ok(selector.x + selector.width <= caja.x && Math.abs(selector.y + selector.height / 2 - (caja.y + caja.height / 2)) <= 2, "DLTA | GSM junto al botón");
     await contraer.click();
     assert.equal(await ancho(nav), 64);
-    // De íconos: el inventario vuelve a la cabecera y la lista no tiene barra horizontal (aunque tenga la vertical).
+    // De íconos: el inventario vuelve a la cabecera. Ronda 39 (docs/14 §1): a 600 px de alto el menú se compacta y cabe
+    // (sin barra vertical ni horizontal); «Ajustes y más» y la cabecera se ven completos.
     assert.equal(await enCabecera.isVisible(), true);
     assert.equal(await enMenu.count(), 0);
     const lista = page.locator(".nav-principal");
-    assert.equal(await lista.evaluate((e) => e.scrollHeight > e.clientHeight), true, "a 600 px de alto la lista necesita su barra vertical");
+    assert.equal(await lista.evaluate((e) => e.scrollHeight <= e.clientHeight), true, "a 600 px de alto el menú cabe compacto, sin desplazarse");
     assert.equal(await lista.evaluate((e) => e.scrollWidth <= e.clientWidth), true, "sin barra horizontal en el menú de íconos");
+    const cajaMas = await nav.locator(".nav-boton-mas").boundingBox();
+    assert.ok(cajaMas.y >= 0 && cajaMas.y + cajaMas.height <= 600, "«Ajustes y más» se ve completo");
     const inventario = nav.getByRole("link", { name: "Inventario", exact: true });
     assert.equal(await inventario.getAttribute("title"), "Inventario");
     const boton = await inventario.boundingBox();
-    assert.deepEqual([Math.round(boton.width), Math.round(boton.height)], [44, 44]);
+    assert.deepEqual([Math.round(boton.width), Math.round(boton.height)], [44, 38], "compacto a lo alto en una ventana baja");
     await nav.hover(); await page.waitForTimeout(300);
     assert.equal(await ancho(nav), 64, "no se abre solo al pasar el cursor");
     await page.reload();

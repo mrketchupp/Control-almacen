@@ -8,6 +8,7 @@ import { corregirDimensionNp, lugarCorto, renglonDe, sugerenciasClave, ubicacion
 import { ErrorReacomodo, historialReacomodos, reacomodar } from "../../servicios/reacomodos.js";
 import { Boton, Buscador, CampoSugerido, Detalles, Lista, Pastilla, Segmentos, Tabla, Tarjeta, Ventana, num, useFiltroTexto, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { irArriba } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
 import { EditorClave, useCorreccion } from "./clave.js";
 import { BotonDescripcion, EditorDescripcion } from "./descripcion.js";
@@ -241,7 +242,7 @@ export function PaginaInventario() {
           { texto: f.np ? "Cambiar el NP…" : "Anotar el NP…", accion: () => setAnotandoNp(f.id) },
           { texto: "Editar dimensión y NP…", accion: () => setCorrigiendo(f.id) },
           { texto: "Editar la descripción del código…", accion: () => setDescribiendo(f.codigo) },
-          { texto: "Mover a otro contenedor…", accion: () => { setMoviendo(f.id); window.scrollTo(0, 0); } },
+          { texto: "Mover a otro contenedor…", accion: () => { setMoviendo(f.id); irArriba(); } },
         ],
       })}
       columnas=${[
@@ -281,7 +282,7 @@ export function PaginaInventario() {
             <button type="button" class="boton boton-texto boton-mover" title="Corregir la dimensión o el NP" onClick=${() => setCorrigiendo(f.id)}>Editar</button>
             <button type="button" class="boton boton-texto boton-mover" title="Mover a otro contenedor" onClick=${() => {
               setMoviendo(f.id);
-              window.scrollTo(0, 0);
+              irArriba();
             }}>Mover</button>
           </span>`,
         },

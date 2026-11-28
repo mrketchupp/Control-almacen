@@ -10,6 +10,7 @@ import { PLANTILLAS_VALE } from "../../servicios/plantillasVale.js";
 import { generarRevision, leerRevision } from "../../servicios/revision.js";
 import { Aviso, Boton, Dato, Detalles, ElegirArchivo, Tabla, Ventana, confirmar, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { irArriba } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
 import { seguirConArchivo } from "../inventario.js";
 import { ElegirPlantilla } from "./areas.js";
@@ -328,7 +329,7 @@ export function PaginaPrimeraCarga() {
     if (ambos && !antes.current && paso === 1) setPaso(2);
     antes.current = ambos;
   }, [ambos]);
-  useEffect(() => window.scrollTo(0, 0), [paso]);
+  useEffect(() => irArriba(), [paso]);
 
   const cargarInventario = (archivo) =>
     seguirConArchivo(sesion, archivo.name) &&

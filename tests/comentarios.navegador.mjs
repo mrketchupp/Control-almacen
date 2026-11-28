@@ -91,7 +91,7 @@ test("la carga simplificada conserva el recorrido de emitir, imprimir, exportar 
     if (process.env.COMENTARIOS_SCREENSHOTS) await page.screenshot({ path: join(process.env.COMENTARIOS_SCREENSHOTS, "primera-carga.png"), fullPage: true });
     for (const [nombre, vista] of [["ventana", { width: 960, height: 700 }], ["movil", { width: 390, height: 844 }]]) {
       await page.setViewportSize(vista);
-      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `La primera carga desborda en ${nombre}`);
+      assert.equal(await page.evaluate(() => (() => { const a = document.querySelector(".cuerpo > main.contenido"); return Math.max(document.documentElement.scrollWidth - innerWidth, a ? a.scrollWidth - a.clientWidth : 0); })() <= 1), true, `La primera carga desborda en ${nombre}`);
       if (nombre === "movil") {
         // Sin espacio para los dos lado a lado: cada botón a todo lo ancho, el principal arriba.
         const barraMovil = await page.locator(".carga-navegacion").boundingBox();

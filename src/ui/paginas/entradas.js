@@ -33,6 +33,7 @@ import { etiquetasDeEntrada } from "../../servicios/etiquetas.js";
 import { siguienteFolio } from "../../servicios/vales.js";
 import { Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, Ventana, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { irArriba } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
 import { hayAnimaciones } from "../tema.js";
 import { PasosCopilot } from "./capturaIA.js";
@@ -806,7 +807,7 @@ export function PaginaValesEntrada() {
         // Se muestran solo las partidas con pendientes (y lo que falta del encabezado).
         if (atencion.pendientes.length) setFiltro({ tipo: "pendientes", uids: new Set(atencion.pendientes) });
         setVerErrores(atencion.encabezado.length > 0);
-        window.scrollTo({ top: 0, behavior: hayAnimaciones() ? "smooth" : "auto" });
+        irArriba({ suave: hayAnimaciones() });
         return;
       }
       const folio = folioEntrada(siguienteFolio(sesion.estado, "ENTRADA"));

@@ -319,6 +319,18 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 3. Al cerrar la fase: `ControlAlmacen.html` nuevo + notas de versión + lista de verificación de aceptación para el usuario.
 4. Los datos del usuario pasan de una versión a otra sin hacer nada: se quedan en su navegador (y en sus respaldos).
 
+**Ronda 39 — vale de entrada en 4 pasos y corrección en la revisión** (rama `desarrollo`; especificación
+`docs/14-rediseno-entradas-y-correccion.md`, maquetas `docs/diseno/ronda-39/`). Por etapas, con revisión del usuario en
+cada una (capturas en `capturas/ronda-39/etapa-N/`):
+- ☑ Etapa 1: la cabecera y el menú lateral nunca se desplazan; solo el área de trabajo (en todas las secciones). Con
+  poca altura, el menú se compacta en lugar de desplazarse.
+- ☐ Etapa 2: entrada con pasos e indicador; paso 1 · De dónde viene (con la ventana de Copilot de hoy, sin dibujos).
+- ☐ Etapa 3: paso 2 · Material (lista nueva, filtros, Consumible | Inventariable, editar partida).
+- ☐ Etapa 4: paso 3 · Acomodo por contenedor.
+- ☐ Etapa 5: paso 4 · Revisar y registrar.
+- ☐ Etapa 6: corrección de salidas y entradas desde la revisión.
+- ☐ Etapa 7: tipo por defecto en *Ajustes*, limpieza y documentación.
+
 **Ronda 38 — el reporte diario no se guardaba en sus carpetas (fallo reportado con grabación y registro).** Tras el
 apagón, Edge «perdió» la carpeta base (INVENTARIO DIARIO) y los libros de vales fijados: nada de lo que se les pregunta
 responde (el registro: *Edge no respondió en 6 s al consultarlo*), al elegir la carpeta otra vez la herramienta se quedaba

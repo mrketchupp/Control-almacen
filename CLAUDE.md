@@ -281,6 +281,17 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   (base: `elegirCarpetaReporte` y sigue; libro: `elegirLibroValesGuardando` y `generar`); si la consulta no contesta,
   aviso `textoPerdido` con *Elegir la carpeta…* / *Elegir el libro…*. `textoDestino` y `EstadoPermiso` lo marcan.
   Pruebas en `destinos.test.js` (`perdido()`, `baseComunDeEdge`).
+- Ronda 39 (en curso, rama `desarrollo`; especificación `docs/14-rediseno-entradas-y-correccion.md`, maquetas
+  `docs/diseno/ronda-39/`; se revisa etapa por etapa, §14): **vale de entrada en 4 pasos y corrección en la revisión**.
+  Etapa 1 (§1, marco sin scroll de página): `html, body` sin desplazamiento con la herramienta abierta
+  (`:has(.marco)`; el arranque y el rescate sí se desplazan; al imprimir se quita); `.marco` de `100dvh` en columna,
+  `.cabecera` y `.navegacion` ya no son `sticky`; **lo único que se desplaza es `.cuerpo > main.contenido`** (dentro,
+  `--alto-cabecera: 0px` para lo pegajoso; el ancho máximo de 1400 px va como relleno derecho para que la barra quede
+  en la orilla). El menú no se desplaza: con poca altura se compacta (`max-height: 680px` / `560px`). `ui/desplazamiento.js`
+  (`areaDeTrabajo`, `irArriba`, `desplazamiento`, `desplazarA`) sustituye a `window.scrollTo` / `scrollY` (marco, memoria
+  del historial, entradas, inventario, primera carga, vale, `useAltoDisponible`). Prueba Chromium `marco.navegador.mjs`
+  (todas las secciones a 1440×900, 1440×700 y 768×700, arriba y desplazadas hasta abajo); las que medían la página
+  ahora miden el área de trabajo.
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

@@ -214,7 +214,7 @@ test("reporte diario: «Guardar como» que falla no se calla y el Excel no se pi
       await r.pulsar(TARJETA_VALES, "ocupado");
       const ventana = dialogo(r.page);
       await ventana.waitFor();
-      const ancho = await r.page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+      const ancho = await r.page.evaluate(() => [window.innerWidth + Math.max(0, (() => { const a = document.querySelector(".cuerpo > main.contenido"); return Math.max(document.documentElement.scrollWidth - innerWidth, a ? a.scrollWidth - a.clientWidth : 0); })()), window.innerWidth]);
       assert.ok(ancho[0] <= ancho[1], `sin desplazamiento horizontal (${ancho})`);
       const caja = await ventana.boundingBox();
       assert.ok(caja.x >= 0 && caja.x + caja.width <= ancho[1] + 1, "la ventana cabe a lo ancho");

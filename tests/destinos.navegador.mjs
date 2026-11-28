@@ -311,7 +311,7 @@ test("reporte diario: cada archivo a su carpeta (año y mes del día), sin «Gua
       await v.waitFor();
       await v.getByRole("button", { name: "Elegir carpeta…" }).click();
       await v.locator(".carpeta-vista", { hasText: "10.OCTUBRE" }).waitFor();
-      const ancho = await r.page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+      const ancho = await r.page.evaluate(() => [window.innerWidth + Math.max(0, (() => { const a = document.querySelector(".cuerpo > main.contenido"); return Math.max(document.documentElement.scrollWidth - innerWidth, a ? a.scrollWidth - a.clientWidth : 0); })()), window.innerWidth]);
       assert.ok(ancho[0] <= ancho[1], `sin desplazamiento horizontal (${ancho})`);
       const caja = await v.boundingBox();
       assert.ok(caja.x >= 0 && caja.x + caja.width <= ancho[1] + 1, "la ventana cabe a lo ancho");

@@ -32,6 +32,7 @@ import {
 } from "../../servicios/vales.js";
 import { Aviso, Boton, CampoSugerido, Combo, Lista, Pastilla, Tarjeta, Teclas, confirmar, num, useAtajo, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { irArriba } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
 import { BotonDescripcion } from "./descripcion.js";
 import { VentanaCopiarVale, crearSalidaDesdeVale } from "./copiarVale.js";
@@ -796,7 +797,7 @@ export function PaginaValesSalida() {
     const foco = enfocarPaso.current;
     enfocarPaso.current = false;
     contenedorPaso.current?.focus({ preventScroll: true });
-    window.scrollTo?.({ top: 0 });
+    irArriba();
     // «Corregir» desde el paso 3: el campo que lo arregla.
     if (typeof foco === "string") requestAnimationFrame(() => document.querySelector(foco)?.focus());
   });

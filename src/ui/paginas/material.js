@@ -34,6 +34,7 @@ import { deVale, folioDeVale } from "../../servicios/copiarVale.js";
 import { disponibles, plantillaArea } from "../../servicios/vales.js";
 import { AyudaAtajos, Pastilla, Tecla, num, useSesion } from "../componentes.js";
 import { html } from "../html.js";
+import { desplazamiento } from "../desplazamiento.js";
 import { Icono } from "../iconos.js";
 import { VentanaCopiarVale } from "./copiarVale.js";
 import { BotonDescripcion } from "./descripcion.js";
@@ -60,7 +61,7 @@ function useAltoDisponible(ref) {
       const contenido = el.closest(".contenido");
       const relleno = contenido ? parseFloat(getComputedStyle(contenido).paddingBottom) || 0 : 0;
       const reserva = Math.max(parseFloat(getComputedStyle(el).getPropertyValue("--reserva-abajo")) || 24, relleno);
-      const arriba = el.getBoundingClientRect().top + window.scrollY;
+      const arriba = el.getBoundingClientRect().top + desplazamiento().y;
       setAlto(Math.max(420, Math.floor(window.innerHeight - arriba - reserva)));
     };
     medir();

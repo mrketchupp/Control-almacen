@@ -77,7 +77,7 @@ test("el historial conserva su recorrido en Chromium", async (t) => {
   }
   const pausa = (page) => page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const filas = (page) => page.locator("[data-historial] tbody tr");
-  const posicion = (page) => page.evaluate(() => ({ y: scrollY, x: document.querySelector("[data-historial] .tabla-contenedor")?.scrollLeft ?? 0,
+  const posicion = (page) => page.evaluate(() => ({ y: document.querySelector(".cuerpo > main.contenido").scrollTop, x: document.querySelector("[data-historial] .tabla-contenedor")?.scrollLeft ?? 0,
     tablaY: document.querySelector("[data-historial] .tabla-contenedor")?.scrollTop ?? 0 }));
   async function recorrer(page, indice) {
     const fila = filas(page).nth(indice);
@@ -91,11 +91,11 @@ test("el historial conserva su recorrido en Chromium", async (t) => {
     await page.getByRole("menuitem", { name: /Abrir (vale|entrada)/, exact: false }).click();
     await page.waitForFunction(() => /^#(?:vale|entrada)\//.test(location.hash));
     await pausa(page);
-    assert.equal(await page.evaluate(() => scrollY), 0);
+    assert.equal(await page.evaluate(() => document.querySelector(".cuerpo > main.contenido").scrollTop), 0);
     return guardada;
   }
   async function restaurada(page, guardada) {
-    await page.waitForFunction(({ y, x, tablaY }) => Math.abs(scrollY - y) <= 3 &&
+    await page.waitForFunction(({ y, x, tablaY }) => Math.abs((document.querySelector(".cuerpo > main.contenido")?.scrollTop ?? -100) - y) <= 3 &&
       Math.abs((document.querySelector("[data-historial] .tabla-contenedor")?.scrollLeft ?? 0) - x) <= 3 &&
       Math.abs((document.querySelector("[data-historial] .tabla-contenedor")?.scrollTop ?? 0) - tablaY) <= 3, guardada);
   }
@@ -123,7 +123,7 @@ test("el historial conserva su recorrido en Chromium", async (t) => {
     await pausa(page);
     assert.equal(await buscador.inputValue(), "");
     assert.equal(await filas(page).count(), 200);
-    assert.equal(await page.evaluate(() => scrollY), 0);
+    assert.equal(await page.evaluate(() => document.querySelector(".cuerpo > main.contenido").scrollTop), 0);
     verificar();
   });
 

@@ -187,9 +187,18 @@ h3 {
 
 /* ---------------------------------------------------------------- marco */
 
+/* Ronda 39 (docs/14 §1): la página nunca se desplaza. La cabecera y el menú lateral siempre están a la vista; lo único
+   que se desplaza es el área de trabajo (main.contenido) y, dentro de ella, lo que ya tiene scroll propio. Solo con la
+   herramienta abierta (.marco): las pantallas del arranque y del rescate siguen desplazándose como página. */
+html:has(.marco),
+body:has(.marco) {
+  height: 100%;
+  overflow: hidden;
+}
+
 .cabecera {
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex: none;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -348,6 +357,11 @@ h3 {
 
 .marco {
   --ancho-menu: 236px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .marco.menu-compacto {
@@ -357,12 +371,20 @@ h3 {
 .cuerpo {
   display: grid;
   grid-template-columns: var(--ancho-menu) minmax(0, 1fr);
-  min-height: calc(100vh - var(--alto-cabecera, 57px));
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-/* El contenido siempre en su columna (el menú abierto encima sale de la rejilla). */
+/* El contenido siempre en su columna (el menú abierto encima sale de la rejilla). Es lo único que se desplaza; lo
+   pegajoso de adentro se mide desde su borde de arriba (ya no hay cabecera encima: --alto-cabecera = 0). */
 .cuerpo > .contenido {
   grid-column: 2;
+  grid-row: 1;
+  --alto-cabecera: 0px;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 /* Por debajo de 1280 px la columna del menú es la de íconos aunque JavaScript todavía no se haya enterado del cambio
@@ -379,15 +401,13 @@ h3 {
 }
 
 .navegacion {
-  position: sticky;
-  top: var(--alto-cabecera, 57px);
-  align-self: start;
+  position: relative;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: calc(100vh - var(--alto-cabecera, 57px));
-  height: calc(100dvh - var(--alto-cabecera, 57px));
   min-height: 0;
+  overflow: hidden;
   padding: 12px 10px;
   border-right: 1px solid var(--borde);
   background: var(--superficie);
@@ -496,9 +516,9 @@ h3 {
   text-align: center;
 }
 
+/* Hasta 1400 px de ancho, a la izquierda como siempre; la barra de desplazamiento queda en la orilla de la ventana. */
 .contenido {
-  padding: 24px 28px 64px;
-  max-width: 1400px;
+  padding: 24px max(28px, calc(100% - 1372px)) 64px 28px;
   width: 100%;
   min-width: 0;
 }
@@ -550,6 +570,39 @@ h3 {
   background: var(--alerta);
   font-size: 0;
   line-height: 0;
+}
+
+/* Si el menú no cabe a lo alto, se compacta (no se desplaza): menos separación entre secciones. */
+@media (max-height: 680px) {
+  .navegacion {
+    gap: 8px;
+    padding-block: 8px;
+  }
+
+  .navegacion a,
+  .nav-boton-mas {
+    padding-block: 5px;
+  }
+
+  .navegacion.nav-iconos a,
+  .navegacion.nav-iconos .nav-boton-mas,
+  .navegacion.nav-iconos .nav-alternar {
+    height: 38px;
+    min-height: 38px;
+  }
+}
+
+@media (max-height: 560px) {
+  .navegacion a,
+  .nav-boton-mas {
+    padding-block: 3px;
+  }
+
+  .navegacion.nav-iconos a,
+  .navegacion.nav-iconos .nav-boton-mas {
+    height: 32px;
+    min-height: 32px;
+  }
 }
 
 /* Ventana angosta: expandir abre el menú completo encima del contenido, con el fondo oscurecido. */
@@ -2047,6 +2100,13 @@ select.con-error {
 }
 
 @media print {
+  /* Al imprimir sí hay páginas: sin el marco de 100vh ni el overflow que lo recortaría a una sola hoja. */
+  html:has(.marco),
+  body:has(.marco) {
+    height: auto;
+    overflow: visible;
+  }
+
   body.imprimiendo > :not(#area-impresion) {
     display: none !important;
   }
