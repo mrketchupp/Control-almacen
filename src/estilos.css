@@ -11290,3 +11290,390 @@ kbd.tecla {
   text-decoration: line-through;
   cursor: pointer;
 }
+
+/* ---------------------------------------------------------------- vale de entrada en 4 pasos (Ronda 39, docs/14 §3–§4) */
+
+/* El indicador con 4 pasos (el de salida tiene 3). */
+.pasos-4 ol {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.paso-de-donde {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* «¿Tienes foto o PDF del vale?» con «Llenar con Copilot» (§4). */
+.franja-copilot {
+  display: flex;
+  align-items: center;
+  gap: 14px 16px;
+  padding: 16px 20px;
+  border: 1px solid color-mix(in srgb, var(--primario) 28%, var(--borde));
+  border-radius: 12px;
+  background: var(--primario-suave);
+}
+
+.franja-copilot-icono {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--primario);
+  color: var(--sobre-primario);
+}
+
+.franja-copilot-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+}
+
+.franja-copilot-texto strong {
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+.franja-copilot .boton {
+  flex: none;
+  min-height: 48px;
+}
+
+.etiqueta-campo {
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.grupo-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* «Otro origen…» debajo de los botones, con el borde punteado del lienzo hasta que se escribe. */
+.campo-otro-origen input {
+  min-height: 46px;
+  border-style: dashed;
+  font-size: 0.95rem;
+}
+
+.campo-otro-origen input:focus,
+.campo-otro-origen input:not(:placeholder-shown) {
+  border-style: solid;
+}
+
+.campos-dos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.campos-dos .campo {
+  min-width: 0;
+}
+
+.campos-dos .combo input {
+  min-height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Lo que no se escribe (quien recibe = el almacenista en turno). */
+.valor-fijo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--superficie-2);
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+.valor-fijo .nota {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.valor-falta {
+  color: var(--alerta);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Lo que falta para continuar, marcado en ámbar (docs/14 §2.1). */
+.con-falta input,
+.con-falta .valor-fijo,
+.grupo-campo.con-falta .opcion-grande {
+  border-color: var(--alerta);
+}
+
+.con-falta input {
+  box-shadow: 0 0 0 1px var(--alerta);
+}
+
+.paso-de-donde .tarjeta-paso > .nota,
+.paso-de-donde #recibido-nota .nota,
+.paso-de-donde .recibido-aviso {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.paso-de-donde .aviso-folio {
+  padding: 8px 10px;
+  border-left: 3px solid var(--alerta);
+  border-radius: 4px;
+  background: var(--alerta-suave);
+  font-size: 0.875rem;
+}
+
+.observaciones-entrada {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.observaciones-entrada .campo {
+  flex: 1 1 320px;
+}
+
+.pie-observaciones > .nota {
+  max-width: 48ch;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Con las dos mitades, «Continuar a material» siempre a la vista, como en salida. */
+@media (min-width: 900px) {
+  .paso-entrada-1 .pie-paso {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 12px 0;
+    background: linear-gradient(to top, var(--fondo) 80%, transparent);
+  }
+}
+
+/* «BASE PRUEBA · vale B-400 / Del 20/11 · recibido hoy · entregó …» con «Editar». */
+.resumen-de-donde {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.resumen-de-donde-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.resumen-de-donde-texto strong {
+  font-size: 1rem;
+}
+
+.resumen-de-donde-texto .nota {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* El paso 2 de antes (hasta la etapa 3): la barra ya no es fija dentro del paso. */
+.paso-material-anterior {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.paso-material-anterior .barra-entrada {
+  margin: 0;
+}
+
+.paso-material-anterior .reporte-ia-banner {
+  margin: 0;
+}
+
+/* ---------- ventana «Llenar con Copilot» (§4.1) */
+
+.ventana.ventana-copilot-entrada {
+  width: min(660px, 100%);
+}
+
+.copilot-titulo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.copilot-titulo .franja-copilot-icono {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.copilot-pasos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.copilot-pasos > li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--borde);
+}
+
+.copilot-pasos > li:first-child {
+  padding-top: 4px;
+  border-top: 0;
+}
+
+.copilot-pasos > li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.copilot-pasos .nota,
+.copilot-pasos .alerta {
+  margin: 0;
+}
+
+.copilot-marca {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--borde);
+  border-radius: 50%;
+  background: var(--superficie);
+  color: var(--texto-suave);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.copilot-marca.hecho {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--sobre-intenso);
+}
+
+.boton-hecho {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--borde));
+  background: var(--ok-suave);
+  color: var(--ok);
+}
+
+.boton-hecho:hover {
+  background: var(--ok-suave);
+  border-color: var(--ok);
+}
+
+.copilot-leido {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border: 2px solid color-mix(in srgb, var(--ok) 45%, var(--borde));
+  border-radius: 10px;
+  background: var(--ok-suave);
+  font-size: 0.9rem;
+}
+
+.copilot-leido-titulo {
+  color: var(--ok);
+  font-size: 1rem;
+}
+
+.copilot-leido-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 16px;
+}
+
+.copilot-leido-partidas {
+  margin: 0;
+}
+
+.copilot-revisar {
+  color: var(--alerta);
+  font-weight: 600;
+}
+
+.copilot-leido .nota {
+  font-size: 0.8rem;
+}
+
+.ventana-copilot-entrada .ver-instrucciones pre {
+  max-height: 180px;
+  overflow: auto;
+}
+
+/* Los botones de abajo siempre a la vista, separados del contenido. */
+.ventana-pie {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 8px -18px -20px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--borde);
+  border-radius: 0 0 13px 13px;
+  background: var(--superficie);
+}
+
+.ventana-pie .boton {
+  justify-content: center;
+  min-height: 46px;
+  padding-inline: 18px;
+}
+
+@media (max-width: 899px) {
+  .franja-copilot {
+    flex-wrap: wrap;
+  }
+
+  .franja-copilot .boton {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 520px) {
+  .campos-dos,
+  .copilot-leido-datos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ventana-pie .boton {
+    flex: 1 1 100%;
+  }
+}

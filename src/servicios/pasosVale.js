@@ -59,9 +59,12 @@ export function faltaParaAvanzar(estado, datos, paso = pasoDe(datos)) {
   return [];
 }
 
-/** Cómo se ve cada paso en el indicador desde el paso actual: los anteriores, completos; los siguientes, pendientes. */
-export function estadoDePasos(actual) {
-  return PASOS.map((p) => ({ ...p, estado: p.numero < actual ? "completo" : p.numero === actual ? "actual" : "pendiente" }));
+/**
+ * Cómo se ve cada paso en el indicador desde el paso actual: los anteriores, completos; los siguientes, pendientes.
+ * `pasos`: los del vale de salida o los de la entrada (Ronda 39, `PASOS_ENTRADA`).
+ */
+export function estadoDePasos(actual, pasos = PASOS) {
+  return pasos.map((p) => ({ ...p, estado: p.numero < actual ? "completo" : p.numero === actual ? "actual" : "pendiente" }));
 }
 
 // ---------------------------------------------------------------- paso 1 · para quién (§3)

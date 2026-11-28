@@ -324,7 +324,9 @@ Criterios de aceptación (✔ = verificado por el desarrollo; ☐ = lo verifica 
 cada una (capturas en `capturas/ronda-39/etapa-N/`):
 - ☑ Etapa 1: la cabecera y el menú lateral nunca se desplazan; solo el área de trabajo (en todas las secciones). Con
   poca altura, el menú se compacta en lugar de desplazarse.
-- ☐ Etapa 2: entrada con pasos e indicador; paso 1 · De dónde viene (con la ventana de Copilot de hoy, sin dibujos).
+- ☑ Etapa 2: entrada con pasos e indicador; paso 1 · De dónde viene (con la ventana de Copilot de hoy, sin dibujos).
+  Los orígenes salen de las entradas registradas; lo que falta se marca al pulsar *Continuar*; Copilot muestra lo leído
+  antes de usarlo. Mientras llega la etapa 3, el paso 2 es el editor de partidas de antes (con *Registrar entrada*).
 - ☐ Etapa 3: paso 2 · Material (lista nueva, filtros, Consumible | Inventariable, editar partida).
 - ☐ Etapa 4: paso 3 · Acomodo por contenedor.
 - ☐ Etapa 5: paso 4 · Revisar y registrar.

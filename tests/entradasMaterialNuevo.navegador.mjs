@@ -30,7 +30,7 @@ test("el editor de entradas permite otra variante con el mismo tamaño, con NP d
     const { estado } = cargaSintetica(); estado.config.usuario_en_turno = "ALMACENISTA UNO";
     const sugerida = entradaConArticulo(estado, lineaEntradaVacia(), 704);
     const b = nuevoBorradorEntrada(estado, { usuario: "ALMACENISTA UNO", fecha: "2026-10-02" });
-    Object.assign(b, { modo: "manual", folio_externo: "BASE-SINTETICA", origen: "BASE PRUEBA" });
+    Object.assign(b, { modo: "manual", folio_externo: "BASE-SINTETICA", origen: "BASE PRUEBA", paso: 2 });
     b.lineas = [{ ...sugerida, cantidad: "2" }];
     await almacen.cargarPrimeraVez(estado, [
       { tipo: "INVENTARIO", nombre: "INVENTARIO SINTETICO.xlsx", datos: bytesInventario() },

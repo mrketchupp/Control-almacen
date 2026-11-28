@@ -292,6 +292,23 @@ Herramienta **web** para el almacén del EQUIPO que **guarda todo en el equipo d
   del historial, entradas, inventario, primera carga, vale, `useAltoDisponible`). Prueba Chromium `marco.navegador.mjs`
   (todas las secciones a 1440×900, 1440×700 y 768×700, arriba y desplazadas hasta abajo); las que medían la página
   ahora miden el área de trabajo.
+  Etapa 2 (§3, §4, §11): `servicios/pasosEntrada.js` (`PASOS_ENTRADA`, `pasoDeEntrada` — sin paso = 1 —,
+  `faltaDeDondeViene` = los errores de encabezado de `validarEntrada` con texto corto, `faltaMaterialEntrada`,
+  `faltaParaAvanzarEntrada`, `origenesFrecuentes` (botones de *Viene de*: más usados, luego más recientes por hora y
+  folio), `puestoDeQuienEntrega` / `quienesEntregan`, `leerRespuestaCopilot` = `aplicarEntradaIA` sin guardar);
+  `nuevoBorradorEntrada` pone `paso: 1` (opcional, sin subir formato; no llega a la entrada). `estadoDePasos(actual,
+  pasos)` y `PasosVale({ lista, etiqueta })` sirven para los 4 pasos (`.pasos-4`). UI `ui/paginas/deDondeViene.js`:
+  `PasoDeDondeViene` (franja *Llenar con Copilot*, `RejillaOpciones` de orígenes + «Otro origen…» `#viene-de`, folio,
+  fechas, Recibe = en turno, Entregó nombre + puesto que se llena con el último; observaciones en el pie; lo que falta
+  se marca al pulsar *Continuar* o Enter, que no se deshabilita, y el foco va al primero: `FOCO_DE_DONDE_VIENE`),
+  `ResumenDeDondeViene` (con *Editar*) y `VentanaCopilotEntrada` (3 pasos con ✓, *Pegar* o Ctrl + V en la ventana
+  —listener en `useLayoutEffect`—, lo leído en verde sin guardar; *Ver las partidas →* lo aplica y pasa al 2 solo si
+  el 1 está completo; si no, se queda en el 1 con lo que falta marcado). `PaginaValesEntrada`: franja de borradores con
+  *Descartar borrador*, «Se registrará como E-000N · Se guarda solo», `#paso-entrada`; sin *Elegir modo* ni la guía de
+  Copilot. **Provisional hasta la etapa 3:** el paso 2 es el editor de antes (`EditorEntrada({ sinEncabezado })` +
+  `BarraEntrada` con *Pegar otra respuesta* y *Registrar entrada*; lo que falta del encabezado lleva al paso 1).
+  `PasosCopilot` (capturaIA.js) y los estilos de la guía quedan sin uso hasta la limpieza (etapa 7). Pruebas
+  `pasosEntrada.test.js` y Chromium `entradaPasos.navegador.mjs` (capturas con `CAPTURAS=…`).
 - Antes de empezar cada fase nueva, confirma que el usuario dio luz verde. Siguiente: F5 piloto en paralelo (ver `docs/08-plan.md`).
 - Formato del estado: `FORMATO_ESTADO = 18` (`src/nucleo/estado.js`, `migrarEstado`; el 18, base oficial: `existencia.dueno`, partidas de baja y el conteo `tipo: "AUDITORIA"`). El 3 agregó el tipo de área y la etapa de perforación; el 4, firmas extra, puesto de autoriza, fotos y quitó el folio mínimo (las áreas se completan leyendo otra vez la plantilla en `Almacen.iniciar`); el 5, `borradores_entrada`, `conteo_en_curso`, `reacomodos` y `alcance` de los conteos; el 6, `cortes_ax`, `equivalencias_ax` y `config.almacen_ax`; el 7, `seguimientos_base` (archivo de vales de la base); el 8, `corte.asignaciones` (vales asignados a faltantes); el 9,
 `config.inventario` (ids de `src/nucleo/inventarios.js`; los estados anteriores usan el inventario predeterminado) y, opcional, `config.vale_impreso` (textos y logos al imprimir); el 10,

@@ -87,6 +87,9 @@ export function nuevoBorradorEntrada(estado, { usuario = null, fecha = hoyIso(),
     creado_por: usuario,
     // Cómo se captura: null (aún no elige), 'manual' o 'asistida' (desde la foto con Copilot).
     modo: null,
+    // Ronda 39: en qué paso va (1 De dónde viene … 4 Revisar y registrar; `servicios/pasosEntrada.js`). Opcional: un
+    // borrador sin paso empieza en el 1 y no llega a la entrada registrada.
+    paso: 1,
     motivo: "BASE",
     folio_externo: "",
     folio_repetido: false,

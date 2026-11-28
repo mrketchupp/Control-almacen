@@ -34,7 +34,7 @@ const Falta = ({ mensaje }) => (mensaje ? html`<small class="falta">${mensaje}</
  * Botones grandes de una sola elección (áreas, destinos), en 2 columnas, como `radiogroup`: las flechas mueven el foco
  * y Enter o Espacio eligen. Con `teclas`, las 10 primeras muestran su tecla (1…9, 0) a la derecha.
  */
-function RejillaOpciones({ etiquetaId, opciones, elegida, alElegir, teclas = false }) {
+export function RejillaOpciones({ etiquetaId, opciones, elegida, alElegir, teclas = false }) {
   const raiz = useRef(null);
   const enfocable = Math.max(0, opciones.findIndex((o) => o.valor === elegida));
   const flechas = (e) => {

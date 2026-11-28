@@ -22,11 +22,12 @@ export function fechaCorta(iso, hoy = hoyIso()) {
  * (principio 9): para regresar están «← Para quién» y los «Editar» de cada resumen. En ventana angosta se resume como
  * «Paso 2 de 3 · Material» sobre las 3 barras.
  */
-export function PasosVale({ paso }) {
-  const pasos = estadoDePasos(paso);
-  return html`<div class="pasos-vale">
-    <p class="pasos-corto" aria-hidden="true">Paso ${paso} de ${pasos.length} · ${nombrePaso(paso)}</p>
-    <ol aria-label="Pasos del vale">
+export function PasosVale({ paso, lista = null, etiqueta = "Pasos del vale" }) {
+  const pasos = lista ? estadoDePasos(paso, lista) : estadoDePasos(paso);
+  const nombre = pasos.find((p) => p.numero === paso)?.nombre ?? nombrePaso(paso);
+  return html`<div class=${`pasos-vale pasos-${pasos.length}`}>
+    <p class="pasos-corto" aria-hidden="true">Paso ${paso} de ${pasos.length} · ${nombre}</p>
+    <ol aria-label=${etiqueta}>
       ${pasos.map(
         (p) => html`<li key=${p.numero} class=${`paso-${p.estado}`} aria-current=${p.estado === "actual" ? "step" : undefined}>
           <span class="paso-nombre">${p.estado === "completo" ? html`<span aria-hidden="true">✓ </span>` : null}${p.numero} · ${p.nombre}</span>

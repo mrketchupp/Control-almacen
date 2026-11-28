@@ -171,7 +171,7 @@ test("corregir la descripción de un código desde el inventario, la corrección
     const indices = new Indices(estado);
     const balero = estado.existencias.find((e) => indices.variante(e.variante_id).codigo === 701);
     const borrador = en.nuevoBorradorEntrada(estado, { usuario: "ALMACENISTA UNO", fecha: "2026-10-02" });
-    Object.assign(borrador, { folio_externo: "B-100", origen: "BASE PRUEBA", depto_origen: "ALMACEN GENERAL" });
+    Object.assign(borrador, { folio_externo: "B-100", origen: "BASE PRUEBA", depto_origen: "ALMACEN GENERAL", paso: 2 });
     borrador.lineas = [{ ...en.conRenglonExistente(estado, en.lineaEntradaVacia(), balero.id, indices), cantidad: "2" }];
     const { page, leer, errores, externas, cerrar } = await abrir(estado);
     await page.goto(`${origen}/#entradas`);
